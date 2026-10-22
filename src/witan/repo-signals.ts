@@ -5941,7 +5941,7 @@ function isPlainOneLineValue(value: string): boolean {
  * place. The top level holds only the keys PRINT_ONLY_TOP_LEVEL_KEY_PATTERN names (no top-level
  * `env` or `defaults`), and one `jobs:`. A job holds only PUBLISH_ONLY_JOB_KEYS, with
  * `permissions` and `environment` as a one-line scalar or a one-level mapping of plain entries,
- * and every job's `runs-on` names a GitHub-hosted Ubuntu or macOS runner, so the shell words below
+ * and every job's `runs-on` names a documented GitHub-hosted Ubuntu or macOS label, so the shell words below
  * are read as bash reads them (#564).
  * A step holds only PUBLISH_ONLY_STEP_KEYS and exactly one of `uses` and `run`; `with` and `env`
  * are one-level mappings of plain entries, a `with` value may be a `|`/`>` block, and an `env`
@@ -6058,7 +6058,7 @@ function placedPublishWorkflowSteps(contents: string): PlacedWorkflowStep[] | nu
       if (key[1] === 'needs' && NEEDS_FLOW_SEQUENCE_PATTERN.test(value)) continue;
       if (!isPlainOneLineValue(value)) return null;
       if (key[1] === 'runs-on') {
-        if (!GITHUB_HOSTED_BASH_RUNNER_PATTERN.test(value)) return null;
+        if (!isGitHubHostedBashRunner(value)) return null;
         jobHasBashRunner = true;
       }
       body = { kind: 'plain', column: indent };
@@ -6177,9 +6177,15 @@ function isRegistryConfigKey(key: string): boolean {
  * command, semantic-release, goreleaser, deploy CLIs, shell builtins, `--dry-run`, a code-loading
  * variable assignment, and any separator, substitution or redirect glued inside a word.
  */
+const PUBLISH_ONLY_INERT_WORD_PATTERN = /^[A-Za-z0-9_.,:/+=*-]+$/;
+
 function classifyPublishOnlyRunCommand(input: readonly string[]): PublishOnlyClassification {
   const other = { kind: 'other' } as const;
-  if (input.some((word) => /[`&|;<>]|\$\(/.test(word))) return other;
+  // Every word from a character allowlist inert in every shell (#564, review of #562): no
+  // expansion, substitution, redirect, separator, splat or hashtable (`$`, `@`, `{`, `(`, `%`, `!`,
+  // `~`, `;`, `|`, `&`, `<`, `>`, `\`, quotes). `*` is admitted: on the bash runners the job gate
+  // requires it is a filename glob, which runs nothing.
+  if (input.some((word) => !PUBLISH_ONLY_INERT_WORD_PATTERN.test(word))) return other;
   // Leading `NAME=value` assignments set the command's environment. Indexes, not repeated slices,
   // so a long run of them stays linear.
   let start = 0;
@@ -6429,11 +6435,26 @@ function fittedCiWorkflowCitationLabel(
 // and quotes, so no expansion, substitution, glob, redirect, separator, hashtable or splat (`@{`,
 // `$`, `%`, `!`, `~`, `*`, `?`, `[`, `{`, `=`, `\`) can appear (#564). Anything else is not claimed.
 const PRINT_ONLY_RUN_LINE_PATTERN = /^(?:(?:echo|printf)(?:[ \t][A-Za-z0-9 \t_.,:/+"'-]*)?|true|:|exit[ \t]+0)$/;
-// A `runs-on` value naming a GitHub-hosted Ubuntu or macOS runner, whose default `run` shell is
-// bash (#564). Windows runners default to pwsh, and a self-hosted runner, an expression, a list or a
-// group can run any shell, so a claim about what a step's text does is made only on these.
-const GITHUB_HOSTED_BASH_RUNNER_PATTERN =
-  /^(["']?)(?:ubuntu|macos)-(?:latest|[0-9]+(?:\.[0-9]+)?)(?:-(?:arm|arm64|large|xlarge|intel))?\1$/;
+// The `runs-on` labels GitHub documents for its own hosted Ubuntu and macOS runners, whose default
+// `run` shell is bash (#564). Exact labels only: a larger Ubuntu runner, a self-hosted runner or a
+// runner group is named by its owner, so the name says nothing about the OS or shell, and Windows
+// runners default to pwsh. Any other value (an expression, a list, a group, a label not listed) is
+// refused. This guarantees the label is one of these strings, not who operates the machine: a
+// self-hosted runner given one of these labels would be read as hosted.
+const GITHUB_HOSTED_BASH_RUNNER_LABELS: ReadonlySet<string> = new Set([
+  'ubuntu-latest', 'ubuntu-24.04', 'ubuntu-22.04', 'ubuntu-24.04-arm', 'ubuntu-22.04-arm',
+  'macos-latest', 'macos-15', 'macos-14', 'macos-13',
+  'macos-latest-large', 'macos-15-large', 'macos-14-large', 'macos-13-large',
+  'macos-latest-xlarge', 'macos-15-xlarge', 'macos-14-xlarge', 'macos-13-xlarge',
+]);
+
+/** A one-line `runs-on` value, plain or quoted, naming one of GITHUB_HOSTED_BASH_RUNNER_LABELS. */
+function isGitHubHostedBashRunner(value: string): boolean {
+  const trimmed = value.trim();
+  const quote = trimmed[0];
+  const label = (quote === '"' || quote === "'") && trimmed.length > 1 && trimmed.endsWith(quote) ? trimmed.slice(1, -1) : trimmed;
+  return GITHUB_HOSTED_BASH_RUNNER_LABELS.has(label);
+}
 const BLOCK_SCALAR_INDICATOR_PATTERN = /^[|>][-+0-9]*$/;
 const PRINT_ONLY_JOB_KEYS = new Set(['runs-on', 'name', 'timeout-minutes', 'steps']);
 // The top-level keys a print-only workflow may hold, written plain at column 0. `env` and
@@ -6470,8 +6491,8 @@ function isOneLineScalar(value: string): boolean {
  * True for a GitHub Actions workflow whose every step only prints text. This is a claim about
  * every step, so it is made only when every line of the `jobs:` section fits a small grammar the
  * reader fully places, and nothing else is in it: each job holds only `runs-on`, `name`,
- * `timeout-minutes` and `steps`, and its `runs-on` names a GitHub-hosted Ubuntu or macOS runner
- * (GITHUB_HOSTED_BASH_RUNNER_PATTERN), so its steps run under bash (#564); each step holds only
+ * `timeout-minutes` and `steps`, and its `runs-on` names a documented GitHub-hosted Ubuntu or macOS label
+ * (GITHUB_HOSTED_BASH_RUNNER_LABELS), so its steps run under bash (#564); each step holds only
  * `name` and either `uses: actions/checkout@<ref>` or `run:`; every run line, one-line or in a
  * `|`/`>` block, matches PRINT_ONLY_RUN_LINE_PATTERN (arguments from a character allowlist inert
  * in every shell) with its quotes balanced on the line. Any other key (`env`,
@@ -6556,7 +6577,7 @@ export function isPrintOnlyWorkflow(contents: string): boolean {
       }
       if (value === '' || /^[[{&*|>!]/.test(value) || !isOneLineScalar(value)) return false;
       if (key[1] === 'runs-on') {
-        if (!GITHUB_HOSTED_BASH_RUNNER_PATTERN.test(value.trim())) return false;
+        if (!isGitHubHostedBashRunner(value)) return false;
         jobHasBashRunner = true;
       }
       continue;

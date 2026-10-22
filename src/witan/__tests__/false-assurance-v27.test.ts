@@ -10,6 +10,7 @@ import { buildWitanCliSummary } from '../../summary.js';
 import { renderTerminalCertificate } from '../../terminal.js';
 
 import { WITAN_B3_UNSHOWN_CHECK_PREFIX } from '../abstention.js';
+import { CERTIFICATE_GLOSSARY } from '../certificate-presentation.js';
 import { isGitLfsPointerText, readRepoTextPrefix, trackContentReads } from '../content-reads.js';
 import { SHALLOW_HISTORY_LIMITATION, SHALLOW_HISTORY_V27_ABSTENTION } from '../history-depth.js';
 import { renderWitanHtmlReport } from '../html.js';
@@ -1016,6 +1017,8 @@ describe('#564 — the print-only and publish-only readers claim nothing outside
     'review10-print-only-runner-expression',
     'review10-upload-only-windows-runner',
     'review10-upload-only-self-hosted-runner',
+    'review11-print-only-ubuntu-xlarge-label',
+    'review11-twine-upload-pwsh-hashtable-argument',
   ])('%s keeps its credit under v27 and gets no print-only disclosure under v17', (name) => {
     for (const id of ['B2', 'B3']) {
       expect(criterion(name, V27, id), `${name} ${id}`).toEqual(criterion(name, V17, id));
@@ -1027,6 +1030,20 @@ describe('#564 — the print-only and publish-only readers claim nothing outside
   it('control: an inert echo on ubuntu-latest is still print-only under every rubric', () => {
     expect(v17Disclosure('review10-print-only-ubuntu-inert-text').join(' ')).toContain('test.yml only prints text');
     expect(metricValue(criterion('review10-print-only-ubuntu-inert-text', V27, 'B3'), 'default_branch_ci_depth')).toBe(0);
+  });
+});
+
+// Review of #562: the glossary states the readers' conditions, so a PR-triggered upload-only
+// workflow, which the publish-only reader never claims, is counted and the glossary says why.
+describe('the v27 glossary sentences state the conditions the readers apply', () => {
+  it('a pull-request-triggered upload-only workflow is counted, and the glossary names that condition', () => {
+    const name = 'review11-upload-only-with-pull-request-trigger';
+    for (const id of ['B2', 'B3']) expect(criterion(name, V27, id), id).toEqual(criterion(name, V17, id));
+    for (const term of ['PR trace basic checks', 'PR-gate CI workflow count (automated build/test pipeline)']) {
+      const entry = CERTIFICATE_GLOSSARY.find((candidate) => candidate.term === term);
+      expect(entry?.definition, term).toContain('for a workflow with no pull-request trigger, as only uploading an already-built artifact');
+      expect(entry?.definition, term).toContain('only when every job runs on a documented GitHub-hosted Ubuntu or macOS runner');
+    }
   });
 });
 

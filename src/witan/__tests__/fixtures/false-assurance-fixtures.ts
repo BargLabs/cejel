@@ -1599,6 +1599,7 @@ for (const [name, purpose, runsOn, run] of [
   ['review10-print-only-ubuntu-inert-text', 'Control: ubuntu-latest, `echo "e2e skipped"` is still print-only.', 'ubuntu-latest', 'echo "e2e skipped"'],
   ['review10-print-only-ubuntu-equals-sign', 'ubuntu-latest, `echo a=b`: `=` is outside the inert allowlist, so no claim.', 'ubuntu-latest', 'echo a=b'],
   ['review10-print-only-runner-expression', 'runs-on is an expression: no claim.', '${{ matrix.os }}', 'echo ok'],
+  ['review11-print-only-ubuntu-xlarge-label', '`ubuntu-22.04-xlarge` is not a documented GitHub-hosted label (an owner names larger Ubuntu runners): no claim.', 'ubuntu-22.04-xlarge', 'echo ok'],
 ] as const) {
   FALSE_ASSURANCE_FIXTURES_REVIEW.push({
     name,
@@ -1608,6 +1609,20 @@ for (const [name, purpose, runsOn, run] of [
     commits: [{ ...PY_LIBRARY_WITHOUT_CI, '.github/workflows/test.yml': RUNNER_WORKFLOW(runsOn, run) }],
   });
 }
+FALSE_ASSURANCE_FIXTURES_REVIEW.push({
+  name: 'review11-upload-only-with-pull-request-trigger',
+  issue: '#527',
+  foundInReview: true,
+  purpose: 'The upload-only workflow with a pull-request trigger: the publish-only reader requires no pull-request trigger, so v27 counts it as v17 does, and the glossary says so.',
+  commits: [{ ...PY_LIBRARY, '.github/workflows/publish.yml': PYPI_UPLOAD_ONLY('on:\n  push:\n    branches: [main]\n  pull_request:\n    branches: [main]\n', '') }],
+});
+FALSE_ASSURANCE_FIXTURES_REVIEW.push({
+  name: 'review11-twine-upload-pwsh-hashtable-argument',
+  issue: '#564',
+  foundInReview: true,
+  purpose: '`twine upload dist/x.whl @{a=./t.ps1}` on ubuntu-latest: the argument is outside the inert allowlist, so publish-only is not claimed and B3 counts the workflow as v17 does.',
+  commits: [{ ...PY_LIBRARY, '.github/workflows/publish.yml': PUSH_WORKFLOW('      - run: twine upload dist/x.whl @{a=./t.ps1}\n') }],
+});
 for (const [name, purpose, runsOn] of [
   ['review10-upload-only-windows-runner', 'An upload-only workflow on every push to main, on windows-latest: publish-only is not claimed (#564), so B3 counts it as v17 does.', 'windows-latest'],
   ['review10-upload-only-self-hosted-runner', 'An upload-only workflow on a self-hosted runner: not claimed.', 'self-hosted'],
