@@ -463,6 +463,36 @@ describe('B3: counted PR-gate workflows not shown to run a check are named', () 
     expect(isPrintOnlyWorkflow(`on:\n  pull_request:\n${jobs}`)).toBe(false);
   });
 
+  // Review of #562: `jobs :` is the jobs key. A second jobs key written that way after a print-only
+  // one was skipped as another top-level key, so the steps it holds went unread.
+  it('reads `jobs :` as the jobs key, so a second one makes no claim', () => {
+    const printOnly = 'jobs :\n  e2e:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo ok\n';
+    expect(isPrintOnlyWorkflow(`on:\n  pull_request:\n${printOnly}`)).toBe(true);
+    expect(
+      isPrintOnlyWorkflow(
+        `on:\n  pull_request:\njobs:\n  e2e:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo ok\njobs :\n  t:\n    runs-on: ubuntu-latest\n    steps:\n      - run: pnpm test\n`,
+      ),
+    ).toBe(false);
+  });
+
+  // #564: claims are made only where a step's text is read as bash reads it.
+  it.each([
+    ['windows-latest with a pwsh hashtable', 'windows-latest', 'echo @{suite=./run-tests.ps1}'],
+    ['windows-latest with inert text', 'windows-latest', 'echo ok'],
+    ['self-hosted', 'self-hosted', 'echo ok'],
+    ['an expression', '${{ matrix.os }}', 'echo ok'],
+    ['a list', '[ubuntu-latest]', 'echo ok'],
+    ['ubuntu with an equals sign', 'ubuntu-latest', 'echo a=b'],
+    ['ubuntu with a tilde', 'ubuntu-latest', 'echo ~'],
+    ['ubuntu with a percent sign', 'ubuntu-latest', 'printf %s x'],
+  ])('claims nothing for %s', (_shape, runsOn, run) => {
+    expect(isPrintOnlyWorkflow(`on:\n  pull_request:\njobs:\n  e2e:\n    runs-on: ${runsOn}\n    steps:\n      - run: ${run}\n`)).toBe(false);
+  });
+
+  it('claims nothing for a job with no runs-on', () => {
+    expect(isPrintOnlyWorkflow('on:\n  pull_request:\njobs:\n  e2e:\n    steps:\n      - run: echo ok\n')).toBe(false);
+  });
+
   it('reads lines that end in a lone line terminator in linear time', () => {
     for (const ending of ['\r', '\u2028']) {
       const contents = `on:\n  pull_request:\njobs:\n  e2e:\n    runs-on:${' '.repeat(250_000)}${ending}x\n    steps:\n      - run: echo ok\n`;
