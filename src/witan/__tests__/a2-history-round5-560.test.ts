@@ -93,6 +93,8 @@ describe('#560 F2: a submodule at a credential-shaped path is not a failed histo
     const superproject = buildA2HistoryOrigin('superproject', [{ write: base }]);
     fixtureGit(superproject, 'submodule', '--quiet', 'add', `file://${submodule}`, 'config/secrets');
     fixtureGit(superproject, 'commit', '--quiet', '-m', 'add submodule');
+    // A later commit, so the submodule's commit is not HEAD (the history scan skips HEAD itself).
+    fixtureGit(superproject, 'commit', '--quiet', '--allow-empty', '-m', 'later');
     const clone = cloneShallowA2Origin(superproject, 'full');
     expect(fixtureGit(clone, 'ls-files', '--stage', 'config/secrets')).toMatch(/^160000 /);
 
