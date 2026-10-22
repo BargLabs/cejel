@@ -758,10 +758,11 @@ abstentions, all read failures (2,615 content reads and 777 shallow-clone absten
 every one the composite arithmetic shows it held in the denominator.
 
 **Runtime.** About 0.38 s of CPU per shape, almost all of it the two scans. The six shard files
-take about 175 s each and run in parallel. The full suite went from 4 min 29 s (139 files, before
-#558) to 6 min 44 s (145 files) on the same machine. Under that load, two wall-clock timing guards
-(`regex-redos-guard`, 50 ms per family, and `scan-path-regex-bounds`, a 2,000 ms scan budget) each
-missed their budget once and passed on rerun alone; neither reads the files #558 changes.
+take about 175 s each and run in parallel. On the same machine the full suite went from 4 min 29 s
+(139 files, before #558) to between 6 min 12 s and 6 min 44 s (146 files) across the runs measured
+for #558. In one of those runs, two wall-clock timing guards each missed their budget once under
+the extra load and passed on rerun alone: `regex-redos-guard` (50 ms per family) and
+`scan-path-regex-bounds` (2,000 ms scan budget). Neither reads the files #558 changes.
 
 ## 2026-10-15 — v26 item 8: A3's build or type-check finding fires on settling evidence only (v26 alone); no repository moved
 
