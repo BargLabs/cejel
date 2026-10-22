@@ -1182,7 +1182,8 @@ describe('v27 keeps every collector critical finding v17 reports', () => {
 // lose score, become more severe, or abstain as a read failure kept in the composite at 0; a
 // composite may fall. Nothing may rise, nothing v17 left unscored may be scored, and no scored
 // composite may become null (v27-no-rise.ts; #531 items a and b). The same property runs over
-// generated shapes in false-assurance-v27-generated.test.ts (#531 item c).
+// generated shapes in false-assurance-v27-generated-1.test.ts to -6.test.ts
+// (v27-no-rise-generated-suite.ts; #531 item c).
 describe('no score, status or composite rises from v17 to v27 on any fixture', () => {
   for (const fixture of FALSE_ASSURANCE_FIXTURES) {
     it(fixture.name, () => {

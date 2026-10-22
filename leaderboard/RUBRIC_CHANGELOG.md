@@ -1438,23 +1438,26 @@ after two review passes on #558.
     the read-failure note (Git LFS pointers, or content that could not be read), and have a
     read-failure reason counted in `byReason`. Being listed in `affectedCriteria` is not enough,
     because that list also names criteria whose only skips were self-imposed (`too_large`,
-    `excluded_by_extension`), and those leave the composite.
+    `excluded_by_extension`), and those leave the composite;
+  - a failed-history abstention (#560): A2's abstention after an incomplete read of the commit
+    history, other than the shallow-only case, recognised by its note starting with
+    `WITAN_V27_A2_FAILED_HISTORY_NOTE_PREFIX`. Added in the #560 integration below.
 
   The denominator is checked against the reported composite. A composite only shows how many
   abstentions it holds, each at 0, so the check requires every introduced abstention on top of
   those v17's composite holds. For criteria that are `insufficient_data` under both rubrics this is
   lenient: they are counted as the fewest that v17's composite is consistent with.
-  **Interaction with #560.** #560 adds a third v27 read failure: A2 abstains after an incomplete
-  read of the repository's commit history. It also makes shallow A2 abstain where v17 says not
-  applicable, and it edits `false-assurance-v27.test.ts` (the #442 sentence). #560 is still
-  changing which causes count and what report evidence identifies each, so they are not restated
-  here. The source of truth is the comment in #560's `src/witan/abstention.ts`. Whichever of #558
-  and #560 lands second must:
-  - add that class to `READ_FAILURE_CLASSES` from that comment, keyed on report evidence beyond the
-    note itself;
-  - rerun all six generated shards and the curated test on the merged code.
-
-  Until then the checker reports those abstentions as unrecognised.
+  **Interaction with #560, fulfilled.** #560 merged first (`44cb9ee80`), so #558 integrated it:
+  failed-history is the third class above, and all six generated shards and the curated test were
+  rerun on the merged code (see "Rerun on the synced candidate" below). This departs from what the
+  earlier version of this note required, a key "on report evidence beyond the note itself": the
+  class is keyed on the note prefix alone, as the comment on the prefix in `src/witan/abstention.ts`
+  (the source of truth) prescribes. Two reasons make the prefix enough:
+  - a single function writes it (`v27A2FailedHistoryNote` in `repo-signals.ts`), and only on v27's
+    read-failure path;
+  - the classification is not the only check. The composite arithmetic still requires the
+    abstention held in the denominator at 0, so a self-imposed abstention that borrowed the prefix
+    would still fail.
 - **(b) Null composites are compared.** A composite scored under v17 and null under v27 fails, as
   does the reverse. So does a criterion that v17 left `not_applicable` or `insufficient_data` and
   v27 scores or moves to another unscored state, except a read-failure abstention under (a).
@@ -1549,7 +1552,9 @@ rather than listed by hand:
   against v17, with A2 counted as a failed-history abstention. The causes are: a clone missing
   history blobs (a failed git read), the 5,000-file cap, a control-character credential path, git
   not runnable (mocked, as in #560's own test), a dangling `.git` symlink, and an unreadable `.git`
-  directory.
+  directory. The unopenable-`.git` cause (the last two) still awaits the operator's
+  confirmation. The class recognises what v27 does today, records no ruling on it, and changes if
+  the operator rules otherwise.
 
 Results at `bdd06c0d7`:
 - the six shards, the curated test and the guard: 8 files, 2,288 tests, all passed;
@@ -1572,7 +1577,7 @@ Every introduced abstention is still held in the denominator. The new shallow A2
 #560's (A2 abstains on a shallow clone where v17 marks it not applicable). The extra B2 and B3 falls
 are #527/#535's removals of credit.
 
-, almost all of it the two scans. The six shard files
+**Runtime.** About 0.38 s of CPU per shape, almost all of it the two scans. The six shard files
 take about 175 s each and run in parallel. On the same machine the full suite went from 4 min 29 s
 (139 files, before #558) to between 6 min 12 s and 8 min 44 s (146 files) across the runs measured
 for #558. In some full runs, wall-clock timing guards missed their budgets and passed when run

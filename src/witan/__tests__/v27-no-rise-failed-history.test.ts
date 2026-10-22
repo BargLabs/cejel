@@ -27,7 +27,10 @@ import { READ_FAILURE_CLASSES, checkNoRise, lostFindings } from './v27-no-rise.j
 // the fields of A2HistoryIncompleteness (repo-signals.ts) and the causes the comment on the prefix
 // (abstention.ts, the source of truth) says the note names. Each is checked twice: the note
 // v27A2FailedHistoryNote writes is recognised, and a real scan producing that cause passes the full
-// no-rise property against v17 with A2 counted as a failed-history abstention.
+// no-rise property against v17 with A2 counted as a failed-history abstention held in the
+// denominator. The unopenable-.git cause (a dangling .git symlink, an unreadable .git directory)
+// still awaits the operator's confirmation: this class recognises what v27 does today, records no
+// ruling on it, and changes if the operator rules otherwise.
 
 // git_absent cannot be produced on a host that has git, so, as #560's own test does, one mode of
 // this file's execGit mock reports it; every other call runs the real git.
@@ -148,7 +151,9 @@ function expectFailedHistoryNoRise(repoPath: string, marker: string): void {
   const result = checkNoRise(before, after);
   expect(result.problems).toEqual([]);
   expect(lostFindings(before, after)).toEqual([]);
-  expect(result.introducedAbstentions.filter(({ id }) => id === 'A2').map(({ kind }) => kind)).toEqual(['failed-history']);
+  expect(result.introducedAbstentions.filter(({ id }) => id === 'A2')).toEqual([
+    { id: 'A2', kind: 'failed-history', denominator: 'kept' },
+  ]);
 }
 
 const canDenyReadAccess = platform() !== 'win32' && process.getuid?.() !== 0;

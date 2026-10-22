@@ -16,7 +16,8 @@ import { SHALLOW_HISTORY_V27_ABSTENTION } from '../history-depth.js';
 //   - (a) every insufficient_data that v27 introduces must be a read-failure abstention, scored 0
 //     and kept in its category's denominator (ADR-0001: an abstention can never raise a
 //     composite). A read failure is one of READ_FAILURE_CLASSES below: the v27 shallow-clone
-//     abstention of A2 or B2, or a content-read abstention: listed in contentReadSummary.affectedCriteria AND carrying the
+//     abstention of A2 or B2, #560's failed-history abstention of A2 (by its note prefix), or a
+//     content-read abstention: listed in contentReadSummary.affectedCriteria AND carrying the
 //     read-failure note (Git LFS pointers, or content that could not be read), with a read-failure
 //     reason counted in byReason. affectedCriteria alone is not evidence: it also lists criteria
 //     whose only skips were self-imposed (too_large, excluded_by_extension), which leave the
