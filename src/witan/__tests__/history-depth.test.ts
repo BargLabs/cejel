@@ -6,6 +6,7 @@ import { dirname, join } from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
 
 import { buildWitanCliSummary } from '../../summary.js';
+import { WITAN_A2_SHALLOW_APPLICABILITY_DISCLOSURE } from '../abstention.js';
 import { renderWitanBadgeSvg } from '../badge.js';
 import { HISTORY_READING_CRITERIA, SHALLOW_HISTORY_LIMITATION, detectHistoryLimitations } from '../history-depth.js';
 import { scoreRepoWithPublicCejel } from '../public-scan.js';
@@ -94,9 +95,22 @@ describe('shallow history is disclosed, never scored', () => {
     const shallowReport = scan(shallow);
     const fullReport = scan(full);
     // This fixture's history has no PR-merge subjects, so B2 reads 0 of N on both clones and the
-    // two scans must agree on everything but the disclosure.
+    // two scans must agree on everything but the disclosures. A2 is not applicable on both, and on
+    // the shallow clone that decision rested on history scans that read only the commits present,
+    // so A2 carries the #556 sentence saying so (presentation only, exactly that sentence).
     const { historyLimitations: _disclosure, ...shallowRest } = shallowReport;
-    expect(shallowRest).toEqual(fullReport);
+    const shallowA2 = shallowRest.criteria.find(({ id }) => id === 'A2');
+    expect(shallowA2?.status).toBe('not_applicable');
+    expect(shallowA2?.disclosures).toEqual([WITAN_A2_SHALLOW_APPLICABILITY_DISCLOSURE]);
+    expect(fullReport.criteria.find(({ id }) => id === 'A2')?.disclosures).toBeUndefined();
+    expect({
+      ...shallowRest,
+      criteria: shallowRest.criteria.map((criterion) => {
+        if (criterion.id !== 'A2') return criterion;
+        const { disclosures: _a2, ...rest } = criterion;
+        return rest;
+      }),
+    }).toEqual(fullReport);
     expect(shallowReport.scanLimitations ?? []).toEqual([]);
     expect(buildWitanCliSummary(shallowReport).scanLimitations).toEqual([]);
     expect(renderWitanBadgeSvg(shallowReport)).toBe(renderWitanBadgeSvg(fullReport));
