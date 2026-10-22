@@ -125,6 +125,10 @@ case "$1 $2" in
     exit 0 ;;
   "release create"|"release edit") exit 0 ;;
   "run list")
+    # Like GitHub's filtered listing on a bad moment: the first N calls ($S/runlist_empty) answer [].
+    if [ -s "$S/runlist_empty" ] && [ "$(cat "$S/runlist_empty")" -gt 0 ]; then
+      echo $(( $(cat "$S/runlist_empty") - 1 )) >"$S/runlist_empty"; echo '[]' >"$S/rl.empty"; emit "$S/rl.empty"; exit 0
+    fi
     # Like real gh: --event narrows the list to runs of that trigger.
     ev=""; for ((i=0; i<${#args[@]}; i++)); do [ "${args[$i]}" = "--event" ] && ev="${args[$((i+1))]}"; done
     if [ -n "$ev" ]; then jq --arg e "$ev" '[.[]|select(.event==$e)]' "$S/runlist.json" >"$S/rl.filtered"; emit "$S/rl.filtered"
@@ -283,6 +287,13 @@ S="$TEST_TMP/s6"; new_state "$S"; echo "$NPM_NONE" >"$S/npm.json"; rm -f "$S/oci
 run_release "$S" "yes"
 [ "$RC" != 0 ] && has "still has no $V" && has "+ @cejel/cejel@$V"; check "poll window exhausted: refuse and quote the log's + line" $? "rc=$RC: $OUT"
 grep -q 'verify_only=true' "$S/calls.log" && grep -q 'verify_only=false' "$S/calls.log"; check "poll: verify-only dispatched before the publish" $? "$(cat "$S/calls.log")"
+
+# 6b. a resume after publishing: the filtered run listing answers [] twice, then the runs. The
+# publish run is still found (stage 7 reads the '+' line), as on 2026-10-22's 0.6.8 resume.
+S="$TEST_TMP/s6b"; new_state "$S"; echo 2 >"$S/runlist_empty"
+run_release "$S" "" --dry-run
+[ "$RC" = 0 ] && has "stage 7 (npm-publish): already done"; check "empty run listing: retried, publish run found, stage 7 done" $? "rc=$RC: $OUT"
+! has "no successful publish-npm run"; check "empty run listing: no false refusal at stage 7" $? "$OUT"
 
 # 7. confirmation: anything but the literal yes stops before the irreversible action.
 S="$TEST_TMP/s7"; new_state "$S"; echo "$NPM_NONE" >"$S/npm.json"; rm -f "$S/oci_digest"

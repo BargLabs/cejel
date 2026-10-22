@@ -159,8 +159,23 @@ dispatch_and_watch() {
   echo "$id"
 }
 
+# GitHub's run listing filtered by --branch and --status can answer with an empty list for a
+# while even for runs that finished hours ago: on 2026-10-22, two of four identical calls for
+# v0.6.8's publish-npm runs returned [] and the other two both runs, which made a `--from 13`
+# resume refuse at stage 7. So an empty answer is retried before it is believed.
+# success_run_ids <workflow> <limit>: ids of successful runs of <workflow> on $TAG, newest first.
+success_run_ids() {
+  local wf="$1" limit="$2" n out tries="${RELEASE_RUN_LIST_TRIES:-5}"
+  for ((n = 1; n <= tries; n++)); do
+    out="$(gh_r run list --workflow "$wf" --branch "$TAG" --status success --limit "$limit" --json databaseId --jq '.[].databaseId')"
+    if [ -n "$out" ]; then echo "$out"; return 0; fi
+    [ "$n" -lt "$tries" ] && sleep "${RELEASE_RUN_FIND_SLEEP:-3}"
+  done
+  return 0
+}
+
 latest_success_run() { # latest_success_run <workflow>
-  gh_r run list --workflow "$1" --branch "$TAG" --status success --limit 1 --json databaseId --jq '.[0].databaseId // empty'
+  success_run_ids "$1" 1 | head -1
 }
 
 # ---------------------------------------------------------------- stage 1
@@ -381,7 +396,7 @@ stage7() {
 
 find_npm_publish_run() {
   local id
-  for id in $(gh_r run list --workflow publish-npm.yml --branch "$TAG" --status success --limit 5 --json databaseId --jq '.[].databaseId'); do
+  for id in $(success_run_ids publish-npm.yml 5); do
     if [ -n "$(npm_log_plus_line "$id")" ]; then echo "$id"; return 0; fi
   done
   return 0
