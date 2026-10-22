@@ -1,0 +1,71 @@
+[
+  {
+    "statement": "When an agent records an operator's ruling in a durable record, quote the operator's words and keep the agent's own reasoning visibly separate. In Cejel #554 the operator replied \"a,\" to a list of options; the first draft put three reasons under the heading \"Operator ruling\" although the operator gave none, so the record attributed the agent's rationale to the operator, and it quoted the chosen option without the sentence that authorised the PR's README change. Review caught both. Rules: quote the reply verbatim and the chosen option whole (or mark omissions); label the agent's explanation as not the operator's words and say whether the operator adopted it; do not add forward rules the operator did not make (\"any other limit needs its own ruling\").",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "records",
+      "operator-rulings"
+    ],
+    "tags": [
+      "attribution",
+      "operator-ruling",
+      "quote-verbatim",
+      "decision-record"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-10-22T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 566
+    }
+  },
+  {
+    "statement": "A claim that a pull request contains no change for something must be checked against the PR's commits, not only its net diff. While preparing alfred #3211's signed closures, a Cejel lesson record said the citation relocation was \"landed with\" PR #468, and the net diff of #468 had no such hunk, so the first write-up told the operator the record had no evidence. The relocation had landed inside #468 (commit 8e00f0c42, three line-number moves) and #468's final merge of main replaced it with #464's content-keyed locations, so the net diff showed nothing. The record closed on #464 instead, whose diff carries the hunks. Rules: list the PR's commits before saying a change is absent; when a merge from the base supersedes in-PR work, name the PR whose diff actually carries the change; evidence tools that read only the net diff cannot quote superseded work.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "records",
+      "evidence"
+    ],
+    "tags": [
+      "net-diff",
+      "merge-from-base",
+      "closure-evidence",
+      "absence-claim"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-10-22T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 566
+    }
+  },
+  {
+    "statement": "A record that says a change lands after release X, or keys a reader's inference on toolVersion X, is a claim about merge order, and nothing enforces it. Cejel's release driver tags whatever main's head is, and main keeps package.json at the last release's version until the next release prep, so a build from main after a merge still reports the old version. In #560 the first records said a 1.8 report with toolVersion 0.6.8 never carries a new disclosure, and other drafts said v27 \"shipped\" in 0.6.8 before it was tagged. Rules: gate the merge explicitly in the PR body when records depend on order; never key an absence rule on toolVersion; key it on the report format version, or state only what holds on every report; check the tag exists before writing that something shipped.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "records",
+      "release"
+    ],
+    "tags": [
+      "merge-order",
+      "toolVersion",
+      "release-tag",
+      "absence-rule"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-10-22T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 566
+    }
+  }
+]
