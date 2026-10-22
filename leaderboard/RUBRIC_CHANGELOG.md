@@ -667,42 +667,81 @@ compares with v17 there has not been measured. Found by a review pass on #542.
 
 The 2026-10-21 ruling on #526, accepted by the operator on 2026-10-22, makes #531 its condition 2.
 The no-rise test this entry cites above checked curated fixtures only. It skipped a criterion that
-became `insufficient_data` and it skipped null composites. It now checks three more things, and
-#531 items (a)-(c) are covered. This addition changes tests only. No scoring code, rubric,
-behaviour-corpus fixture or fingerprint pin changed, so no score moved.
+became `insufficient_data` and it skipped null composites. It now checks the following, and #531
+items (a)-(c) are covered. This addition changes tests only. No scoring code, rubric,
+behaviour-corpus fixture or fingerprint pin changed, so no score moved. The tests were revised
+after two review passes on #558.
 
-- **(a) Abstentions are read failures.** Every `insufficient_data` that v27 introduces must be
-  listed in `contentReadSummary.affectedCriteria`, or be the v27 shallow-clone abstention of A2 or
-  B2. It must score 0 and stay in its category's denominator. The denominator is checked against
-  the reported composite. A composite only shows how many abstentions it holds, each at 0, so the
-  check requires every introduced abstention on top of those v17's composite holds. Where both
-  counts give the same composite, for example when every other criterion in the category scores 0,
-  the abstention cannot have raised the composite, and only the listing is checked.
+- **(a) Abstentions are read failures.** Every `insufficient_data` that v27 introduces must match a
+  recognised read-failure class, score 0, and stay in its category's denominator. The classes are a
+  table (`READ_FAILURE_CLASSES`):
+  - the v27 shallow-clone abstention of A2 or B2;
+  - a content-read abstention. It must be listed in `contentReadSummary.affectedCriteria`, carry
+    the read-failure note (Git LFS pointers, or content that could not be read), and have a
+    read-failure reason counted in `byReason`. Being listed in `affectedCriteria` is not enough,
+    because that list also names criteria whose only skips were self-imposed (`too_large`,
+    `excluded_by_extension`), and those leave the composite.
+
+  The denominator is checked against the reported composite. A composite only shows how many
+  abstentions it holds, each at 0, so the check requires every introduced abstention on top of
+  those v17's composite holds. For criteria that are `insufficient_data` under both rubrics this is
+  lenient: they are counted as the fewest that v17's composite is consistent with.
+  **Pending class.** #560 adds a third v27 read failure: A2 abstains when Cejel's reads of earlier
+  commits fail (a git error, timeout or output limit). Whichever of #558 and #560 lands second adds
+  that class to the table. It is recognised by the note prefix
+  `WITAN_V27_A2_FAILED_HISTORY_NOTE_PREFIX` and the `scanLimitations` entry ending "Cejel continued
+  with reduced Git history evidence.", never by the note alone. Until then the checker reports those
+  abstentions as unrecognised.
 - **(b) Null composites are compared.** A composite scored under v17 and null under v27 fails, as
   does the reverse. So does a criterion that v17 left `not_applicable` or `insufficient_data` and
   v27 scores or moves to another unscored state, except a read-failure abstention under (a).
-- **(c) Generated shapes.** `src/witan/__tests__/fixtures/v27-norise-shapes.ts` generates 277
-  repositories. The exhaustive core is 7 test-directory names (including `__tests__`, where the
-  2026-10-19 review found a rise) × 5 conftest placements × 10 hook forms. Five more dimensions are
-  covered pairwise across all eight, so all 764 valid pairs of values appear: 6 LFS placements,
-  8 workflow shapes (none, pull-request test, push-only test, publish-only, print-only,
-  branch-filtered, test-then-publish, test plus a separate publish-only), LF or CRLF workflows,
-  full or depth-1 history, and 3 configuration surfaces. 138 of the shapes are depth-1 clones.
-  Generation is deterministic, with no randomness and fixed commit dates, and a failing shape's
-  test name holds all its coordinates. To extend it, add an entry to `WORKFLOW_SHAPES` or a value
-  to a dimension.
+- **Findings.** Every v17 finding must still be reported under v27 on the same criterion, with the
+  same summary and the same or a higher severity. A critical finding must stay critical; the curated
+  preservation test now checks severity too. Three removals are allowed, each by a stated rule:
+  - a metric-derived summary, which restates the score;
+  - a non-critical finding on a criterion that abstains as a read failure;
+  - A1's "Test suite files are present" finding where v27 measures a test-to-source ratio of 0
+    (the only test-shaped files were conftest.py, #518).
+- **(c) Generated shapes.** `src/witan/__tests__/fixtures/v27-norise-shapes.ts` generates 1,563
+  repositories:
+  - **The full product, every combination that takes effect:** 7 test-directory names (including
+    `__tests__`, where the 2026-10-19 review found a rise) × 5 conftest placements × 10 hook forms ×
+    6 LFS placements. That gives 1,286 rows. A hook inside a conftest.py that is itself a pointer,
+    and a module-level pytestmark in modules that are all pointers, have no effect, so those rows
+    are generated once, as the plain shape.
+  - **A full and a depth-1 shape with no LFS pointer for each of the 277 test-directory × conftest ×
+    hook combinations**, so v27 reads every file in at least one shape per combination.
+  - **Four more dimensions covered pairwise:** 8 workflow shapes (none, pull-request test, push-only
+    test, publish-only, print-only, branch-filtered, test-then-publish, test plus a separate
+    publish-only), LF or CRLF workflows, full or depth-1 history, and 3 configuration surfaces.
+    Every one of the 755 value pairs that takes effect, across all eight dimensions, appears; a
+    CRLF workflow that is an LFS pointer keeps its CRLF endings, so that pair takes effect.
+  - **Every shape carries a changelog, a security policy and a runbook**, so B4 is scored and the
+    process composite shows whether a B2 or B3 abstention stayed in the denominator.
+  - **782 shapes are depth-1 clones.** Generation is deterministic, with no randomness and fixed
+    commit dates, and a failing shape's test name holds all its coordinates.
+  - **To extend it,** add an entry to `WORKFLOW_SHAPES` or a value to a dimension.
+- **Coverage is asserted on what the scorer did, not on labels.** In each of the six shard files,
+  A1 must be scored under v27 in every test-directory × conftest × hook combination the shard
+  holds. Every abstention kind seen on every criterion must have at least one case where the
+  composite arithmetic shows it held in the denominator.
 
-The checker is `src/witan/__tests__/v27-no-rise.ts`, shared by the curated test and
-`src/witan/__tests__/false-assurance-v27-generated.test.ts`. Its definition matches the board's
-(`docs/experiments/public-delta-0-6-8-2026-10-21/norise.mjs`) and is stricter where #531 asks. On
-the candidate at `release/0.6.8` `8deafad9f`, it found no rise and no self-imposed abstention on
-the curated fixtures or the generated shapes. The generated shapes produced 660 introduced
-abstentions, all read failures: 544 on Git LFS pointers and 116 shallow-clone abstentions. For 530
-of them the composite arithmetic shows the abstention held in the denominator; the other 130 sit in
-a category whose composite is the same either way. A test also confirms that the shapes reached the
-moves v27 makes: shallow A2 and B2 abstentions, LFS abstentions, and A1 and B3 losing credit. The
-generated file takes about 100-115 s on one vitest worker, about 380 ms per shape: building it takes
-about 75 ms, then a v17 scan and a v27 scan take about 150 ms each.
+The checker is `src/witan/__tests__/v27-no-rise.ts`, and the curated test and the generated suite
+both use it. The suite is `src/witan/__tests__/v27-no-rise-generated-suite.ts`, run as
+`false-assurance-v27-generated-1.test.ts` to `-6.test.ts`. Its definition matches the board's
+(`docs/experiments/public-delta-0-6-8-2026-10-21/norise.mjs`) and is stricter where #531 asks.
+
+**Result.** On the candidate at `release/0.6.8` `8deafad9f`, the checker found no rise, no
+self-imposed abstention and no lost or weakened finding, on the curated fixtures or the generated
+shapes. The generated shapes produced 3,392 introduced abstentions, all read failures: 2,615
+content reads and 777 shallow-clone abstentions. The composite arithmetic shows every one of them
+held in the denominator. Composites fell in 1,482 of the 1,563 shapes, and none rose.
+
+**Runtime.** About 0.38 s of CPU per shape, almost all of it the two scans. The six shard files
+take about 175 s each and run in parallel. The full suite went from 4 min 29 s (139 files, before
+#558) to 6 min 44 s (145 files) on the same machine. Under that load, two wall-clock timing guards
+(`regex-redos-guard`, 50 ms per family, and `scan-path-regex-bounds`, a 2,000 ms scan budget) each
+missed their budget once and passed on rerun alone; neither reads the files #558 changes.
 
 ## 2026-10-15 — v26 item 8: A3's build or type-check finding fires on settling evidence only (v26 alone); no repository moved
 

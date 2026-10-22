@@ -19,8 +19,34 @@
     "lastSeenAt": "2026-10-22T00:00:00.000Z",
     "stagingVersion": 2,
     "movesWhen": {
-      "kind": "awaiting-fix",
-      "reason": "The strengthened v27 no-rise property for Cejel issue #531 must merge to main."
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 558
+    }
+  },
+  {
+    "statement": "A generated test's coverage must be asserted on what the code under test exercised, not on the shapes' labels. In cejel #558 the v27 no-rise test enumerated every test-directory x conftest x hook combination, but a greedy pairwise fill put an LFS pointer or a depth-1 clone on most rows: v27 abstained on A1 in 182 of 277 shapes, the __tests__ x no-conftest cell never had A1 scored, and an injected A1 rise there escaped. Every B2/B3 LFS abstention also sat in a process category with nothing else scored, so the denominator check could not fail on them. Rules: give each enumerated cell a row free of the masking dimensions; assert per cell that the criterion was actually scored; and for each (abstention kind, criterion) observed, require a case where the check can tell pass from fail.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "false-assurance",
+      "test-strength",
+      "reviewer-found"
+    ],
+    "tags": [
+      "no-rise-property",
+      "coverage-on-exercised-paths",
+      "generated-shapes",
+      "masking-dimension",
+      "fail-loud-demonstration"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-10-22T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 558
     }
   }
 ]

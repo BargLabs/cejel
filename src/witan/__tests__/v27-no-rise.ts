@@ -14,8 +14,8 @@ import { SHALLOW_HISTORY_V27_ABSTENTION } from '../history-depth.js';
 //     insufficient_data) may not be scored, or change unscored state, under v27;
 //   - (a) every insufficient_data that v27 introduces must be a read-failure abstention, scored 0
 //     and kept in its category's denominator (ADR-0001: an abstention can never raise a
-//     composite). A read failure is either the v27 shallow-clone abstention of A2 or B2, or a
-//     content-read abstention: listed in contentReadSummary.affectedCriteria AND carrying the
+//     composite). A read failure is one of READ_FAILURE_CLASSES below: the v27 shallow-clone
+//     abstention of A2 or B2, or a content-read abstention: listed in contentReadSummary.affectedCriteria AND carrying the
 //     read-failure note (Git LFS pointers, or content that could not be read), with a read-failure
 //     reason counted in byReason. affectedCriteria alone is not evidence: it also lists criteria
 //     whose only skips were self-imposed (too_large, excluded_by_extension), which leave the
@@ -43,11 +43,11 @@ export function rises(before: unknown, after: unknown): boolean {
   return after > before;
 }
 
-export type IntroducedAbstentionKind = 'content-read' | 'shallow-history';
+export type IntroducedAbstentionKind = (typeof READ_FAILURE_CLASSES)[number]['kind'];
 
 export interface IntroducedAbstention {
   readonly id: string;
-  readonly kind: IntroducedAbstentionKind;
+  readonly kind: IntroducedAbstentionKind | 'unrecognised';
   /**
    * 'kept': the reported composite is reproduced with the criterion in the denominator at 0, and
    * not without it. 'indistinguishable': both arithmetics give the reported composite (for
@@ -110,11 +110,28 @@ function shallowAbstention(report: WitanReport, criterion: WitanCriterionScore):
   );
 }
 
+/**
+ * The read-failure abstentions v27 makes, each recognised from the report alone. An abstention v27
+ * introduces must match one; anything else is self-imposed. Extend by adding a class here, keyed on
+ * evidence the report carries beyond the criterion's own note (a note alone can be written by any
+ * code path). Known pending class: #560's failed-history abstention of A2 (a git error, timeout or
+ * output limit while reading earlier commits). Whichever of #558 and #560 lands second adds it,
+ * recognised by the note prefix WITAN_V27_A2_FAILED_HISTORY_NOTE_PREFIX AND the scanLimitations
+ * entry ending "Cejel continued with reduced Git history evidence.", never by the note alone.
+ */
+export const READ_FAILURE_CLASSES = [
+  { kind: 'shallow-history', recognises: shallowAbstention },
+  { kind: 'content-read', recognises: contentReadFailure },
+] as const satisfies readonly {
+  kind: string;
+  recognises: (report: WitanReport, criterion: WitanCriterionScore) => boolean;
+}[];
+
 export function checkNoRise(before: WitanReport, after: WitanReport): NoRiseResult {
   const problems: string[] = [];
   const fallenCriteria: string[] = [];
   const fallenComposites: string[] = [];
-  const introduced = new Map<string, { kind: IntroducedAbstentionKind; denominator: IntroducedAbstention['denominator'] }>();
+  const introduced = new Map<string, { kind: IntroducedAbstention['kind']; denominator: IntroducedAbstention['denominator'] }>();
 
   // Composites: a rise, or (b) a scored composite that becomes null.
   for (const key of NO_RISE_COMPOSITES) {
@@ -140,18 +157,17 @@ export function checkNoRise(before: WitanReport, after: WitanReport): NoRiseResu
 
     if (v27.status === 'insufficient_data' && v17.status !== 'insufficient_data') {
       // (a) an abstention v27 introduced.
-      const contentRead = contentReadFailure(after, v27);
-      const shallow = shallowAbstention(after, v27);
-      if (!contentRead && !shallow) {
+      const recognised = READ_FAILURE_CLASSES.find(({ recognises }) => recognises(after, v27));
+      if (!recognised) {
         problems.push(
-          `${v27.id} abstains under v27 (was ${v17.status}) without a read failure: neither a content-read failure (in contentReadSummary.affectedCriteria with the read-failure note) nor the shallow-clone abstention`,
+          `${v27.id} abstains under v27 (was ${v17.status}) without a recognised read failure (${READ_FAILURE_CLASSES.map(({ kind }) => kind).join(', ')})`,
         );
       }
       if (v27.score !== 0) problems.push(`${v27.id} abstains under v27 with score ${v27.score}, not 0`);
       if ((v27.notes ?? '').includes('does not affect the composite score')) {
         problems.push(`${v27.id} abstains under v27 as a self-imposed coverage limit excluded from the composite`);
       }
-      introduced.set(v27.id, { kind: shallow ? 'shallow-history' : 'content-read', denominator: 'unchecked' });
+      introduced.set(v27.id, { kind: recognised?.kind ?? 'unrecognised', denominator: 'unchecked' });
       continue;
     }
     if (UNSCORED.has(v17.status)) {
