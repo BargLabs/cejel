@@ -22,7 +22,7 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
-## 2026-10-22 — #569: the control-character scan limitation calls a path credential-shaped only when it is; no score moved; axios's report changes in one line
+## 2026-10-22 — #569: the control-character scan limitation calls a path credential-shaped only when the rubric's own history rules do; no score moved; axios's report changes in one line
 
 **Defect.** Three history reads (the `.env`-path `git log`, the `diff-tree` enumeration and the
 deleted-path `git log`) leave out a path whose name contains control characters, and each added the
@@ -32,21 +32,30 @@ every such path, credential-shaped or not. On the public row axios the only such
 `\bMIGRATION_GUIDE.md` (a backspace before the name), so axios's v17 and v27 reports stated something
 false. Found while fixing #560's review findings.
 
-**Change, every rubric (presentation only).** The sentence above is kept for a credential- or
-`.env`-shaped path. Any other such path gets "Git history contained a pathname with control
-characters that is not credential-shaped. Cejel did not read that path in its history scans." Both
+**Change, every rubric (presentation only).** The sentence above is kept for a path that the
+rubric's own history rules count as credential-shaped, the same decision the history scan makes
+(each of the three readers passes the rubric's flags; under `witan-rubric-v23-prospective-2026-09-06`
+that includes key-shaped JSON such as `service-account.json`, under the other rubrics it does not),
+and for an `.env`-shaped path met by the `.env`-path read. Any other such path gets "Git history
+contained a pathname with control characters that is not credential-shaped. Cejel did not read that
+path in its history scans." The first version of this change chose the wording with the rules'
+defaults and so called a v23 key-shaped JSON path "not credential-shaped" while the v23 scanner
+treated it as a credential candidate; both review passes on #571 (AI reviewers) found it. Both
 are scan limitations, so the v17 badge stays unrated and `--min-score` still refuses wherever one
 appears; dropping the limitation for such paths was not chosen, because it would change those
 outcomes. A2's incomplete-read rule (#560) is unchanged: it counts only a credential- or
 `.env`-shaped path.
 
-**Measured.** Informally, not a preregistered run: the 23 public rows were scanned with the CLI's
-defaults under v17 and v27, before and after this change, on the 0.6.8 confirmation's full-history
-clones (clean and at their pinned commits before and after). 44 of 46 `report.json` pairs are
-byte-identical; axios differs under v17 and v27 in exactly the one scan-limitation line. No score,
-status, metric value, finding count, verdict, badge rating or fingerprint moves.
+**Measured.** Informally, not a preregistered run: the 23 public rows were scanned with the CLI
+under v17 (the default), v23 and v27, at `main` `c9d341d5f` and at this change, on the 0.6.8
+confirmation's full-history, unfiltered clones, each at its corpus commit and clean before and
+after. 66 of 69 `report.json` pairs are byte-identical; axios differs under each of the three
+rubrics in exactly the one scan-limitation line. No score, status, metric value, finding count,
+verdict, badge rating or fingerprint moves. The method, the clone pins and the sha256 of every report
+are in `docs/experiments/limitation-wording-569-2026-10-22/byte-identity.json`.
 
-Tests: `src/witan/__tests__/history-control-character-limitation-569.test.ts`.
+Tests: `src/witan/__tests__/history-control-character-limitation-569.test.ts` (including an added and
+a deleted key-shaped JSON path under v23 against v17 and v27).
 
 ## 2026-10-22 — #556: an incomplete read of the commit history no longer takes A2 out of the composite or lets it score higher under v27; every rubric says when A2's applicability was decided from one; no v17 score moved; one v27 row of the 0.6.8 confirmation moves
 
