@@ -18,25 +18,29 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
-- **A shallow clone could take A2 out of the score and raise it (#556).** A2 is marked not
-  applicable only when Cejel finds no secrets or data surface in the tree and its scans of earlier
-  commits find no `.env` file or credential-shaped value. On a shallow clone those scans read only
-  the commits present. So a repository whose only A2 surface was a secret-bearing `.env`, committed
-  and later deleted, was marked not applicable: A2 left the composite, the critical finding a full
-  clone reports disappeared, and the score rose.
-  - **Every rubric, including the default (presentation only).** When A2 is not applicable on a
-    shallow clone, it now says so in `criteria[].disclosures` (report format 1.8, no new field),
-    and the certificate lists it under "What was not established": "A2's applicability was decided
-    from the commits present in this shallow clone. [...] A full clone may make A2 applicable and
-    give it a score. Re-scan a full clone (for actions/checkout, set fetch-depth: 0)." Under v17
-    and v18-v26 no score, status, metric value, finding count or fingerprint moves.
-  - **`witan-rubric-v27-prospective-2026-10-19` (scoring).** In that case A2 now abstains as a read
-    failure, kept in the composite at 0, so a shallow clone cannot score higher than the full clone
-    on A2's account. Composites can only fall. v27's shallow-clone sentence in `historyLimitations`
-    no longer says that a not-applicable criterion stays not applicable. v27 is in 0.6.8; a
-    0.6.8 v27 certificate of such a clone reports A2 not applicable. No behaviour fingerprint
-    moves, because the behaviour corpus has no shallow clone. On a full clone nothing changes under
-    any rubric, and no public board row moves. See
+- **Incomplete history could take A2 out of the score, or score it higher (#556).** A2 reads
+  earlier commits for `.env` files and credential-shaped values, and is marked not applicable only
+  when that finds nothing and the tree holds no secrets or data surface. On a shallow clone those
+  reads see only the commits present. On a partial clone (`--filter=blob:none` or `tree:0`), or
+  when a git read fails, times out or exceeds its output limit, a read that did not complete was
+  treated as finding nothing. So a repository whose only A2 surface was a secret-bearing `.env`,
+  committed and later deleted, was marked not applicable (shallow, treeless) or scored a warning
+  instead of critical (blobless), and the score rose.
+  - **Every rubric, including the default (presentation only).** When A2 is not applicable while
+    its history evidence is incomplete, it now says so in `criteria[].disclosures` (report format
+    1.8, no new field), and the certificate lists it under "What was not established": "A2's
+    applicability was decided from incomplete commit history: [the cause Cejel detected]. [...]
+    Re-scan a full, unfiltered clone (for actions/checkout, set fetch-depth: 0 and no filter)."
+    Under v17 and v18-v26 no score, status, metric value, finding count or fingerprint moves.
+  - **`witan-rubric-v27-prospective-2026-10-19` (scoring).** When the clone is shallow or any of
+    A2's history reads failed, A2 abstains unless a confirmed critical finding stands, on the
+    not-applicable and scoring paths alike, as a read failure kept in the composite at 0.
+    Composites can only fall. v27's shallow-clone sentence in `historyLimitations` no longer says
+    that a not-applicable criterion stays not applicable, and states exactly which abstentions
+    count as 0. If 0.6.8 is released before this change, its v27 certificates of such clones
+    report A2 not applicable or a warning. No behaviour fingerprint moves, because the behaviour
+    corpus has no such clone. On a complete clone whose history reads complete, nothing changes
+    under any rubric, and no public board row moves. See
     [`leaderboard/RUBRIC_CHANGELOG.md`](./leaderboard/RUBRIC_CHANGELOG.md) (2026-10-22).
 
 ## [0.6.8] — 2026-10-22

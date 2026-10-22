@@ -18,8 +18,9 @@
     "lastSeenAt": "2026-10-22T00:00:00.000Z",
     "stagingVersion": 2,
     "movesWhen": {
-      "kind": "awaiting-fix",
-      "reason": "The Cejel #556 fix (branch fix/shallow-a2-na-556) must merge to main."
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 560
     }
   },
   {
@@ -39,8 +40,32 @@
     "lastSeenAt": "2026-10-22T00:00:00.000Z",
     "stagingVersion": 2,
     "movesWhen": {
-      "kind": "awaiting-fix",
-      "reason": "The Cejel #556 fix (branch fix/shallow-a2-na-556) must merge to main."
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 560
+    }
+  },
+  {
+    "statement": "Key an abstention on whether the reads a result relied on completed, not on one cause of incompleteness. Cejel's first #556 fix made v27's A2 abstain on a shallow clone. Review of that fix (#560) found partial clones defeat it: with lazy fetch denied by Cejel's git boundary, history reads on a --filter=blob:none or tree:0 clone failed, the failure went into scanLimitations, and the reader then returned 'nothing found', so A2 scored a warning instead of critical (blobless) or became not applicable (treeless); a git timeout or output-limit overflow fails the same way. Rules: a reader that fails must not return the same value as one that found nothing; the criterion must see the failure, not only the report's limitation list; test the closure along every way a read can be incomplete (truncated, filtered, missing objects, failed), not only the one that was reported.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "false-assurance",
+      "reviewer-error"
+    ],
+    "tags": [
+      "failed-read-as-absence",
+      "partial-clone",
+      "shallow-clone",
+      "abstention-condition"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-10-22T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 560
     }
   }
 ]

@@ -22,15 +22,26 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
-## 2026-10-22 — #556: a shallow clone no longer takes A2 out of the composite under v27; every rubric says when A2's applicability was decided from truncated history; no published score moved
+## 2026-10-22 — #556: incomplete history no longer takes A2 out of the composite or lets it score higher under v27; every rubric says when A2's applicability was decided from incomplete history; no published score moved
 
-**Defect.** A2's not-applicable gate reads commit history. On a shallow clone, a repository whose
-only A2 surface is a secret-bearing `.env` committed and later deleted was marked A2 not
-applicable. A2 then left the composite, and the critical finding the full clone reports
-disappeared, so the score rose because Cejel read less. A review pass on #554 (an AI reviewer)
-reproduced it under v27 (full clone: A2 critical 1.4, overall 2.1; `--depth 12`: A2 not
-applicable, overall 2.2) and reported it under v17 at depth 1. v27's shallow-clone A2 abstention
-(#442) did not reach it, because the not-applicable gate runs first.
+**Defect.** A2 reads commit history in two places: an `.env` path in `git log HEAD`, and the
+history secret scan (the credential-path enumeration over every commit, the deleted-path scan, and
+the historical blob reads). On a shallow clone those reads see only the commits present. On a
+partial clone (`--filter=blob:none` or `--filter=tree:0`) the objects they need are not present,
+and Cejel's git boundary denies every transport, so the reads fail. A read that failed, timed out
+or exceeded its output limit was recorded in `scanLimitations` ("Cejel continued with reduced Git
+history evidence") and then treated as having found nothing. A repository whose only A2 surface is
+a secret-bearing `.env` committed and later deleted therefore:
+- became A2 not applicable on a shallow or treeless clone, so A2 left the composite and the
+  critical finding the full clone reports disappeared;
+- scored A2 warning 2.8 instead of critical 1.4 on a blobless clone, or wherever the blob read
+  failed, because the `.env` path was visible and its value was not.
+
+Either way the score rose because Cejel read less. A review pass on #554 (an AI reviewer)
+reproduced the shallow case under v27 (full clone: A2 critical 1.4, overall 2.1; `--depth 12`: A2
+not applicable, overall 2.2) and reported it under v17 at depth 1. The first review pass on #560
+(also an AI reviewer) reproduced the partial-clone cases. v27's shallow-clone A2 abstention (#442)
+reached neither: the not-applicable gate runs first, and #442 tested for a shallow clone only.
 
 **Which inputs are history-dependent.** The gate marks A2 not applicable only when it finds none
 of the following:
@@ -40,78 +51,124 @@ of the following:
 - In history: an `.env` path in `git log HEAD`, or a finding from the history secret scan.
 
 Both history reads run whenever the tree conditions hold, and the gate requires the tree
-conditions, so every not-applicable decision on a shallow clone rests on two history reads that saw
-only the commits present. On a full clone, or a directory that is not a git repository, nothing
-was truncated, and the decision is unchanged under every rubric.
+conditions, so every not-applicable decision rests on history reads that found nothing. The
+scored result rests on the history secret scan too.
 
-**`witan-rubric-v27-prospective-2026-10-19` (scoring).** On a shallow clone, where A2 would be
-marked not applicable, it now abstains as a read failure through the existing shallow-clone
-abstention (`insufficient_data`, kept in the composite at 0, ADR-0001). The note reads "A2
-abstained: this repository is a shallow clone, and A2 would otherwise have been marked not
-applicable on a decision that rests in part on its scans of earlier commits for .env files and
-credential-shaped values, which read only the commits present. Re-scan a full clone (for
-actions/checkout, set fetch-depth: 0)." The v27 shallow-history sentence no longer says "A
+**The rule.** A2's history evidence is incomplete when the clone is shallow (`git rev-parse
+--is-shallow-repository`), or when any of A2's own history reads failed: `git log HEAD` for `.env`
+paths, `rev-list HEAD` and the `diff-tree` enumeration, the deleted-path `git log`, the per-path
+`git log` for deleted paths, or a historical blob read (`git show`). A failed read is one that
+reports a git error, the 30-second timeout or the output limit; Cejel counts what it detected, so
+the report names the failed read, not a cause such as a partial clone. A credential-shaped path
+skipped for control characters, and the scan's own cap on the number of historical blobs it reads,
+are not counted: both are fixed rules applied to every clone alike. On a complete clone whose
+history reads all completed, and in a directory that is not a git repository, nothing changes under
+any rubric.
+
+**`witan-rubric-v27-prospective-2026-10-19` (scoring).** Where A2's history evidence is incomplete
+and no confirmed critical finding stands, A2 abstains through the existing shallow-clone abstention
+(`insufficient_data`, kept in the composite at 0, the read-failure treatment of ADR-0001). This
+applies on the not-applicable path and on the scoring path alike. The note names the detected cause:
+"A2 abstained: this repository is a shallow clone, …" (unchanged on the scoring path; on the
+not-applicable path it adds "A2 would otherwise have been marked not applicable on a decision that
+rests in part on its scans of earlier commits for .env files and credential-shaped values"), or
+"A2 abstained: Cejel's reads of this repository's earlier commits did not all complete (the scan
+limitations name each failed read), …". The v27 shallow-history sentence no longer says "A
 criterion that is not applicable stays not applicable"; it says A2 abstains "including where it
-would otherwise be marked not applicable". This can only lower a score: a criterion that was out of
-the composite enters it at 0.
+would otherwise be marked not applicable". Its composite sentence is now exact: a shallow-clone
+abstention counts as 0, and a content-read abstention whose every skip was one of Cejel's own size,
+type or file-kind limits is left out of the composite, as before. This can only lower a score: a
+criterion that was out of the composite, or scored above 0, now counts at 0.
 
-v27 is in 0.6.8, prospective and opt-in. A 0.6.8 v27 certificate of a shallow clone in this shape
-reports A2 not applicable; this change reports the abstention under the same identifier. The
-operator directed the #556 fix on 2026-10-22. Keeping the identifier follows the accepted #526
-ruling, under which a change to v27's scoring makes a new candidate; it was not a separate operator
-decision. Because no behaviour fingerprint moves (below), the candidate is named by commit. 0.6.8's
-public confirmation scored full-history clones only, so none of its recorded results changes.
+**B2 checked for the same class.** B2's history read (`readRecentCommits`, `git log` of commit
+subjects) needs commits only, which shallow and partial clones both hold, so a partial clone reads
+its whole window. A failed read throws and ends the scan; it cannot score B2 higher. v27's
+shallow-clone B2 abstention (#442) is unchanged.
 
-**Every other rubric, v17 included (presentation only).** A2 stays not applicable, and its
-`criteria[].disclosures` (report format 1.8, no new field) carries: "A2's applicability was decided
-from the commits present in this shallow clone. Marking A2 not applicable rests in part on Cejel's
-scans of earlier commits for .env files and credential-shaped values, and those scans read only the
-commits this clone holds, not the history before them. A full clone may make A2 applicable and give
-it a score. Re-scan a full clone (for actions/checkout, set fetch-depth: 0)." The certificate lists
-it under "What was not established" while A2 is not applicable. A content-read abstention that
-replaces the not-applicable result drops it. No score, status, metric value, finding count or
-fingerprint moves under v17-v26. The v17 shallow-history sentence ("on a full clone their results
-may differ") already covers applicability and is unchanged.
+**v27's identifier.** v27 is in the 0.6.8 release content, prospective and opt-in. If 0.6.8 is
+released before this change, its v27 certificates of such clones report A2 not applicable (shallow,
+treeless) or a warning (blobless); later builds report the abstention under the same identifier.
+The operator directed the #556 fix on 2026-10-22. Keeping the identifier is consistent with the
+accepted #526 ruling, under which a change to v27's scoring makes a new candidate; it was not a
+separate operator decision. Because no behaviour fingerprint moves (below), the candidate is named
+by commit: the merge commit is recorded after merge (#563). 0.6.8's public confirmation scored
+full-history clones only, so none of its recorded results changes.
 
-**Measured, `main` `71ea38993` (0.6.8) against this change, every selectable rubric.** The
-behaviour corpus, the false-assurance fixtures and the disclosure-gap fixtures, 2,255 reports:
+**Every other rubric, v17 included (presentation only).** Scoring is unchanged. Where A2 is marked
+not applicable while its history evidence is incomplete, its `criteria[].disclosures` (report
+format 1.8, no new field) carries a sentence starting "A2's applicability was decided from
+incomplete commit history:", naming only the causes Cejel detected:
+- shallow: "this clone is shallow, so Cejel's scans of earlier commits read only the commits it
+  holds";
+- failed read: "some of Cejel's reads of earlier commits did not complete (the scan limitations
+  name each one)";
+
+and continuing "Marking A2 not applicable rests in part on those scans, which look for .env files
+and credential-shaped values, so a complete read of the history may make A2 applicable and give it
+a score. Re-scan a full, unfiltered clone (for actions/checkout, set fetch-depth: 0 and no
+filter)." The certificate lists it under "What was not established" while A2 is not applicable. A
+content-read abstention that replaces the not-applicable result drops it. Where A2 scores on a
+failed history read (the blobless case), v17 already lists the failed read in `scanLimitations`,
+which makes the badge unrated and `--min-score` refuse; that is unchanged. The v17 shallow-history
+sentence ("on a full clone their results may differ") already covers applicability and is
+unchanged. No score, status, metric value, finding count or fingerprint moves under v17-v26.
+
+**Measured, `main` `71ea38993` against this change, every selectable rubric.** The behaviour
+corpus, the false-assurance fixtures and the disclosure-gap fixtures, 2,255 reports, and the new
+#556 shapes:
 
 | Set | Scoring-surface moves | Byte differences |
 |---|---|---|
 | Behaviour corpus (330 reports) | 0 | 0 |
 | False-assurance fixtures | 0 | 2, v27 only: the reworded shallow-history sentence on the two depth-1 fixtures, where A2 is applicable and its score is unchanged |
 | Disclosure-gap fixtures | 2, v27 only | 20 under v17-v26: the A2 disclosure on the same two depth-1 checkouts |
-| New #556 shapes (12 shapes × full, depth 1, depth 12; 396 reports) | 4, v27 only | the A2 disclosure on the shallow not-applicable shapes under v17-v26 |
+| New #556 shapes (12 shapes × full, depth 1, depth 12, blobless, treeless, missing history blobs; 792 reports) | 20, v27 only | the A2 disclosure where A2 is not applicable on incomplete history under v17-v26 |
 
-Another 11 reports (`review4-a4-working-directory-through-tracked-symlink`, every rubric) also
-differ between two runs of `main` itself: that fixture is not hermetic, and none of its scoring
-surfaces moved.
+No fixture in the first three sets has a failed history read. Another 11 reports
+(`review4-a4-working-directory-through-tracked-symlink`, every rubric) also differ between two runs
+of `main` itself: that fixture is not hermetic, and none of its scoring surfaces moved.
 
 The two disclosure-gap moves are `b3-master-target-depth-1-clone` and `b3-master-target-ci-fetch`
 (depth-1 checkouts with no A2 surface): under v27, A2 not applicable becomes `insufficient_data` at
 0, overall 1.8 to 1.5, code_trust 2.3 to 1.7, process_trust unchanged.
 
-**v17 against v27 on the #556 shapes** (overall / code_trust; process_trust is 1.4 throughout):
+"Missing history blobs" is a blobless clone with its partial-clone configuration removed, so git
+treats it as complete and the historical blob read fails: a stand-in for any failed history read on
+a repository that is neither shallow nor partial.
 
-| Shape | Full clone, v17 = v27 | Depth 1 or 12, v17 | Depth 1 or 12, v27 |
-|---|---|---|---|
-| secret deleted in history, nothing else (the issue's shape) | A2 critical 1.4; 1.8 / 2.2 | A2 not applicable; 2.0 / 2.5, with the disclosure | A2 abstains; 1.7 / 1.9 |
-| no A2 surface | A2 not applicable; 2.0 / 2.5 | A2 not applicable; 2.0 / 2.5, with the disclosure | A2 abstains; 1.7 / 1.9 |
-| secret in the tree (with or without a data layer or crypto surface) | A2 critical; 1.8 / 2.2 | unchanged | unchanged |
-| secret deleted in history, or none, with a data layer or crypto surface | A2 critical (deleted) or warning (none) | A2 warning; 2.0 / 2.6 (#442, unchanged) | A2 abstains (#442, unchanged); 1.6-1.7 / 1.8-1.9 |
+**v17 against v27 on the #556 shapes** (A2; overall / code_trust; process_trust is 1.4
+throughout). The complete clone scores the same under v17 and v27.
 
-Under v27, no shallow clone's composite or A2 score exceeds its full clone's in any of the 24
-shallow cases, and the 16 without a secret in the tree score lower. Under v17 the issue's shape still
-scores higher on the shallow clone: that is the calibrated default, now disclosed.
+| Shape | Full clone | Clone | v17 (unchanged) | v27 before | v27 after |
+|---|---|---|---|---|---|
+| secret deleted in history, nothing else (the issue's shape) | critical 1.4; 1.8 / 2.2 | depth 1 or 12 | not applicable; 2.0 / 2.5, + disclosure | not applicable; 2.0 / 2.5 | abstains; 1.7 / 1.9 |
+| | | blobless, missing blobs | warning 2.8; 2.0 / 2.6 | warning 2.8; 2.0 / 2.6 | abstains; 1.7 / 1.9 |
+| | | treeless | not applicable; 2.0 / 2.5, + disclosure | not applicable; 2.0 / 2.5 | abstains; 1.7 / 1.9 |
+| secret deleted in history, with a data layer or crypto surface | critical 1.4; 1.8 / 2.2 | blobless, treeless, missing blobs | warning; 2.0 / 2.6 | warning; 2.0 / 2.6 | abstains; 1.6-1.7 / 1.8-1.9 |
+| | | depth 1 or 12 | warning; 2.0 / 2.6 | abstains (#442) | unchanged |
+| no A2 surface | not applicable; 2.0 / 2.5 | depth 1 or 12 | not applicable, + disclosure | not applicable; 2.0 / 2.5 | abstains; 1.7 / 1.9 |
+| | | treeless | not applicable, + disclosure | not applicable; 2.0 / 2.5 | abstains; 1.7 / 1.9 |
+| | | blobless, missing blobs | not applicable (every read completed) | not applicable | unchanged |
+| no secret, with a data layer or crypto surface | warning; 2.0 / 2.6 | treeless | warning | warning; 2.0 / 2.6 | abstains; 1.6-1.7 / 1.8-1.9 |
+| | | depth 1 or 12 | warning | abstains (#442) | unchanged |
+| | | blobless, missing blobs | warning (every read completed) | warning | unchanged |
+| secret in the tree (any) | critical 1.4; 1.8 / 2.2 | every clone | critical | critical | unchanged |
 
-**Fingerprints.** No rubric's behaviour fingerprint moves: the behaviour corpus holds no shallow
-clone. v17 stays `sha256:5cd48f8c642300ae8736a09d4a24ce3a4f8885f6e099b5f27f99d950e0c944b4`; v27
-stays `sha256:fb4edfa0bdf0d8153af3f84a4b72d4eab6da3fd6e0b2e3e494cea9542ded45a0` although its
-behaviour on shallow clones changed, so that fingerprint alone does not distinguish this candidate
-from 0.6.8's v27.
+Under v27, no incomplete clone's composite or A2 score exceeds its complete clone's in any of the 60
+incomplete cases, and 32 score lower. A blobless clone whose history holds no credential-shaped path
+needs no historical blob, so its reads complete and nothing changes. Under v17 the issue's shape
+still scores higher on every incomplete clone: that is the calibrated default, now disclosed where
+A2 is not applicable, and already flagged in `scanLimitations` where a read failed.
 
-**Public board.** No row moves under any rubric: the board is scored from full-history clones
-(the public-delta harness refuses a shallow target).
+**Fingerprints.** No rubric's behaviour fingerprint moves: the behaviour corpus holds no shallow or
+partial clone and no failed history read. v17 stays
+`sha256:5cd48f8c642300ae8736a09d4a24ce3a4f8885f6e099b5f27f99d950e0c944b4`. 0.6.8's v27 fingerprint,
+`sha256:fb4edfa0bdf0d8153af3f84a4b72d4eab6da3fd6e0b2e3e494cea9542ded45a0`, is not moved by this
+change although v27's behaviour on incomplete history changed, so that fingerprint alone does not
+distinguish this candidate from 0.6.8's v27.
+
+**Public board.** No row moves under any rubric: the board is scored from full-history,
+unfiltered clones (the public-delta harness refuses a shallow or filtered target).
 
 **Classification.** Under v27 this changes scoring, so it makes a new v27 candidate (dated
 addition to `docs/reviews/v27-false-assurance-closure-2026-10-19.md`). Under every other rubric it

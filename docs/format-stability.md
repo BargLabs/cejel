@@ -52,7 +52,9 @@ Stable in report format v1:
   display-only under every rubric. Under `witan-rubric-v27-prospective-2026-10-19` the A2 and B2
   collectors themselves abstain on a shallow clone, and the sentence says so; under v17 and v18-v26
   the sentence and the scoring are unchanged. Since #556, A2's v27 abstention also covers a shallow
-  clone where A2 would otherwise be marked not applicable, and the v27 sentence says so.
+  clone where A2 would otherwise be marked not applicable, and the v27 sentence says so. Under v27 A2
+  also abstains when one of its history reads failed (on a partial clone, for example); that is
+  stated in A2's note and the failed read in `scanLimitations`, not in this field.
 - Git LFS pointers: `contentReadSummary.byReason.lfsPointer` (report format 1.6), present only
   when the checkout held at least one Git LFS pointer in place of a file's content, and summed
   into `skipped`. Under every rubric it is a count: it names content Cejel did not read. Under
@@ -89,18 +91,18 @@ Stable in report format v1:
   naming something the criterion's collector read and set aside, or counted without seeing it do
   what it is counted for. A2 names credential-shaped values it set aside as documentation
   placeholders (by count and path, never the value); B3 names counted PR-gate workflows it did not
-  see run a check. A2 also states when it was marked not applicable on a shallow clone (#556):
-  that decision rests in part on its scans of earlier commits, which read only the commits the
-  clone holds. The certificate lists them under "What was not established". They are kept
+  see run a check. A2 also states when it was marked not applicable while its history evidence was
+  incomplete (#556): the clone is shallow, or one of its reads of earlier commits failed (the scan
+  limitations name each). That decision rests in part on those reads. The certificate lists them under "What was not established". They are kept
   apart from `notes` so that an abstention or a merge that rewrites the notes cannot drop them. They
   move no score, status or metric under any rubric. Absent when there is nothing to disclose; the
   `report.json` of a scan with no disclosure is byte-identical to a 1.7 one (its paired
   `attestation.json` records `1.8`). On an older report, A2 and B3 may
-  have set values aside or counted such workflows without saying so. The A2 shallow-clone
-  applicability sentence was added after 0.6.8 within format 1.8, without a new field: a 1.8 report
-  whose `toolVersion` is 0.6.8 never carries it, so there its absence says nothing about how A2's
-  applicability was decided. Under `witan-rubric-v27-prospective-2026-10-19` A2 abstains in that
-  case instead and the sentence is not written.
+  have set values aside or counted such workflows without saying so. The A2 applicability sentence
+  was added within format 1.8, without a new field, so on any report its absence does not show that
+  A2's applicability was decided on complete history; `historyLimitations` and `scanLimitations` say
+  what Cejel detected about the history it read. Under `witan-rubric-v27-prospective-2026-10-19`
+  A2 abstains in that case instead and the sentence is not written.
 
 Experimental within report format v1: metric presentation hints under
 `criteria[].metrics[].presentation`, optional multi-category `categoryScores`, and the exact ordering
