@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
-import { realpathSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { existsSync, realpathSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
 
 export const GIT_EXEC_MAX_BUFFER_BYTES = 8 * 1024 * 1024;
 export const GIT_EXEC_TIMEOUT_MS = 30_000;
@@ -108,6 +108,28 @@ export function withGitDiscoveryConfinedTo<T>(root: string, scan: () => T): T {
   }
 }
 
+/**
+ * True when a `.git` entry (directory, or the file a worktree or submodule uses) is visible from
+ * `repoPath` within the same discovery bounds git would use: `repoPath` itself and each parent,
+ * stopping below the confinement ceiling when one is set. A filesystem check only; it runs no
+ * git. Used to tell "git is absent and this is a repository" apart from "this is not one" (#560).
+ */
+export function hasVisibleGitMetadata(repoPath: string): boolean {
+  let current: string;
+  try {
+    current = realpathSync(repoPath);
+  } catch {
+    return false;
+  }
+  for (;;) {
+    if (discoveryCeiling !== undefined && current === discoveryCeiling) return false;
+    if (existsSync(join(current, '.git'))) return true;
+    const parent = dirname(current);
+    if (parent === current) return false;
+    current = parent;
+  }
+}
+
 function hardenedGitEnvironment(cwd: string): NodeJS.ProcessEnv {
   const environment: NodeJS.ProcessEnv = {};
   for (const key of ['PATH', 'HOME', 'TZ'] as const) {
@@ -145,31 +167,55 @@ function errorField(error: unknown, key: string): unknown {
   return (error as Record<string, unknown>)[key];
 }
 
-function errorText(error: unknown): string {
+function stderrText(error: unknown): string {
   const stderr = errorField(error, 'stderr');
-  const stderrText =
-    typeof stderr === 'string' ? stderr : Buffer.isBuffer(stderr) ? stderr.toString('utf8') : '';
-  const message = error instanceof Error ? error.message : '';
-  return `${stderrText}\n${message}`;
+  return typeof stderr === 'string' ? stderr : Buffer.isBuffer(stderr) ? stderr.toString('utf8') : '';
 }
 
-function classifyGitFailure(error: unknown): GitExecFailureReason {
+// git's own diagnostics that mean "there is no usable repository or revision here". Matched only
+// against git's diagnostic lines (each starting "fatal: " or "error: "), with every single-quoted
+// span emptied first: git quotes the paths and arguments it names, and those come from the
+// repository. The one quoted argument that matters, 'HEAD', is matched exactly, before emptying.
+const GIT_NO_REPOSITORY_DIAGNOSTICS: readonly RegExp[] = [
+  /^(?:fatal|error): not a git repository\b/i,
+  /^(?:fatal|error): not in a git directory\b/i,
+  /^(?:fatal|error): .*\bnot inside a work tree\b/i,
+  /^fatal: this operation must be run in a work tree$/i,
+  /^fatal: your current branch '' does not have any commits yet\b/i,
+  /^fatal: needed a single revision\b/i,
+];
+const GIT_UNKNOWN_HEAD_DIAGNOSTIC = /^fatal: ambiguous argument 'HEAD': unknown revision\b/i;
+
+function isNoRepositoryDiagnostic(stderr: string): boolean {
+  for (const rawLine of stderr.split('\n')) {
+    const line = rawLine.trimEnd();
+    if (!/^(?:fatal|error): /i.test(line)) continue;
+    if (GIT_UNKNOWN_HEAD_DIAGNOSTIC.test(line)) return true;
+    const unquoted = line.replace(/'[^'\n]*'/g, "''");
+    if (GIT_NO_REPOSITORY_DIAGNOSTICS.some((pattern) => pattern.test(unquoted))) return true;
+  }
+  return false;
+}
+
+/**
+ * Classifies a failed git invocation from what Node and git themselves reported: the spawn error
+ * code and git's own diagnostic lines on stderr. Never from `error.message`:
+ * Node repeats the whole command line there, the command line carries repository paths, and a
+ * file named, say, `secrets/timeout.txt` or `not a git repository.txt` would otherwise choose the
+ * class, turning a failed read into a "timeout", or into an expected absence that is never
+ * reported (#560).
+ */
+export function classifyGitFailure(error: unknown): GitExecFailureReason {
   const code = errorField(error, 'code');
-  const signal = errorField(error, 'signal');
-  const text = errorText(error);
 
   if (code === 'ENOENT') return 'git_absent';
-  if (code === 'ENOBUFS' || /maxBuffer|ENOBUFS/i.test(text)) return 'buffer_exceeded';
-  if (code === 'ETIMEDOUT' || signal === 'SIGTERM' || /timed?\s*out|ETIMEDOUT/i.test(text)) {
-    return 'timeout';
-  }
-  if (
-    /not a git repository|not inside a work tree|not in a git directory|unknown revision.*HEAD|ambiguous argument ['"]?HEAD|does not have any commits yet|needed a single revision/i.test(
-      text,
-    )
-  ) {
-    return 'not_a_repo';
-  }
+  // Node reports the output limit as ENOBUFS from execFileSync, and as
+  // ERR_CHILD_PROCESS_STDIO_MAXBUFFER from its other child-process APIs.
+  if (code === 'ENOBUFS' || code === 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER') return 'buffer_exceeded';
+  // Node sets ETIMEDOUT when it kills the child for the timeout. A bare SIGTERM sent by anything
+  // else is not Cejel's timeout, so it falls through to a failed read.
+  if (code === 'ETIMEDOUT') return 'timeout';
+  if (isNoRepositoryDiagnostic(stderrText(error))) return 'not_a_repo';
   return 'exec_failed';
 }
 

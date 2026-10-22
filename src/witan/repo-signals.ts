@@ -63,6 +63,7 @@ import {
   execGit,
   GIT_EXEC_MAX_BUFFER_BYTES,
   GIT_EXEC_TIMEOUT_MS,
+  hasVisibleGitMetadata,
   isExpectedGitAbsence,
   type GitExecResult,
 } from './git-exec.js';
@@ -5303,12 +5304,21 @@ const V27_A2_SHALLOW_APPLICABILITY_NOTE =
  *   incomplete read by the operator's decision of 2026-10-22 on #560 (#526); like the limits above
  *   it fires on complete clones and a re-scan does not lift it. It is not a git failure, so it is
  *   not in the scan limitations; the history secret scan's own finding names it where A2 scores.
+ * - `controlCharacterSkip`: a credential-shaped (or `.env`-shaped) path in the commit history was
+ *   left unread because its name contains control characters, a fixed rule of Cejel's that applies
+ *   to every clone alike and that a name chosen for it could otherwise use to keep a value out of
+ *   the scan (#560). Its scan limitation is the existing control-character one.
+ * - `gitUnavailable`: git itself could not be run while a `.git` entry is visible from the scanned
+ *   path, so none of the history was read (#560, #568). Not a git failure, so not in the scan
+ *   limitations.
  */
 export interface A2HistoryIncompleteness {
   readonly shallow: boolean;
   readonly limitHits: readonly string[];
   readonly otherFailure: boolean;
   readonly blobCapHit?: boolean;
+  readonly controlCharacterSkip?: boolean;
+  readonly gitUnavailable?: boolean;
 }
 
 function a2HistoryIncompleteness(
@@ -5318,13 +5328,31 @@ function a2HistoryIncompleteness(
 ): A2HistoryIncompleteness | null {
   const shallow = isShallowRepository(repoPath);
   const limitHits = [...reads.limitHits].sort();
-  return shallow || limitHits.length > 0 || reads.otherFailure || blobCapHit
-    ? { shallow, limitHits, otherFailure: reads.otherFailure, ...(blobCapHit ? { blobCapHit } : {}) }
+  const controlCharacterSkip = reads.controlCharacterCandidate;
+  // Checked only when git was found absent, so an ordinary scan does no extra filesystem work.
+  const gitUnavailable = reads.gitAbsent && hasVisibleGitMetadata(repoPath);
+  return shallow || limitHits.length > 0 || reads.otherFailure || blobCapHit || controlCharacterSkip || gitUnavailable
+    ? {
+        shallow,
+        limitHits,
+        otherFailure: reads.otherFailure,
+        ...(blobCapHit ? { blobCapHit } : {}),
+        ...(controlCharacterSkip ? { controlCharacterSkip } : {}),
+        ...(gitUnavailable ? { gitUnavailable } : {}),
+      }
     : null;
 }
 
 const historyReadFailed = (incompleteness: A2HistoryIncompleteness) =>
-  incompleteness.limitHits.length > 0 || incompleteness.otherFailure || incompleteness.blobCapHit === true;
+  incompleteness.limitHits.length > 0 ||
+  incompleteness.otherFailure ||
+  incompleteness.blobCapHit === true ||
+  incompleteness.controlCharacterSkip === true ||
+  incompleteness.gitUnavailable === true;
+
+// The timeout is the one limit whose hit depends on the scanning host rather than on the
+// repository alone, so a re-scan may lift it; the output limits and the file cap will not lift.
+const HISTORY_READ_TIMEOUT_NAME = `${GIT_EXEC_TIMEOUT_MS / 1000}-second timeout`;
 
 // A function, not a constant: HISTORY_SECRET_SCAN_CREDENTIAL_BLOB_LIMIT is declared further down.
 const historySecretScanCapName = () =>
@@ -5350,7 +5378,17 @@ function a2HistoryIncompletenessCauses(incompleteness: A2HistoryIncompleteness):
   const cap = incompleteness.blobCapHit
     ? [`Cejel's scan of earlier commits for credential-shaped values stopped at its own ${historySecretScanCapName()}`]
     : [];
-  return [`${causes.join(', and ')}${named}`, ...cap].filter((part) => part !== '').join(', and ');
+  const controlCharacters = incompleteness.controlCharacterSkip
+    ? [
+        "Cejel left a credential-shaped path in the commit history unread because its name contains control characters (the scan limitations say so)",
+      ]
+    : [];
+  const gitUnavailable = incompleteness.gitUnavailable
+    ? ['git could not be run on the scanning host, so Cejel read none of the commit history']
+    : [];
+  return [`${causes.join(', and ')}${named}`, ...cap, ...controlCharacters, ...gitUnavailable]
+    .filter((part) => part !== '')
+    .join(', and ');
 }
 
 /** What a re-scan can and cannot change, per detected cause. */
@@ -5361,9 +5399,32 @@ function a2HistoryIncompletenessAdvice(incompleteness: A2HistoryIncompleteness):
   } else if (incompleteness.shallow) {
     advice.push('Re-scan a full clone (for actions/checkout, set fetch-depth: 0).');
   }
-  const limits = incompleteness.limitHits.length + (incompleteness.blobCapHit ? 1 : 0);
-  if (limits > 0) {
-    advice.push(`A re-scan of the same repository will not lift Cejel's own ${limits === 1 ? 'limit' : 'limits'}.`);
+  if (incompleteness.gitUnavailable) {
+    advice.push('Re-scan on a host where git is installed.');
+  }
+  // The output limits and the file cap are deterministic for a given repository; the timeout
+  // depends on the machine and its load, so a re-scan may lift it (#560 review).
+  const timedOut = incompleteness.limitHits.includes(HISTORY_READ_TIMEOUT_NAME);
+  const sizeLimits = incompleteness.limitHits.filter((limit) => limit !== HISTORY_READ_TIMEOUT_NAME).length;
+  const fixedLimits = sizeLimits + (incompleteness.blobCapHit ? 1 : 0);
+  if (fixedLimits > 0) {
+    const kind = !timedOut
+      ? ''
+      : incompleteness.blobCapHit
+        ? sizeLimits > 0
+          ? ' on size and file count'
+          : ' on file count'
+        : ' on size';
+    advice.push(
+      `A re-scan of the same repository will not lift Cejel's own ${fixedLimits === 1 ? 'limit' : 'limits'}${kind}${timedOut ? ', and may not lift its timeout, which depends on the machine and its load' : ''}.`,
+    );
+  } else if (timedOut) {
+    advice.push(
+      "A re-scan of the same repository may not lift Cejel's own timeout, which depends on the machine and its load.",
+    );
+  }
+  if (incompleteness.controlCharacterSkip) {
+    advice.push("A re-scan of the same repository will not lift Cejel's own rule on control characters in paths.");
   }
   return advice.join(' ');
 }
@@ -13860,6 +13921,34 @@ const CONTROL_CHARACTER_HISTORY_PATH_LIMITATION =
 
 const HISTORY_READ_FAILURE_SUFFIX = ' Cejel continued with reduced Git history evidence.';
 
+/**
+ * #560: an expected absence (git not installed, or no repository here) is not reported as a scan
+ * limitation, as before. When git itself could not be run, A2's recorder notes it, so A2 can tell
+ * an unread repository history from a directory with none (a2HistoryIncompleteness).
+ */
+function isExpectedHistoryAbsence(
+  scanLimitations: Set<string>,
+  result: Exclude<GitExecResult, { readonly ok: true }>,
+): boolean {
+  if (!isExpectedGitAbsence(result)) return false;
+  if (result.reason === 'git_absent' && scanLimitations instanceof HistoryReadRecorder) {
+    scanLimitations.gitAbsent = true;
+  }
+  return true;
+}
+
+/**
+ * #560: a history path with control characters in its name is left unread and named in the scan
+ * limitations, exactly as before. When the path is one the read would otherwise have used
+ * (`candidate`), A2's recorder also counts it as an incomplete read.
+ */
+function skipControlCharacterHistoryPath(scanLimitations: Set<string>, candidate: boolean): void {
+  if (candidate && scanLimitations instanceof HistoryReadRecorder) {
+    scanLimitations.controlCharacterCandidate = true;
+  }
+  scanLimitations.add(CONTROL_CHARACTER_HISTORY_PATH_LIMITATION);
+}
+
 function declareHistoryFailure(
   scanLimitations: Set<string>,
   reason: Exclude<GitExecResult, { readonly ok: true }>['reason'],
@@ -13878,13 +13967,19 @@ function declareHistoryFailure(
  * #556: a scanLimitations stand-in for one criterion's history reads. Every limitation is
  * forwarded to the real set at once, in the same order, so the report is unchanged.
  * declareHistoryFailure tells it about each failed git read: `limitHits` names Cejel's own limits a
- * read stopped at (an output limit or the timeout), and `otherFailure` records any other failure. A
- * path omitted for control characters is not a failed read: that is a fixed rule Cejel applies to
- * every clone alike, and it never reaches noteFailure.
+ * read stopped at (an output limit or the timeout), and `otherFailure` records any other failure.
+ * #560: `gitAbsent` records that git itself could not be run (an expected absence, so no scan
+ * limitation), and `controlCharacterCandidate` that a path the read would have used was skipped for
+ * control characters in its name. A2 counts both as an incomplete read; a control-character path
+ * the read would not have used anyway is not counted.
  */
 class HistoryReadRecorder extends Set<string> {
   readonly limitHits = new Set<string>();
   otherFailure = false;
+  /** git itself could not be run (ENOENT), which every read reports as an expected absence. */
+  gitAbsent = false;
+  /** A credential- or .env-shaped history path was skipped for control characters in its name. */
+  controlCharacterCandidate = false;
   private readonly target: Set<string>;
 
   constructor(target: Set<string>) {
@@ -13903,7 +13998,7 @@ class HistoryReadRecorder extends Set<string> {
         bytes % (1024 * 1024) === 0 ? `${bytes / (1024 * 1024)} MiB` : `${Math.ceil(bytes / 1024)} KiB`;
       this.limitHits.add(`${limit} output limit`);
     } else if (reason === 'timeout') {
-      this.limitHits.add(`${GIT_EXEC_TIMEOUT_MS / 1000}-second timeout`);
+      this.limitHits.add(HISTORY_READ_TIMEOUT_NAME);
     } else {
       this.otherFailure = true;
     }
@@ -13924,11 +14019,20 @@ export function probeA2EnvPathHistoryRead(repoPath: string): {
   limitations: string[];
   limitHits: string[];
   otherFailure: boolean;
+  gitAbsent: boolean;
+  controlCharacterCandidate: boolean;
 } {
   const limitations = new Set<string>();
   const recorder = new HistoryReadRecorder(limitations);
   const found = hasEnvPathInGitHistory(repoPath, recorder);
-  return { found, limitations: [...limitations], limitHits: [...recorder.limitHits], otherFailure: recorder.otherFailure };
+  return {
+    found,
+    limitations: [...limitations],
+    limitHits: [...recorder.limitHits],
+    otherFailure: recorder.otherFailure,
+    gitAbsent: recorder.gitAbsent,
+    controlCharacterCandidate: recorder.controlCharacterCandidate,
+  };
 }
 
 function collectHistorySecretEvidence(
@@ -14074,7 +14178,7 @@ function readCredentialHistoryEntries(
   // A report is bound to the checked-out revision. Unrelated local branches and
   // remote-tracking refs are ambient clone state, not evidence for that revision.
   const commitsResult = execGit(['rev-list', 'HEAD'], { cwd: repoPath });
-  if (!commitsResult.ok && !isExpectedGitAbsence(commitsResult)) {
+  if (!commitsResult.ok && !isExpectedHistoryAbsence(scanLimitations, commitsResult)) {
     declareHistoryFailure(scanLimitations, commitsResult.reason, 'history revision enumeration');
   }
   if (commitsResult.ok) {
@@ -14092,7 +14196,7 @@ function readCredentialHistoryEntries(
       { cwd: repoPath, input: commitsResult.stdout },
     );
     if (!historyResult.ok) {
-      if (!isExpectedGitAbsence(historyResult)) {
+      if (!isExpectedHistoryAbsence(scanLimitations, historyResult)) {
         declareHistoryFailure(scanLimitations, historyResult.reason, 'history tree enumeration');
       }
     } else {
@@ -14106,7 +14210,10 @@ function readCredentialHistoryEntries(
         const path = token;
         if (!currentCommit || !path) continue;
         if (/[\u0000-\u001f\u007f]/.test(path)) {
-          scanLimitations.add(CONTROL_CHARACTER_HISTORY_PATH_LIMITATION);
+          skipControlCharacterHistoryPath(
+            scanLimitations,
+            isCredentialHistoryPath(path, useV36Detectors, useV23PemPrivateKeyGrammar),
+          );
           continue;
         }
         if (!isCredentialHistoryPath(path, useV36Detectors, useV23PemPrivateKeyGrammar)) continue;
@@ -14171,7 +14278,7 @@ function readDeletedCredentialHistoryPaths(
     { cwd: repoPath },
   );
   if (!historyResult.ok) {
-    if (isExpectedGitAbsence(historyResult)) return [];
+    if (isExpectedHistoryAbsence(scanLimitations, historyResult)) return [];
     declareHistoryFailure(scanLimitations, historyResult.reason, 'deleted-path history scan');
     return [];
   }
@@ -14181,7 +14288,10 @@ function readDeletedCredentialHistoryPaths(
     const path = rawToken.startsWith('\n') ? rawToken.slice(1) : rawToken;
     if (path.startsWith('commit:') || !path) continue;
     if (/[\u0000-\u001f\u007f]/.test(path)) {
-      scanLimitations.add(CONTROL_CHARACTER_HISTORY_PATH_LIMITATION);
+      skipControlCharacterHistoryPath(
+        scanLimitations,
+        isCredentialHistoryPath(path, useV36Detectors, useV23PemPrivateKeyGrammar),
+      );
       continue;
     }
     if (!path || seen.has(path)) continue;
@@ -14202,7 +14312,7 @@ function readHistoryCommitsForPath(
     { cwd: repoPath },
   );
   if (!historyResult.ok) {
-    if (isExpectedGitAbsence(historyResult)) return [];
+    if (isExpectedHistoryAbsence(scanLimitations, historyResult)) return [];
     declareHistoryFailure(scanLimitations, historyResult.reason, 'path history scan');
     return [];
   }
@@ -14288,7 +14398,7 @@ function readGitBlob(
     maxBufferBytes,
   });
   if (!blobResult.ok) {
-    if (isExpectedGitAbsence(blobResult)) return null;
+    if (isExpectedHistoryAbsence(scanLimitations, blobResult)) return null;
     declareHistoryFailure(
       scanLimitations,
       blobResult.reason,
@@ -14806,7 +14916,7 @@ function hasEnvPathInGitHistory(repoPath: string, scanLimitations: Set<string>):
     { cwd: repoPath },
   );
   if (!historyResult.ok) {
-    if (isExpectedGitAbsence(historyResult)) return false;
+    if (isExpectedHistoryAbsence(scanLimitations, historyResult)) return false;
     declareHistoryFailure(scanLimitations, historyResult.reason, 'environment-file history scan');
     return false;
   }
@@ -14815,7 +14925,7 @@ function hasEnvPathInGitHistory(repoPath: string, scanLimitations: Set<string>):
   return output.split('\0').some((rawPath) => {
     const path = rawPath.startsWith('\n') ? rawPath.slice(1) : rawPath;
     if (/[\u0000-\u001f\u007f]/.test(path)) {
-      scanLimitations.add(CONTROL_CHARACTER_HISTORY_PATH_LIMITATION);
+      skipControlCharacterHistoryPath(scanLimitations, /(?:^|\/)\.env(?:\.|$)/i.test(path));
       return false;
     }
     return /(?:^|\/)\.env(?:\.|$)/i.test(path);

@@ -67,5 +67,28 @@
       "repository": "BargLabs/cejel",
       "number": 560
     }
+  },
+  {
+    "statement": "Never classify a subprocess failure from text that can carry its arguments. Cejel's git wrapper matched patterns such as 'not a git repository', 'timeout' and 'maxBuffer' against stderr plus Node's error.message, and error.message quotes the whole command line, including repository paths (git show <commit>:<path>). The third review of #560 found that a deleted secret in secrets/not a git repository.txt on a blobless clone made the failed read look like 'no repository', which Cejel drops silently, so A2 stayed not applicable and scored above the complete clone under every rubric; a path containing 'timeout' produced a false limit. Rules: classify from fields the runtime and tool control (spawn error code, signal, exit status) and from the tool's own message lines anchored at line start; test with argument text crafted to match each pattern.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "false-assurance",
+      "security"
+    ],
+    "tags": [
+      "error-classification",
+      "argv-injection",
+      "silent-drop",
+      "subprocess"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-10-22T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 560
+    }
   }
 ]

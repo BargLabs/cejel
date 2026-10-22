@@ -418,7 +418,7 @@ describe('#556: which history-read outcomes count as a failed read', () => {
     ]);
   });
 
-  it('a path skipped for control characters is not a failed read: A2 stays not applicable on a complete clone', () => {
+  it('a path skipped for control characters that A2 would not have read is not a failed read: A2 stays not applicable on a complete clone', () => {
     const repo = cloneShallowA2Origin(
       buildA2HistoryOrigin('control-character', [{ write: { ...base, 'notes\tfile.txt': 'x\n' } }, { write: { 'README.md': '# c\n' } }]),
       'full',

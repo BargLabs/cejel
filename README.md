@@ -164,8 +164,11 @@ shallow clone goes further. A2 abstains unless a confirmed critical secret findi
 where it would otherwise be marked not applicable, since that decision also rests on earlier
 commits. It abstains the same way on any clone where one of its reads of earlier commits failed:
 for example on a partial clone made with `--filter`, which `fetch-depth: 0` and no `filter` avoid,
-or where a read stops at one of Cejel's own output or time limits, which happens on some large
-complete histories and which a re-scan of the same repository does not lift (#567). B2 abstains,
+or where a read stops at one of Cejel's own limits: an output limit or the history secret scan's
+cap of 5,000 historical files, which happen on some large complete histories and which a re-scan
+of the same repository does not lift (#567), or the 30-second timeout, which a re-scan may lift.
+It also abstains when it leaves a credential-shaped path in history unread because the path's name
+contains control characters, and when git itself cannot be run on the scanning host. B2 abstains,
 where it would be scored, when fewer than 12 commits are visible. Each of these abstentions counts
 as 0 in the composite, so they can lower the v27 score.
 
