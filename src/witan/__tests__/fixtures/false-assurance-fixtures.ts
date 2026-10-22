@@ -1609,7 +1609,7 @@ for (const [name, purpose, runsOn, run] of [
   });
 }
 for (const [name, purpose, runsOn] of [
-  ['review10-upload-only-windows-runner', 'An upload-only workflow on windows-latest: publish-only is not claimed (#564).', 'windows-latest'],
+  ['review10-upload-only-windows-runner', 'An upload-only workflow on every push to main, on windows-latest: publish-only is not claimed (#564), so B3 counts it as v17 does.', 'windows-latest'],
   ['review10-upload-only-self-hosted-runner', 'An upload-only workflow on a self-hosted runner: not claimed.', 'self-hosted'],
 ] as const) {
   FALSE_ASSURANCE_FIXTURES_REVIEW.push({
@@ -1617,7 +1617,7 @@ for (const [name, purpose, runsOn] of [
     issue: '#564',
     foundInReview: true,
     purpose,
-    commits: [{ ...PY_LIBRARY, '.github/workflows/publish.yml': PYPI_UPLOAD_ONLY("on:\n  push:\n    tags: ['*']\n", '').replace('runs-on: ubuntu-latest', `runs-on: ${runsOn}`) }],
+    commits: [{ ...PY_LIBRARY, '.github/workflows/publish.yml': PYPI_UPLOAD_ONLY('on:\n  push:\n    branches: [main]\n', '').replace('runs-on: ubuntu-latest', `runs-on: ${runsOn}`) }],
   });
 }
 
