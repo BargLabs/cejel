@@ -148,10 +148,11 @@ control characters" to the note, and the git-unavailable cause adds "git could n
 scanning host". Tests: `git-failure-classification-560.test.ts`, `a2-history-path-names-560.test.ts`,
 `a2-history-read-failures-560.test.ts`, `a2-history-control-characters-560.test.ts`,
 `a2-history-git-unavailable-560.test.ts`, and the classification cases in `git-exec.test.ts`.
-The user directed these fixes on 2026-10-22. The operator's ADR-0001 rulings name a shallow clone,
-a failed history read, Cejel's own output and time limits and the 5,000-file cap; whether they also
-cover the two new causes (a control-character path, git unavailable) is for the operator to
-confirm, and this entry does not claim it.
+The operator directed these fixes on 2026-10-22, and in a third ADR-0001 ruling the same day
+("for adr-0001 add them") extended the read-failure treatment to the two new causes (a
+control-character path, git unavailable), alongside a shallow clone, a failed history read, Cejel's
+own output and time limits and the 5,000-file cap. The control-character limitation's wording,
+which calls every such path credential-shaped, is #570.
 
 **B2 checked for the same class.** B2's history read (`readRecentCommits`, `git log` of commit
 subjects) needs commits only, which shallow and partial clones both hold, so a partial clone reads

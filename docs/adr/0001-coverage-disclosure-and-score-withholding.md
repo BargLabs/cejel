@@ -1,6 +1,6 @@
 # ADR-0001: Coverage is disclosed, never discounted — and may later withhold a score
 
-**Status:** Accepted (two operator rulings of 2026-10-22 recorded at the end: v27 shallow-clone abstentions, and #556's abstention)
+**Status:** Accepted (three operator rulings of 2026-10-22 recorded at the end: v27 shallow-clone abstentions, #556's abstention, and its two further causes from #560's review)
 **Date:** 2026-08-02
 **Deciders:** Houman Azimi
 **Supersedes:** nothing. First ADR in this repository.
@@ -291,3 +291,30 @@ decisions cover both kinds: "a timeout or an output limit" is named in the first
 accepted, and the second decision names the limits and the cap. Treating either kind as a coverage limit
 would let A2 leave the composite, or score on a read that did not complete, which can raise a
 composite.
+
+## Operator ruling (2026-10-22, third): two further causes from #560's review are covered
+
+Recorded by an AI agent (Claude Opus 5.5, Claude Code) on `fix/560-review-findings`, at the
+operator's instruction in the agent's session. The text above is unchanged apart from the Status
+line.
+
+**The question.** Review round 4 of #560 added two causes of an incomplete read of the commit history
+that the rulings above do not name:
+- a credential- or `.env`-shaped path in history that A2 leaves unread because its name contains
+  control characters (a fixed rule of Cejel's, applied to every clone alike, with its own scan
+  limitation); and
+- git itself cannot be run (no git binary) while a `.git` entry is visible from the scanned path, so
+  A2 reads none of the history (#568; no scan limitation).
+
+The agent's record left open whether the read-failure ruling covers them. The operator's reply was
+"for adr-0001 add them". The operator gave no reasons.
+
+**What is covered.** Under `witan-rubric-v27-prospective-2026-10-19`, A2's abstention for either
+cause is a **read failure** under this ADR, exactly as for the causes in the second ruling: A2
+abstains at 0 and keeps its place in the composite, and a confirmed critical finding still stands
+and is scored.
+
+**What it does not change.** v17 and v18-v26 do not abstain for either cause. Where A2 is marked not
+applicable, a sentence among A2's disclosures names the cause. A control-character path keeps its
+existing scan limitation (whose wording is #570); git being unavailable adds none. The ruling
+decides nothing about any other systematic limit.
