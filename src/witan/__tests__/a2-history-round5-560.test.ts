@@ -129,3 +129,29 @@ describe('#560 R5-1: a .git file pointing at a missing gitdir is still "no repos
     }
   });
 });
+
+// A path holding a line break followed by a git message could only reach git's error output if
+// Cejel passed it to git. Every history path with a control character (a line break is one) is
+// skipped before any read, so such a path is counted under the control-character rule, never read
+// and never classified; git-exec.test.ts pins the classifier's first-"fatal:"-line rule as well.
+describe('#560: a history path with a line break and a git message is never read', () => {
+  it('a deleted credential path "secrets/a<newline>fatal: not a git repository ..." with its blob gone', () => {
+    const path = 'secrets/a\nfatal: not a git repository (or any of the parent directories): .git';
+    const origin = buildA2HistoryOrigin('newline-path', [
+      { write: base },
+      { write: { [path]: SHALLOW_A2_SYNTHETIC_SECRET_LINE } },
+      { remove: [path] },
+      { write: { 'README.md': '# c\n' } },
+    ]);
+    const blob = fixtureGit(origin, 'rev-parse', `HEAD~2:${path}`);
+    rmSync(join(origin, '.git', 'objects', blob.slice(0, 2), blob.slice(2)));
+
+    const v17 = scoreAt(origin, V17);
+    expect(v17.scanLimitations).toEqual([
+      'Git history contained a credential-shaped pathname with control characters. Cejel omitted that path from historical blob inspection and continued with reduced history evidence.',
+    ]);
+    const v27 = a2(scoreAt(origin, V27));
+    expect(v27.status).toBe('insufficient_data');
+    expect(v27.notes ?? '').toContain('unread because its name contains control characters');
+  });
+});

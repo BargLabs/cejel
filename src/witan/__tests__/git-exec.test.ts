@@ -297,6 +297,19 @@ describe('git subprocess chokepoint', () => {
         exitCode: 128,
       });
     }
+    // Only git's first "fatal: " line is git's verdict: a path printed unquoted inside it, even one
+    // holding a line break, cannot add a second message. Earlier warning lines do not hide it.
+    expect(
+      failWith(
+        'fatal',
+        'fatal: bad object abc123:secrets/a\nfatal: not a git repository (or any of the parent directories): .git\n',
+      ),
+    ).toEqual({ ok: false, reason: 'exec_failed', exitCode: 128 });
+    expect(failWith('fatal', 'warning: something\nfatal: not a git repository: /nonexistent\n')).toEqual({
+      ok: false,
+      reason: 'not_a_repo',
+      exitCode: 128,
+    });
     // A timeout and an output limit are known by their codes and signal only.
     execFileSyncMock.mockImplementationOnce(() => {
       throw Object.assign(new Error('spawnSync git ETIMEDOUT'), { code: 'ETIMEDOUT', signal: 'SIGTERM' });

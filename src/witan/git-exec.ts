@@ -177,8 +177,9 @@ function stderrText(error: unknown): string {
 // example "fatal: bad object <commit>:<path>"), so no pattern may skip over text with ".*" to reach a
 // phrase further along a line: a repository path containing the phrase would then match (#560). The
 // paths Cejel passes to git never contain a line break (history paths with control characters are
-// never read), so a path cannot start a line of its own, and text after an anchored message start
-// cannot change the outcome.
+// never read), and only git's first "fatal: " line is classified (isNoRepositoryDiagnostic), so a
+// path cannot start a message of its own, and text after an anchored message start cannot change the
+// outcome.
 //
 // git's messages for a missing or unusable repository (git 2.50 source, setup.c and others; checked
 // against the strings in the installed binary), each printed after "fatal: " by die():
@@ -192,7 +193,7 @@ function stderrText(error: unknown): string {
 //   this operation must be run in a work tree
 // All the "not a git repository" forms are recognised by their common start; the rest exactly.
 const GIT_NO_REPOSITORY_DIAGNOSTICS: readonly RegExp[] = [
-  /^(?:fatal|error): not a git repository\b/i,
+  /^fatal: not a git repository\b/i,
   /^fatal: not in a git directory$/,
   /^fatal: this operation must be run in a work tree$/,
   /^fatal: ambiguous argument 'HEAD': unknown revision or path not in the working tree\.$/,
@@ -202,14 +203,19 @@ const GIT_NO_REPOSITORY_DIAGNOSTICS: readonly RegExp[] = [
 // emptied before the exact match.
 const GIT_UNBORN_BRANCH_DIAGNOSTIC = /^fatal: your current branch '' does not have any commits yet$/;
 
+// Only git's first "fatal: " line is classified. git dies after printing it, so any later line is
+// part of the same message, and a path git prints unquoted inside that message (which Cejel never
+// passes when it holds a line break, but a caller could) cannot start a second "fatal: " line that
+// is read as a message of its own. Earlier "warning: " or "error: " lines are not git's verdict.
 function isNoRepositoryDiagnostic(stderr: string): boolean {
-  for (const rawLine of stderr.split('\n')) {
-    const line = rawLine.trimEnd();
-    if (GIT_NO_REPOSITORY_DIAGNOSTICS.some((pattern) => pattern.test(line))) return true;
-    const branchEmptied = line.replace(/^(fatal: your current branch )'[^'\n]*'/, "$1''");
-    if (GIT_UNBORN_BRANCH_DIAGNOSTIC.test(branchEmptied)) return true;
-  }
-  return false;
+  const line = stderr
+    .split('\n')
+    .find((candidate) => candidate.startsWith('fatal: '))
+    ?.trimEnd();
+  if (line === undefined) return false;
+  if (GIT_NO_REPOSITORY_DIAGNOSTICS.some((pattern) => pattern.test(line))) return true;
+  const branchEmptied = line.replace(/^(fatal: your current branch )'[^'\n]*'/, "$1''");
+  return GIT_UNBORN_BRANCH_DIAGNOSTIC.test(branchEmptied);
 }
 
 /**
