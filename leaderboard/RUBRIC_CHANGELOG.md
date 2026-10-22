@@ -22,6 +22,450 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
+## 2026-10-22 — #556: an incomplete read of the commit history no longer takes A2 out of the composite or lets it score higher under v27; every rubric says when A2's applicability was decided from one; no v17 score moved; one v27 row of the 0.6.8 confirmation moves
+
+**Defect.** A2 reads commit history in two places: an `.env` path in `git log HEAD`, and the
+history secret scan (the credential-path enumeration over every commit, the deleted-path scan, and
+the historical blob reads). On a shallow clone those reads see only the commits present. On a
+partial clone (`--filter=blob:none` or `--filter=tree:0`) the objects they need are not present,
+and Cejel's git boundary denies every transport, so the reads fail. A read that failed, timed out
+or exceeded its output limit was recorded in `scanLimitations` ("Cejel continued with reduced Git
+history evidence") and then treated as having found nothing. A repository whose only A2 surface is
+a secret-bearing `.env` committed and later deleted therefore:
+- became A2 not applicable on a shallow or treeless clone, so A2 left the composite and the
+  critical finding the full clone reports disappeared;
+- scored A2 warning 2.8 instead of critical 1.4 on a blobless clone, or wherever the blob read
+  failed, because the `.env` path was visible and its value was not.
+
+Either way the score rose because Cejel read less. A review pass on #554 (an AI reviewer)
+reproduced the shallow case under v27 (full clone: A2 critical 1.4, overall 2.1; `--depth 12`: A2
+not applicable, overall 2.2) and reported it under v17 at depth 1. The first review pass on #560
+(also an AI reviewer) reproduced the partial-clone cases. v27's shallow-clone A2 abstention (#442)
+reached neither: the not-applicable gate runs first, and #442 tested for a shallow clone only.
+
+**Which inputs are history-dependent.** The gate marks A2 not applicable only when it finds none
+of the following:
+- In the tree: a data layer (migrations or a DB client import), an `.env` template, a committed
+  `.env` file, a `.gitignore` `.env` rule, a confirmed secret, or signing/HMAC/secret-comparison
+  code.
+- In history: an `.env` path in `git log HEAD`, or a finding from the history secret scan.
+
+Both history reads run whenever the tree conditions hold, and the gate requires the tree
+conditions, so every not-applicable decision rests on history reads that found nothing. The
+scored result rests on the history secret scan too.
+
+**The rule.** A2's history evidence is incomplete when the clone is shallow (`git rev-parse
+--is-shallow-repository`), or when any of A2's own history reads failed: `git log HEAD` for `.env`
+paths, `rev-list HEAD` and the `diff-tree` enumeration, the deleted-path `git log`, the per-path
+`git log` for deleted paths, or a historical blob read (`git show`). A failed read is one that
+reports a git error, the 30-second timeout or an output limit; Cejel counts what it detected, so
+the report names the failed read, not a cause such as a partial clone. Which of these a failure
+is comes only from Node's error code and git's own diagnostic lines, never from text a repository
+path can reach (see "Review round 4" below). Cejel distinguishes these causes it can detect, and
+the note and disclosure advise per cause:
+- a shallow clone: re-scan a full clone;
+- a read that stopped at one of Cejel's own limits (the 8 MiB output limit on history enumeration,
+  the 500 KiB limit on one historical blob, or the 30-second timeout): the limit is named. A
+  re-scan of the same repository will not lift an output limit; it may not lift the timeout, which
+  depends on the machine and its load. These limits fire on complete clones too,
+  systematically on large histories (biomejs and react below); streaming those reads is #567. The
+  history secret scan's cap of 5,000 historical files counts the same way: a scan that stops at the
+  cap before reading every candidate is an incomplete read ("Cejel's scan of earlier commits for
+  credential-shaped values stopped at its own cap of 5,000 historical files"). Until this change a
+  capped scan with nothing found let A2 be marked not applicable, or score, as if it had read every
+  candidate. The cap is not a git failure, so it adds no scan limitation (one would make every v17
+  badge unrated and `--min-score` refuse); where A2 scores, the scan's existing finding names it;
+- any other failed read (a missing object, as on a partial clone, or a git error): "Cejel could not
+  read part of the commit history", and re-scan a full, unfiltered clone;
+- a credential- or `.env`-shaped path in history left unread because its name contains control
+  characters (Review round 4): "Cejel left a credential-shaped path in the commit history unread
+  because its name contains control characters (the scan limitations say so)", and a re-scan of the
+  same repository will not lift Cejel's own rule on control characters in paths;
+- git itself could not be run while a `.git` entry is visible from the scanned path (Review round
+  4, #568): "git could not be run on the scanning host, so Cejel read none of the commit history",
+  and re-scan on a host where git is installed. Not a git failure, so no scan limitation.
+
+The operator decided how Cejel's own limits count on 2026-10-22, in reply to "What should v27 do when
+an A2 history read hits one of Cejel's own size or time limits on a complete clone?". The reply was
+"1": a limit hit counts as a failed read, so v27's A2 abstains at 0, kept in the composite; the
+5,000-file cap counts as an incomplete read too; the cause is fixed by streaming (#567). The other
+option, treating a limit hit as a coverage limit, was not chosen because it would drop A2 from the
+composite, which can raise a score (#526,
+[comment 6337508926](https://github.com/BargLabs/cejel/issues/526#issuecomment-6337508926)).
+
+A path skipped for control characters in its name is counted only when A2 would otherwise have read
+it (credential- or `.env`-shaped); the rule that skips it is unchanged, and so is its scan
+limitation. Until Review round 4 such a path was not counted, which let a value kept under such a
+name stay out of the scan with A2 marked not applicable. The separate 500-file budget for
+PEM-widened candidates applies only under `witan-rubric-v23-prospective-2026-09-06`, not v27, and is
+unchanged. On a complete clone whose history reads
+all completed, and in a directory that is not a git repository, nothing changes under any rubric.
+
+**`witan-rubric-v27-prospective-2026-10-19` (scoring).** Where A2's history evidence is incomplete
+and no confirmed critical finding stands, A2 abstains through the existing shallow-clone abstention
+(`insufficient_data`, kept in the composite at 0, the read-failure treatment of ADR-0001). This
+applies on the not-applicable path and on the scoring path alike. The note names the detected cause:
+"A2 abstained: this repository is a shallow clone, …" (unchanged on the scoring path; on the
+not-applicable path it adds "A2 would otherwise have been marked not applicable on a decision that
+rests in part on its scans of earlier commits for .env files and credential-shaped values"), or
+"A2 abstained after an incomplete read of this repository's commit history: …", naming each
+detected cause and the advice above. The v27 shallow-history sentence no longer says "A
+criterion that is not applicable stays not applicable"; it says A2 abstains "including where it
+would otherwise be marked not applicable". Its composite sentence is now exact: a shallow-clone
+abstention counts as 0, and a content-read abstention whose every skip was one of Cejel's own size,
+type or file-kind limits is left out of the composite, as before. This can only lower a score: a
+criterion that was out of the composite, or scored above 0, now counts at 0.
+
+**Review round 4 (#560 review pass 1 on `ae236c9f3`, an AI reviewer).** Three code changes:
+- **Classification of a failed git read.** Cejel classified a failed git command from stderr plus
+  Node's error message, and Node's message repeats the whole command line, which for A2's history
+  reads carries repository paths (`git show <commit>:<path>`, `git log -- <path>`). On a blobless
+  clone, a deleted secret in `secrets/not a git repository.txt` made its failed blob read look like
+  "no repository here", an expected absence Cejel does not report: no scan limitation, no
+  abstention, and A2 not applicable under v17 and v27, scoring above the complete clone's critical
+  finding (reviewer's repro: overall 1.9 to 2.1, code_trust 2.3 to 2.7). `secrets/timeout.txt` or
+  `secrets/maxBuffer.txt` made the same failure read as one of Cejel's own limits, with the advice
+  that a re-scan would not lift it. Classification now reads only the spawn error code (ENOENT,
+  ENOBUFS or ERR_CHILD_PROCESS_STDIO_MAXBUFFER, ETIMEDOUT) and git's own "no repository" messages,
+  each matched as git's exact text from the start of a stderr line (to its end wherever git could
+  print a path after it); a bare SIGTERM is no longer called a timeout. Round 4's first version
+  emptied quoted spans and then matched one phrase anywhere later in the line, which an unquoted
+  path still reached (round 5, below). This applies to every git call Cejel makes, under every rubric.
+  It can change a v17 report only where a git read already failed: such a failure, dropped before
+  because a path on the command line named a git message, now appears in `scanLimitations`, which
+  leaves the v17 badge unrated and makes `--min-score` refuse; and a limitation that named a
+  timeout or output limit only because of a path now says the read failed.
+- **git itself unavailable (#568).** When git cannot be run (ENOENT), every read reports an
+  expected absence, so a repository whose only A2 surface was a deleted secret became A2 not
+  applicable with nothing said. Where a `.git` entry is visible from the scanned path (the scanned
+  directory or a parent, within the discovery bounds Cejel already uses), A2 now counts its history
+  read as incomplete; with no `.git` entry, nothing changes. No scan limitation is added.
+- **Control characters.** As described under "The rule".
+
+Under v27 A2 abstains at 0 in each new case unless a confirmed critical finding stands; under every
+other rubric A2's scoring is unchanged and, where it is not applicable, its disclosure names the
+cause. Failed-read abstentions start with "A2 abstained after an incomplete read of this
+repository's commit history"; the control-character cause adds "unread because its name contains
+control characters" to the note, and the git-unavailable cause adds "git could not be run on the
+scanning host". Tests: `git-failure-classification-560.test.ts`, `a2-history-path-names-560.test.ts`,
+`a2-history-read-failures-560.test.ts`, `a2-history-control-characters-560.test.ts`,
+`a2-history-git-unavailable-560.test.ts`, and the classification cases in `git-exec.test.ts`.
+The operator directed these fixes on 2026-10-22, and in a third ADR-0001 ruling the same day
+("for adr-0001 add them") extended the read-failure treatment to the two new causes (a
+control-character path, git unavailable), alongside a shallow clone, a failed history read, Cejel's
+own output and time limits and the 5,000-file cap (#526,
+[comment 6341266476](https://github.com/BargLabs/cejel/issues/526#issuecomment-6341266476)). The
+control-character limitation's wording, which calls every such path credential-shaped, is #569.
+
+**Review round 5 (#560 review pass 1 on `cf7fde7ac`, an AI reviewer).**
+- **F1, classification.** git prints a missing object's path unquoted ("fatal: bad object
+  <commit>:<path>"), and the round-4 pattern for "not inside a work tree" matched that phrase
+  anywhere later in the line. A deleted `.env` holding a secret, under a directory named `not
+  inside a work tree`, with its blob gone, was dropped as an expected absence: no scan limitation,
+  no abstention, A2 a warning (overall 0.7) above the intact repository's critical (0.4), under v17
+  and v27. Every "no repository" pattern now matches git's exact message from the start of the line
+  (that phrase is not one of git's messages, so it is gone); a missing object under a directory
+  named after each recognised message is tested.
+- **F2, submodules.** A gitlink (mode 160000) at a credential-shaped path was read as a file; the
+  read always failed, so a complete clone with a submodule at, say, `config/secrets` reported
+  "historical blob read failed" under every rubric (as `main` did) and, since round 4, abstained
+  under v27 and disclosed an incomplete read under the other rubrics, all falsely. When a
+  historical read fails, Cejel now checks that commit's entry (`git diff-tree --raw`) and skips a
+  gitlink without counting it. Other reads are unchanged. **v17 report change:** for such a
+  repository the "historical blob read failed" scan limitation disappears; if it was the only one,
+  the v17 badge becomes rated and `--min-score` applies.
+- **F3, tests.** The `.git` visibility check behind #568 is tested directly: from a subdirectory,
+  through a worktree's or submodule's `.git` file, with no `.git` entry, and stopping at the
+  discovery ceiling of a confined scan.
+
+Tests: `a2-history-round5-560.test.ts`, `git-metadata-visibility-560.test.ts`.
+
+**Review round 6 (#560 review pass 2 on `5aaa0d314`, an AI reviewer).** Round 5's exact list
+recognised only the "(or any of the parent directories)" and "(or any parent up to mount point)"
+forms of git's "not a git repository" message. git 2.50 has others: "not a git repository: %s" (a
+`.git` file whose gitdir is missing, as in a copied submodule or worktree, or `GIT_DIR`), "not a git
+repository: '%s'", and "Not a git repository". With a dangling `.git` file, HEAD resolution then
+threw and the scan failed, where `main` completes it as a directory with no repository. Every form
+is now recognised by the message's start, anchored at the start of the line, which a path cannot
+reach; the code lists git's full set of no-repository messages. The scan completes again under v17
+and v27, as on `main`, so no report changes against `main` here.
+
+Only git's first "fatal: " line is classified, since git dies after printing it. A repository path
+holding a line break could otherwise, inside a message where git prints the path unquoted ("fatal:
+bad object <commit>:<path>"), start a second line read as "not a git repository". Every
+non-test `execGit(` call (`git grep -n "execGit(" -- src`, tests excluded) was checked for
+repository paths in its arguments. On the witan scan path, the historical blob read
+(`show <commit>:<path>`), the gitlink check (`diff-tree … -- :(literal)<path>`) and the per-path
+log (`log … -- :(literal)<path>`) take only history paths that passed the control-character skip (a
+line break is a control character); the ignore-rule check (`check-ignore -- <target>/`) takes the
+scan target's own path; the other calls in `src/witan/repo-signals.ts`, `src/witan/history-depth.ts:40`
+and `src/witan/public-scan.ts:178` take no path, nor do `src/packs/llm/files.ts:39` and `:46`. One
+call outside the witan scan path takes a repository path:
+`src/packs/d-series/unobserved-control.ts:382` runs `git log --reverse -S<text> -- <path>` with a
+tracked path and no literal pathspec; its failure handling ignores the classification (any failure
+gives no anchor), so classification cannot change what it reports. A history path holding a line break and a git message is tested: it is counted under
+the control-character rule and never read.
+
+Pass 1 on `5aaa0d314` (a fresh AI reviewer) found the same failure as R5-1 on a copied `git worktree`
+checkout whose worktree had been removed (F5; `main` completes the scan, `5aaa0d314` failed), and
+three more:
+- **A `.git` git cannot open (F5, related).** With git present and a `.git` entry visible, git can
+  still report "no repository" (a dangling gitdir, as in that copied worktree). That was an expected
+  absence, so A2 was marked not applicable without reading any history, while git being absent with
+  `.git` visible abstains (#568). A2 now counts it as unread history too, when `git rev-parse
+  --git-dir` also fails (a repository whose branch has no commits yet opens and is not counted).
+  Under v27 A2 abstains at 0: "a .git entry is present but git could not open it as a repository,
+  so Cejel read none of the commit history", advising "Re-scan a checkout that git can open (a full
+  clone, not a copied worktree or submodule)." Other rubrics disclose it where A2 is not applicable.
+  No scan limitation is added, and no other criterion's handling of "no repository" changes. **This
+  cause is not named in the operator's ADR-0001 rulings**; it is of the same kind as git being
+  unavailable (history present but unread for a reason outside it), and it is flagged for the
+  operator to confirm.
+- **Case (F6).** Only the "not a git repository" forms (including git's capitalised "Not a git
+  repository") and "needed a single revision" (git prints "Needed") are matched case-insensitively;
+  the other no-repository messages are matched exactly.
+- **Pathspec magic (F7, before #560).** The per-path history log passed a deleted path as a
+  pathspec, so a deleted file named `:(exclude)secrets` matched other paths' commits and their reads
+  failed: a false failed read (and, since #560, a false abstention or disclosure). The path is now
+  passed as `:(literal)`, as the gitlink check already was. **v17 report change:** for such a
+  repository the false "historical blob read failed" limitation disappears. The ignore-rule check
+  (`check-ignore -- <target>/`) takes the scan target the user named, not a history path, and is
+  unchanged.
+
+Tests: `a2-history-round5-560.test.ts` (dangling gitdir, copied worktree, a repository with no
+commits, a newline path, a pathspec-magic name), `git-exec.test.ts`.
+
+Round 7 (pass 1 on `3a941f9bb`, a fresh AI reviewer; pass 2 approved):
+- **G1.** On the scoring path, v27's note always added "so the scan for credentials and .env files in
+  earlier commits read only part of the history", so where git could not be run, or could not open
+  the repository, it read "Cejel read none of the commit history, so … read only part of the
+  history". When either of those causes holds no history read could succeed, so the note and the
+  every-rubric disclosure now report only that cause and its advice; otherwise they say "only part".
+  The exact sentences for all eight single causes and four combinations, on both paths and in the
+  disclosure, are pinned (`a2-history-sentences-560.test.ts` and its fixture).
+- **G2.** A stray empty `.git` directory in a parent of a directory that is not a repository made it
+  read as a repository git could not open. A `.git` entry now counts, for that cause and for git
+  being unavailable, only as a directory holding `HEAD` or a file whose first 4 KiB hold a
+  `gitdir:` line (`git-metadata-visibility-560.test.ts`).
+
+Round 8 (pass 1 on `e337befd5`, a fresh AI reviewer; pass 2 approved):
+- **H1 (a regression from round 7's G2).** The tightened `.git` check used an existence test for
+  `HEAD`, which reports "absent" when the directory cannot be read, so a `.git` directory of mode 000
+  looked like a stray one: A2 scored on the tree alone, above the complete clone, and said nothing
+  (round 6 abstained). A `.git` directory now counts unless reading it proves `HEAD` absent (ENOENT
+  or ENOTDIR); a permission error or any other error counts it as git metadata.
+- **L1 (before #560).** A `.git` symbolic link whose target is gone (a copied checkout, the symlink
+  twin of a copied worktree) was treated as no repository. Any symbolic link named `.git` now counts
+  as git metadata, so it is a repository git could not open.
+
+Under v27 A2 abstains at 0 in both cases unless a confirmed critical finding stands; every other
+rubric keeps its scoring and, where A2 is not applicable, now carries the disclosure ("a .git entry
+is present but git could not open it as a repository, so Cejel read none of the commit history").
+A `.git/HEAD` that is itself a directory counts as git metadata (conservative; unchanged). Tests:
+`git-metadata-visibility-560.test.ts` (a mode-000 `.git`, skipped on Windows and as root; a dangling
+`.git` symlink). The 23 public rows, re-measured with the CLI against round 7, are byte-identical
+(46 of 46 reports): both cases need a `.git` that git cannot open, which no complete clone has.
+
+Round 7 was merged with `main` after #562 and measured on the same clean, pinned clones with the
+CLI, under v17 and v27, against round 6 (`3a941f9bb`). All 23 v17 `report.json` files are
+byte-identical. Each of the 23 v27 files differs only in `rubricBehaviourFingerprint` (#562's
+`sha256:6e03aa1b…` in place of `sha256:fb4edfa0…`); no score, status, metric, finding, note or
+disclosure differs, and biomejs stays at overall 2.5 with A2 abstaining at 0.
+
+Round 6 was measured like rounds 4 and 5: the 23 public rows under v17 and v27 against round 5
+(`5aaa0d314`), on the same clean, pinned clones. All 46 `report.json` pairs are byte-identical.
+
+Round 5 was measured like round 4 (below): the 23 public rows under v17 and v27 with round 5's code,
+against round 4's (`cf7fde7ac`), on the same clean, pinned clones. All 46 `report.json` pairs are
+byte-identical; no row has a gitlink at a credential-shaped path in its history, or a failed read
+whose path names a git message.
+
+**B2 checked for the same class.** B2's history read (`readRecentCommits`, `git log` of commit
+subjects) needs commits only, which shallow and partial clones both hold, so a partial clone reads
+its whole window. A failed read throws and ends the scan; it cannot score B2 higher. v27's
+shallow-clone B2 abstention (#442) is unchanged.
+
+**v27's identifier.** v27 shipped, prospective and opt-in, in v0.6.8 (tagged at `74b3af581`), which
+predates this change. Its v27 certificates of such clones report A2 not applicable (shallow,
+treeless) or a warning (blobless); builds with this change report the abstention under the same
+identifier.
+The operator directed the #556 fix on 2026-10-22. Keeping the identifier is consistent with the
+accepted #526 ruling, under which a change to v27's scoring makes a new candidate; it was not a
+separate operator decision. Because no behaviour fingerprint moves (below), the candidate is named
+by commit: this change's merge commit, on top of #562's, recorded after merge (#563). 0.6.8's public confirmation scored
+full-history clones, and its v17 results do not change, but one of its v27 rows does: biomejs, whose
+history reads exceed Cejel's own output limit on a complete clone (see "Public board" below).
+
+**Every other rubric, v17 included (presentation only).** Scoring is unchanged. Where A2 is marked
+not applicable while its history evidence is incomplete, its `criteria[].disclosures` (report
+format 1.8, no new field) carries a sentence starting "A2's applicability was decided from an
+incomplete read of the commit history:", naming only the causes Cejel detected:
+- shallow: "this clone is shallow, so Cejel's scans of earlier commits read only the commits it
+  holds";
+- own limit: "some of Cejel's reads of earlier commits stopped at Cejel's own 8 MiB output limit"
+  (or whichever limit fired);
+- other failed read: "Cejel could not read part of the commit history";
+- the cap: "Cejel's scan of earlier commits for credential-shaped values stopped at its own cap of
+  5,000 historical files";
+- a control-character path: "Cejel left a credential-shaped path in the commit history unread
+  because its name contains control characters (the scan limitations say so)";
+- git unavailable: "git could not be run on the scanning host, so Cejel read none of the commit
+  history";
+
+with "(the scan limitations name each failed read)" after a failed read, then "Marking A2 not
+applicable rests in part on Cejel's scans of earlier commits for .env files and credential-shaped
+values, so a complete read of the history may make A2 applicable and give it a score." It ends with
+the advice for each cause: "Re-scan a full clone (for actions/checkout, set fetch-depth: 0)." for a
+shallow clone; "Re-scan a full, unfiltered clone (for actions/checkout, set fetch-depth: 0 and no
+filter)." for any other failed read; "Re-scan on a host where git is installed." where git could
+not be run; "A re-scan of the same repository will not lift Cejel's own limit." for an output limit
+or the cap; "A re-scan of the same repository may not lift Cejel's own timeout, which depends on
+the machine and its load." for the timeout alone (with an output limit or the cap as well: "…will
+not lift Cejel's own limit on size, and may not lift its timeout, which depends on the machine and
+its load."); and "A re-scan of the same repository will not lift Cejel's own rule on control
+characters in paths." for a control-character path. The certificate lists it under "What was not established" while A2 is not applicable. A
+content-read abstention that replaces the not-applicable result drops it. Where A2 scores on a
+failed history read (the blobless case), v17 already lists the failed read in `scanLimitations`,
+which makes the badge unrated and `--min-score` refuse; that is unchanged. The v17 shallow-history
+sentence ("on a full clone their results may differ") already covers applicability and is
+unchanged. No score, status, metric value, finding count or fingerprint moves under v17-v26.
+
+**Measured, `main` `71ea38993` against this change, every selectable rubric.** The behaviour
+corpus, the false-assurance fixtures and the disclosure-gap fixtures, 2,255 reports, and the new
+#556 shapes:
+
+| Set | Scoring-surface moves | Byte differences |
+|---|---|---|
+| Behaviour corpus (330 reports) | 0 | 0 |
+| False-assurance fixtures | 0 | 2, v27 only: the reworded shallow-history sentence on the two depth-1 fixtures, where A2 is applicable and its score is unchanged |
+| Disclosure-gap fixtures | 2, v27 only | 20 under v17-v26: the A2 disclosure on the same two depth-1 checkouts |
+| New #556 shapes (12 shapes × full, depth 1, depth 12, blobless, treeless, missing history blobs; 792 reports) | 20, v27 only | the A2 disclosure where A2 is not applicable on incomplete history under v17-v26 |
+
+No fixture in the first three sets has a failed history read. Another 11 reports
+(`review4-a4-working-directory-through-tracked-symlink`, every rubric) also differ between two runs
+of `main` itself: that fixture is not hermetic, and none of its scoring surfaces moved.
+
+The two disclosure-gap moves are `b3-master-target-depth-1-clone` and `b3-master-target-ci-fetch`
+(depth-1 checkouts with no A2 surface): under v27, A2 not applicable becomes `insufficient_data` at
+0, overall 1.8 to 1.5, code_trust 2.3 to 1.7, process_trust unchanged.
+
+"Missing history blobs" is a blobless clone with its partial-clone configuration removed, so git
+treats it as complete and the historical blob read fails: a stand-in for any failed history read on
+a repository that is neither shallow nor partial.
+
+**v17 against v27 on the #556 shapes** (A2; overall / code_trust; process_trust is 1.4
+throughout). The complete clone scores the same under v17 and v27.
+
+| Shape | Full clone | Clone | v17 (unchanged) | v27 before | v27 after |
+|---|---|---|---|---|---|
+| secret deleted in history, nothing else (the issue's shape) | critical 1.4; 1.8 / 2.2 | depth 1 or 12 | not applicable; 2.0 / 2.5, + disclosure | not applicable; 2.0 / 2.5 | abstains; 1.7 / 1.9 |
+| | | blobless, missing blobs | warning 2.8; 2.0 / 2.6 | warning 2.8; 2.0 / 2.6 | abstains; 1.7 / 1.9 |
+| | | treeless | not applicable; 2.0 / 2.5, + disclosure | not applicable; 2.0 / 2.5 | abstains; 1.7 / 1.9 |
+| secret deleted in history, with a data layer or crypto surface | critical 1.4; 1.8 / 2.2 | blobless, treeless, missing blobs | warning; 2.0 / 2.6 | warning; 2.0 / 2.6 | abstains; 1.6-1.7 / 1.8-1.9 |
+| | | depth 1 or 12 | warning; 2.0 / 2.6 | abstains (#442) | unchanged |
+| no A2 surface | not applicable; 2.0 / 2.5 | depth 1 or 12 | not applicable, + disclosure | not applicable; 2.0 / 2.5 | abstains; 1.7 / 1.9 |
+| | | treeless | not applicable, + disclosure | not applicable; 2.0 / 2.5 | abstains; 1.7 / 1.9 |
+| | | blobless, missing blobs | not applicable (every read completed) | not applicable | unchanged |
+| no secret, with a data layer or crypto surface | warning; 2.0 / 2.6 | treeless | warning | warning; 2.0 / 2.6 | abstains; 1.6-1.7 / 1.8-1.9 |
+| | | depth 1 or 12 | warning | abstains (#442) | unchanged |
+| | | blobless, missing blobs | warning (every read completed) | warning | unchanged |
+| secret in the tree (any) | critical 1.4; 1.8 / 2.2 | every clone | critical | critical | unchanged |
+
+Under v27, no incomplete clone's composite or A2 score exceeds its complete clone's in any of the 60
+incomplete cases, and 32 score lower. A blobless clone whose history holds no credential-shaped path
+needs no historical blob, so its reads complete and nothing changes. Under v17 the issue's shape
+still scores higher on every incomplete clone: that is the calibrated default, now disclosed where
+A2 is not applicable, and already flagged in `scanLimitations` where a read failed.
+
+**Fingerprints.** No rubric's behaviour fingerprint moves with this change: the behaviour corpus
+holds no shallow or partial clone and no failed history read. v17 stays
+`sha256:5cd48f8c642300ae8736a09d4a24ce3a4f8885f6e099b5f27f99d950e0c944b4`. #562, which landed
+first, moved v27's from 0.6.8's
+`sha256:fb4edfa0bdf0d8153af3f84a4b72d4eab6da3fd6e0b2e3e494cea9542ded45a0` to
+`sha256:6e03aa1bf63a31c5ec58a68cb49fb8ef571ba233cf79059a311ec55aecea5bb3`; this change, merged on
+top of #562, leaves it at `sha256:6e03aa1b…` although v27's behaviour on incomplete history changed.
+So the fingerprint alone does not tell #562's candidate from the combined one: the combined
+candidate is `sha256:6e03aa1b…` at this change's merge commit, recorded after merge (#563).
+
+**Public board.** The board is scored from full-history, unfiltered clones (the public-delta
+harness refuses a shallow or filtered target), but a complete clone can still have a failed history
+read. Informal measurement, not a preregistered run: the 23 public rows were re-scored at this
+change, under v17 and v27, on the same full-history clones the 0.6.8 successor confirmation used
+(`docs/experiments/public-delta-0-6-8-successor-2026-10-21/`), with its options, and compared byte
+for byte with that run's candidate reports (the candidate differs from this change's base only in
+records, with no change under `src/`). The clones were verified clean and at their pinned commits
+before and after each scan.
+
+| Rubric | Rows | Byte-identical | Moved |
+|---|---|---|---|
+| v17 | 23 | 23 | none: no A2 disclosure appears, since A2 is scored, not not-applicable, on every row with a failed history read |
+| v27 | 23 | 22 | biomejs |
+
+No row's history secret scan stops at the 5,000-file cap: no report, before or after this change,
+carries the scan's cap finding or the cap wording, and no not-applicable row moved.
+
+Every row, A2 and overall (and code_trust under v27):
+
+| Row | v17 (this change = 0.6.8 run, byte-identical) | v27, 0.6.8 run | v27, this change | Failed history reads |
+|---|---|---|---|---|
+| react | critical 1.4; 3.0 | critical 1.4; 3.0 / 2.1 | unchanged | 1 |
+| vue | not applicable; 3.0 | not applicable; 3.0 / 2.4 | unchanged | 0 |
+| svelte | verified 3.4; 3.1 | verified 3.4; 3.1 / 2.8 | unchanged | 0 |
+| django | warning 2.8; 3.1 | warning 2.8; 3.1 / 2.6 | unchanged | 0 |
+| flask | verified 3.2; 2.9 | verified 3.2; 2.9 / 2.7 | unchanged | 0 |
+| fastapi | warning 2.8; 3.1 | warning 2.8; 3.1 / 2.8 | unchanged | 0 |
+| express | not applicable; 3.1 | not applicable; 3.1 / 3.0 | unchanged | 0 |
+| vite | verified 3.2; 3.4 | verified 3.2; 3.4 / 2.8 | unchanged | 0 |
+| esbuild | not applicable; 2.6 | not applicable; 2.6 / 2.6 | unchanged | 0 |
+| biomejs | verified 3.2; 3.0 | verified 3.2; 3.0 / 2.9 | **abstains at 0; 2.5 / 1.8** | 2 |
+| requests | verified 3.2; 3.0 | verified 3.2; 3.0 / 2.6 | unchanged | 0 |
+| pydantic | not applicable; 3.2 | not applicable; 3.2 / 2.9 | unchanged | 0 |
+| axios | verified 3.6; 3.3 | verified 3.6; 3.3 / 2.6 | unchanged | 0 |
+| zod | verified 3.6; 3.2 | verified 3.6; 3.2 / 3.1 | unchanged | 0 |
+| scorecard | not applicable; 2.9 | not applicable; 2.9 / 2.2 | unchanged | 0 |
+| ripgrep | not applicable; 2.1 | not applicable; 2.1 / 2.1 | unchanged | 0 |
+| guava | not applicable; 1.9 | not applicable; 1.9 / 1.6 | unchanged | 0 |
+| cobra | not applicable; 2.5 | not applicable; 2.5 / 2.6 | unchanged | 0 |
+| sinatra | not applicable; 2.2 | not applicable; 2.2 / 2.0 | unchanged | 0 |
+| automapper | not applicable; 2.1 | not applicable; 2.1 / 2.0 | unchanged | 0 |
+| fmt | not applicable; 2.7 | not applicable; 2.7 / 2.0 | unchanged | 0 |
+| carddemo | not applicable; unscored | not applicable; unscored | unchanged | 0 |
+| cejel | verified 3.3; 2.7 | verified 3.3; 2.7 / 2.3 | unchanged | 0 |
+
+| Row (v27) | Failed history reads in `scanLimitations` | A2 | overall | code_trust | process_trust |
+|---|---|---|---|---|---|
+| biomejs | history tree enumeration and environment-file history scan, each over the 8 MiB output limit | verified 3.2 to `insufficient_data` 0 | 3.0 to 2.5 | 2.9 to 1.8 (A2 kept in the denominator: (2.2 + 0 + 3.2) / 3) | 3.1, unchanged |
+| react | history tree enumeration over the 8 MiB output limit | critical 1.4, unchanged (the confirmed critical finding stands) | 3.0, unchanged | 2.1, unchanged | 3.9, unchanged |
+
+biomejs's v27 overall falls below its v17 overall (3.0), so v27 still does not rise above v17 on any
+row. biomejs's new v27 note reads "A2 abstained after an incomplete read of this repository's commit
+history: some of Cejel's reads of earlier commits stopped at Cejel's own 8 MiB output limit (the
+scan limitations name each failed read), … A re-scan of the same repository will not lift Cejel's
+own limit." For this candidate, that contradicts the 0.6.8 result's "v27 added no A2 or B2
+abstention on any row": on the same clones this candidate adds one A2 abstention (biomejs). The
+0.6.8 record is unchanged; it describes the candidate it measured. These limits are Cejel's own: the history reads buffer their whole output, and on these large
+histories it exceeds 8 MiB. The operator's ADR-0001 ruling of 2026-10-22 names an output limit as a
+failed read, so v27 abstains as designed; the real fix is streaming those reads (#567). The v17
+board is unchanged; there is no published v27 board. #562's statement that the 0.6.8 v27 table
+still describes v27's public scores held for #562's candidate; with this change, biomejs's v27 row
+moves.
+
+Review round 4 was measured the same way, informally: the 23 rows were scanned with the CLI's
+defaults under v17 and v27, once at `ae236c9f3` (before round 4) and once with round 4's code, on
+the same full-history clones, verified clean and at their pinned commits before and after. All 46
+pairs of `report.json` are byte-identical, so round 4 moves no row under either rubric (biomejs's
+v27 abstention above is unchanged: overall 2.5, code_trust 1.8). No row has a failed history read
+whose path names a git message, a credential- or `.env`-shaped history path with control
+characters (axios's one control-character path, `\bMIGRATION_GUIDE.md`, is neither, so it stays
+uncounted), or a scan without git.
+
+**Classification.** Under v27 this changes scoring, so it makes a new v27 candidate (dated
+addition to `docs/reviews/v27-false-assurance-closure-2026-10-19.md`). Under every other rubric it
+is presentation only, except round 4's git-failure classification, which can add a v17 scan
+limitation where a failed history read was dropped before (the v17 badge is then unrated and
+`--min-score` refuses). No holdout or calibration ran, and this entry makes no precision or recall
+claim. Tests: `src/witan/__tests__/shallow-a2-applicability-556.test.ts`.
+
 ## 2026-10-22 — v27: B2 and B3 stop crediting CI workflows not shown to run a check (#527, #535 no-check half); the print-only reader assumed bash (#564, every rubric); no published score moved
 
 **Why.** The operator accepted the 2026-10-21 ruling on #526 on 2026-10-22. Its condition 3 reads:

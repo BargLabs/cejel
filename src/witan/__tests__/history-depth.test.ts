@@ -9,6 +9,7 @@ import { buildWitanCliSummary } from '../../summary.js';
 import { renderWitanBadgeSvg } from '../badge.js';
 import { HISTORY_READING_CRITERIA, SHALLOW_HISTORY_LIMITATION, detectHistoryLimitations } from '../history-depth.js';
 import { scoreRepoWithPublicCejel } from '../public-scan.js';
+import { a2HistoryApplicabilityDisclosure } from '../repo-signals.js';
 import type { WitanReport } from '../schemas.js';
 
 // Issue #428: a shallow clone hands history-reading criteria a truncated history. The scan must
@@ -94,9 +95,24 @@ describe('shallow history is disclosed, never scored', () => {
     const shallowReport = scan(shallow);
     const fullReport = scan(full);
     // This fixture's history has no PR-merge subjects, so B2 reads 0 of N on both clones and the
-    // two scans must agree on everything but the disclosure.
+    // two scans must agree on everything but the disclosures. A2 is not applicable on both, and on
+    // the shallow clone that decision rested on history scans that read only the commits present,
+    // so A2 carries the #556 sentence saying so (presentation only, exactly that sentence).
     const { historyLimitations: _disclosure, ...shallowRest } = shallowReport;
-    expect(shallowRest).toEqual(fullReport);
+    const shallowA2 = shallowRest.criteria.find(({ id }) => id === 'A2');
+    expect(shallowA2?.status).toBe('not_applicable');
+    expect(shallowA2?.disclosures).toEqual([
+      a2HistoryApplicabilityDisclosure({ shallow: true, limitHits: [], otherFailure: false }),
+    ]);
+    expect(fullReport.criteria.find(({ id }) => id === 'A2')?.disclosures).toBeUndefined();
+    expect({
+      ...shallowRest,
+      criteria: shallowRest.criteria.map((criterion) => {
+        if (criterion.id !== 'A2') return criterion;
+        const { disclosures: _a2, ...rest } = criterion;
+        return rest;
+      }),
+    }).toEqual(fullReport);
     expect(shallowReport.scanLimitations ?? []).toEqual([]);
     expect(buildWitanCliSummary(shallowReport).scanLimitations).toEqual([]);
     expect(renderWitanBadgeSvg(shallowReport)).toBe(renderWitanBadgeSvg(fullReport));

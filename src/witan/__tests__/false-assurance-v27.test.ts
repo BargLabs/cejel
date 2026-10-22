@@ -372,9 +372,16 @@ describe('review findings against the first implementation stay fixed', () => {
     }
   });
 
-  it('#442: the v27 shallow-clone sentence does not claim A2 abstains where it is not applicable', () => {
-    expect(SHALLOW_HISTORY_V27_ABSTENTION).toContain('where either would be scored');
-    expect(SHALLOW_HISTORY_V27_ABSTENTION).toContain('not applicable stays not applicable');
+  // #556 changed what this sentence must say: on a shallow clone A2 now abstains where it would
+  // otherwise be not applicable (that decision rests on its history scans), so the sentence may no
+  // longer say a not-applicable criterion stays not applicable. The behaviour is pinned in
+  // shallow-a2-applicability-556.test.ts.
+  it('#442, #556: the v27 shallow-clone sentence says where A2 and B2 abstain, including A2 not applicable', () => {
+    expect(SHALLOW_HISTORY_V27_ABSTENTION).toContain(
+      'including where it would otherwise be marked not applicable',
+    );
+    expect(SHALLOW_HISTORY_V27_ABSTENTION).toContain('B2, where it would be scored');
+    expect(SHALLOW_HISTORY_V27_ABSTENTION).not.toContain('stays not applicable');
   });
 });
 

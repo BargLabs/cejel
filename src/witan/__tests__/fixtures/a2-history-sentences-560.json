@@ -1,0 +1,138 @@
+{
+  "shallow": {
+    "input": {
+      "shallow": true,
+      "limitHits": [],
+      "otherFailure": false
+    },
+    "scored": "A2 abstained after an incomplete read of this repository's commit history: this clone is shallow, so Cejel's scans of earlier commits read only the commits it holds, so the scan for credentials and .env files in earlier commits read only part of the history, and no confirmed critical finding stands on what was read. Re-scan a full clone (for actions/checkout, set fetch-depth: 0).",
+    "notApplicable": "A2 abstained after an incomplete read of this repository's commit history: this clone is shallow, so Cejel's scans of earlier commits read only the commits it holds, and A2 would otherwise have been marked not applicable on a decision that rests in part on Cejel's scans of earlier commits for .env files and credential-shaped values. Re-scan a full clone (for actions/checkout, set fetch-depth: 0).",
+    "disclosure": "A2's applicability was decided from an incomplete read of the commit history: this clone is shallow, so Cejel's scans of earlier commits read only the commits it holds. Marking A2 not applicable rests in part on Cejel's scans of earlier commits for .env files and credential-shaped values, so a complete read of the history may make A2 applicable and give it a score. Re-scan a full clone (for actions/checkout, set fetch-depth: 0)."
+  },
+  "outputLimit": {
+    "input": {
+      "shallow": false,
+      "limitHits": [
+        "8 MiB output limit"
+      ],
+      "otherFailure": false
+    },
+    "scored": "A2 abstained after an incomplete read of this repository's commit history: some of Cejel's reads of earlier commits stopped at Cejel's own 8 MiB output limit (the scan limitations name each failed read), so the scan for credentials and .env files in earlier commits read only part of the history, and no confirmed critical finding stands on what was read. A re-scan of the same repository will not lift Cejel's own limit.",
+    "notApplicable": "A2 abstained after an incomplete read of this repository's commit history: some of Cejel's reads of earlier commits stopped at Cejel's own 8 MiB output limit (the scan limitations name each failed read), and A2 would otherwise have been marked not applicable on a decision that rests in part on Cejel's scans of earlier commits for .env files and credential-shaped values. A re-scan of the same repository will not lift Cejel's own limit.",
+    "disclosure": "A2's applicability was decided from an incomplete read of the commit history: some of Cejel's reads of earlier commits stopped at Cejel's own 8 MiB output limit (the scan limitations name each failed read). Marking A2 not applicable rests in part on Cejel's scans of earlier commits for .env files and credential-shaped values, so a complete read of the history may make A2 applicable and give it a score. A re-scan of the same repository will not lift Cejel's own limit."
+  },
+  "timeout": {
+    "input": {
+      "shallow": false,
+      "limitHits": [
+        "30-second timeout"
+      ],
+      "otherFailure": false
+    },
+    "scored": "A2 abstained after an incomplete read of this repository's commit history: some of Cejel's reads of earlier commits stopped at Cejel's own 30-second timeout (the scan limitations name each failed read), so the scan for credentials and .env files in earlier commits read only part of the history, and no confirmed critical finding stands on what was read. A re-scan of the same repository may not lift Cejel's own timeout, which depends on the machine and its load.",
+    "notApplicable": "A2 abstained after an incomplete read of this repository's commit history: some of Cejel's reads of earlier commits stopped at Cejel's own 30-second timeout (the scan limitations name each failed read), and A2 would otherwise have been marked not applicable on a decision that rests in part on Cejel's scans of earlier commits for .env files and credential-shaped values. A re-scan of the same repository may not lift Cejel's own timeout, which depends on the machine and its load.",
+    "disclosure": "A2's applicability was decided from an incomplete read of the commit history: some of Cejel's reads of earlier commits stopped at Cejel's own 30-second timeout (the scan limitations name each failed read). Marking A2 not applicable rests in part on Cejel's scans of earlier commits for .env files and credential-shaped values, so a complete read of the history may make A2 applicable and give it a score. A re-scan of the same repository may not lift Cejel's own timeout, which depends on the machine and its load."
+  },
+  "otherFailure": {
+    "input": {
+      "shallow": false,
+      "limitHits": [],
+      "otherFailure": true
+    },
+    "scored": "A2 abstained after an incomplete read of this repository's commit history: Cejel could not read part of the commit history (the scan limitations name each failed read), so the scan for credentials and .env files in earlier commits read only part of the history, and no confirmed critical finding stands on what was read. Re-scan a full, unfiltered clone (for actions/checkout, set fetch-depth: 0 and no filter).",
+    "notApplicable": "A2 abstained after an incomplete read of this repository's commit history: Cejel could not read part of the commit history (the scan limitations name each failed read), and A2 would otherwise have been marked not applicable on a decision that rests in part on Cejel's scans of earlier commits for .env files and credential-shaped values. Re-scan a full, unfiltered clone (for actions/checkout, set fetch-depth: 0 and no filter).",
+    "disclosure": "A2's applicability was decided from an incomplete read of the commit history: Cejel could not read part of the commit history (the scan limitations name each failed read). Marking A2 not applicable rests in part on Cejel's scans of earlier commits for .env files and credential-shaped values, so a complete read of the history may make A2 applicable and give it a score. Re-scan a full, unfiltered clone (for actions/checkout, set fetch-depth: 0 and no filter)."
+  },
+  "blobCap": {
+    "input": {
+      "shallow": false,
+      "limitHits": [],
+      "otherFailure": false,
+      "blobCapHit": true
+    },
+    "scored": "A2 abstained after an incomplete read of this repository's commit history: Cejel's scan of earlier commits for credential-shaped values stopped at its own cap of 5,000 historical files, so the scan for credentials and .env files in earlier commits read only part of the history, and no confirmed critical finding stands on what was read. A re-scan of the same repository will not lift Cejel's own limit.",
+    "notApplicable": "A2 abstained after an incomplete read of this repository's commit history: Cejel's scan of earlier commits for credential-shaped values stopped at its own cap of 5,000 historical files, and A2 would otherwise have been marked not applicable on a decision that rests in part on Cejel's scans of earlier commits for .env files and credential-shaped values. A re-scan of the same repository will not lift Cejel's own limit.",
+    "disclosure": "A2's applicability was decided from an incomplete read of the commit history: Cejel's scan of earlier commits for credential-shaped values stopped at its own cap of 5,000 historical files. Marking A2 not applicable rests in part on Cejel's scans of earlier commits for .env files and credential-shaped values, so a complete read of the history may make A2 applicable and give it a score. A re-scan of the same repository will not lift Cejel's own limit."
+  },
+  "controlCharacters": {
+    "input": {
+      "shallow": false,
+      "limitHits": [],
+      "otherFailure": false,
+      "controlCharacterSkip": true
+    },
+    "scored": "A2 abstained after an incomplete read of this repository's commit history: Cejel left a credential-shaped path in the commit history unread because its name contains control characters (the scan limitations say so), so the scan for credentials and .env files in earlier commits read only part of the history, and no confirmed critical finding stands on what was read. A re-scan of the same repository will not lift Cejel's own rule on control characters in paths.",
+    "notApplicable": "A2 abstained after an incomplete read of this repository's commit history: Cejel left a credential-shaped path in the commit history unread because its name contains control characters (the scan limitations say so), and A2 would otherwise have been marked not applicable on a decision that rests in part on Cejel's scans of earlier commits for .env files and credential-shaped values. A re-scan of the same repository will not lift Cejel's own rule on control characters in paths.",
+    "disclosure": "A2's applicability was decided from an incomplete read of the commit history: Cejel left a credential-shaped path in the commit history unread because its name contains control characters (the scan limitations say so). Marking A2 not applicable rests in part on Cejel's scans of earlier commits for .env files and credential-shaped values, so a complete read of the history may make A2 applicable and give it a score. A re-scan of the same repository will not lift Cejel's own rule on control characters in paths."
+  },
+  "gitUnavailable": {
+    "input": {
+      "shallow": false,
+      "limitHits": [],
+      "otherFailure": false,
+      "gitUnavailable": true
+    },
+    "scored": "A2 abstained after an incomplete read of this repository's commit history: git could not be run on the scanning host, so Cejel read none of the commit history, and no confirmed critical finding stands on what was read. Re-scan on a host where git is installed.",
+    "notApplicable": "A2 abstained after an incomplete read of this repository's commit history: git could not be run on the scanning host, so Cejel read none of the commit history, and A2 would otherwise have been marked not applicable on a decision that rests in part on Cejel's scans of earlier commits for .env files and credential-shaped values. Re-scan on a host where git is installed.",
+    "disclosure": "A2's applicability was decided from an incomplete read of the commit history: git could not be run on the scanning host, so Cejel read none of the commit history. Marking A2 not applicable rests in part on Cejel's scans of earlier commits for .env files and credential-shaped values, so a complete read of the history may make A2 applicable and give it a score. Re-scan on a host where git is installed."
+  },
+  "repositoryUnopenable": {
+    "input": {
+      "shallow": false,
+      "limitHits": [],
+      "otherFailure": false,
+      "repositoryUnopenable": true
+    },
+    "scored": "A2 abstained after an incomplete read of this repository's commit history: a .git entry is present but git could not open it as a repository, so Cejel read none of the commit history, and no confirmed critical finding stands on what was read. Re-scan a checkout that git can open (a full clone, not a copied worktree or submodule).",
+    "notApplicable": "A2 abstained after an incomplete read of this repository's commit history: a .git entry is present but git could not open it as a repository, so Cejel read none of the commit history, and A2 would otherwise have been marked not applicable on a decision that rests in part on Cejel's scans of earlier commits for .env files and credential-shaped values. Re-scan a checkout that git can open (a full clone, not a copied worktree or submodule).",
+    "disclosure": "A2's applicability was decided from an incomplete read of the commit history: a .git entry is present but git could not open it as a repository, so Cejel read none of the commit history. Marking A2 not applicable rests in part on Cejel's scans of earlier commits for .env files and credential-shaped values, so a complete read of the history may make A2 applicable and give it a score. Re-scan a checkout that git can open (a full clone, not a copied worktree or submodule)."
+  },
+  "shallow+outputLimit": {
+    "input": {
+      "shallow": true,
+      "limitHits": [
+        "8 MiB output limit"
+      ],
+      "otherFailure": false
+    },
+    "scored": "A2 abstained after an incomplete read of this repository's commit history: this clone is shallow, so Cejel's scans of earlier commits read only the commits it holds, and some of Cejel's reads of earlier commits stopped at Cejel's own 8 MiB output limit (the scan limitations name each failed read), so the scan for credentials and .env files in earlier commits read only part of the history, and no confirmed critical finding stands on what was read. Re-scan a full clone (for actions/checkout, set fetch-depth: 0). A re-scan of the same repository will not lift Cejel's own limit.",
+    "notApplicable": "A2 abstained after an incomplete read of this repository's commit history: this clone is shallow, so Cejel's scans of earlier commits read only the commits it holds, and some of Cejel's reads of earlier commits stopped at Cejel's own 8 MiB output limit (the scan limitations name each failed read), and A2 would otherwise have been marked not applicable on a decision that rests in part on Cejel's scans of earlier commits for .env files and credential-shaped values. Re-scan a full clone (for actions/checkout, set fetch-depth: 0). A re-scan of the same repository will not lift Cejel's own limit.",
+    "disclosure": "A2's applicability was decided from an incomplete read of the commit history: this clone is shallow, so Cejel's scans of earlier commits read only the commits it holds, and some of Cejel's reads of earlier commits stopped at Cejel's own 8 MiB output limit (the scan limitations name each failed read). Marking A2 not applicable rests in part on Cejel's scans of earlier commits for .env files and credential-shaped values, so a complete read of the history may make A2 applicable and give it a score. Re-scan a full clone (for actions/checkout, set fetch-depth: 0). A re-scan of the same repository will not lift Cejel's own limit."
+  },
+  "otherFailure+blobCap+controlCharacters": {
+    "input": {
+      "shallow": false,
+      "limitHits": [],
+      "otherFailure": true,
+      "blobCapHit": true,
+      "controlCharacterSkip": true
+    },
+    "scored": "A2 abstained after an incomplete read of this repository's commit history: Cejel could not read part of the commit history (the scan limitations name each failed read), and Cejel's scan of earlier commits for credential-shaped values stopped at its own cap of 5,000 historical files, and Cejel left a credential-shaped path in the commit history unread because its name contains control characters (the scan limitations say so), so the scan for credentials and .env files in earlier commits read only part of the history, and no confirmed critical finding stands on what was read. Re-scan a full, unfiltered clone (for actions/checkout, set fetch-depth: 0 and no filter). A re-scan of the same repository will not lift Cejel's own limit. A re-scan of the same repository will not lift Cejel's own rule on control characters in paths.",
+    "notApplicable": "A2 abstained after an incomplete read of this repository's commit history: Cejel could not read part of the commit history (the scan limitations name each failed read), and Cejel's scan of earlier commits for credential-shaped values stopped at its own cap of 5,000 historical files, and Cejel left a credential-shaped path in the commit history unread because its name contains control characters (the scan limitations say so), and A2 would otherwise have been marked not applicable on a decision that rests in part on Cejel's scans of earlier commits for .env files and credential-shaped values. Re-scan a full, unfiltered clone (for actions/checkout, set fetch-depth: 0 and no filter). A re-scan of the same repository will not lift Cejel's own limit. A re-scan of the same repository will not lift Cejel's own rule on control characters in paths.",
+    "disclosure": "A2's applicability was decided from an incomplete read of the commit history: Cejel could not read part of the commit history (the scan limitations name each failed read), and Cejel's scan of earlier commits for credential-shaped values stopped at its own cap of 5,000 historical files, and Cejel left a credential-shaped path in the commit history unread because its name contains control characters (the scan limitations say so). Marking A2 not applicable rests in part on Cejel's scans of earlier commits for .env files and credential-shaped values, so a complete read of the history may make A2 applicable and give it a score. Re-scan a full, unfiltered clone (for actions/checkout, set fetch-depth: 0 and no filter). A re-scan of the same repository will not lift Cejel's own limit. A re-scan of the same repository will not lift Cejel's own rule on control characters in paths."
+  },
+  "timeout+blobCap": {
+    "input": {
+      "shallow": false,
+      "limitHits": [
+        "30-second timeout"
+      ],
+      "otherFailure": false,
+      "blobCapHit": true
+    },
+    "scored": "A2 abstained after an incomplete read of this repository's commit history: some of Cejel's reads of earlier commits stopped at Cejel's own 30-second timeout (the scan limitations name each failed read), and Cejel's scan of earlier commits for credential-shaped values stopped at its own cap of 5,000 historical files, so the scan for credentials and .env files in earlier commits read only part of the history, and no confirmed critical finding stands on what was read. A re-scan of the same repository will not lift Cejel's own limit on file count, and may not lift its timeout, which depends on the machine and its load.",
+    "notApplicable": "A2 abstained after an incomplete read of this repository's commit history: some of Cejel's reads of earlier commits stopped at Cejel's own 30-second timeout (the scan limitations name each failed read), and Cejel's scan of earlier commits for credential-shaped values stopped at its own cap of 5,000 historical files, and A2 would otherwise have been marked not applicable on a decision that rests in part on Cejel's scans of earlier commits for .env files and credential-shaped values. A re-scan of the same repository will not lift Cejel's own limit on file count, and may not lift its timeout, which depends on the machine and its load.",
+    "disclosure": "A2's applicability was decided from an incomplete read of the commit history: some of Cejel's reads of earlier commits stopped at Cejel's own 30-second timeout (the scan limitations name each failed read), and Cejel's scan of earlier commits for credential-shaped values stopped at its own cap of 5,000 historical files. Marking A2 not applicable rests in part on Cejel's scans of earlier commits for .env files and credential-shaped values, so a complete read of the history may make A2 applicable and give it a score. A re-scan of the same repository will not lift Cejel's own limit on file count, and may not lift its timeout, which depends on the machine and its load."
+  },
+  "gitUnavailable+otherFailure": {
+    "input": {
+      "shallow": false,
+      "limitHits": [],
+      "otherFailure": true,
+      "gitUnavailable": true
+    },
+    "scored": "A2 abstained after an incomplete read of this repository's commit history: git could not be run on the scanning host, so Cejel read none of the commit history, and no confirmed critical finding stands on what was read. Re-scan on a host where git is installed.",
+    "notApplicable": "A2 abstained after an incomplete read of this repository's commit history: git could not be run on the scanning host, so Cejel read none of the commit history, and A2 would otherwise have been marked not applicable on a decision that rests in part on Cejel's scans of earlier commits for .env files and credential-shaped values. Re-scan on a host where git is installed.",
+    "disclosure": "A2's applicability was decided from an incomplete read of the commit history: git could not be run on the scanning host, so Cejel read none of the commit history. Marking A2 not applicable rests in part on Cejel's scans of earlier commits for .env files and credential-shaped values, so a complete read of the history may make A2 applicable and give it a score. Re-scan on a host where git is installed."
+  }
+}

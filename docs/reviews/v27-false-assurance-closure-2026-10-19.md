@@ -455,3 +455,89 @@ only false credit. Two candidates were measured on the 23 public rows, under v27
 - **Drop a workflow whose filters name `master` and not `main`.** 3 rows move (fastapi, express,
   guava), and all three repositories' default branch is `master`. Every removal would be a false
   assertion.
+
+## Addition (2026-10-22): #556 changes v27 scoring, so it makes a new candidate
+
+*Added on 2026-10-22 by an AI agent (Claude Opus 5.5, Claude Code) in the #556 fix (#560), at the
+operator's direction of the same day. The text above is left as written.*
+
+**What changed.** A2's not-applicable gate, and its scored result, rest on its reads of earlier
+commits (an `.env` path in `git log HEAD`, and the history secret scan). On a shallow clone those
+reads see only the commits present. On a partial clone, or when a git read fails, times out or
+exceeds its output limit, they do not complete, and Cejel treated that as finding nothing. A
+repository whose only A2 surface is a secret-bearing `.env`, committed and later deleted, was marked
+not applicable (shallow, treeless) or scored a warning instead of critical (blobless), so the score
+rose above the complete clone's. Under `witan-rubric-v27-prospective-2026-10-19`, A2 now abstains
+whenever its history evidence is incomplete and no confirmed critical finding stands, on both paths,
+as a read failure kept in the composite at 0. Every other rubric keeps its scoring, with a
+presentation-only disclosure where A2 is not applicable. The tables are in
+`leaderboard/RUBRIC_CHANGELOG.md` (2026-10-22). A complete clone can also fail a history read: an
+informal re-score of the 0.6.8 successor confirmation's 23 full-history clones (not a preregistered
+run) moves one v27 row, biomejs, whose history reads exceed Cejel's own 8 MiB output limit (A2
+verified 3.2 to an abstention at 0, overall 3.0 to 2.5), and leaves every v17 report byte-identical.
+For this candidate, the 0.6.8 result's "v27 added no A2 or B2 abstention on any row" therefore no
+longer holds; the 0.6.8 record describes the candidate it measured and is unchanged. The limit is
+Cejel's own and fires on complete clones, so A2's note names it and does not advise a re-scan. A v27
+shadow board under condition 5 would show that abstention until those reads stream (#567).
+
+**Effect on the ruling's conditions.** This is a change to v27's scoring, so under the ruling's
+last condition ("Any later change to v27's scoring makes a new candidate and resets conditions 1,
+2, 4 and 5") the candidate is new: conditions 1, 2, 4 and 5 restart for it. #562 landed first and
+made its own new candidate (the addition above), moving v27's fingerprint to
+`sha256:6e03aa1bf63a31c5ec58a68cb49fb8ef571ba233cf79059a311ec55aecea5bb3`. This change, merged on
+top of it, does not move that fingerprint, because the behaviour corpus holds no shallow or partial
+clone and no failed history read. The fingerprint therefore does not tell #562's candidate from the
+combined one; the combined candidate is `sha256:6e03aa1b…` at this change's merge commit, recorded
+after merge (#563).
+
+**Condition 6 and ADR-0001.** This abstention is new in scope relative to the operator's
+condition-6 ruling recorded in #554 (merged as `74b3af581`), which says that ruling "does not cover
+that case (#556)". On 2026-10-22 the operator confirmed that ADR-0001's read-failure ruling extends
+to it, in the words "yes to both recommendations", recorded on #526
+([comment 6336750983](https://github.com/BargLabs/cejel/issues/526#issuecomment-6336750983),
+"Operator decisions (2026-10-22)"). That covers v27's A2 abstention at 0, kept in the composite,
+where A2 would otherwise be not applicable or scored on history Cejel could not fully read: a
+shallow clone, or a failed history read. After the review showed that Cejel's own limits fire on
+complete clones, the operator was asked "What should v27 do when an A2 history read hits one of
+Cejel's own size or time limits on a complete clone?" and replied "1" (#526,
+[comment 6337508926](https://github.com/BargLabs/cejel/issues/526#issuecomment-6337508926)): a limit
+hit counts as a failed read, A2 abstains at 0, the history secret scan's 5,000-blob cap counts as an
+incomplete read too, and the cause is fixed by streaming those reads (#567). ADR-0001 records both
+decisions in its dated section "Operator ruling (2026-10-22, second)", which supersedes the "does
+not cover that case (#556)" sentence for v27 once this change lands. #560's review round 4 then
+added two causes: a credential- or `.env`-shaped history path left unread because its name contains
+control characters, and git itself unavailable while a `.git` entry is visible (#568). The operator
+extended the read-failure ruling to both, in the words "for adr-0001 add them" (#526,
+[comment 6341266476](https://github.com/BargLabs/cejel/issues/526#issuecomment-6341266476)), recorded
+in ADR-0001's section "Operator ruling (2026-10-22, third)". Review round 6 added one more cause: a
+`.git` entry is visible but git cannot open it as a repository (a copied worktree or submodule whose
+gitdir is gone), counted like git being unavailable. **That cause is awaiting the operator's
+confirmation**: none of the three rulings names it, and v27 abstains on it at 0 until the operator
+confirms or rules otherwise.
+
+**What it adds to "Why every v27 movement can only lower a score".** That table lists the
+abstention path and not the not-applicable gate, and its #442 row covers shallow clones only. A
+criterion leaves the composite either by a self-imposed abstention or by a not-applicable result,
+and this defect was the second kind. It also reached the scoring path, where a failed read lowered
+a critical to a warning. Both happened in a comparison the no-rise test does not make: an
+incomplete clone against a complete one under the same rubric. The fix turns either result into a
+read-failure abstention, which only adds a 0 to the composite. Against v17 on the same clone, that
+is a move from `not_applicable` or a scored status to `insufficient_data` at 0.
+- `norise.mjs` counts it as an A2 abstention, not a rise.
+- The curated no-rise test accepts it: the score does not rise and the status is an abstention.
+- The stricter checker on the #531 branch (`v27-no-rise.ts`, not yet merged), run v17 against v27
+  on the 72 #556 shape clones, finds every introduced A2 abstention kept in the denominator. It
+  classifies the 16 on shallow clones (4 from this change, 12 from #442) as the shallow-clone
+  abstention. It reports the other 16, on partial and missing-blob clones, as abstentions
+  "without a read failure", because it recognises only content-read and shallow-clone
+  abstentions. These are history-read failures: each has a failed read in `scanLimitations`, and
+  its note starts with `WITAN_V27_A2_FAILED_HISTORY_NOTE_PREFIX` (`src/witan/abstention.ts`). That
+  checker needs this class added when the two branches meet.
+
+**Two statements above no longer hold for this candidate.**
+- The release-note item "on depth-1 checkouts B2 abstains, and A2 does too unless a confirmed
+  critical secret finding stands or A2 is not applicable": on a shallow clone, v27's A2 is now never
+  not applicable, so A2 abstains unless a confirmed critical secret finding stands. The same now
+  holds on any clone where one of A2's history reads failed.
+- The v27 shallow-history sentence quoted in the code before this change ("A criterion that is not
+  applicable stays not applicable") is replaced.
