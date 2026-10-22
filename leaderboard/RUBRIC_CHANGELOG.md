@@ -415,6 +415,320 @@ limitation where a failed history read was dropped before (the v17 badge is then
 `--min-score` refuses). No holdout or calibration ran, and this entry makes no precision or recall
 claim. Tests: `src/witan/__tests__/shallow-a2-applicability-556.test.ts`.
 
+## 2026-10-22 — v27: B2 and B3 stop crediting CI workflows not shown to run a check (#527, #535 no-check half); the print-only reader assumed bash (#564, every rubric); no published score moved
+
+**Why.** The operator accepted the 2026-10-21 ruling on #526 on 2026-10-22. Its condition 3 reads:
+"#527 and #535 are fixed in v27 before the candidate is pinned. B2 and B3 stop crediting workflows
+that run no check." This entry fixes the no-check half of condition 3: #527 in full and #535's
+no-check half. On 2026-10-22 the operator ruled the branch half of #535 out of condition 3, so this
+change meets condition 3. The operator's words were "yes to both recommendations" ([#526](https://github.com/BargLabs/cejel/issues/526#issuecomment-6336750983),
+[#535](https://github.com/BargLabs/cejel/issues/535#issuecomment-6336751428)). The two recommendations were the #535 branch half (this change) and extending the ADR-0001 read-failure ruling to #556's abstention (#560), so "both" is not two #535 options. The branch half is not changed (below). The scoring change is in
+`witan-rubric-v27-prospective-2026-10-19` only. v17 was measured: no v17 score, status, metric or
+fingerprint moved.
+- **v17 `report.json`:** byte-identical on every fixture and public row measured, apart from six #564
+  fixtures. Those lose the false #540 disclosure (below), which happens on any repository whose
+  workflow the old reader alone called print-only.
+- **v17 certificates** (Markdown, HTML, terminal) change on every repository. The two glossary
+  entries below now describe v27's rule. v18-v26 were not byte-measured. They rest
+on gating (every scoring change is behind the v27 flag, and the #564 reader change reaches them only
+through the presentation-only #540 disclosure) and on their unchanged behaviour fingerprints. v27
+stays prospective and opt-in, and the default stays v17. **No holdout or calibration ran, and this
+entry makes no precision or recall claim.**
+
+**This is a new v27 candidate.** Under the ruling, a candidate is a v27 behaviour identified by its
+`rubricBehaviourFingerprint` at a named commit. Here that is the fingerprint below plus #562's merge
+commit, which is recorded after merge (#563). PR #560 (#556 and partial clones) touches the same
+records. Whichever of #560 and #562 lands second reconciles them. #562 moves neither
+`b3-master-target-*` surface pin.
+
+**What v27 now does.** One predicate decides, for B2 and for B3, whether a CI workflow is credited.
+It is not credited when one of the two existing allowlist readers admits it:
+- **publish-only** (`isPublishOnlyWorkflow`, #517 as narrowed in #553): no pull-request trigger, and
+  every step only checks out, sets up a toolchain, configures credentials or uploads an
+  already-built artifact;
+- **print-only** (`isPrintOnlyWorkflow`, the #540 reader): every step only checks out the
+  repository, prints text or does nothing (`echo`, `printf`, `true`, `:`, `exit 0`), whatever the
+  triggers. This covers every workflow the #540 disclosure names.
+
+A reader admits a workflow only when all of the following hold. Anything else keeps the credit.
+- Every line of the jobs section fits the reader's grammar.
+- Every job's `runs-on` is one of the documented GitHub-hosted Ubuntu or macOS labels, whose `run`
+  shell is bash (#564). The list is exact: `ubuntu-latest`, `ubuntu-24.04`, `ubuntu-22.04`,
+  `ubuntu-24.04-arm`, `ubuntu-22.04-arm`, `macos-latest`, `macos-15`, `macos-14`, `macos-13`, and
+  macOS's `-large` and `-xlarge` variants of those four. An owner-named label, such as a larger
+  Ubuntu runner, a self-hosted runner or a group, is refused, as is an expression or a list. This
+  guarantees the label, not who operates the machine.
+- Every step is on the reader's allowlist, which admits only commands that run no
+  repository-configured code. Print arguments and publish command words are drawn from a character
+  allowlist inert in every shell (#564).
+- For publish-only (review round 3 of #562), every flag must be on the publisher's own allowlist,
+  for example `--provenance`, `--no-git-checks`, `--access <word>`, `--tag <word>`,
+  `--skip-existing`, `--repository-url <word>`, `--clobber` and `--no-verify`. An unknown flag
+  keeps the credit. npm-family publishes take no operand.
+- A `*` is admitted only in a file operand after a directory (`dist/*`), where every expansion
+  still starts with that directory. A glob in a flag can expand to a committed file name: `--d*`
+  becomes `--dir=evil`, and pnpm then publishes `evil/` and runs its lifecycle scripts.
+- Environment names set on a command line or in a step's `env:` must be on a credential allowlist:
+  `TWINE_USERNAME`, `TWINE_PASSWORD`, `TWINE_REPOSITORY_URL`, `TWINE_NON_INTERACTIVE`,
+  `NODE_AUTH_TOKEN`, `NPM_TOKEN`, `CARGO_REGISTRY_TOKEN`, `UV_PUBLISH_TOKEN`,
+  `UV_PUBLISH_USERNAME`, `UV_PUBLISH_PASSWORD`, `UV_PUBLISH_URL`, `POETRY_PYPI_TOKEN_*`,
+  `GH_TOKEN` and `GITHUB_TOKEN`. Step `env:` values must be a secret, the job token or an inert
+  literal. This replaces a blocklist of code-loading variables, which missed
+  `CARGO_REGISTRY_CREDENTIAL_PROVIDER` (cargo executes it), `PYTHONUSERBASE` (a committed `.pth`
+  runs), `CARGO_HOME` and `XDG_CONFIG_HOME`.
+- `cargo publish --no-verify` is refused when the inventory holds any `.cargo/config` or
+  `.cargo/config.toml`, which can name a credential provider cargo executes.
+- `cargo publish` is also refused when the inventory holds `rust-toolchain` or
+  `rust-toolchain.toml`. `poetry publish` is refused on any root `.poetry/` path, a `poetry.toml`,
+  or a `pyproject.toml` that holds the token `plugins` or any backslash. A backslash covers every TOML
+  escape, including TOML 1.1's `\x`. `uv publish` is refused on any `uv.toml`, or a `pyproject.toml`
+  that holds the bare token `uv` or any backslash. These
+  are token matches, not table-header matches, so `[[tool.uv.index]]`, dotted and inline `uv` keys,
+  quoted or escaped keys (including `[tool."u\x76"]`), and a quoted `"requires-plugins"` are all refused
+  (rounds 4 to 6).
+
+**What each admitted publisher reads from the repository that could run code, and how it is
+handled.** "Docs" means the tool's documentation, "review" means a review pass on #562 reported it
+with source references, and "not verified" means the author did not check the tool's source in this
+change.
+
+| Publisher | Repository files or settings that could run code | Handling | Basis |
+|---|---|---|---|
+| npm, pnpm, yarn `publish` | Root `package.json` lifecycle scripts (`prepublishOnly`, `prepack`, `publish`, ...), `workspaces`, `gypfile` or `binding.gyp`, local dependencies; `.npmrc` (`script-shell`, `node-options`), `.yarnrc`, `.yarnrc.yml`, `.yarn/plugins/`, `.pnpmfile.cjs`, `pnpmfile.js`, `bunfig.toml`, `pnpm-workspace.yaml`, `lerna.json` | Refused when present (#553's guards, unchanged). Flags that redirect the package are not on the allowlist | Docs, and #553's review rounds. Not re-verified from source here |
+| `twine upload` | `.pypirc` is read from the home directory, not the repository; `--config-file` | `--config-file` is not admitted; the home directory is not repository content. Python start-up paths (`PYTHONPATH`, `PYTHONUSERBASE`, `PYTHONHOME`) are not admitted variables | Docs. Not verified from source |
+| `uv publish` | `uv.toml`, any `uv` setting in `pyproject.toml` (keyring providers, index configuration) | Refused on a `uv.toml`, or on the token `uv` or any backslash in `pyproject.toml` | Not verified from source that publish runs nothing these settings name, so refused conservatively |
+| `poetry publish` | Project plugins: `.poetry/plugins` is added with `addsitedir()` before any command, so a `.pth` there runs; `poetry.toml`; plugin requirements in `pyproject.toml` | Refused on a `.poetry/` path or `poetry.toml`, or on the token `plugins` or any backslash in `pyproject.toml`. `--no-plugins` is not relied on | Source read by the reviewer (`Application._run` → `_load_plugins` → `add_project_plugin_path` → `addsitedir`, skipped only with `--no-plugins`). Cejel's handling reproduced; Poetry itself not run. Other `[tool.poetry]` settings were not verified to be inert for `publish` |
+| `gh release create`/`upload` | Only the user's configuration directory; extensions are installed per user | `GH_CONFIG_DIR` and `XDG_CONFIG_HOME` are not admitted variables | Docs. Not verified from source |
+| `cargo publish --no-verify` | `.cargo/config` and `.cargo/config.toml` in the directory or any parent (credential provider, aliases, build settings); `rust-toolchain` or `rust-toolchain.toml` (rustup resolves the `cargo` proxy, possibly from a custom path); `build.rs` is not run with `--no-verify` | Refused when either kind of file is present; `--config` and the `CARGO_*`/`RUSTUP_*` home variables are not admitted | Docs. Not verified from source |
+
+Setup actions (`actions/setup-node` and the others PUBLISH_ONLY_SETUP_ACTIONS names) were not
+re-audited in this change.
+
+**The `*`, environment, Cargo, rustup, Poetry and uv gaps already existed in 0.6.8's v27 B3**
+(#553's publish-only rule). They are fixed here for both criteria. Fixtures `review12-*` and
+`review13-*` pin each shape. Each keeps its credit, and in each v27 had scored B3 below v17 on a
+false "only publishes". The `review13-poetry-publish-control` and `review13-uv-publish-control`
+fixtures, which have no tool configuration, stay publish-only.
+
+Under v27:
+- **B2 (#527).** `pr_trace_primitives`' CI component counts credited workflows only. When any
+  workflow is not credited, that component is labelled "credited CI workflow" and the metric carries
+  the condition "N CI workflow file(s) not shown to run a check … not counted". So a certificate
+  never prints "missing: CI workflow" for a repository that has one. Uncredited workflows are still
+  cited, labelled "CI workflow not shown to run a check (not counted)", so B2 still reports, at 0
+  where nothing else is credited, and stays in the composite. A workflow B2 cannot read is a read
+  failure of B2, which then abstains at 0.
+- **B3 (#535, no-check half).** Uncredited workflows count toward neither `ci_script_depth` nor
+  `default_branch_ci_depth`. So a printed word such as `echo "pytest skipped"` no longer earns a CI
+  test command. #517 already did this for publish-only workflows. `default_branch_ci_depth` carries
+  the same kind of condition.
+- **What the certificate says.** The #540 disclosure ("The PR-gate CI workflow count still includes
+  it") gives way to a v27 disclosure on each criterion, listed under "What was not established"
+  while the criterion is scored. Examples: "B2 did not count CI workflows Cejel did not see run a
+  check: <path> only checks out the repository, prints text or does nothing", and the same for B3.
+  The criterion notes carry the same facts. The glossary entries for "PR trace basic checks" and
+  "PR-gate CI workflow count" describe v27's rule. Every sentence is built from Cejel's own words
+  plus workflow paths, never from workflow text. None says that a workflow runs no check.
+
+**#564, every rubric (presentation only outside v27).** Before this change the print-only reader
+did not look at the runner, and judged print arguments with a bash metacharacter blocklist. On a
+Windows runner the default shell is pwsh, where `echo @{suite=./run-tests.ps1}` evaluates a
+hashtable and runs the repository's script. A self-hosted runner can run any shell. So:
+- **Under v17**, the #540 disclosure called such a workflow "only prints text". That is false.
+- **Under v27 before this fix**, B2 and B3 withdrew its credit, a false assertion of absence.
+
+The reader now claims only under the runner gate and argument allowlist above. The publish-only
+reader had the same bash assumption, because it reads `run:` words as bash does. It is pinned the
+same way, and its command words now pass the same kind of inert-character allowlist instead of a
+blocklist. `twine upload dist/x.whl @{a=./t.ps1}` keeps its credit. Under v17 the effect is six
+fewer disclosures on the new fixtures. No score, status, metric or fingerprint moves, since the
+fingerprint projection excludes disclosures. Fixtures
+`review10-*` pin the three reported variants:
+- `windows-latest` with `echo @{suite=./run-tests.ps1}`;
+- `windows-2022` with `echo @{r=pytest}`;
+- `self-hosted` with `printf @{r=pytest}`.
+
+`review11-*` fixtures pin the label `ubuntu-22.04-xlarge`, the twine argument above, and a
+pull-request-triggered upload-only workflow, which is counted. Other `review10-*` fixtures pin a
+`${{ matrix.os }}` runner, `echo a=b`, upload-only workflows on
+Windows and self-hosted runners, and an inert Ubuntu control. The jobs-key detector also reads
+`jobs :` as `jobs` now. Before, a second jobs key written that way after a print-only one went unread.
+
+**The branch half of #535 is not changed, and the operator ruled it out of condition 3 on
+2026-10-22** ([#526](https://github.com/BargLabs/cejel/issues/526#issuecomment-6336750983), [#535](https://github.com/BargLabs/cejel/issues/535#issuecomment-6336751428)). The recommendation the operator accepted was to rule
+it out. So binding the default branch in the report and dropping all branch-filtered credit were not
+chosen (the relaying agent's #526 comment describes them as declined), and no ref-free disclosure is
+added. What follows is the author's reasoning and
+measurement behind that recommendation. A workflow confined to a branch the repository may not
+have (`master` where the default is `main`) is still counted. Deciding it needs the default branch
+or the branch list, which is ref state. The attestation binds the report digest, rubric version,
+product slug, URL, tool version, outcome, signal provenance and one repository revision,
+`repo.headSha`. Ref state is not a function of that commit. #540 removed a sentence read from refs
+because `cejel issue` then refused honest reproductions.
+
+#535 itself suggested reading `origin/HEAD` offline and abstaining when it cannot be read. That
+reduces to the options below:
+- **Read but not bound:** the same commit scores differently with different refs, #540's defect,
+  unless the value is bound in the report (not chosen).
+- **Abstain when unreadable:** most checkouts, including CI runners', hold no `origin/HEAD`, so this
+  removes credit almost everywhere (like dropping all branch-filtered credit, also not chosen).
+
+No rule decidable from the commit's tree was found that removes only false credit. Two were measured
+on the 23 public rows, under v27. The measurement ran at `665598093`; no public workflow is uncredited
+there or at this change, so the counts carry over.
+
+| Option (measured, not shipped) | Rows whose PR-gate count moved | Composites lowered | What it removes |
+|---|---|---|---|
+| Credit only workflows with an unfiltered pull-request trigger (drop every branch-filtered credit) | 16 | Overall falls on 8 rows, by 0.1 to 0.3 (vue, svelte, express, esbuild, pydantic, zod, scorecard, guava). esbuild, one of the 8, also moves conditional → at_risk. requests' process score falls 3.4 → 3.3 | Every `branches: [main]` gate, which is the common correct form |
+| Drop a workflow whose branch filters name `master` and not `main` | 3 (fastapi 9 → 6, express 4 → 2, guava 2 → 0) | 2 (express overall 3.1 → 2.9, guava 1.9 → 1.6) | True credit: all three repositories' default branch is `master` (read from their clones' `origin/HEAD`, for this measurement only) |
+
+The second option would make a false assertion of absence on 3 of 23 public rows, and the first
+drops credit on most rows. Neither is shipped. Fixture
+`b3-master-confined-workflow-on-main-still-counted` pins the behaviour the operator ruled on, and a test shows that
+the same commit scores the same under v17 and v27 whatever refs the checkout holds. The test adds
+or deletes a `master` branch, renames `main`, points `origin/HEAD` at `main` or `master`, and
+detaches HEAD. It fails when a rule that reads `refs/heads/master` is injected.
+
+**Measured, release/0.6.8 (`8deafad9f`) against this change (`59fd9367e`).** Fixtures were built once
+from this change's definitions and scored by both scanners. The public rows are the 0.6.8
+confirmation's full-history clones (copy-on-write copies, with identity checked before and after
+each scan). This is not a preregistered run.
+
+| Set | v17: scoring-surface moves | v17: reports byte-identical | v27: scoring-surface moves | v27 no-rise against v17 |
+|---|---|---|---|---|
+| Behaviour corpus (30) | 0 | 30 | 1 (`workspace-package-scripts`) | 0 violations |
+| Calibration anchors (5) | 0 | 5 | 0 | 0 violations |
+| Disclosure-gap fixtures (24) | 0 | 24 | 2 (the two print-only fixtures) | 0 violations |
+| False-assurance fixtures (197, 46 new) | 0 | 191 (6 `review10/11-print-only-*` lose the false #540 disclosure) | 40 (8 new down, 6 existing upload-only down, 26 back up to exactly v17's value: 2 `review10-upload-only-*`, `review11-twine-upload-pwsh-hashtable-argument`, 10 `review12-*`, 5 `review13-*`, 7 `review14-*` and `review15-uv-hex-escaped-key`) | 0 violations |
+| Public corpus (23, full history) | 0 | 23 | 0 | 0 violations |
+
+**This change moves 43 fixture rows: 17 to below v17's value and 26 back to exactly v17's value.
+No fixture is above v17.** Across all 256 fixtures, 56 have a v27 overall score below v17's. Most of
+those come from earlier v27 changes. The 26 rows that rise are the two `review10-upload-only-*` rows,
+`review11-twine-upload-pwsh-hashtable-argument`, the ten `review12-*` rows, the five non-control
+`review13-*` rows, the seven `review14-*` rows and `review15-uv-hex-escaped-key`. v27's publish-only
+reader used to claim each of them, on a Windows or self-hosted runner, with a pwsh hashtable
+argument, or with a glob, unlisted variable, or Cargo, rustup, Poetry or uv configuration that runs (or may
+run) repository code. So v27
+scored them below v17 on a false assertion.
+
+v27, before to after, for every row this change moves:
+
+| Set | Row | Verdict | Overall | Process | Criteria | B2 CI credit | B3 PR-gate count | B3 CI depth |
+|---|---|---|---|---|---|---|---|---|
+| corpus | workspace-package-scripts | unverified | 1.1 → 0.6 | 1.6 → 0.5 | B2 warning 1.6 → critical 0; B3 verified 1.5 → warning 0.9 | 1 → 0 | 1 → 0 | 2 |
+| disclosure-gap | b2b3-planted-workflows | conditional | 2.8 → 2.7 | 3.4 → 3.1 | B3 verified 3.5 → verified 2.9 | 4 → 3 | 3 → 2 | 5 |
+| disclosure-gap | b3-monorepo-root-print-only | conditional → at_risk | 2.6 → 2.3 | 2.9 → 2.4 | B3 verified 2.9 → verified 2.4 | (B2 unscored) | 2 → 1 | 5 |
+| false-assurance | b2-publish-only-beside-test-workflow | at_risk → unverified | 1.8 → 1.4 | 2.1 → 1.3 | B2 warning 3.2 → warning 1.6 | 2 → 1 | 1 | 1 |
+| false-assurance | b2-publish-only-is-the-only-workflow | unverified | 1.1 → 0.7 | 0.8 → 0 | B2 warning 1.6 → critical 0 | 1 → 0 | 0 | 0 |
+| false-assurance | b3-print-only-echo-names-a-test-command | unverified | 1.4 → 0.8 | 1.3 → 0 | B2 warning 1.6 → critical 0; B3 verified 1 → critical 0 | 1 → 0 | 1 → 0 | 1 → 0 |
+| false-assurance | b3-print-only-is-the-only-workflow | unverified | 1.3 → 0.7 | 1.1 → 0 | B2 warning 1.6 → critical 0; B3 warning 0.6 → critical 0 | 1 → 0 | 1 → 0 | 0 |
+| false-assurance | b3-print-only-pr-workflow-beside-tests | at_risk → unverified | 2 → 1.4 | 2.4 → 1.3 | B2 warning 3.2 → warning 1.6; B3 verified 1.6 → verified 1 | 2 → 1 | 2 → 1 | 1 |
+| false-assurance | review10-print-only-ubuntu-inert-text | unverified | 1.3 → 0.7 | 1.1 → 0 | B2 warning 1.6 → critical 0; B3 warning 0.6 → critical 0 | 1 → 0 | 1 → 0 | 0 |
+| false-assurance | review10-upload-only-self-hosted-runner | at_risk | 1.8 → 2 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
+| false-assurance | review10-upload-only-windows-runner | at_risk | 1.8 → 2 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
+| false-assurance | review11-twine-upload-pwsh-hashtable-argument | at_risk | 1.8 → 2 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
+| false-assurance | review12-cargo-committed-config-credential-provider | at_risk | 2.1 → 2.3 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
+| false-assurance | review12-cargo-credential-provider-variable | at_risk | 2.1 → 2.3 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
+| false-assurance | review12-cargo-home-step-env | at_risk | 2.1 → 2.3 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
+| false-assurance | review12-cargo-publish-glob-flag | at_risk | 2.1 → 2.3 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
+| false-assurance | review12-gh-release-xdg-config-step-env | at_risk → conditional | 2.3 → 2.5 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
+| false-assurance | review12-npm-publish-unknown-flag | at_risk → conditional | 2.3 → 2.5 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
+| false-assurance | review12-pnpm-publish-glob-flag | at_risk → conditional | 2.3 → 2.5 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
+| false-assurance | review12-twine-pythonuserbase-variable | at_risk | 1.8 → 2 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
+| false-assurance | review12-twine-upload-flag-glob | at_risk | 1.8 → 2 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
+| false-assurance | review12-yarn-publish-glob-flag | at_risk → conditional | 2.3 → 2.5 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
+| false-assurance | review13-poetry-publish-control | at_risk → unverified | 1.8 → 1.4 | 2.1 → 1.3 | B2 warning 3.2 → warning 1.6 | 2 → 1 | 1 | 1 |
+| false-assurance | review13-uv-publish-control | at_risk → unverified | 1.8 → 1.4 | 2.1 → 1.3 | B2 warning 3.2 → warning 1.6 | 2 → 1 | 1 | 1 |
+| false-assurance | review13-poetry-project-plugin-pth | at_risk | 1.8 → 2 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
+| false-assurance | review13-poetry-requires-plugins | at_risk | 1.8 → 2 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
+| false-assurance | review13-rust-toolchain-toml | at_risk | 2.1 → 2.3 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
+| false-assurance | review13-uv-pyproject-table | at_risk | 1.8 → 2 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
+| false-assurance | review13-uv-toml-committed | at_risk | 1.8 → 2 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
+| false-assurance | review14-poetry-quoted-requires-plugins | at_risk | 1.8 → 2 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
+| false-assurance | review14-uv-escaped-key | at_risk | 1.8 → 2 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
+| false-assurance | review14-uv-index-array-table | at_risk | 1.8 → 2 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
+| false-assurance | review14-uv-inline-table | at_risk | 1.8 → 2 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
+| false-assurance | review14-uv-quoted-key | at_risk | 1.8 → 2 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
+| false-assurance | review14-uv-root-dotted-key | at_risk | 1.8 → 2 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
+| false-assurance | review14-uv-under-tool-table-dotted | at_risk | 1.8 → 2 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
+| false-assurance | review15-uv-hex-escaped-key | at_risk | 1.8 → 2 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
+| false-assurance | review7-b3-cargo-publish-no-verify | at_risk | 2.1 → 1.7 | 2.1 → 1.3 | B2 warning 3.2 → warning 1.6 | 2 → 1 | 1 | 1 |
+| false-assurance | review8-b3-gh-release-upload | at_risk | 2.3 → 1.9 | 2.1 → 1.3 | B2 warning 3.2 → warning 1.6 | 2 → 1 | 1 | 1 |
+| false-assurance | review8-b3-npm-publish-without-install | at_risk | 2.3 → 1.9 | 2.1 → 1.3 | B2 warning 3.2 → warning 1.6 | 2 → 1 | 1 | 1 |
+| false-assurance | review8-b3-pypi-upload-only-gated | at_risk → unverified | 1.8 → 1.4 | 2.1 → 1.3 | B2 warning 3.2 → warning 1.6 | 2 → 1 | 1 | 1 |
+| false-assurance | review8-b3-pypi-upload-only-ungated | at_risk → unverified | 1.8 → 1.4 | 2.1 → 1.3 | B2 warning 3.2 → warning 1.6 | 2 → 1 | 1 | 1 |
+| false-assurance | review8-b3-twine-upload-only | at_risk → unverified | 1.8 → 1.4 | 2.1 → 1.3 | B2 warning 3.2 → warning 1.6 | 2 → 1 | 1 | 1 |
+
+v17 to v27 at this change, for every row this change moves to below v17 (the other 26 now equal v17):
+
+| Set | Row | Verdict | Overall | Code | Process | Criteria that moved, v17 → v27 |
+|---|---|---|---|---|---|---|
+| corpus | workspace-package-scripts | unverified | 1.1 → 0.6 | 0.6 | 1.6 → 0.5 | B2 warning 1.6 → critical 0; B3 verified 1.5 → warning 0.9 |
+| disclosure-gap | b2b3-planted-workflows | conditional | 2.8 → 2.7 | 2.3 | 3.4 → 3.1 | B3 verified 3.5 → verified 2.9 |
+| disclosure-gap | b3-monorepo-root-print-only | conditional → at_risk | 2.6 → 2.3 | 2.3 | 2.9 → 2.4 | B3 verified 2.9 → verified 2.4 |
+| false-assurance | b2-publish-only-beside-test-workflow | at_risk → unverified | 1.8 → 1.4 | 1.5 | 2.1 → 1.3 | B2 warning 3.2 → warning 1.6 |
+| false-assurance | b2-publish-only-is-the-only-workflow | unverified | 1.1 → 0.7 | 1.4 | 0.8 → 0 | B2 warning 1.6 → critical 0 |
+| false-assurance | b3-print-only-echo-names-a-test-command | unverified | 1.4 → 0.8 | 1.5 | 1.3 → 0 | B2 warning 1.6 → critical 0; B3 verified 1 → critical 0 |
+| false-assurance | b3-print-only-is-the-only-workflow | unverified | 1.3 → 0.7 | 1.4 | 1.1 → 0 | B2 warning 1.6 → critical 0; B3 warning 0.6 → critical 0 |
+| false-assurance | b3-print-only-pr-workflow-beside-tests | at_risk → unverified | 2 → 1.4 | 1.5 | 2.4 → 1.3 | B2 warning 3.2 → warning 1.6; B3 verified 1.6 → verified 1 |
+| false-assurance | review10-print-only-ubuntu-inert-text | unverified | 1.3 → 0.7 | 1.4 | 1.1 → 0 | B2 warning 1.6 → critical 0; B3 warning 0.6 → critical 0 |
+| false-assurance | review13-poetry-publish-control | at_risk → unverified | 2 → 1.4 | 1.5 | 2.4 → 1.3 | B2 warning 3.2 → warning 1.6; B3 verified 1.6 → verified 1 |
+| false-assurance | review13-uv-publish-control | at_risk → unverified | 2 → 1.4 | 1.5 | 2.4 → 1.3 | B2 warning 3.2 → warning 1.6; B3 verified 1.6 → verified 1 |
+| false-assurance | review7-b3-cargo-publish-no-verify | at_risk | 2.3 → 1.7 | 2.1 | 2.4 → 1.3 | B2 warning 3.2 → warning 1.6; B3 verified 1.6 → verified 1 |
+| false-assurance | review8-b3-gh-release-upload | conditional → at_risk | 2.5 → 1.9 | 2.5 | 2.4 → 1.3 | B2 warning 3.2 → warning 1.6; B3 verified 1.6 → verified 1 |
+| false-assurance | review8-b3-npm-publish-without-install | conditional → at_risk | 2.5 → 1.9 | 2.5 | 2.4 → 1.3 | B2 warning 3.2 → warning 1.6; B3 verified 1.6 → verified 1 |
+| false-assurance | review8-b3-pypi-upload-only-gated | at_risk → unverified | 1.8 → 1.4 | 1.5 | 2.1 → 1.3 | B2 warning 3.2 → warning 1.6 |
+| false-assurance | review8-b3-pypi-upload-only-ungated | at_risk → unverified | 2 → 1.4 | 1.5 | 2.4 → 1.3 | B2 warning 3.2 → warning 1.6; B3 verified 1.6 → verified 1 |
+| false-assurance | review8-b3-twine-upload-only | at_risk → unverified | 2 → 1.4 | 1.5 | 2.4 → 1.3 | B2 warning 3.2 → warning 1.6; B3 verified 1.6 → verified 1 |
+
+The corpus specimen `workspace-package-scripts` is a real instance: its only workflow is
+`actions/checkout` and `echo ok` on `ubuntu-latest`. Every other moved row is a fixture built for
+#517, #527, #535 or #564.
+
+**Public corpus (informal, not a preregistered run).** No public row moved under v27 or v17. On the 23 rows no workflow is publish-only
+or print-only as the two readers define them, so no B2 or B3 credit changed and no disclosure was
+added or removed. v17's `report.json` files are byte-identical. v27's differ only in
+`rubricBehaviourFingerprint`. The v27 table of the 0.6.8 confirmation
+(`docs/experiments/public-delta-0-6-8-successor-2026-10-21/`) therefore still describes v27's public
+scores, but not its fingerprint.
+
+**Timing.** B2 and B3 now each run the shared predicate over every CI workflow, and B3 decides once
+for both depth metrics. The child-process timing guard in `scan-path-regex-bounds.test.ts` scans a
+print-only workflow of 24,000 steps beside an upload-only workflow of 3,300 step pairs, each just
+under the content size limit, under v17 and v27. It also asserts that both readers classified both
+files in full, so an early bail-out fails it. Run alone, the test takes 0.4 s to 0.5 s wall time,
+child start-up included, against a 2 s scan budget. A version with four of each made the file's
+other guards miss their budget when the full suite ran in parallel (they passed with it skipped),
+so it was cut to one of each. On a scratch fixture of eight of each, in one run on one machine, a
+scan took 1.19 s under v27 and 0.97 s under v17. Before this change v27 took 1.46 s, because B3 ran
+the publish-only reader three times per workflow. Every regular-expression literal this change adds under `src/` outside tests is listed below. The
+list was derived mechanically from the added lines of `git diff origin/main...HEAD -- src/`.
+- **Over file contents:**
+  - `PRINT_ONLY_RUN_LINE_PATTERN`, `PUBLISH_ONLY_INERT_WORD_PATTERN`, `PUBLISH_ONLY_PLAIN_WORD_PATTERN`,
+    the inline character class in `isFileOperand` (`/^[A-Za-z0-9_.,:/+=*-]+$/`),
+    `PUBLISH_ONLY_ENV_VALUE_PATTERN` and `POETRY_TOKEN_ENV_KEY_PATTERN`;
+  - the jobs-key pattern `/^jobs[ \t]*:[ \t]*$/`, in both readers;
+  - `PYPROJECT_UV_TOKEN_PATTERN` (`/\buv\b|\\/`) and `PYPROJECT_POETRY_PLUGINS_PATTERN`
+    (`/plugins|\\/`).
+- **Over repository paths:** `CARGO_CONFIGURATION_PATH_PATTERN`,
+  `POETRY_PROJECT_CONFIGURATION_PATH_PATTERN`, `UV_CONFIGURATION_PATH_PATTERN` and
+  `/^\.github\/workflows\//`.
+
+Each is either anchored with single quantifiers over character classes, or a plain alternation of
+literals. None has a nested quantifier, each is linear in its input, and the ReDoS guard
+(`src/__tests__/regex-redos-guard.test.ts`) passes. Runner labels are an exact set, not a pattern.
+
+**Fingerprints.** v17 stays
+`sha256:5cd48f8c642300ae8736a09d4a24ce3a4f8885f6e099b5f27f99d950e0c944b4`. v27 moves from
+`sha256:fb4edfa0bdf0d8153af3f84a4b72d4eab6da3fd6e0b2e3e494cea9542ded45a0` to
+`sha256:6e03aa1bf63a31c5ec58a68cb49fb8ef571ba233cf79059a311ec55aecea5bb3`. The B2 and B3
+components and the `workspace-package-scripts` report component moved, measured from the corpus.
+The fixture corpus did not change. The review fixes (#564, labels, disclosures) did not move it
+again. If 0.6.8 is released before this change, its v27 certificates carry the earlier fingerprint
+and remain distinguishable by it. If this change lands first, no released certificate carries the
+earlier one.
+
 ## 2026-10-21 — post-merge review of #521: v27 corrected before first shipping, and A4 stops quoting CI command arguments; no published score moved
 
 **Status.** #521 merged without a recorded review pass. Two post-merge review passes, both AI
@@ -1133,6 +1447,37 @@ where A3's findings or notes change.
 The synthetic suite, the choices made where the ruling is silent, and the guard-deletion table are
 in `docs/reviews/v26-a3-build-step-evidence-2026-10-15.md`.
 
+### Public-corpus before-and-after — measured 2026-10-18
+
+The entry above is left as written. The preregistered public run it announced has been performed:
+`docs/experiments/public-delta-0-6-7-2026-10-16/` (preregistration `2b767b56f`, #510; result
+beside it, #511). The baseline is `v0.6.6` (`6aec9d93`). The candidate is the fix commit
+`f5348fb33`, which carries this change and #508, and differs from the 0.6.7 release only in
+version identity and records, with no change under `src/` outside tests. All 23 public corpus
+repositories were scored at their pins, under v17 and under v26. **All four preregistered
+expected values held.**
+
+- Under v17 and under v26, all 23 public reports are byte-identical between the two commits. No
+  score, status, metric, finding, placement or fingerprint moved.
+- **This run did not exercise item 8.** The operator counted A3's build finding in the local raw
+  reports, and `result.md` reports that count; the harness records (`paired-result.json`,
+  `byte-identity.json`) do not hold it. No public report carries it at v0.6.6 under v26, so item
+  8 had nothing to narrow. The run shows that item 8 moves nothing on these 23 rows. It is not
+  evidence about where the finding stops, and it makes no precision or recall claim.
+- In the same count, 17 of the 23 rows carry A3 notes under v17 and v26 alike. Those notes
+  predate item 8, and none of them is item 8's disclosure sentence.
+
+**The operator's private check did not precede the release.** The entry above says it would. By
+the operator's list of that check's run start times, the last run under v26 started on
+2026-10-14, before this change existed, and none ran between this change's merge and the 0.6.7
+release. The change shipped in 0.6.7 on 2026-10-18 without it. v26 remains prospective and
+explicit opt-in; the public default stays v17.
+
+*Added 2026-10-22.* On 2026-10-19 the operator stopped rubric expansion and recalibration; only
+the false-assurance closure (#521, the 2026-10-19 entry above) continues (#485, a v26 issue closed
+that day under that decision). This does not change the measurement above. v26 is still selectable
+by explicit opt-in, and the public default stays v17.
+
 ## 2026-10-15 (entry added 2026-10-21) — #502: a `pnpm run /<regex>/` selector is no longer evaluated (every rubric, no identifier bump); no public repository moved
 
 *Entry added 2026-10-21 (#516). #502 shipped in 0.6.6 and was recorded only in `CHANGELOG.md`
@@ -1259,6 +1604,22 @@ previous pin byte for byte.
 The API sources, the red-first run and the guard-deletion table are in
 `docs/reviews/hmac-digest-compare-2026-10-14.md`.
 
+### Public-corpus before-and-after — measured 2026-10-15
+
+The entry above is left as written. The preregistered public run it announced has been performed:
+`docs/experiments/public-delta-0-6-5-2026-10-15/` (preregistration `9b37aa48e`, result beside
+it, both #497). It compared v17 at `v0.6.4` (`093de2a1`) with v17 at the #490 merge `98dbf250`,
+which carries this change, on all 23 public corpus repositories at their pins. **All six
+preregistered expected values held.** No row's score moved down (E3, scoring level); two rows
+that did not move at scoring level were displaced in placement (svelte 7 → 8, requests 6 → 7).
+
+- **The rule changed no public row.** A2 did not move on any row. The run is not evidence
+  about where the rule fires.
+
+The operator's private check ran before the 0.6.5 release, on 2026-10-14, by the operator's list
+of that check's run start times. The date alone does not show whether that run included this
+change, which merged the same day (17:38Z). This section makes no precision or recall claim.
+
 ## 2026-10-14 — A1 test-framework recognition (every rubric, no identifier bump); public paired rescore not run
 
 **Status.** A recognition fix that removes a false absence. It ships under
@@ -1354,6 +1715,24 @@ measurement decision for a prospective rubric.
 
 The idiom sources, the red-first run and the guard-deletion table are in
 `docs/reviews/test-framework-recognition-2026-10-14.md`.
+
+### Public-corpus before-and-after — measured 2026-10-15
+
+The entry above is left as written. The preregistered public run it announced has been performed:
+`docs/experiments/public-delta-0-6-5-2026-10-15/` (preregistration `9b37aa48e`, result beside
+it, both #497). It compared v17 at `v0.6.4` (`093de2a1`) with v17 at the #490 merge `98dbf250`,
+which carries this change, on all 23 public corpus repositories at their pins. **All six
+preregistered expected values held.** No row's score moved down (E3, scoring level); two rows
+that did not move at scoring level were displaced in placement (svelte 7 → 8, requests 6 → 7).
+
+- automapper's A1 `non_hollow_test_share` went from 8 to 22; its A1 score was unchanged.
+- express's A1 `verification_script_ratio` went from 2 to 3 and A1 rose. That move is a
+  verification-script recognition, and this run does not separate the coverage-configuration
+  change (#484) from the test-framework change (#487) for that row.
+
+The operator's private check ran before the 0.6.5 release, on 2026-10-14, by the operator's list
+of that check's run start times. The date alone does not show whether that run included this
+change, which merged the same day (16:34Z). This section makes no precision or recall claim.
 
 ## 2026-10-14 — v26 item 6: A5 and A2 tenant findings fire on settling evidence only, and A5 does not score the absence of Cejel's own format (v26 alone); no repository moved
 
@@ -1455,6 +1834,27 @@ certificate bytes change.
 
 The synthetic suite, the choices made where the ruling is silent, and the guard-deletion table are
 in `docs/reviews/v26-a5-a2-settling-evidence-2026-10-14.md`.
+
+### Public-corpus before-and-after — measured 2026-10-15
+
+The entry above is left as written. The preregistered public run it announced has been performed:
+`docs/experiments/public-delta-0-6-5-2026-10-15/` (preregistration `9b37aa48e`, result beside
+it, both #497). It compared v25 with v26, both at the #490 merge `98dbf250`, which carries this
+change, on all 23 public corpus repositories at their pins. **All six preregistered expected
+values held.**
+
+- **A5.** 16 rows carried the no-reconciliation finding under v25. Under v26 it fires on none of
+  them, each carries the ruling's disclosure sentence, `reconciliation_artifact_depth` is omitted,
+  and A5 rose on all 16. No row names a claim-reconciliation artifact.
+- **The A2 tenant rule was not exercised.** No row carries a tenant-without-RLS finding under v25
+  or v26, so the run says nothing about that rule in either direction.
+- No criterion other than A5 moved. One verdict changed as a result of A5: vite, conditional to
+  verified. v26 is explicit opt-in, so these runs do not describe the published board.
+
+The entry above promised no private check. For information only: the operator's private check
+ran before the 0.6.5 release, on 2026-10-14, by the operator's list of that check's run start
+times. The date alone does not show whether that run covered this change, which merged the same
+day (15:38Z). This section makes no precision or recall claim.
 
 ## 2026-10-14 — A1 coverage-configuration recognition (every rubric, no identifier bump); public paired rescore not run
 
@@ -1576,6 +1976,25 @@ Re-pinned, with no pinned v17 metric moved on any of them:
 All of these recoveries are asserted in the tests. Record:
 `docs/reviews/coverage-config-recognition-2026-10-14.md`.
 
+### Public-corpus before-and-after — measured 2026-10-15
+
+The entry above is left as written. The preregistered public run it announced has been performed:
+`docs/experiments/public-delta-0-6-5-2026-10-15/` (preregistration `9b37aa48e`, result beside
+it, both #497). It compared v17 at `v0.6.4` (`093de2a1`) with v17 at the #490 merge `98dbf250`,
+which carries this change, on all 23 public corpus repositories at their pins. **All six
+preregistered expected values held.** No row's score moved down (E3, scoring level); two rows
+that did not move at scoring level were displaced in placement (svelte 7 → 8, requests 6 → 7).
+
+- scorecard's A1 `verification_script_ratio` went from 1 to 2, its "no coverage configuration"
+  finding no longer fires, and A1 rose.
+- express's A1 `verification_script_ratio` went from 2 to 3 and A1 rose. That move is a
+  verification-script recognition, and this run does not separate the coverage-configuration
+  change (#484) from the test-framework change (#487) for that row.
+
+The operator's private check ran before the 0.6.5 release, on 2026-10-14, by the operator's list
+of that check's run start times. The date alone does not show whether that run included this
+change, which merged the same day (13:45Z). This section makes no precision or recall claim.
+
 ## 2026-10-14 — A3 and B3 read declared workspace package scripts (every rubric, no identifier bump); public paired rescore not run
 
 **Status.** A recognition fix that removes a false absence. It ships under
@@ -1656,6 +2075,25 @@ collide, as declared. The v17 golden, the F2 reads-disclosure pins and the CLI b
 re-pinned. No pinned v17 metric moved on any of them, and restoring only the previous fingerprint
 reproduces each previous pin byte for byte, asserted in the tests. Record:
 `docs/reviews/workspace-package-scripts-2026-10-14.md`.
+
+### Public-corpus before-and-after — measured 2026-10-15
+
+The entry above is left as written. The preregistered public run it announced has been performed:
+`docs/experiments/public-delta-0-6-5-2026-10-15/` (preregistration `9b37aa48e`, result beside
+it, both #497). It compared v17 at `v0.6.4` (`093de2a1`) with v17 at the #490 merge `98dbf250`,
+which carries this change, on all 23 public corpus repositories at their pins. **All six
+preregistered expected values held.** No row's score moved down (E3, scoring level); two rows
+that did not move at scoring level were displaced in placement (svelte 7 → 8, requests 6 → 7).
+
+- **B3, under v17.** biomejs's `ci_script_depth` went from 2 to 3 and B3 rose; react's went from 6
+  to 7, with B3 unchanged at its maximum. Both declare workspaces.
+- **The A3 half was not measured publicly.** A3's finding reads workspace scripts only under v20
+  through v26. This run compared v17 before and after, and its v26 pair compared v25 with v26 at
+  the same commit, so no public before-and-after covers this change's A3 effect.
+
+The operator's private check ran before the 0.6.5 release, on 2026-10-14, by the operator's list
+of that check's run start times. The date alone does not show whether that run included this
+change, which merged the same day (12:11Z). This section makes no precision or recall claim.
 
 ## 2026-10-14 — prospective v26 declared as v25's complete closure; no scoring change, no repository moved
 

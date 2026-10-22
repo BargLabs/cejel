@@ -72,6 +72,12 @@ export const WITAN_A2_HISTORY_APPLICABILITY_PREFIX =
 //   repository".
 export const WITAN_V27_A2_FAILED_HISTORY_NOTE_PREFIX =
   "A2 abstained after an incomplete read of this repository's commit history";
+// Prospective v27 only (#527, #535): B2 and B3 name the CI workflows they did not count because
+// Cejel did not see them run a check (uncreditedCiWorkflowDisclosure in repo-signals.ts). One of
+// each criterion's criteria[].disclosures, listed under "What was not established" while it is
+// scored.
+export const WITAN_B2_UNCREDITED_CI_WORKFLOW_PREFIX = 'B2 did not count CI workflows Cejel did not see run a check: ';
+export const WITAN_B3_UNCREDITED_CI_WORKFLOW_PREFIX = 'B3 did not count CI workflows Cejel did not see run a check: ';
 
 export function isWitanNoMeasurementAbstention(report: WitanReport): boolean {
   return (
