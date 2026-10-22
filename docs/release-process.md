@@ -55,8 +55,9 @@ on the tag (stage 7's publish-run lookup, and `latest_success_run` at stages 4 a
 or empty `gh run view --log` in stage 7's lookups only (`npm_log_plus_line` and `finish_npm`), up to
 `RELEASE_RUN_LIST_TRIES` times (default 5, a whole number of at least 1, else it refuses),
 `RELEASE_RUN_FIND_SLEEP` seconds apart (default 3), printing one line per retry on stderr. The
-currency reads at stages 11 and 13 (`currency_read`) do not retry: an unreadable log there still
-stops the driver, without a REFUSE line. After its last try a lookup passes on `gh`'s stderr. Stage
+currency reads at stages 11 and 13 (`currency_read`) do not retry. An unreadable log refuses at
+stage 11 as "reported 0 surfaces", which is the wrong cause. At stage 13 it stops the driver with no
+REFUSE line. After its last try a lookup passes on `gh`'s stderr. Stage
 7's refusal does not name the single cause: it says "after N tries" and lists the three possible
 ones (the listing stayed empty, `gh` failed, or no run's log carries the line), and the retry lines
 above it show which one happened. Wall time, when nothing ever answers: up to 12 s more for each
