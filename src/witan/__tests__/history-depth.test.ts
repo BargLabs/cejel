@@ -102,7 +102,7 @@ describe('shallow history is disclosed, never scored', () => {
     const shallowA2 = shallowRest.criteria.find(({ id }) => id === 'A2');
     expect(shallowA2?.status).toBe('not_applicable');
     expect(shallowA2?.disclosures).toEqual([
-      a2HistoryApplicabilityDisclosure({ shallow: true, readFailed: false }),
+      a2HistoryApplicabilityDisclosure({ shallow: true, limitHits: [], otherFailure: false }),
     ]);
     expect(fullReport.criteria.find(({ id }) => id === 'A2')?.disclosures).toBeUndefined();
     expect({

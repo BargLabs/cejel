@@ -61,6 +61,8 @@ import type { CertificateMetricName } from './certificate-presentation.js';
 import {
   describeGitFailure,
   execGit,
+  GIT_EXEC_MAX_BUFFER_BYTES,
+  GIT_EXEC_TIMEOUT_MS,
   isExpectedGitAbsence,
   type GitExecResult,
 } from './git-exec.js';
@@ -2778,8 +2780,8 @@ function collectA2IsolationEvidence(
       return {
         ...shallowHistoryAbstention(
           'A2',
-          historyIncompleteness.readFailed
-            ? V27_A2_FAILED_HISTORY_APPLICABILITY_NOTE
+          historyReadFailed(historyIncompleteness)
+            ? v27A2FailedHistoryNote(historyIncompleteness, true)
             : V27_A2_SHALLOW_APPLICABILITY_NOTE,
         ),
         ...placeholderSetAsideDisclosures(placeholderSetAside),
@@ -3149,7 +3151,9 @@ function collectA2IsolationEvidence(
   if (useV27FalseAssuranceClosure && !hasCriticalFinding && historyIncompleteness) {
     return shallowHistoryAbstention(
       'A2',
-      historyIncompleteness.readFailed ? V27_A2_FAILED_HISTORY_NOTE : V27_A2_SHALLOW_HISTORY_NOTE,
+      historyReadFailed(historyIncompleteness)
+        ? v27A2FailedHistoryNote(historyIncompleteness, false)
+        : V27_A2_SHALLOW_HISTORY_NOTE,
     );
   }
   const secretCleanliness = hasCriticalFinding ? 0 : 1;
@@ -5282,25 +5286,19 @@ const V27_A2_SHALLOW_APPLICABILITY_NOTE =
   'applicable on a decision that rests in part on its scans of earlier commits for .env files and ' +
   'credential-shaped values, which read only the commits present. Re-scan a full clone (for ' +
   'actions/checkout, set fetch-depth: 0).';
-// #556: the same two abstentions when one of A2's history reads failed. They name what Cejel
-// detected (a failed git read, itemized in the scan limitations), never a cause it did not.
-const V27_A2_FAILED_HISTORY_NOTE =
-  `${WITAN_V27_A2_FAILED_HISTORY_NOTE_PREFIX} (the scan ` +
-  'limitations name each failed read), so the scan for credentials and .env files in earlier commits ' +
-  'read only part of the history, and no confirmed critical finding stands on what was read. Re-scan ' +
-  'with the complete history readable: a full, unfiltered clone (for actions/checkout, set ' +
-  'fetch-depth: 0 and no filter).';
-const V27_A2_FAILED_HISTORY_APPLICABILITY_NOTE =
-  `${WITAN_V27_A2_FAILED_HISTORY_NOTE_PREFIX} (the scan ` +
-  'limitations name each failed read), and A2 would otherwise have been marked not applicable on a ' +
-  'decision that rests in part on its scans of earlier commits for .env files and credential-shaped ' +
-  'values. Re-scan with the complete history readable: a full, unfiltered clone (for ' +
-  'actions/checkout, set fetch-depth: 0 and no filter).';
-
-/** Why A2's history evidence is incomplete, as far as Cejel detected it. Both may hold. */
+/**
+ * Why A2's read of the commit history was incomplete, as far as Cejel detected it (#556). Any
+ * combination may hold:
+ * - `shallow`: the clone is shallow, so the reads completed over a truncated history;
+ * - `limitHits`: a read stopped at one of Cejel's own limits (an output limit or the timeout). These
+ *   fire on complete clones too, deterministically for a large history, so a re-scan of the same
+ *   repository does not lift them;
+ * - `otherFailure`: any other failed read (a missing object, as on a partial clone, or a git error).
+ */
 export interface A2HistoryIncompleteness {
   readonly shallow: boolean;
-  readonly readFailed: boolean;
+  readonly limitHits: readonly string[];
+  readonly otherFailure: boolean;
 }
 
 function a2HistoryIncompleteness(
@@ -5308,28 +5306,75 @@ function a2HistoryIncompleteness(
   reads: HistoryReadRecorder,
 ): A2HistoryIncompleteness | null {
   const shallow = isShallowRepository(repoPath);
-  return shallow || reads.failed ? { shallow, readFailed: reads.failed } : null;
+  const limitHits = [...reads.limitHits].sort();
+  return shallow || limitHits.length > 0 || reads.otherFailure
+    ? { shallow, limitHits, otherFailure: reads.otherFailure }
+    : null;
 }
 
-/**
- * Every rubric, presentation only (#556): A2 was marked not applicable while its history evidence
- * was incomplete. Starts with WITAN_A2_HISTORY_APPLICABILITY_PREFIX and states only the causes
- * Cejel detected.
- */
-export function a2HistoryApplicabilityDisclosure(incompleteness: A2HistoryIncompleteness): string {
+const historyReadFailed = (incompleteness: A2HistoryIncompleteness) =>
+  incompleteness.limitHits.length > 0 || incompleteness.otherFailure;
+
+/** The detected causes, in Cejel's own words, joined into one clause. */
+function a2HistoryIncompletenessCauses(incompleteness: A2HistoryIncompleteness): string {
   const causes = [
     ...(incompleteness.shallow
       ? ["this clone is shallow, so Cejel's scans of earlier commits read only the commits it holds"]
       : []),
-    ...(incompleteness.readFailed
-      ? ["some of Cejel's reads of earlier commits did not complete (the scan limitations name each one)"]
+    ...(incompleteness.limitHits.length > 0
+      ? [
+          `some of Cejel's reads of earlier commits stopped at Cejel's own ${incompleteness.limitHits.join(' and ')}`,
+        ]
       : []),
+    ...(incompleteness.otherFailure ? ['Cejel could not read part of the commit history'] : []),
   ];
+  const named = historyReadFailed(incompleteness) ? ' (the scan limitations name each failed read)' : '';
+  return `${causes.join(', and ')}${named}`;
+}
+
+/** What a re-scan can and cannot change, per detected cause. */
+function a2HistoryIncompletenessAdvice(incompleteness: A2HistoryIncompleteness): string {
+  const advice: string[] = [];
+  if (incompleteness.otherFailure) {
+    advice.push('Re-scan a full, unfiltered clone (for actions/checkout, set fetch-depth: 0 and no filter).');
+  } else if (incompleteness.shallow) {
+    advice.push('Re-scan a full clone (for actions/checkout, set fetch-depth: 0).');
+  }
+  if (incompleteness.limitHits.length > 0) {
+    advice.push(
+      `A re-scan of the same repository will not lift Cejel's own ${incompleteness.limitHits.length === 1 ? 'limit' : 'limits'}.`,
+    );
+  }
+  return advice.join(' ');
+}
+
+/**
+ * v27 (#556): A2's abstention when one of its history reads failed. The shallow-only cases keep the
+ * #442 notes above (V27_A2_SHALLOW_HISTORY_NOTE, V27_A2_SHALLOW_APPLICABILITY_NOTE).
+ */
+export function v27A2FailedHistoryNote(
+  incompleteness: A2HistoryIncompleteness,
+  wouldBeNotApplicable: boolean,
+): string {
+  const consequence = wouldBeNotApplicable
+    ? ', and A2 would otherwise have been marked not applicable on a decision that rests in part on ' +
+      "Cejel's scans of earlier commits for .env files and credential-shaped values."
+    : ', so the scan for credentials and .env files in earlier commits read only part of the history, ' +
+      'and no confirmed critical finding stands on what was read.';
+  return `${WITAN_V27_A2_FAILED_HISTORY_NOTE_PREFIX}: ${a2HistoryIncompletenessCauses(incompleteness)}${consequence} ${a2HistoryIncompletenessAdvice(incompleteness)}`;
+}
+
+/**
+ * Every rubric, presentation only (#556): A2 was marked not applicable after an incomplete read of
+ * the commit history. Starts with WITAN_A2_HISTORY_APPLICABILITY_PREFIX and states only the causes
+ * Cejel detected, with the re-scan advice each one admits.
+ */
+export function a2HistoryApplicabilityDisclosure(incompleteness: A2HistoryIncompleteness): string {
   return (
-    `${WITAN_A2_HISTORY_APPLICABILITY_PREFIX}: ${causes.join(', and ')}. Marking A2 not applicable ` +
-    'rests in part on those scans, which look for .env files and credential-shaped values, so a ' +
-    'complete read of the history may make A2 applicable and give it a score. Re-scan a full, ' +
-    'unfiltered clone (for actions/checkout, set fetch-depth: 0 and no filter).'
+    `${WITAN_A2_HISTORY_APPLICABILITY_PREFIX}: ${a2HistoryIncompletenessCauses(incompleteness)}. ` +
+    "Marking A2 not applicable rests in part on Cejel's scans of earlier commits for .env files and " +
+    'credential-shaped values, so a complete read of the history may make A2 applicable and give it ' +
+    `a score. ${a2HistoryIncompletenessAdvice(incompleteness)}`
   );
 }
 
@@ -13801,6 +13846,9 @@ function declareHistoryFailure(
   operation: string,
   maxBufferBytes?: number,
 ): void {
+  if (scanLimitations instanceof HistoryReadRecorder) {
+    scanLimitations.noteFailure(reason, maxBufferBytes);
+  }
   scanLimitations.add(
     `${describeGitFailure(reason, operation, maxBufferBytes)}${HISTORY_READ_FAILURE_SUFFIX}`,
   );
@@ -13808,12 +13856,15 @@ function declareHistoryFailure(
 
 /**
  * #556: a scanLimitations stand-in for one criterion's history reads. Every limitation is
- * forwarded to the real set at once, in the same order, so the report is unchanged; `failed`
- * records whether any was a failed git read (declareHistoryFailure). A path omitted for control
- * characters is not counted: that is a fixed rule Cejel applies to every clone alike.
+ * forwarded to the real set at once, in the same order, so the report is unchanged.
+ * declareHistoryFailure tells it about each failed git read: `limitHits` names Cejel's own limits a
+ * read stopped at (an output limit or the timeout), and `otherFailure` records any other failure. A
+ * path omitted for control characters is not a failed read: that is a fixed rule Cejel applies to
+ * every clone alike, and it never reaches noteFailure.
  */
 class HistoryReadRecorder extends Set<string> {
-  failed = false;
+  readonly limitHits = new Set<string>();
+  otherFailure = false;
   private readonly target: Set<string>;
 
   constructor(target: Set<string>) {
@@ -13821,11 +13872,43 @@ class HistoryReadRecorder extends Set<string> {
     this.target = target;
   }
 
+  get failed(): boolean {
+    return this.limitHits.size > 0 || this.otherFailure;
+  }
+
+  noteFailure(reason: Exclude<GitExecResult, { readonly ok: true }>['reason'], maxBufferBytes?: number): void {
+    if (reason === 'buffer_exceeded') {
+      const bytes = maxBufferBytes ?? GIT_EXEC_MAX_BUFFER_BYTES;
+      const limit =
+        bytes % (1024 * 1024) === 0 ? `${bytes / (1024 * 1024)} MiB` : `${Math.ceil(bytes / 1024)} KiB`;
+      this.limitHits.add(`${limit} output limit`);
+    } else if (reason === 'timeout') {
+      this.limitHits.add(`${GIT_EXEC_TIMEOUT_MS / 1000}-second timeout`);
+    } else {
+      this.otherFailure = true;
+    }
+  }
+
   override add(value: string): this {
-    if (value.endsWith(HISTORY_READ_FAILURE_SUFFIX)) this.failed = true;
     this.target.add(value);
     return super.add(value);
   }
+}
+
+/**
+ * Test probe (#556): runs only A2's `.env`-path history read through a recorder and reports what
+ * it found and which failures it detected. Not used by the scan.
+ */
+export function probeA2EnvPathHistoryRead(repoPath: string): {
+  found: boolean;
+  limitations: string[];
+  limitHits: string[];
+  otherFailure: boolean;
+} {
+  const limitations = new Set<string>();
+  const recorder = new HistoryReadRecorder(limitations);
+  const found = hasEnvPathInGitHistory(repoPath, recorder);
+  return { found, limitations: [...limitations], limitHits: [...recorder.limitHits], otherFailure: recorder.otherFailure };
 }
 
 function collectHistorySecretEvidence(

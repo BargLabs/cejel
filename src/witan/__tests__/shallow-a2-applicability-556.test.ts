@@ -14,7 +14,11 @@ import { buildRelyingPartySummary } from '../certificate-presentation.js';
 import { SHALLOW_HISTORY_LIMITATION, SHALLOW_HISTORY_V27_ABSTENTION } from '../history-depth.js';
 import { renderWitanMarkdownReport } from '../markdown.js';
 import { scoreRepoWithPublicCejel } from '../public-scan.js';
-import { a2HistoryApplicabilityDisclosure } from '../repo-signals.js';
+import {
+  a2HistoryApplicabilityDisclosure,
+  probeA2EnvPathHistoryRead,
+  v27A2FailedHistoryNote,
+} from '../repo-signals.js';
 import { projectWitanScoringSurface } from '../rubric-fingerprint.js';
 import {
   WITAN_RUBRIC_VERSION_V17,
@@ -25,6 +29,8 @@ import type { WitanCriterionScore, WitanReport } from '../schemas.js';
 import {
   A2_HISTORY_CLONES,
   ISSUE_556_SHAPE,
+  SHALLOW_A2_SYNTHETIC_SECRET_LINE,
+  buildA2HistoryOrigin,
   SHALLOW_A2_SHAPES,
   buildShallowA2Origin,
   cloneShallowA2Origin,
@@ -66,17 +72,17 @@ const canDenyReadAccess = platform() !== 'win32' && process.getuid?.() !== 0;
 
 // The two sentences the fixtures produce, written out so a wording change is a visible edit here.
 const SHALLOW_DISCLOSURE =
-  "A2's applicability was decided from incomplete commit history: this clone is shallow, so Cejel's " +
-  'scans of earlier commits read only the commits it holds. Marking A2 not applicable rests in part on ' +
-  'those scans, which look for .env files and credential-shaped values, so a complete read of the ' +
-  'history may make A2 applicable and give it a score. Re-scan a full, unfiltered clone (for ' +
-  'actions/checkout, set fetch-depth: 0 and no filter).';
+  "A2's applicability was decided from an incomplete read of the commit history: this clone is " +
+  "shallow, so Cejel's scans of earlier commits read only the commits it holds. Marking A2 not " +
+  "applicable rests in part on Cejel's scans of earlier commits for .env files and credential-shaped " +
+  'values, so a complete read of the history may make A2 applicable and give it a score. Re-scan a ' +
+  'full clone (for actions/checkout, set fetch-depth: 0).';
 const FAILED_READ_DISCLOSURE =
-  "A2's applicability was decided from incomplete commit history: some of Cejel's reads of earlier " +
-  'commits did not complete (the scan limitations name each one). Marking A2 not applicable rests in ' +
-  'part on those scans, which look for .env files and credential-shaped values, so a complete read of ' +
-  'the history may make A2 applicable and give it a score. Re-scan a full, unfiltered clone (for ' +
-  'actions/checkout, set fetch-depth: 0 and no filter).';
+  "A2's applicability was decided from an incomplete read of the commit history: Cejel could not " +
+  'read part of the commit history (the scan limitations name each failed read). Marking A2 not ' +
+  "applicable rests in part on Cejel's scans of earlier commits for .env files and credential-shaped " +
+  'values, so a complete read of the history may make A2 applicable and give it a score. Re-scan a ' +
+  'full, unfiltered clone (for actions/checkout, set fetch-depth: 0 and no filter).';
 
 // Scoring surfaces (sha256 of JSON.stringify(projectWitanScoringSurface(report))) captured from
 // main 71ea38993's scanner, before this change: every shape and clone
@@ -228,12 +234,33 @@ describe("#556: the issue's shape (a secret-bearing .env committed, deleted, the
   });
 
   it("the disclosure names only the causes Cejel detected, in Cejel's own words, and claims no absence", () => {
-    expect(a2HistoryApplicabilityDisclosure({ shallow: true, readFailed: false })).toBe(SHALLOW_DISCLOSURE);
-    expect(a2HistoryApplicabilityDisclosure({ shallow: false, readFailed: true })).toBe(FAILED_READ_DISCLOSURE);
-    const both = a2HistoryApplicabilityDisclosure({ shallow: true, readFailed: true });
-    expect(both).toContain('this clone is shallow');
-    expect(both).toContain('did not complete');
-    for (const sentence of [SHALLOW_DISCLOSURE, FAILED_READ_DISCLOSURE, both]) {
+    const none = { shallow: false, limitHits: [] as string[], otherFailure: false };
+    expect(a2HistoryApplicabilityDisclosure({ ...none, shallow: true })).toBe(SHALLOW_DISCLOSURE);
+    expect(a2HistoryApplicabilityDisclosure({ ...none, otherFailure: true })).toBe(FAILED_READ_DISCLOSURE);
+    // One of Cejel's own limits fires on a complete clone too: name it, and say a re-scan of the same
+    // repository will not lift it, with no fetch-depth advice.
+    const limit = a2HistoryApplicabilityDisclosure({ ...none, limitHits: ['8 MiB output limit'] });
+    expect(limit).toContain("stopped at Cejel's own 8 MiB output limit");
+    expect(limit).toContain('A re-scan of the same repository will not lift');
+    expect(limit).not.toContain('fetch-depth');
+    expect(limit).not.toContain('could not read part');
+    for (const wouldBeNotApplicable of [true, false]) {
+      const note = v27A2FailedHistoryNote({ ...none, limitHits: ['8 MiB output limit'] }, wouldBeNotApplicable);
+      expect(note.startsWith(WITAN_V27_A2_FAILED_HISTORY_NOTE_PREFIX)).toBe(true);
+      expect(note).toContain("Cejel's own 8 MiB output limit");
+      expect(note).not.toContain('fetch-depth');
+    }
+    const all = a2HistoryApplicabilityDisclosure({
+      shallow: true,
+      limitHits: ['30-second timeout', '8 MiB output limit'],
+      otherFailure: true,
+    });
+    expect(all).toContain('this clone is shallow');
+    expect(all).toContain('30-second timeout and 8 MiB output limit');
+    expect(all).toContain('Cejel could not read part of the commit history');
+    expect(all).toContain('set fetch-depth: 0 and no filter');
+    expect(all).toContain("will not lift Cejel's own limits");
+    for (const sentence of [SHALLOW_DISCLOSURE, FAILED_READ_DISCLOSURE, limit, all]) {
       expect(sentence.startsWith(WITAN_A2_HISTORY_APPLICABILITY_PREFIX)).toBe(true);
       expect(sentence).not.toMatch(/\bno secret|\bclean\b|\bnot present\b|\bpartial clone\b|\bfilter=/i);
       expect(sentence.length).toBeLessThanOrEqual(1000);
@@ -374,6 +401,64 @@ describe('#556: decisions whose history reads all completed over complete histor
       }
     },
   );
+});
+
+describe('#556: which history-read outcomes count as a failed read', () => {
+  const base = { 'package.json': '{"name":"corner","version":"1.0.0"}\n', 'src/a.js': 'export const a = 1;\n' };
+
+  it('a failure of the .env-path history read on its own counts as a failed read', () => {
+    // A treeless clone: `git log --name-only` needs trees it does not hold and may not fetch.
+    const treeless = cloneShallowA2Origin(buildShallowA2Origin(ISSUE_556_SHAPE), 'treeless');
+    const probe = probeA2EnvPathHistoryRead(treeless);
+    expect(probe.found).toBe(false);
+    expect(probe.otherFailure).toBe(true);
+    expect(probe.limitHits).toEqual([]);
+    expect(probe.limitations).toEqual([
+      'Cejel: local git environment-file history scan failed. Cejel continued with reduced Git history evidence.',
+    ]);
+  });
+
+  it('a path skipped for control characters is not a failed read: A2 stays not applicable on a complete clone', () => {
+    const repo = cloneShallowA2Origin(
+      buildA2HistoryOrigin('control-character', [{ write: { ...base, 'notes\tfile.txt': 'x\n' } }, { write: { 'README.md': '# c\n' } }]),
+      'full',
+    );
+    const probe = probeA2EnvPathHistoryRead(repo);
+    expect(probe.limitations).toHaveLength(1);
+    expect(probe.limitations[0]).toContain('control characters');
+    expect([probe.limitHits, probe.otherFailure]).toEqual([[], false]);
+    for (const rubricVersion of [V17, V27]) {
+      const scored = scoreAt(repo, rubricVersion);
+      expect(scored.scanLimitations ?? [], rubricVersion).toEqual(probe.limitations);
+      expect(a2(scored).status, rubricVersion).toBe('not_applicable');
+      expect(a2(scored).disclosures, rubricVersion).toBeUndefined();
+    }
+  });
+
+  it("a read that stops at one of Cejel's own limits on a complete clone abstains under v27, naming the limit, with no fetch-depth advice", () => {
+    // A deleted .env larger than the 500 KiB historical blob read limit, on a complete clone.
+    const repo = cloneShallowA2Origin(
+      buildA2HistoryOrigin('oversized-env', [
+        { write: base },
+        { write: { '.env': `${SHALLOW_A2_SYNTHETIC_SECRET_LINE}# ${'x'.repeat(600_000)}\n` } },
+        { remove: ['.env'] },
+        { write: { 'README.md': '# c\n' } },
+      ]),
+      'full',
+    );
+    const v17 = scoreAt(repo, V17);
+    const v27 = scoreAt(repo, V27);
+    const limitation =
+      'Cejel: local git historical blob read exceeded the 500 KiB output limit. Cejel continued with reduced Git history evidence.';
+    expect(v17.scanLimitations).toEqual([limitation]);
+    expect(a2(v17).status).toBe('warning');
+    expect(a2(v27).status).toBe('insufficient_data');
+    expect(a2(v27).score).toBe(0);
+    expect(a2(v27).notes ?? '').toContain("stopped at Cejel's own 500 KiB output limit");
+    expect(a2(v27).notes ?? '').toContain('A re-scan of the same repository will not lift');
+    expect(a2(v27).notes ?? '').not.toContain('fetch-depth');
+    expect(v27.overallScore as number).toBeLessThan(v17.overallScore as number);
+  });
 });
 
 // The property (#556, #560): under v27, for every generated A2 shape, a clone whose history Cejel

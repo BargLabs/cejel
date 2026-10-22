@@ -201,6 +201,31 @@ export function cloneShallowA2Origin(origin: string, clone: A2HistoryClone): str
   return target;
 }
 
+/**
+ * A minimal origin built from explicit commits, for the read-failure corners: each step writes the
+ * given files (path to contents) and removes the given paths, then commits. Returns the origin.
+ */
+export function buildA2HistoryOrigin(
+  name: string,
+  steps: ReadonlyArray<{ readonly write?: Readonly<Record<string, string>>; readonly remove?: readonly string[] }>,
+): string {
+  const parent = mkdtempSync(join(tmpdir(), `cejel-a2-history-${name}-`));
+  createdRoots.push(parent);
+  const origin = join(parent, 'origin');
+  mkdirSync(origin);
+  git(origin, 'init', '--quiet');
+  git(origin, 'config', 'uploadpack.allowFilter', 'true');
+  steps.forEach((step, index) => {
+    for (const [path, contents] of Object.entries(step.write ?? {})) write(origin, path, contents);
+    for (const path of step.remove ?? []) rmSync(join(origin, path));
+    commitAll(origin, `step ${index + 1}`);
+  });
+  return origin;
+}
+
+/** The synthetic Stripe-shaped key, for corners built with buildA2HistoryOrigin. */
+export const SHALLOW_A2_SYNTHETIC_SECRET_LINE = `STRIPE_SECRET_KEY=${SYNTHETIC_STRIPE_KEY}\n`;
+
 export function removeShallowA2Fixtures(): void {
   for (const root of createdRoots.splice(0)) rmSync(root, { recursive: true, force: true });
 }

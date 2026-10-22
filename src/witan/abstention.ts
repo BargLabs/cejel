@@ -39,22 +39,24 @@ export const WITAN_A2_PLACEHOLDER_SET_ASIDE_PREFIX = 'Cejel read and set aside '
 // see run a check (b3UnshownCheckDisclosure in repo-signals.ts). One of B3's criteria[].disclosures,
 // listed under "What was not established". The count itself is unchanged.
 export const WITAN_B3_UNSHOWN_CHECK_PREFIX = 'B3 counted workflows Cejel did not see run a check: ';
-// Every rubric, presentation only (#556): A2 was marked not applicable while its history evidence
-// was incomplete: the clone is shallow, or one of A2's history reads failed (git error, timeout,
-// output limit, or on a partial clone a history object not present). That decision rests in part on
-// its scans of earlier commits for .env files and credential-shaped values. One of A2's
-// criteria[].disclosures, starting with this prefix (a2HistoryApplicabilityDisclosure in
-// repo-signals.ts names the causes Cejel detected), listed under "What was not established" while
-// A2 is not applicable. It moves no score. Under witan-rubric-v27-prospective-2026-10-19 A2
-// abstains there instead (a read failure kept in the composite at 0), so it is never written there.
-// v27 (#556): A2's abstention when one of its history reads failed starts with this prefix, and the
-// failed read is in scanLimitations (ending "Cejel continued with reduced Git history evidence.").
-// It is a read failure kept in the composite at 0, like the shallow-clone abstention; a checker that
-// classifies v27 abstentions (the #531 no-rise property) can recognise it by these two marks.
-export const WITAN_V27_A2_FAILED_HISTORY_NOTE_PREFIX =
-  "A2 abstained: Cejel's reads of this repository's earlier commits did not all complete";
+// Every rubric, presentation only (#556): A2 was marked not applicable after an incomplete read of
+// the commit history: the clone is shallow, or one of A2's history reads failed (it stopped at one
+// of Cejel's own output or time limits, or could not read an object, as on a partial clone). That
+// decision rests in part on its scans of earlier commits for .env files and credential-shaped
+// values. One of A2's criteria[].disclosures, starting with this prefix
+// (a2HistoryApplicabilityDisclosure in repo-signals.ts names the causes Cejel detected), listed
+// under "What was not established" while A2 is not applicable. It moves no score. Under
+// witan-rubric-v27-prospective-2026-10-19 A2 abstains there instead (a read failure kept in the
+// composite at 0), so it is never written there.
 export const WITAN_A2_HISTORY_APPLICABILITY_PREFIX =
-  "A2's applicability was decided from incomplete commit history";
+  "A2's applicability was decided from an incomplete read of the commit history";
+// v27 (#556): A2's abstention when one of its history reads failed starts with this prefix
+// (v27A2FailedHistoryNote in repo-signals.ts), and each failed read is in scanLimitations (ending
+// "Cejel continued with reduced Git history evidence."). It is a read failure kept in the composite
+// at 0, like the shallow-clone abstention; a checker that classifies v27 abstentions (the #531
+// no-rise property) can recognise it by these two marks.
+export const WITAN_V27_A2_FAILED_HISTORY_NOTE_PREFIX =
+  "A2 abstained after an incomplete read of this repository's commit history";
 
 export function isWitanNoMeasurementAbstention(report: WitanReport): boolean {
   return (
