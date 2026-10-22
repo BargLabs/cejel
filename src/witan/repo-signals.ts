@@ -5284,7 +5284,7 @@ function collectB2PrTraceEvidence(
       (baseLabel) =>
         ciWorkflowCitationLabel(
           baseLabel,
-          useV27FalseAssuranceClosure ? 'read' : 'counted',
+          uncredited.size > 0 ? 'read' : 'counted',
           workflows.length,
           citedWorkflows.length,
           unreadWorkflows,

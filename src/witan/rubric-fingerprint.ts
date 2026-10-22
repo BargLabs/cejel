@@ -243,11 +243,13 @@ export const WITAN_RUBRIC_BEHAVIOUR_FINGERPRINTS: Readonly<Record<string, string
   // from v25's. A2 does not move on this corpus.
   [WITAN_RUBRIC_VERSION_V26]:
     'sha256:4530317d56fc73eb89287e344ad626e2b9a96908ef12eb9e9c13b839bd599dae',
-  // v17's closure plus the v27 false-assurance gate (#517-#520, #442). On this corpus only A4
-  // moves against v17: specimens whose CI runs `npm ci` with no committed lockfile score
-  // lockfile_coverage 0 under library norms. No report-level component differs from v17's.
+  // v17's closure plus the v27 false-assurance gate (#517-#520, #442, #527, #535). On this corpus
+  // A4, B2 and B3 move against v17: specimens whose CI runs `npm ci` with no committed lockfile
+  // score lockfile_coverage 0 under library norms, and `workspace-package-scripts`, whose only
+  // workflow checks out and prints, earns no B2 or B3 workflow credit (re-pinned 2026-10-22;
+  // leaderboard/RUBRIC_CHANGELOG.md). That specimen's report component differs from v17's.
   [WITAN_RUBRIC_VERSION_V27]:
-    'sha256:fb4edfa0bdf0d8153af3f84a4b72d4eab6da3fd6e0b2e3e494cea9542ded45a0',
+    'sha256:6e03aa1bf63a31c5ec58a68cb49fb8ef571ba233cf79059a311ec55aecea5bb3',
 });
 
 /**
