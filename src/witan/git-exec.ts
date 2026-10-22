@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync, realpathSync } from 'node:fs';
+import { closeSync, existsSync, openSync, readSync, realpathSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 
 export const GIT_EXEC_MAX_BUFFER_BYTES = 8 * 1024 * 1024;
@@ -108,11 +108,43 @@ export function withGitDiscoveryConfinedTo<T>(root: string, scan: () => T): T {
   }
 }
 
+// The most of a `.git` file read to find its `gitdir:` line. git writes that line first.
+const GIT_FILE_PREFIX_BYTES = 4096;
+
 /**
- * True when a `.git` entry (directory, or the file a worktree or submodule uses) is visible from
+ * True when `path` looks like git metadata, not merely a name (#560 review, G2): a directory that
+ * holds `HEAD`, or a regular file whose first 4 KiB hold a line starting `gitdir:` (the file a
+ * worktree or submodule uses). A stray empty `.git` directory, or any other `.git` file, does not
+ * count. A filesystem check only; it runs no git.
+ */
+function isGitMetadataEntry(path: string): boolean {
+  let stats;
+  try {
+    stats = statSync(path);
+  } catch {
+    return false;
+  }
+  if (stats.isDirectory()) return existsSync(join(path, 'HEAD'));
+  if (!stats.isFile()) return false;
+  let descriptor: number | undefined;
+  try {
+    descriptor = openSync(path, 'r');
+    const buffer = Buffer.alloc(GIT_FILE_PREFIX_BYTES);
+    const length = readSync(descriptor, buffer, 0, GIT_FILE_PREFIX_BYTES, 0);
+    return /^gitdir:/m.test(buffer.subarray(0, length).toString('utf8'));
+  } catch {
+    return false;
+  } finally {
+    if (descriptor !== undefined) closeSync(descriptor);
+  }
+}
+
+/**
+ * True when a `.git` entry that looks like git metadata (isGitMetadataEntry) is visible from
  * `repoPath` within the same discovery bounds git would use: `repoPath` itself and each parent,
  * stopping below the confinement ceiling when one is set. A filesystem check only; it runs no
- * git. Used to tell "git is absent and this is a repository" apart from "this is not one" (#560).
+ * git. Used to tell "git is absent, or cannot open the repository, and this is one" apart from
+ * "this is not one" (#560).
  */
 export function hasVisibleGitMetadata(repoPath: string): boolean {
   let current: string;
@@ -123,7 +155,7 @@ export function hasVisibleGitMetadata(repoPath: string): boolean {
   }
   for (;;) {
     if (discoveryCeiling !== undefined && current === discoveryCeiling) return false;
-    if (existsSync(join(current, '.git'))) return true;
+    if (isGitMetadataEntry(join(current, '.git'))) return true;
     const parent = dirname(current);
     if (parent === current) return false;
     current = parent;

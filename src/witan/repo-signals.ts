@@ -5382,8 +5382,26 @@ const HISTORY_READ_TIMEOUT_NAME = `${GIT_EXEC_TIMEOUT_MS / 1000}-second timeout`
 const historySecretScanCapName = () =>
   `cap of ${HISTORY_SECRET_SCAN_CREDENTIAL_BLOB_LIMIT.toLocaleString('en-US')} historical files`;
 
+/**
+ * True when no history read could have succeeded: git could not be run, or git cannot open the
+ * repository. The other causes describe reads that ran and fell short, so they cannot add anything
+ * then, and the sentences report only these causes and their advice (#560 review, G1).
+ */
+const readNoHistory = (incompleteness: A2HistoryIncompleteness) =>
+  incompleteness.gitUnavailable === true || incompleteness.repositoryUnopenable === true;
+
 /** The detected causes, in Cejel's own words, joined into one clause. */
 function a2HistoryIncompletenessCauses(incompleteness: A2HistoryIncompleteness): string {
+  if (readNoHistory(incompleteness)) {
+    return [
+      ...(incompleteness.gitUnavailable
+        ? ['git could not be run on the scanning host, so Cejel read none of the commit history']
+        : []),
+      ...(incompleteness.repositoryUnopenable
+        ? ['a .git entry is present but git could not open it as a repository, so Cejel read none of the commit history']
+        : []),
+    ].join(', and ');
+  }
   const causes = [
     ...(incompleteness.shallow
       ? ["this clone is shallow, so Cejel's scans of earlier commits read only the commits it holds"]
@@ -5407,13 +5425,7 @@ function a2HistoryIncompletenessCauses(incompleteness: A2HistoryIncompleteness):
         "Cejel left a credential-shaped path in the commit history unread because its name contains control characters (the scan limitations say so)",
       ]
     : [];
-  const gitUnavailable = incompleteness.gitUnavailable
-    ? ['git could not be run on the scanning host, so Cejel read none of the commit history']
-    : [];
-  const unopenable = incompleteness.repositoryUnopenable
-    ? ['a .git entry is present but git could not open it as a repository, so Cejel read none of the commit history']
-    : [];
-  return [`${causes.join(', and ')}${named}`, ...cap, ...controlCharacters, ...gitUnavailable, ...unopenable]
+  return [`${causes.join(', and ')}${named}`, ...cap, ...controlCharacters]
     .filter((part) => part !== '')
     .join(', and ');
 }
@@ -5421,16 +5433,17 @@ function a2HistoryIncompletenessCauses(incompleteness: A2HistoryIncompleteness):
 /** What a re-scan can and cannot change, per detected cause. */
 function a2HistoryIncompletenessAdvice(incompleteness: A2HistoryIncompleteness): string {
   const advice: string[] = [];
+  if (readNoHistory(incompleteness)) {
+    if (incompleteness.gitUnavailable) advice.push('Re-scan on a host where git is installed.');
+    if (incompleteness.repositoryUnopenable) {
+      advice.push('Re-scan a checkout that git can open (a full clone, not a copied worktree or submodule).');
+    }
+    return advice.join(' ');
+  }
   if (incompleteness.otherFailure) {
     advice.push('Re-scan a full, unfiltered clone (for actions/checkout, set fetch-depth: 0 and no filter).');
   } else if (incompleteness.shallow) {
     advice.push('Re-scan a full clone (for actions/checkout, set fetch-depth: 0).');
-  }
-  if (incompleteness.gitUnavailable) {
-    advice.push('Re-scan on a host where git is installed.');
-  }
-  if (incompleteness.repositoryUnopenable) {
-    advice.push('Re-scan a checkout that git can open (a full clone, not a copied worktree or submodule).');
   }
   // The output limits and the file cap are deterministic for a given repository; the timeout
   // depends on the machine and its load, so a re-scan may lift it (#560 review).
@@ -5470,8 +5483,11 @@ export function v27A2FailedHistoryNote(
   const consequence = wouldBeNotApplicable
     ? ', and A2 would otherwise have been marked not applicable on a decision that rests in part on ' +
       "Cejel's scans of earlier commits for .env files and credential-shaped values."
-    : ', so the scan for credentials and .env files in earlier commits read only part of the history, ' +
-      'and no confirmed critical finding stands on what was read.';
+    : readNoHistory(incompleteness)
+      ? // The cause already says Cejel read none of the history; the tree was still read.
+        ', and no confirmed critical finding stands on what was read.'
+      : ', so the scan for credentials and .env files in earlier commits read only part of the history, ' +
+        'and no confirmed critical finding stands on what was read.';
   return `${WITAN_V27_A2_FAILED_HISTORY_NOTE_PREFIX}: ${a2HistoryIncompletenessCauses(incompleteness)}${consequence} ${a2HistoryIncompletenessAdvice(incompleteness)}`;
 }
 
