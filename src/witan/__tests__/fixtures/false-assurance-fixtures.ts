@@ -1695,6 +1695,55 @@ for (const [name, purpose, files] of [
   FALSE_ASSURANCE_FIXTURES_REVIEW.push({ name, issue: '#527', foundInReview: true, purpose, commits: [files] });
 }
 
+// Round 4 of the review of #562: publisher configuration committed in the repository that runs
+// code before the upload. Each shape must keep its credit; the controls stay publish-only.
+const UPLOAD_STEP_PREFIX =
+  '      - uses: actions/download-artifact@v4\n        with:\n          name: dist\n          path: dist\n';
+const TAG_UPLOAD = (run: string, env: string): string =>
+  `name: publish\non:\n  push:\n    tags: ['*']\njobs:\n  publish:\n    runs-on: ubuntu-latest\n    steps:\n${UPLOAD_STEP_PREFIX}      - run: ${run}\n${env}`;
+const POETRY_ENV = '        env:\n          POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_TOKEN }}\n';
+const UV_ENV = '        env:\n          UV_PUBLISH_TOKEN: ${{ secrets.PYPI_TOKEN }}\n';
+const PUSH_UPLOAD = (run: string, env: string): string => TAG_UPLOAD(run, env).replace("    tags: ['*']\n", '    branches: [main]\n');
+for (const [name, purpose, files] of [
+  [
+    'review13-poetry-project-plugin-pth',
+    '`poetry publish` with a committed `.poetry/plugins/evil.pth`: Poetry adds the directory with addsitedir() before any command, so the `.pth` runs.',
+    { ...PY_LIBRARY, '.poetry/plugins/evil.pth': 'import os\n', '.github/workflows/publish.yml': PUSH_UPLOAD('poetry publish', POETRY_ENV) },
+  ],
+  [
+    'review13-poetry-requires-plugins',
+    '`poetry publish` with `[tool.poetry.requires-plugins]` in pyproject.toml.',
+    { ...PY_LIBRARY, 'pyproject.toml': `${PY_LIBRARY['pyproject.toml']}\n[tool.poetry.requires-plugins]\npoetry-plugin-x = ">=1"\n`, '.github/workflows/publish.yml': PUSH_UPLOAD('poetry publish', POETRY_ENV) },
+  ],
+  [
+    'review13-uv-toml-committed',
+    '`uv publish` with a committed `uv.toml`.',
+    { ...PY_LIBRARY, 'uv.toml': 'keyring-provider = "subprocess"\n', '.github/workflows/publish.yml': PUSH_UPLOAD('uv publish', UV_ENV) },
+  ],
+  [
+    'review13-uv-pyproject-table',
+    '`uv publish` with a `[tool.uv]` table in pyproject.toml.',
+    { ...PY_LIBRARY, 'pyproject.toml': `${PY_LIBRARY['pyproject.toml']}\n[tool.uv]\nkeyring-provider = "subprocess"\n`, '.github/workflows/publish.yml': PUSH_UPLOAD('uv publish', UV_ENV) },
+  ],
+  [
+    'review13-rust-toolchain-toml',
+    '`cargo publish --no-verify` with a committed `rust-toolchain.toml`: rustup resolves the cargo proxy from it.',
+    { ...RUST_LIBRARY, 'rust-toolchain.toml': '[toolchain]\npath = "/home/runner/work/x/x/tc"\n', '.github/workflows/release.yml': PUSH_WORKFLOW('      - run: cargo publish --no-verify\n') },
+  ],
+  [
+    'review13-poetry-publish-control',
+    'Control: `poetry publish` of a downloaded artifact with no Poetry project configuration stays publish-only.',
+    { ...PY_LIBRARY, '.github/workflows/publish.yml': PUSH_UPLOAD('poetry publish', POETRY_ENV) },
+  ],
+  [
+    'review13-uv-publish-control',
+    'Control: `uv publish` of a downloaded artifact with no uv configuration stays publish-only.',
+    { ...PY_LIBRARY, '.github/workflows/publish.yml': PUSH_UPLOAD('uv publish', UV_ENV) },
+  ],
+] as const) {
+  FALSE_ASSURANCE_FIXTURES_REVIEW.push({ name, issue: '#527', foundInReview: true, purpose, commits: [files] });
+}
+
 export const FALSE_ASSURANCE_FIXTURES: readonly FalseAssuranceFixture[] = [
   ...FALSE_ASSURANCE_FIXTURES_ISSUES,
   ...FALSE_ASSURANCE_FIXTURES_REVIEW,

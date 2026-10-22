@@ -1049,6 +1049,11 @@ describe('publish-only admits no glob in flag position, no unknown flag, no unli
     'review12-gh-release-xdg-config-step-env',
     'review12-cargo-committed-config-credential-provider',
     'review12-twine-upload-flag-glob',
+    'review13-poetry-project-plugin-pth',
+    'review13-poetry-requires-plugins',
+    'review13-uv-toml-committed',
+    'review13-uv-pyproject-table',
+    'review13-rust-toolchain-toml',
   ])('%s keeps its credit under v27', (name) => {
     for (const id of ['B2', 'B3']) {
       expect(criterion(name, V27, id), `${name} ${id}`).toEqual(criterion(name, V17, id));
@@ -1056,7 +1061,7 @@ describe('publish-only admits no glob in flag position, no unknown flag, no unli
   });
 
   it('controls: upload-only shapes with known flags, a file glob after a directory and credential variables stay publish-only', () => {
-    for (const name of ['review8-b3-twine-upload-only', 'review8-b3-npm-publish-without-install', 'review7-b3-cargo-publish-no-verify', 'review8-b3-gh-release-upload']) {
+    for (const name of ['review8-b3-twine-upload-only', 'review8-b3-npm-publish-without-install', 'review7-b3-cargo-publish-no-verify', 'review8-b3-gh-release-upload', 'review13-poetry-publish-control', 'review13-uv-publish-control']) {
       expect(criterion(name, V27, 'B3').notes, name).toContain('only publishes, releases or deploys');
     }
   });

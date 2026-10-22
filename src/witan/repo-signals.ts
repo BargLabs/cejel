@@ -5689,6 +5689,8 @@ function ownPublishOnlyInventory(repoFiles: readonly string[]): PublishOnlyInven
     known: new Set(knownPaths),
     hasYarnPlugins: knownPaths.some((path) => path.startsWith('.yarn/plugins/')),
     hasCargoConfiguration: knownPaths.some((path) => CARGO_CONFIGURATION_PATH_PATTERN.test(path)),
+    hasPoetryProjectConfiguration: knownPaths.some((path) => POETRY_PROJECT_CONFIGURATION_PATH_PATTERN.test(path)),
+    hasUvConfiguration: knownPaths.some((path) => UV_CONFIGURATION_PATH_PATTERN.test(path)),
   };
 }
 
@@ -5833,7 +5835,14 @@ function isPublishOnlyWorkflow(
   // An npm-family publish runs the root package's scripts (`prepack`, `prepublishOnly`, `publish`,
   // ...), so it is admitted only when that manifest is read and holds none.
   if (needs.size > 0 && inventory === null) return false;
-  if (needs.has('cargo') && (inventory as PublishOnlyInventory).hasCargoConfiguration) return false;
+  const known = inventory as PublishOnlyInventory;
+  if (needs.has('cargo') && known.hasCargoConfiguration) return false;
+  if (needs.has('poetry') && (known.hasPoetryProjectConfiguration || pyprojectMayMatch(repoPath, known, PYPROJECT_POETRY_PLUGINS_PATTERN))) {
+    return false;
+  }
+  if (needs.has('uv') && (known.hasUvConfiguration || pyprojectMayMatch(repoPath, known, PYPROJECT_UV_TABLE_PATTERN))) {
+    return false;
+  }
   if (needs.has('package') && !packageManifestRunsNoRepositoryCode(repoPath, inventory as PublishOnlyInventory)) {
     return false;
   }
@@ -5843,8 +5852,28 @@ function isPublishOnlyWorkflow(
 // Cargo configuration files, which can name a credential provider cargo executes, or change the
 // registry, target or build settings (review of #562). Cargo reads them from the working directory
 // and every parent; a workflow here runs at the root, so any committed one is doubt.
-const CARGO_CONFIGURATION_PATH_PATTERN = /(?:^|\/)\.cargo\/config(?:\.toml)?$/;
+const CARGO_CONFIGURATION_PATH_PATTERN = /(?:^|\/)(?:\.cargo\/config(?:\.toml)?|rust-toolchain(?:\.toml)?)$/;
+// Poetry project configuration that runs code before any command: `.poetry/plugins` is put on
+// `sys.path` with `addsitedir()`, so a `.pth` there runs (PluginManager.add_project_plugin_path), and
+// `poetry.toml` holds project settings. Any `.poetry/` path at the root, or `poetry.toml`, is doubt.
+const POETRY_PROJECT_CONFIGURATION_PATH_PATTERN = /^(?:\.poetry\/|poetry\.toml$)/;
+// uv configuration files. uv's settings include keyring providers and index configuration, and it
+// was not verified from uv's source that `uv publish` runs nothing they name, so any is doubt.
+const UV_CONFIGURATION_PATH_PATTERN = /(?:^|\/)uv\.toml$/;
+// The pyproject.toml tables that configure those tools: `[tool.uv...]`, Poetry plugin requirements.
+const PYPROJECT_UV_TABLE_PATTERN = /^[ \t]*\[[ \t]*tool[ \t]*\.[ \t]*uv\b/m;
+const PYPROJECT_POETRY_PLUGINS_PATTERN = /requires-plugins|^[ \t]*\[[ \t]*tool[ \t]*\.[ \t]*poetry[ \t]*\.[ \t]*plugins\b/m;
 
+
+/**
+ * True when the root pyproject.toml matches `pattern`, or exists but was not scanned (doubt). False
+ * only when there is none, or it was read and does not match.
+ */
+function pyprojectMayMatch(root: string, inventory: PublishOnlyInventory, pattern: RegExp): boolean {
+  if (!inventory.known.has('pyproject.toml')) return false;
+  if (!inventory.scanned.has('pyproject.toml')) return true;
+  return pattern.test(readRepoText(join(root, 'pyproject.toml'), 'utf8'));
+}
 
 /** What a publish-only reading may consult: scanned paths, and every path known to exist. */
 interface PublishOnlyInventory {
@@ -5852,12 +5881,20 @@ interface PublishOnlyInventory {
   readonly known: ReadonlySet<string>;
   /** Decided once per scan, so each workflow's check stays constant-time in the inventory. */
   readonly hasYarnPlugins: boolean;
-  /** Any committed `.cargo/config` or `.cargo/config.toml` (CARGO_CONFIGURATION_PATH_PATTERN). */
+  /**
+   * Any committed `.cargo/config`, `.cargo/config.toml`, `rust-toolchain` or `rust-toolchain.toml`
+   * (CARGO_CONFIGURATION_PATH_PATTERN): a credential provider cargo executes, or a toolchain rustup
+   * resolves for the `cargo` proxy, possibly by path.
+   */
   readonly hasCargoConfiguration: boolean;
+  /** Any root `.poetry/` path or `poetry.toml` (POETRY_PROJECT_CONFIGURATION_PATH_PATTERN). */
+  readonly hasPoetryProjectConfiguration: boolean;
+  /** Any committed `uv.toml` (UV_CONFIGURATION_PATH_PATTERN). */
+  readonly hasUvConfiguration: boolean;
 }
 
 /** The repository configuration an admitted command runs code from. */
-type PublishOnlyRepositoryCheck = 'package' | 'cargo';
+type PublishOnlyRepositoryCheck = 'package' | 'cargo' | 'poetry' | 'uv';
 
 interface PublishOnlyClassification {
   readonly kind: 'publish' | 'setup' | 'other';
@@ -6286,11 +6323,11 @@ function classifyPublishOnlyRunCommand(input: readonly string[]): PublishOnlyCla
         : other;
     case 'uv':
       return second === 'publish' && publishArgumentsAreKnown(words.slice(2), NO_FLAGS, UV_PUBLISH_VALUED, 'files')
-        ? { kind: 'publish' }
+        ? { kind: 'publish', needs: ['uv'] }
         : other;
     case 'poetry':
       return second === 'publish' && publishArgumentsAreKnown(words.slice(2), POETRY_PUBLISH_SWITCHES, NO_FLAGS, 'none')
-        ? { kind: 'publish' }
+        ? { kind: 'publish', needs: ['poetry'] }
         : other;
     case 'gh':
       return second === 'release' &&
