@@ -1,5 +1,6 @@
 import type { WitanCriterionScore, WitanReport } from '../schemas.js';
 
+import { WITAN_V27_A2_FAILED_HISTORY_NOTE_PREFIX } from '../abstention.js';
 import { SHALLOW_HISTORY_V27_ABSTENTION } from '../history-depth.js';
 
 // THE NO-RISE PROPERTY (#531), shared by the curated and the generated v27 tests.
@@ -102,6 +103,10 @@ function contentReadFailure(report: WitanReport, criterion: WitanCriterionScore)
   return readFailures > 0 && READ_FAILURE_NOTES.includes(criterion.notes ?? '');
 }
 
+function failedHistoryAbstention(_report: WitanReport, criterion: WitanCriterionScore): boolean {
+  return criterion.id === 'A2' && (criterion.notes ?? '').startsWith(WITAN_V27_A2_FAILED_HISTORY_NOTE_PREFIX);
+}
+
 function shallowAbstention(report: WitanReport, criterion: WitanCriterionScore): boolean {
   return (
     (criterion.id === 'A2' || criterion.id === 'B2') &&
@@ -112,17 +117,20 @@ function shallowAbstention(report: WitanReport, criterion: WitanCriterionScore):
 
 /**
  * The read-failure abstentions v27 makes, each recognised from the report alone. An abstention v27
- * introduces must match one; anything else is self-imposed. Extend by adding a class here, keyed on
- * evidence the report carries beyond the criterion's own note (a note alone can be written by any
- * code path). Known pending class: #560's abstention of A2 after an incomplete read of the
- * repository's commit history. Its causes and the report evidence that identifies each are still
- * changing on #560; the source of truth is the comment in #560's src/witan/abstention.ts.
- * Whichever of #558 and #560 lands second integrates the class from that comment, keyed on report
- * evidence beyond the note itself, and reruns all six generated shards and the curated test.
+ * introduces must match one; anything else is self-imposed. Extend by adding a class here.
+ *
+ * failed-history (#560, #556): A2's abstention after an incomplete read of the commit history,
+ * other than the shallow-only case (which keeps #442's notes, the shallow-history class). Per the
+ * comment on WITAN_V27_A2_FAILED_HISTORY_NOTE_PREFIX in src/witan/abstention.ts, the source of
+ * truth, it is recognised by that prefix, which only v27A2FailedHistoryNote writes, and not by any
+ * one cause: several causes can appear together, and they differ in what else the report carries.
+ * v27-no-rise-failed-history.test.ts derives the causes from A2HistoryIncompleteness and that
+ * comment and checks each is recognised, from the note builder and from real scans.
  */
 export const READ_FAILURE_CLASSES = [
   { kind: 'shallow-history', recognises: shallowAbstention },
   { kind: 'content-read', recognises: contentReadFailure },
+  { kind: 'failed-history', recognises: failedHistoryAbstention },
 ] as const satisfies readonly {
   kind: string;
   recognises: (report: WitanReport, criterion: WitanCriterionScore) => boolean;
