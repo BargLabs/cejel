@@ -398,14 +398,20 @@ only checks out and prints (`isPrintOnlyWorkflow`, #540's reader) is not credite
 - B3's `ci_script_depth` and `default_branch_ci_depth` do not count it (#535, the no-check half).
 
 A reader admits a workflow only when every line of its jobs section fits its grammar, every job's
-`runs-on` names a GitHub-hosted Ubuntu or macOS runner (bash, #564), and every step is on its
-allowlist. Anything else keeps the credit. The certificate names uncredited workflows under "What was
-not established", and no sentence says that a workflow runs no check. v17's scores and fingerprint
-are unchanged. Its only change is that the #540 disclosure no longer misnames pwsh or self-hosted
-workflows as print-only (#564). v18-v26 rest on gating and their unchanged fingerprints. The
+`runs-on` is a documented GitHub-hosted Ubuntu or macOS label (an exact list, bash, #564), every
+step is on its allowlist, and arguments use only characters inert in every shell. Anything else keeps
+the credit. The certificate names uncredited workflows under "What was not established", and no
+sentence says that a workflow runs no check. v17's scores, statuses, metrics and fingerprint are
+unchanged. v17 output changes in two places:
+- **`report.json`:** on a repository whose workflow the old reader alone called print-only (for
+  example a pwsh or self-hosted workflow), the false #540 disclosure is gone (#564).
+- **Certificates:** on every repository, the Markdown, HTML and terminal certificate carry the two
+  updated glossary entries, which describe v27's rule.
+
+v18-v26 rest on gating and their unchanged fingerprints. The
 measured tables are in `leaderboard/RUBRIC_CHANGELOG.md` (2026-10-22):
 - 15 fixture rows score below v17 and none above;
-- no public row moves;
+- no public row moves (informal, not a preregistered run);
 - v27's fingerprint moves from `sha256:fb4edfa0…` to
   `sha256:6e03aa1bf63a31c5ec58a68cb49fb8ef571ba233cf79059a311ec55aecea5bb3`.
 
@@ -422,9 +428,12 @@ half is not changed. Fixture `b3-master-confined-workflow-on-main-still-counted`
 the operator ruled on.
 
 **The operator's decision.** The operator's words, relayed on #526
-([comment](https://github.com/BargLabs/cejel/issues/526#issuecomment-6336750983)) and #535 ([comment](https://github.com/BargLabs/cejel/issues/535#issuecomment-6336751428)), were "yes to both recommendations". The
-recommendation on this point was to rule the branch half out of condition 3. The other options were
-declined: binding the default branch in the report, and dropping all branch-filtered credit. The
+([comment](https://github.com/BargLabs/cejel/issues/526#issuecomment-6336750983)) and #535 ([comment](https://github.com/BargLabs/cejel/issues/535#issuecomment-6336751428)), were "yes to both recommendations". The two
+recommendations were this one (the #535 branch half) and extending the ADR-0001 read-failure ruling
+to #556's abstention (#560). The recommendation on this point was to rule the branch half out of
+condition 3. The other options, binding the default branch in the report and dropping all
+branch-filtered credit, were therefore not chosen. The relaying agent's #526 comment describes them
+as declined. The
 optional ref-free disclosure offered with the recommendation was not separately approved and is not
 added. #535's comment records that the question can be revisited if the default branch is ever bound
 in the report and attestation (a format change).
