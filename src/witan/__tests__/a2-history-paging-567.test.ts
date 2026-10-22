@@ -122,11 +122,13 @@ describe("#567: a whole-history read that stops at Cejel's own output limit is r
 describe('#572 review: every batched path is the only source of some finding', () => {
   const S_ = { secretLine: 'stripe_secret_key = "sk_live_' + 'FIXTUREonly0000abcdEFGH1234ijklMNOP"\n' };
 
-  // A history longer than one rev-list page. fast-import writes 50,002 commits in a few seconds: the
-  // root adds a secret-bearing .env, the next commit deletes it, and 50,000 empty commits follow, so
-  // both of those commits sit on the second rev-list page (the oldest two). Only a read that crosses
-  // the page boundary can find the .env, by any of the three readers.
-  it('a rev-list page boundary: the finding lives only on the second page', () => {
+  // A history longer than one rev-list page. fast-import writes 50,002 commits in a few seconds. In
+  // rev-list order (newest first) the root is index 50,001; index 50,000, the first commit of the
+  // second page, adds a credential-named file with a secret; index 49,999, the last commit of the
+  // first page, edits it to a placeholder; 49,999 empty commits follow. Only that one commit holds
+  // the secret, so a page read that stops after the first page, or skips a commit at the boundary,
+  // loses the finding.
+  it('a rev-list page boundary: the finding lives only in the first commit of the second page', () => {
     const root = mkdtempSync(join(tmpdir(), 'cejel-paging-boundary-'));
     try {
       const repo = join(root, 'repo');
@@ -137,21 +139,25 @@ describe('#572 review: every batched path is the only source of some finding', (
       blob(1, '{"name":"boundary","version":"1.0.0"}\n');
       blob(2, 'export const a = 1;\n');
       blob(3, S_.secretLine);
+      blob(4, 'stripe_secret_key = "REPLACE_ME"\n');
       const commit = (mark: number, from: number | null, ops: string[]) => {
         lines.push('commit refs/heads/main', `mark :${mark}`, `author ${who}`, `committer ${who}`, 'data 2', 'c');
         if (from !== null) lines.push(`from :${from}`);
         lines.push(...ops, '');
       };
-      commit(10, null, ['M 100644 :1 package.json', 'M 100644 :2 src/a.js', 'M 100644 :3 .env']);
-      commit(11, 10, ['D .env']);
-      let previous = 11;
-      for (let index = 0; index < 50_000; index += 1) {
+      commit(10, null, ['M 100644 :1 package.json', 'M 100644 :2 src/a.js']);
+      commit(11, 10, ['M 100644 :3 config/app.secret.txt']);
+      commit(12, 11, ['M 100644 :4 config/app.secret.txt']);
+      let previous = 12;
+      for (let index = 1; index < 50_000; index += 1) {
         commit(12 + index, previous, []);
         previous = 12 + index;
       }
       execFileSync('git', ['fast-import', '--quiet'], { cwd: repo, input: lines.join('\n') + '\n', maxBuffer: 1 << 26 });
       execFileSync('git', ['reset', '--quiet', '--hard', 'main'], { cwd: repo });
       expect(execFileSync('git', ['rev-list', '--count', 'HEAD'], { cwd: repo, encoding: 'utf8' }).trim()).toBe('50002');
+      const secretCommit = execFileSync('git', ['rev-list', '--max-count=1', '--skip=50000', 'HEAD'], { cwd: repo, encoding: 'utf8' }).trim();
+      expect(execFileSync('git', ['show', `${secretCommit}:config/app.secret.txt`], { cwd: repo, encoding: 'utf8' })).toBe(S_.secretLine);
 
       mode.current = 'real';
       const unlimited = scoreAt(repo, V17);
