@@ -1,6 +1,6 @@
 # ADR-0001: Coverage is disclosed, never discounted — and may later withhold a score
 
-**Status:** Accepted (operator ruling of 2026-10-22 on v27 shallow-clone abstentions recorded at the end)
+**Status:** Accepted (two operator rulings of 2026-10-22 recorded at the end: v27 shallow-clone abstentions, and #556's abstention)
 **Date:** 2026-08-02
 **Deciders:** Houman Azimi
 **Supersedes:** nothing. First ADR in this repository.
@@ -233,3 +233,39 @@ default. The points below are the agent's reasoning; the operator neither adopte
 **What it does not change.** No code, rubric, policy text or default changes. v17 and v18-v26 do not
 abstain on a shallow clone; they disclose it as a history limitation, as before. The ruling covers
 only the v27 shallow-clone abstentions. It decides nothing about any other systematic limit.
+
+## Operator ruling (2026-10-22, second): the read-failure ruling extends to #556's abstention
+
+Recorded by an AI agent (Claude Opus 5.5, Claude Code) in #560, at the operator's instruction. The
+operator's decision is recorded on #526
+([comment 6336750983](https://github.com/BargLabs/cejel/issues/526#issuecomment-6336750983),
+"Operator decisions (2026-10-22)"). The text above is unchanged apart from the Status line.
+
+**The operator's decision.** The agent recommended that the read-failure ruling above also cover
+the v27 A2 abstention #560 adds. The operator's words were "yes to both recommendations". The
+second recommendation in that reply concerns #535 and condition 3 of the #526 ruling, not this ADR.
+The operator gave no reasons.
+
+**What is covered.** Under `witan-rubric-v27-prospective-2026-10-19`, A2 abstains where it would
+otherwise have been marked not applicable, or scored, on commit history Cejel could not fully read:
+- the clone is shallow; or
+- one of A2's history reads failed (for example on a partial clone, or on a git timeout or output
+  limit).
+
+That abstention is a **read failure** under this ADR. A2 abstains at 0 and keeps its place in the
+composite. A confirmed critical finding still stands and is scored.
+
+**What it supersedes.** Once #560 lands, this supersedes, for v27, the earlier section's sentence
+"This ruling does not cover that case (#556)": v27 then abstains in that case, and the abstention is
+covered.
+
+**What it does not change.** v17 and v18-v26 do not abstain on such a clone. They only disclose it:
+a shallow clone in "History limitations", a failed history read in the scan limitations, and, where
+A2 is marked not applicable on such history, a sentence among A2's disclosures. The ruling decides
+nothing about any other systematic limit.
+
+**The recording agent's explanation (not the operator's words).** A failed history read is closer to
+the "rare and accidental" read failure the Context describes than a shallow clone is. A partial clone
+leaves out objects that history reads need, and Cejel's git boundary denies every transport, so it
+never fetches them. Treating either case as a coverage limit would let A2 leave the composite, or score on a
+read that did not complete, which can raise a composite.

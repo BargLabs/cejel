@@ -413,11 +413,15 @@ Naming the candidate therefore needs the commit as well as the fingerprint; the 
 recorded after merge (#563).
 
 **Condition 6 and ADR-0001.** This abstention is new in scope relative to the operator's
-condition-6 ruling recorded in open PR #554, which says that ruling "does not cover that case
-(#556)". Once this change lands, that carve-out is stale for v27: v27 then abstains in the #556
-case too, and also where a history read failed on a clone that is not shallow. Whether ADR-0001's
-read-failure treatment extends to these abstentions is for the operator to confirm. That
-confirmation has not been given at the time of writing. This addition does not claim it.
+condition-6 ruling recorded in #554 (merged as `74b3af581`), which says that ruling "does not cover
+that case (#556)". On 2026-10-22 the operator confirmed that ADR-0001's read-failure ruling extends
+to it, in the words "yes to both recommendations", recorded on #526
+([comment 6336750983](https://github.com/BargLabs/cejel/issues/526#issuecomment-6336750983),
+"Operator decisions (2026-10-22)"). That covers v27's A2 abstention at 0, kept in the composite,
+where A2 would otherwise be not applicable or scored on history Cejel could not fully read: a
+shallow clone, or a failed history read. ADR-0001 records it in its dated section "Operator ruling
+(2026-10-22, second)", which supersedes the "does not cover that case (#556)" sentence for v27 once
+this change lands.
 
 **What it adds to "Why every v27 movement can only lower a score".** That table lists the
 abstention path and not the not-applicable gate, and its #442 row covers shallow clones only. A
