@@ -868,6 +868,28 @@ describe('#527 — B2 does not credit a CI workflow not shown to run a check', (
     expect(metricValue(change, 'pr_trace_primitives')).toBe(metricValue(control, 'pr_trace_primitives'));
   });
 
+  it('v27: a CI workflow B2 cannot read is a read failure, so B2 abstains at 0 instead of crediting it', () => {
+    const control = falseAssuranceFixture('b2-test-workflow-only');
+    const repo = buildFalseAssuranceFixture({
+      ...control,
+      name: 'b2-workflow-as-lfs-pointer',
+      commits: [{ ...control.commits[0], '.github/workflows/e2e.yml': lfsPointerFor('e2e workflow') }],
+    });
+    const b2 = (rubricVersion: string) =>
+      scoreRepoWithPublicCejel({
+        repoPath: repo,
+        productSlug: 'false-assurance-fixture',
+        productDisplayName: 'False-assurance fixture',
+        generatedAt: '2026-10-22T00:00:00.000Z',
+        rubricVersion,
+        ingestPatterns: [],
+        autoDiscoverIngest: false,
+      }).criteria.find(({ id }) => id === 'B2');
+    expect(b2(V17)?.status).toBe('warning');
+    expect(b2(V27)?.status).toBe('insufficient_data');
+    expect(b2(V27)?.score).toBe(0);
+  });
+
   it('v27: a workflow that runs the tests and then uploads keeps its credit in B2 and B3', () => {
     for (const id of ['B2', 'B3']) {
       expect(criterion('b2-test-then-upload-stays-credited', V27, id), id).toEqual(

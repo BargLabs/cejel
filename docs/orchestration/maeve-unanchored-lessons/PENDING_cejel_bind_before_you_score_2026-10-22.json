@@ -1,0 +1,51 @@
+[
+  {
+    "statement": "A scoring rule must be decidable from what the attestation binds, and a tree-only proxy for unbound state must be measured before it ships. In cejel #535 a workflow confined to master in a repository whose default branch is main earned B3 PR-gate credit. The default branch is ref state; Cejel's attestation binds only the commit (repo.headSha), and an earlier sentence read from refs made cejel issue refuse honest reproductions (#540). The obvious tree-only proxy, uncredit a workflow whose branch filters name master and not main, was measured on the 23 public corpus rows: it fired on 3 rows (fastapi, express, guava), and all 3 repositories' default branch is master, so every removal would have been a false assertion of absence. Rules: before scoring from a property, check the attestation binds it; if not, measure the proxy on real repositories and ship nothing that removes true credit; stop and hand the options to the operator.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "false-assurance",
+      "reproducibility",
+      "claim-hygiene"
+    ],
+    "tags": [
+      "attestation-binding",
+      "ref-state",
+      "proxy-measurement",
+      "false-negative-assertion",
+      "branch-filter"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-10-22T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 558
+    }
+  },
+  {
+    "statement": "When two criteria make the same kind of claim about one input, they should decide it with one shared predicate, plus a test that they agree. In cejel, v27 (#517) stopped B3 crediting a publish-only CI workflow, but B2 kept counting every CI file as PR-trace credit (#527), so the same workflow was CI under one criterion and not under the other. The fix routes both through one function built from the existing allowlist readers (publish-only and print-only), and a test asserts for every fixture that B2's note names exactly the workflows B3's note names. Sharing it also removed waste: B3 had run the publish-only reader three times per workflow. Under v27 a scan of eight 480 KB workflows fell from 1.46 s to 1.19 s.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "false-assurance",
+      "claim-hygiene"
+    ],
+    "tags": [
+      "shared-predicate",
+      "cross-criterion-consistency",
+      "allowlist",
+      "publish-only",
+      "print-only"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-10-22T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 558
+    }
+  }
+]

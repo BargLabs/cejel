@@ -16,6 +16,24 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- **Prospective v27: B2 and B3 stop crediting CI workflows not shown to run a check (#527, #535).**
+  This meets condition 3 of the accepted ruling on #526. Under
+  `witan-rubric-v27-prospective-2026-10-19` only, a workflow whose every step only checks out and
+  prints, or that only uploads an already-built artifact, earns no B2 PR-trace credit and counts
+  toward neither B3 depth metric. One predicate decides this for both criteria, built from the
+  existing allowlist readers (`isPublishOnlyWorkflow`, `isPrintOnlyWorkflow`), and any step a reader
+  cannot place keeps the credit. The notes describe what Cejel read: a print-only workflow is "not
+  shown to run a check", and a publish-only one keeps #517's sentence. Neither says a workflow runs
+  no check. Scores can only fall. On the fixtures, 14 rows move down and none rises against v17. No
+  public row moves. v17's reports are byte-identical on every fixture and public row measured, and
+  every other rubric's behaviour fingerprint is unchanged. v27's behaviour fingerprint
+  moves to `sha256:6e03aa1bf63a31c5ec58a68cb49fb8ef571ba233cf79059a311ec55aecea5bb3`, which makes
+  this a new v27 candidate. The branch half of #535 (a workflow confined to a branch the repository
+  may not have) is left open, because the attestation does not bind branch state. Measured options
+  are in `leaderboard/RUBRIC_CHANGELOG.md` (2026-10-22). The default stays v17.
+
 ## [0.6.8] — 2026-10-22
 
 **Public corpus.** A preregistered confirmation scored the 23 public corpus repositories from
