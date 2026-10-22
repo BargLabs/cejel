@@ -19,7 +19,7 @@ import { HERMETIC_GIT_ENV } from './behaviour-corpus.js';
 
 export interface FalseAssuranceFixture {
   readonly name: string;
-  readonly issue: '#517' | '#518' | '#519' | '#520' | '#442' | '#527' | '#535';
+  readonly issue: '#517' | '#518' | '#519' | '#520' | '#442' | '#527' | '#535' | '#564';
   /** Set for a case an adversarial review of #521 found against the first implementation. */
   readonly foundInReview?: true;
   readonly purpose: string;
@@ -1584,6 +1584,41 @@ for (const [name, issue, purpose, files] of [
   ],
 ] as const) {
   FALSE_ASSURANCE_FIXTURES_REVIEW.push({ name, issue, purpose, commits: [files] });
+}
+
+// #564 (2026-10-22, review of #562): the print-only reader assumed bash. On a Windows runner the
+// default shell is pwsh, where `echo @{suite=./run-tests.ps1}` evaluates the hashtable and runs the
+// repository's script; a self-hosted runner may run any shell. Each must keep its credit under v27
+// and get no print-only disclosure under any rubric.
+const RUNNER_WORKFLOW = (runsOn: string, run: string): string =>
+  `name: test\non:\n  push:\n    branches: [main]\n  pull_request:\njobs:\n  test:\n    runs-on: ${runsOn}\n    steps:\n      - uses: actions/checkout@v4\n      - run: ${run}\n`;
+for (const [name, purpose, runsOn, run] of [
+  ['review10-print-only-windows-latest-pwsh-hashtable', 'windows-latest, `echo @{suite=./run-tests.ps1}`: pwsh runs the script.', 'windows-latest', 'echo @{suite=./run-tests.ps1}'],
+  ['review10-print-only-windows-2022-pwsh-hashtable', 'windows-2022, `echo @{r=pytest}`.', 'windows-2022', 'echo @{r=pytest}'],
+  ['review10-print-only-self-hosted-printf', 'self-hosted, `printf @{r=pytest}`: any shell.', 'self-hosted', 'printf @{r=pytest}'],
+  ['review10-print-only-ubuntu-inert-text', 'Control: ubuntu-latest, `echo "e2e skipped"` is still print-only.', 'ubuntu-latest', 'echo "e2e skipped"'],
+  ['review10-print-only-ubuntu-equals-sign', 'ubuntu-latest, `echo a=b`: `=` is outside the inert allowlist, so no claim.', 'ubuntu-latest', 'echo a=b'],
+  ['review10-print-only-runner-expression', 'runs-on is an expression: no claim.', '${{ matrix.os }}', 'echo ok'],
+] as const) {
+  FALSE_ASSURANCE_FIXTURES_REVIEW.push({
+    name,
+    issue: '#564',
+    foundInReview: true,
+    purpose,
+    commits: [{ ...PY_LIBRARY_WITHOUT_CI, '.github/workflows/test.yml': RUNNER_WORKFLOW(runsOn, run) }],
+  });
+}
+for (const [name, purpose, runsOn] of [
+  ['review10-upload-only-windows-runner', 'An upload-only workflow on windows-latest: publish-only is not claimed (#564).', 'windows-latest'],
+  ['review10-upload-only-self-hosted-runner', 'An upload-only workflow on a self-hosted runner: not claimed.', 'self-hosted'],
+] as const) {
+  FALSE_ASSURANCE_FIXTURES_REVIEW.push({
+    name,
+    issue: '#564',
+    foundInReview: true,
+    purpose,
+    commits: [{ ...PY_LIBRARY, '.github/workflows/publish.yml': PYPI_UPLOAD_ONLY("on:\n  push:\n    tags: ['*']\n", '').replace('runs-on: ubuntu-latest', `runs-on: ${runsOn}`) }],
+  });
 }
 
 export const FALSE_ASSURANCE_FIXTURES: readonly FalseAssuranceFixture[] = [

@@ -39,6 +39,12 @@ export const WITAN_A2_PLACEHOLDER_SET_ASIDE_PREFIX = 'Cejel read and set aside '
 // see run a check (b3UnshownCheckDisclosure in repo-signals.ts). One of B3's criteria[].disclosures,
 // listed under "What was not established". The count itself is unchanged.
 export const WITAN_B3_UNSHOWN_CHECK_PREFIX = 'B3 counted workflows Cejel did not see run a check: ';
+// Prospective v27 only (#527, #535): B2 and B3 name the CI workflows they did not count because
+// Cejel did not see them run a check (uncreditedCiWorkflowDisclosure in repo-signals.ts). One of
+// each criterion's criteria[].disclosures, listed under "What was not established" while it is
+// scored.
+export const WITAN_B2_UNCREDITED_CI_WORKFLOW_PREFIX = 'B2 did not count CI workflows Cejel did not see run a check: ';
+export const WITAN_B3_UNCREDITED_CI_WORKFLOW_PREFIX = 'B3 did not count CI workflows Cejel did not see run a check: ';
 
 export function isWitanNoMeasurementAbstention(report: WitanReport): boolean {
   return (

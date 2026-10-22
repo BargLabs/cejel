@@ -15,6 +15,7 @@ import { SHALLOW_HISTORY_LIMITATION, SHALLOW_HISTORY_V27_ABSTENTION } from '../h
 import { renderWitanHtmlReport } from '../html.js';
 import { renderWitanMarkdownReport } from '../markdown.js';
 import { scoreRepoWithPublicCejel } from '../public-scan.js';
+import { BEHAVIOUR_CORPUS, buildBehaviourFixture } from './fixtures/behaviour-corpus.js';
 import {
   WITAN_RUBRIC_VERSION_V17,
   WITAN_RUBRIC_VERSION_V26,
@@ -841,7 +842,7 @@ describe('publish-only means checkout, credentials and an upload of a built arti
 const PUBLISH_ONLY_NOTE_TAIL =
   '1 workflow that only publishes, releases or deploys (no pull-request trigger, and every step Cejel reads only checks out, sets up a toolchain, configures credentials or uploads an already-built artifact) is not counted as';
 const PRINT_ONLY_NOTE_TAIL =
-  '1 workflow not shown to run a check (every step Cejel reads only checks out the repository or prints text) is not counted as';
+  '1 workflow not shown to run a check (every step Cejel reads only checks out the repository, prints text or does nothing) is not counted as';
 
 describe('#527 — B2 does not credit a CI workflow not shown to run a check', () => {
   it('v17 is unchanged: an upload-only workflow is a PR-trace CI workflow, as the issue reports', () => {
@@ -919,7 +920,9 @@ describe('#535 — B3 does not count a workflow not shown to run a check', () =>
       );
     }
     const b3 = criterion('b3-print-only-pr-workflow-beside-tests', V27, 'B3');
-    expect(b3.disclosures).toBeUndefined();
+    expect(b3.disclosures).toEqual([
+      'B3 did not count CI workflows Cejel did not see run a check: .github/workflows/e2e.yml only checks out the repository, prints text or does nothing.',
+    ]);
     expect(b3.notes).toBe(`${PRINT_ONLY_NOTE_TAIL} CI verification: .github/workflows/e2e.yml.`);
     expect(criterion('b3-print-only-pr-workflow-beside-tests', V27, 'B2').notes).toBe(
       `${PRINT_ONLY_NOTE_TAIL} a PR-trace CI workflow: .github/workflows/e2e.yml.`,
@@ -949,26 +952,110 @@ describe('#535 — B3 does not count a workflow not shown to run a check', () =>
     expect(b3).toEqual(criterion('b3-master-confined-workflow-on-main-still-counted', V17, 'B3'));
   });
 
-  it('v27: the same commit scores the same whatever branches the checkout holds', () => {
-    const repo = buildFalseAssuranceFixture(falseAssuranceFixture('b3-print-only-pr-workflow-beside-tests'));
-    const score = () =>
-      JSON.stringify(
-        scoreRepoWithPublicCejel({
-          repoPath: repo,
-          productSlug: 'false-assurance-fixture',
-          productDisplayName: 'False-assurance fixture',
-          generatedAt: '2026-10-22T00:00:00.000Z',
-          rubricVersion: V27,
-          ingestPatterns: [],
-          autoDiscoverIngest: false,
-        }),
-      );
-    const git = (...args: string[]) => execFileSync('git', args, { cwd: repo, stdio: ['ignore', 'pipe', 'ignore'] });
-    const onBranch = score();
-    git('branch', 'master');
-    expect(score()).toBe(onBranch);
-    git('-c', 'advice.detachedHead=false', 'checkout', '--quiet', '--detach');
-    expect(score()).toBe(onBranch);
+  // Branch state is outside the attested revision (the attestation's only repository revision is
+  // repo.headSha). A rule that read refs, such as "a master filter counts only if refs/heads/master
+  // exists", makes these scores differ between the states below; checked by injecting exactly that
+  // rule into workflowTargetsDefaultBranch while writing this test (review of #562).
+  it.each(['b3-master-confined-workflow-on-main-still-counted', 'b3-print-only-pr-workflow-beside-tests'])(
+    'the same commit scores the same whatever refs the checkout holds — %s',
+    (name) => {
+      const repo = buildFalseAssuranceFixture(falseAssuranceFixture(name));
+      const score = () =>
+        [V17, V27].map((rubricVersion) =>
+          JSON.stringify(
+            scoreRepoWithPublicCejel({
+              repoPath: repo,
+              productSlug: 'false-assurance-fixture',
+              productDisplayName: 'False-assurance fixture',
+              generatedAt: '2026-10-22T00:00:00.000Z',
+              rubricVersion,
+              ingestPatterns: [],
+              autoDiscoverIngest: false,
+            }),
+          ),
+        );
+      const git = (...args: string[]) =>
+        execFileSync('git', args, { cwd: repo, stdio: ['ignore', 'pipe', 'ignore'] });
+      const onMain = score();
+      const steps: ReadonlyArray<readonly [string, () => void]> = [
+        ['a master branch added', () => git('branch', 'master')],
+        ['the master branch deleted', () => git('branch', '-D', 'master')],
+        ['main renamed to trunk', () => git('branch', '-m', 'main', 'trunk')],
+        [
+          'an origin/HEAD naming origin/main',
+          () => {
+            git('update-ref', 'refs/remotes/origin/main', 'HEAD');
+            git('symbolic-ref', 'refs/remotes/origin/HEAD', 'refs/remotes/origin/main');
+          },
+        ],
+        [
+          'origin/HEAD moved to origin/master',
+          () => {
+            git('update-ref', 'refs/remotes/origin/master', 'HEAD');
+            git('symbolic-ref', 'refs/remotes/origin/HEAD', 'refs/remotes/origin/master');
+          },
+        ],
+        ['a detached HEAD', () => git('-c', 'advice.detachedHead=false', 'checkout', '--quiet', '--detach')],
+      ];
+      for (const [state, apply] of steps) {
+        apply();
+        expect(score(), state).toEqual(onMain);
+      }
+    },
+  );
+});
+
+describe('#564 — the print-only and publish-only readers claim nothing outside a bash runner', () => {
+  const v17Disclosure = (name: string) => criterion(name, V17, 'B3').disclosures ?? [];
+  it.each([
+    'review10-print-only-windows-latest-pwsh-hashtable',
+    'review10-print-only-windows-2022-pwsh-hashtable',
+    'review10-print-only-self-hosted-printf',
+    'review10-print-only-ubuntu-equals-sign',
+    'review10-print-only-runner-expression',
+    'review10-upload-only-windows-runner',
+    'review10-upload-only-self-hosted-runner',
+  ])('%s keeps its credit under v27 and gets no print-only disclosure under v17', (name) => {
+    for (const id of ['B2', 'B3']) {
+      expect(criterion(name, V27, id), `${name} ${id}`).toEqual(criterion(name, V17, id));
+      expect(criterion(name, V27, id).disclosures, `${name} ${id}`).toBeUndefined();
+    }
+    expect(v17Disclosure(name).join(' ')).not.toContain('only prints text');
+  });
+
+  it('control: an inert echo on ubuntu-latest is still print-only under every rubric', () => {
+    expect(v17Disclosure('review10-print-only-ubuntu-inert-text').join(' ')).toContain('test.yml only prints text');
+    expect(metricValue(criterion('review10-print-only-ubuntu-inert-text', V27, 'B3'), 'default_branch_ci_depth')).toBe(0);
+  });
+});
+
+describe('v27 certificates say a CI workflow was not credited, never that it is missing (review of #562)', () => {
+  const rendered = (repoPath: string) => {
+    const scored = scoreRepoWithPublicCejel({
+      repoPath,
+      productSlug: 'false-assurance-fixture',
+      productDisplayName: 'False-assurance fixture',
+      generatedAt: '2026-10-22T00:00:00.000Z',
+      rubricVersion: V27,
+      ingestPatterns: [],
+      autoDiscoverIngest: false,
+    });
+    return {
+      markdown: renderWitanMarkdownReport(scored),
+      html: renderWitanHtmlReport(scored),
+      terminal: renderTerminalCertificate(buildWitanCliSummary(scored), scored),
+    };
+  };
+  const corpusFixture = BEHAVIOUR_CORPUS.find(({ name }) => name === 'workspace-package-scripts');
+  it.each([
+    ['workspace-package-scripts', () => buildBehaviourFixture(corpusFixture as (typeof BEHAVIOUR_CORPUS)[number]), 'ci.yml'],
+    ['b2-publish-only-is-the-only-workflow', () => buildFalseAssuranceFixture(falseAssuranceFixture('b2-publish-only-is-the-only-workflow')), 'publish.yml'],
+  ] as const)('%s', (_name, build, file) => {
+    for (const [surface, text] of Object.entries(rendered(build()))) {
+      expect(text, surface).not.toContain('missing: CI workflow');
+      expect(text, surface).toContain('B2 did not count CI workflows Cejel did not see run a check: .github/workflows/' + file);
+      expect(text, surface).toContain('B3 did not count CI workflows Cejel did not see run a check: .github/workflows/' + file);
+    }
   });
 });
 
@@ -977,8 +1064,28 @@ describe('B2 and B3 never disagree about which workflows are credited (v27)', ()
     it(fixture.name, () => {
       const b2 = criterion(fixture.name, V27, 'B2');
       const b3 = criterion(fixture.name, V27, 'B3');
+      // Skipped where either abstains: an abstaining criterion carries no count to compare.
       if (b2.status === 'insufficient_data' || b3.status === 'insufficient_data') return;
       expect(b2.notes?.replaceAll('a PR-trace CI workflow', 'CI verification')).toBe(b3.notes);
+      // The counts agree too: B2 credits every CI workflow file B3 does not set aside.
+      const files = new Set<string>();
+      for (const commit of fixture.commits) {
+        for (const [path, contents] of Object.entries(commit)) {
+          if (contents === null) files.delete(path);
+          else files.add(path);
+        }
+      }
+      const ciFiles = [...files].filter((path) => /^\.github\/workflows\/.+\.ya?ml$/.test(path)).length;
+      const uncreditedCount = (score: WitanCriterionScore, metricName: string) =>
+        Number(/^(\d+) CI workflow files? not shown to run a check/.exec(
+          score.metrics.find(({ name }) => name === metricName)?.presentation?.condition ?? '',
+        )?.[1] ?? 0);
+      const b3Uncredited = uncreditedCount(b3, 'default_branch_ci_depth');
+      expect(uncreditedCount(b2, 'pr_trace_primitives')).toBe(b3Uncredited);
+      const ciComponent = b2.metrics
+        .find(({ name }) => name === 'pr_trace_primitives')
+        ?.presentation?.components?.find(({ label }) => /CI workflow/.test(label));
+      expect(ciComponent?.count).toBe(ciFiles - b3Uncredited);
     });
   }
 });

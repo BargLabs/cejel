@@ -52,6 +52,9 @@ interface ChildScan {
   readonly elapsedMs: number;
   readonly a1Findings: readonly string[];
   readonly b3ScriptDepthCondition: string | null;
+  readonly b2Notes: string | null;
+  readonly b3Notes: string | null;
+  readonly b3Disclosures: readonly string[];
 }
 
 function scanInChild(repo: string, rubricVersion: string): ChildScan {
@@ -248,6 +251,16 @@ describe('timing guards: the real scan finishes on pathological repository input
       expect(UPLOAD_ONLY_LONG_WORKFLOW.length).toBeGreaterThan(450_000);
       const scan = scanInChild(makeRepo(UNCREDITED_WORKFLOW_FIXTURE), rubric);
       expect(scan.elapsedMs).toBeLessThan(SCAN_BUDGET_MS);
+      // Both readers classified both files in full: an early bail-out would keep them credited and
+      // drop them from these sentences, so a fast but incomplete reader fails here.
+      if (rubric === WITAN_RUBRIC_VERSION_V27) {
+        for (const notes of [scan.b2Notes, scan.b3Notes]) {
+          expect(notes).toContain('.github/workflows/print.yml');
+          expect(notes).toContain('.github/workflows/upload.yml');
+        }
+      } else {
+        expect(scan.b3Disclosures.join(' ')).toContain('.github/workflows/print.yml only prints text');
+      }
     },
     KILL_AFTER_MS + 10_000,
   );

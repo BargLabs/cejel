@@ -355,21 +355,25 @@ describe('B3: counted PR-gate workflows not shown to run a check are named', () 
     );
   });
 
-  // v27 (#535): the workflows this disclosure names are not counted, so the disclosure goes and
-  // B3's note says why, naming a root workflow as such.
+  // v27 (#535): the workflows this disclosure names are not counted, so the #540 disclosure gives
+  // way to v27's own disclosure and note, which name a root workflow as such.
   it('v27: stops counting the print-only workflows instead of disclosing them', () => {
     const v27 = 'witan-rubric-v27-prospective-2026-10-19';
     const planted = criterion('b2b3-planted-workflows', 'B3', v27);
     expect(planted.metrics.find((metric) => metric.name === 'default_branch_ci_depth')?.value).toBe(2);
-    expect(planted.disclosures).toBeUndefined();
+    expect(planted.disclosures).toEqual([
+      'B3 did not count CI workflows Cejel did not see run a check: .github/workflows/e2e.yml only checks out the repository, prints text or does nothing.',
+    ]);
     expect(planted.notes).toBe(
-      '1 workflow not shown to run a check (every step Cejel reads only checks out the repository or prints text) is not counted as CI verification: .github/workflows/e2e.yml.',
+      '1 workflow not shown to run a check (every step Cejel reads only checks out the repository, prints text or does nothing) is not counted as CI verification: .github/workflows/e2e.yml.',
     );
     const root = criterion('b3-monorepo-root-print-only', 'B3', v27);
     expect(root.metrics.find((metric) => metric.name === 'default_branch_ci_depth')?.value).toBe(1);
-    expect(root.disclosures).toBeUndefined();
+    expect(root.disclosures).toEqual([
+      'B3 did not count CI workflows Cejel did not see run a check: .github/workflows/e2e.yml at the monorepo root only checks out the repository, prints text or does nothing.',
+    ]);
     expect(root.notes).toBe(
-      '1 workflow not shown to run a check (every step Cejel reads only checks out the repository or prints text) is not counted as CI verification: .github/workflows/e2e.yml at the monorepo root.',
+      '1 workflow not shown to run a check (every step Cejel reads only checks out the repository, prints text or does nothing) is not counted as CI verification: .github/workflows/e2e.yml at the monorepo root.',
     );
   });
 

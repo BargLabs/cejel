@@ -47,6 +47,8 @@ import {
 import {
   WITAN_A2_PLACEHOLDER_SET_ASIDE_PREFIX,
   WITAN_A2_TENANT_ISOLATION_UNSETTLED_DISCLOSURE,
+  WITAN_B2_UNCREDITED_CI_WORKFLOW_PREFIX,
+  WITAN_B3_UNCREDITED_CI_WORKFLOW_PREFIX,
   WITAN_B3_UNSHOWN_CHECK_PREFIX,
   WITAN_A3_BUILD_STEP_UNSETTLED_DISCLOSURE,
   WITAN_A5_RECONCILIATION_UNSETTLED_DISCLOSURE,
@@ -308,7 +310,12 @@ function wholesaleCriterionAbstention(
 }
 
 function withoutCountDisclosures(disclosures: readonly string[] | undefined): { disclosures?: string[] } {
-  const kept = (disclosures ?? []).filter((text) => !text.startsWith(WITAN_B3_UNSHOWN_CHECK_PREFIX));
+  const kept = (disclosures ?? []).filter(
+    (text) =>
+      !text.startsWith(WITAN_B3_UNSHOWN_CHECK_PREFIX) &&
+      !text.startsWith(WITAN_B2_UNCREDITED_CI_WORKFLOW_PREFIX) &&
+      !text.startsWith(WITAN_B3_UNCREDITED_CI_WORKFLOW_PREFIX),
+  );
   return kept.length > 0 ? { disclosures: kept } : {};
 }
 
@@ -5341,10 +5348,14 @@ function collectB2PrTraceEvidence(
         'saturating_count',
         {
           components: [
-            { label: 'CI workflow', count: creditedWorkflowCount },
+            {
+              label: uncredited.size > 0 ? B2_CREDITED_CI_WORKFLOW_COMPONENT_LABEL : 'CI workflow',
+              count: creditedWorkflowCount,
+            },
             { label: 'pull-request template', count: prTemplate ? 1 : 0 },
             { label: 'review-gate record', count: branchProtectionDoc ? 1 : 0 },
           ],
+          ...(uncredited.size > 0 ? { condition: uncreditedCiWorkflowCondition(uncredited.size) } : {}),
         },
       ),
       // Weight lowered from 0.35 (Phase 3 H1): squash-merge and local-history repos with
@@ -5362,7 +5373,12 @@ function collectB2PrTraceEvidence(
       ),
     ],
     ...(uncredited.size > 0
-      ? { notes: uncreditedCiWorkflowNote(uncredited, 'a PR-trace CI workflow') }
+      ? {
+          notes: uncreditedCiWorkflowNote(uncredited, 'a PR-trace CI workflow'),
+          disclosures: [
+            uncreditedCiWorkflowDisclosure(WITAN_B2_UNCREDITED_CI_WORKFLOW_PREFIX, uncredited),
+          ],
+        }
       : {}),
   };
 }
@@ -5401,6 +5417,11 @@ function collectB3CiDisciplineEvidence(
       : new Map();
   const countsAsCi = (uncredited: ReadonlyMap<string, UncreditedCiWorkflowReason>) => (file: string) =>
     !uncredited.has(file);
+  // For the note, disclosure and condition: a root workflow is named as such.
+  const b3Uncredited: ReadonlyMap<string, UncreditedCiWorkflowReason> = new Map([
+    ...uncreditedWorkflows,
+    ...[...uncreditedRootWorkflows].map(([file, reason]) => [`${file} at the monorepo root`, reason] as const),
+  ]);
   const { defaultBranchCiCount, defaultBranchCiWorkflows, rootDefaultBranchCiWorkflows } = withContentReadSignal(
     'B3',
     'default_branch_ci_depth',
@@ -5597,28 +5618,26 @@ function collectB3CiDisciplineEvidence(
         'saturating_count',
         b3UnshownCheckCount(unshownCheckWorkflows) > 0
           ? { condition: b3UnshownCheckCondition(unshownCheckWorkflows) }
-          : undefined,
+          : b3Uncredited.size > 0
+            ? { condition: uncreditedCiWorkflowCondition(b3Uncredited.size) }
+            : undefined,
       ),
     ],
-    ...(uncreditedWorkflows.size + uncreditedRootWorkflows.size > 0
-      ? {
-          notes: b3UncreditedWorkflowsNote(
-            new Map([
-              ...uncreditedWorkflows,
-              ...[...uncreditedRootWorkflows].map(
-                ([file, reason]) => [`${file} at the monorepo root`, reason] as const,
-              ),
-            ]),
-          ),
-        }
-      : {}),
-    ...b3UnshownCheckDisclosures(unshownCheckWorkflows),
+    ...(b3Uncredited.size > 0 ? { notes: b3UncreditedWorkflowsNote(b3Uncredited) } : {}),
+    ...b3Disclosures(
+      unshownCheckWorkflows,
+      b3Uncredited.size > 0
+        ? uncreditedCiWorkflowDisclosure(WITAN_B3_UNCREDITED_CI_WORKFLOW_PREFIX, b3Uncredited)
+        : '',
+    ),
   };
 }
 
-function b3UnshownCheckDisclosures(unshown: B3UnshownCheckWorkflows): { disclosures?: string[] } {
-  const sentence = b3UnshownCheckDisclosure(unshown, CRITERION_DISCLOSURE_MAX_LENGTH);
-  return sentence ? { disclosures: [sentence] } : {};
+function b3Disclosures(unshown: B3UnshownCheckWorkflows, uncredited: string): { disclosures?: string[] } {
+  const sentences = [b3UnshownCheckDisclosure(unshown, CRITERION_DISCLOSURE_MAX_LENGTH), uncredited].filter(
+    (sentence) => sentence !== '',
+  );
+  return sentences.length > 0 ? { disclosures: sentences } : {};
 }
 
 /**
@@ -5673,6 +5692,36 @@ function ownPublishOnlyInventory(repoFiles: readonly string[]): PublishOnlyInven
 }
 
 const B2_UNCREDITED_CI_WORKFLOW_LABEL = 'CI workflow not shown to run a check (not counted)';
+// B2's CI component label when some CI workflow is not credited, so that a zero reads as "none
+// credited", never as "no CI workflow" (review of #562).
+const B2_CREDITED_CI_WORKFLOW_COMPONENT_LABEL = 'credited CI workflow';
+
+/** A metric condition (schema maximum 240) counting the workflows not credited. */
+function uncreditedCiWorkflowCondition(count: number): string {
+  return `${count} CI workflow file${count === 1 ? '' : 's'} not shown to run a check ${count === 1 ? 'is' : 'are'} not counted`;
+}
+
+const UNCREDITED_CI_WORKFLOW_REASON_TEXT: Readonly<Record<UncreditedCiWorkflowReason, string>> = {
+  print_only: 'only checks out the repository, prints text or does nothing',
+  publish_only: 'only checks out, sets up a toolchain, configures credentials or uploads an already-built artifact',
+};
+
+/**
+ * v27: the certificate disclosure naming uncredited workflows, `prefix` then up to three
+ * `<path> <reason>` items, then fewer, then a count, within CRITERION_DISCLOSURE_MAX_LENGTH.
+ */
+export function uncreditedCiWorkflowDisclosure(
+  prefix: string,
+  uncredited: ReadonlyMap<string, UncreditedCiWorkflowReason>,
+  budget = CRITERION_DISCLOSURE_MAX_LENGTH,
+): string {
+  const items = [...uncredited].map(([file, reason]) => `${file} ${UNCREDITED_CI_WORKFLOW_REASON_TEXT[reason]}`);
+  for (let shown = Math.min(3, items.length); shown > 0; shown -= 1) {
+    const sentence = `${prefix}${items.slice(0, shown).join('; ')}${items.length > shown ? `; and ${items.length - shown} more` : ''}.`;
+    if (sentence.length <= budget) return sentence;
+  }
+  return `${prefix}${items.length} workflow${items.length === 1 ? '' : 's'}.`;
+}
 
 function b3UncreditedWorkflowsNote(uncredited: ReadonlyMap<string, UncreditedCiWorkflowReason>): string {
   return uncreditedCiWorkflowNote(uncredited, 'CI verification');
@@ -5701,7 +5750,7 @@ function uncreditedCiWorkflowNote(
       : []),
     ...(printOnly.length > 0
       ? [
-          `${printOnly.length === 1 ? '1 workflow' : `${printOnly.length} workflows`} not shown to run a check (every step Cejel reads only checks out the repository or prints text) ${printOnly.length === 1 ? 'is' : 'are'} not counted as ${notCountedAs}${listed(printOnly, shown)}.`,
+          `${printOnly.length === 1 ? '1 workflow' : `${printOnly.length} workflows`} not shown to run a check (every step Cejel reads only checks out the repository, prints text or does nothing) ${printOnly.length === 1 ? 'is' : 'are'} not counted as ${notCountedAs}${listed(printOnly, shown)}.`,
         ]
       : []),
   ].join(' ');
@@ -5891,7 +5940,9 @@ function isPlainOneLineValue(value: string): boolean {
  * a publish workflow holds, or null when any line of the jobs section is one the grammar does not
  * place. The top level holds only the keys PRINT_ONLY_TOP_LEVEL_KEY_PATTERN names (no top-level
  * `env` or `defaults`), and one `jobs:`. A job holds only PUBLISH_ONLY_JOB_KEYS, with
- * `permissions` and `environment` as a one-line scalar or a one-level mapping of plain entries.
+ * `permissions` and `environment` as a one-line scalar or a one-level mapping of plain entries,
+ * and every job's `runs-on` names a GitHub-hosted Ubuntu or macOS runner, so the shell words below
+ * are read as bash reads them (#564).
  * A step holds only PUBLISH_ONLY_STEP_KEYS and exactly one of `uses` and `run`; `with` and `env`
  * are one-level mappings of plain entries, a `with` value may be a `|`/`>` block, and an `env`
  * key never loads code (CODE_LOADING_ENV_KEYS). A flow item, a quoted, capitalised or explicit
@@ -5907,7 +5958,7 @@ function placedPublishWorkflowSteps(contents: string): PlacedWorkflowStep[] | nu
     const raw = lines[index] ?? '';
     if (!isContent(raw) || /^[ \t]/.test(raw)) continue;
     if (!PRINT_ONLY_TOP_LEVEL_KEY_PATTERN.test(raw)) return null;
-    if (/^jobs:[ \t]*$/.test(stripYamlComment(raw))) {
+    if (/^jobs[ \t]*:[ \t]*$/.test(stripYamlComment(raw))) {
       if (jobsStart !== -1) return null;
       jobsStart = index;
     }
@@ -5927,6 +5978,8 @@ function placedPublishWorkflowSteps(contents: string): PlacedWorkflowStep[] | nu
     | { kind: 'plain'; column: number }
     | { kind: 'mapping'; column: number; entryColumn: number; textColumn: number; owner: 'with' | 'env' | 'job' }
     | null = null;
+  // Every job must name a GitHub-hosted bash runner (#564); null before the first job.
+  let jobHasBashRunner: boolean | null = null;
   const openStep = () => step as { uses?: string; inputs: Set<string>; run?: string[] } | null;
   const closeStep = (): boolean => {
     if (step === null) return true;
@@ -5977,7 +6030,9 @@ function placedPublishWorkflowSteps(contents: string): PlacedWorkflowStep[] | nu
     if (indent < jobIndent) return null;
     if (indent === jobIndent) {
       if (!closeStep()) return null;
+      if (jobHasBashRunner === false) return null;
       if (!/^[ \t]*[A-Za-z_][A-Za-z0-9_-]*:[ \t]*$/.test(text)) return null;
+      jobHasBashRunner = false;
       keyIndent = -1;
       inSteps = false;
       continue;
@@ -6002,6 +6057,10 @@ function placedPublishWorkflowSteps(contents: string): PlacedWorkflowStep[] | nu
       }
       if (key[1] === 'needs' && NEEDS_FLOW_SEQUENCE_PATTERN.test(value)) continue;
       if (!isPlainOneLineValue(value)) return null;
+      if (key[1] === 'runs-on') {
+        if (!GITHUB_HOSTED_BASH_RUNNER_PATTERN.test(value)) return null;
+        jobHasBashRunner = true;
+      }
       body = { kind: 'plain', column: indent };
       continue;
     }
@@ -6045,6 +6104,7 @@ function placedPublishWorkflowSteps(contents: string): PlacedWorkflowStep[] | nu
     }
   }
   if (!closeStep()) return null;
+  if (jobHasBashRunner !== true) return null;
   return steps;
 }
 
@@ -6364,9 +6424,16 @@ function fittedCiWorkflowCitationLabel(
   return label(candidates[candidates.length - 1] ?? WORKFLOW_TRIGGER_NOT_READ_LABEL);
 }
 
-// A run line that only prints or does nothing. Anything compound (a pipe, `&&`, `;`, a command
-// substitution, a redirect) or any other command is not claimed.
-const PRINT_ONLY_RUN_LINE_PATTERN = /^(?:(?:echo|printf)(?:[ \t][^|&;`$()<>\\]*)?|true|:|exit[ \t]+0)$/;
+// A run line that only prints or does nothing. The arguments are an allowlist of characters inert
+// in every shell a runner might use (bash, sh, pwsh, cmd): letters, digits, blanks, `_ . , : / + -`
+// and quotes, so no expansion, substitution, glob, redirect, separator, hashtable or splat (`@{`,
+// `$`, `%`, `!`, `~`, `*`, `?`, `[`, `{`, `=`, `\`) can appear (#564). Anything else is not claimed.
+const PRINT_ONLY_RUN_LINE_PATTERN = /^(?:(?:echo|printf)(?:[ \t][A-Za-z0-9 \t_.,:/+"'-]*)?|true|:|exit[ \t]+0)$/;
+// A `runs-on` value naming a GitHub-hosted Ubuntu or macOS runner, whose default `run` shell is
+// bash (#564). Windows runners default to pwsh, and a self-hosted runner, an expression, a list or a
+// group can run any shell, so a claim about what a step's text does is made only on these.
+const GITHUB_HOSTED_BASH_RUNNER_PATTERN =
+  /^(["']?)(?:ubuntu|macos)-(?:latest|[0-9]+(?:\.[0-9]+)?)(?:-(?:arm|arm64|large|xlarge|intel))?\1$/;
 const BLOCK_SCALAR_INDICATOR_PATTERN = /^[|>][-+0-9]*$/;
 const PRINT_ONLY_JOB_KEYS = new Set(['runs-on', 'name', 'timeout-minutes', 'steps']);
 // The top-level keys a print-only workflow may hold, written plain at column 0. `env` and
@@ -6403,9 +6470,11 @@ function isOneLineScalar(value: string): boolean {
  * True for a GitHub Actions workflow whose every step only prints text. This is a claim about
  * every step, so it is made only when every line of the `jobs:` section fits a small grammar the
  * reader fully places, and nothing else is in it: each job holds only `runs-on`, `name`,
- * `timeout-minutes` and `steps`; each step holds only `name` and either
- * `uses: actions/checkout@<ref>` or `run:`; every run line, one-line or in a `|`/`>` block,
- * matches PRINT_ONLY_RUN_LINE_PATTERN with its quotes balanced on the line. Any other key (`env`,
+ * `timeout-minutes` and `steps`, and its `runs-on` names a GitHub-hosted Ubuntu or macOS runner
+ * (GITHUB_HOSTED_BASH_RUNNER_PATTERN), so its steps run under bash (#564); each step holds only
+ * `name` and either `uses: actions/checkout@<ref>` or `run:`; every run line, one-line or in a
+ * `|`/`>` block, matches PRINT_ONLY_RUN_LINE_PATTERN (arguments from a character allowlist inert
+ * in every shell) with its quotes balanced on the line. Any other key (`env`,
  * `shell`, `services`, `with`, `if`, a quoted or capitalised key, a top-level `env` or
  * `defaults`), any flow collection, and any line the grammar does not place claim nothing.
  */
@@ -6420,7 +6489,7 @@ export function isPrintOnlyWorkflow(contents: string): boolean {
     const raw = lines[index] ?? '';
     if (!isContent(raw) || /^[ \t]/.test(raw)) continue;
     if (!PRINT_ONLY_TOP_LEVEL_KEY_PATTERN.test(raw)) return false;
-    if (/^jobs:[ \t]*$/.test(stripYamlComment(raw))) {
+    if (/^jobs[ \t]*:[ \t]*$/.test(stripYamlComment(raw))) {
       if (jobsStart !== -1) return false;
       jobsStart = index;
     }
@@ -6433,6 +6502,8 @@ export function isPrintOnlyWorkflow(contents: string): boolean {
   let step: { run?: boolean; uses?: boolean } | null = null;
   let body: { column: number; block: boolean } | null = null;
   let runSteps = 0;
+  // Every job must name a GitHub-hosted bash runner (#564); null before the first job.
+  let jobHasBashRunner: boolean | null = null;
   const closeStep = () => {
     if (step && step.run && step.uses) return false;
     if (step?.run) runSteps += 1;
@@ -6462,7 +6533,9 @@ export function isPrintOnlyWorkflow(contents: string): boolean {
     if (indent < jobIndent) return false;
     if (indent === jobIndent) {
       if (!closeStep()) return false;
+      if (jobHasBashRunner === false) return false;
       if (!/^[ \t]*[A-Za-z_][A-Za-z0-9_-]*:[ \t]*$/.test(text)) return false;
+      jobHasBashRunner = false;
       keyIndent = -1;
       inSteps = false;
       continue;
@@ -6482,6 +6555,10 @@ export function isPrintOnlyWorkflow(contents: string): boolean {
         continue;
       }
       if (value === '' || /^[[{&*|>!]/.test(value) || !isOneLineScalar(value)) return false;
+      if (key[1] === 'runs-on') {
+        if (!GITHUB_HOSTED_BASH_RUNNER_PATTERN.test(value.trim())) return false;
+        jobHasBashRunner = true;
+      }
       continue;
     }
     if (!inSteps) return false;
@@ -6519,6 +6596,7 @@ export function isPrintOnlyWorkflow(contents: string): boolean {
     }
   }
   if (!closeStep()) return false;
+  if (jobHasBashRunner !== true) return false;
   return runSteps > 0;
 }
 
