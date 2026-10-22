@@ -1,6 +1,6 @@
 # ADR-0001: Coverage is disclosed, never discounted — and may later withhold a score
 
-**Status:** Accepted
+**Status:** Accepted (operator ruling of 2026-10-22 on v27 shallow-clone abstentions recorded at the end)
 **Date:** 2026-08-02
 **Deciders:** Houman Azimi
 **Supersedes:** nothing. First ADR in this repository.
@@ -203,22 +203,32 @@ attestation when an unrelated artifact changed — do not discover it late.
 
 Recorded by an AI agent (Claude Opus 5.5, Claude Code) at the operator's instruction. This answers
 condition 6 of the 2026-10-21 ruling on #526 (`docs/reviews/v27-false-assurance-closure-2026-10-19.md`,
-accepted 2026-10-22). The text above is unchanged.
+accepted 2026-10-22). The text above is unchanged apart from the Status line.
 
-**Ruling.** When `witan-rubric-v27-prospective-2026-10-19` abstains on A2 or B2 because the
+**The operator's decision.** The agent offered three options: treat the abstention as a read failure
+under this ADR, treat it as a coverage limit, or write a new ADR. The operator's reply was "a,",
+choosing the first: "Rule that a shallow clone is a read failure under ADR-0001. Behaviour stays as
+it is." The operator gave no reasons.
+
+**What that means.** When `witan-rubric-v27-prospective-2026-10-19` abstains on A2 or B2 because the
 repository is a shallow clone (`shallowHistoryAbstention` in `src/witan/repo-signals.ts`), the
-abstention is a **read failure** under this ADR. It keeps the full denominator with a zero
-contribution, so a shallow clone can never score higher than the full clone. It is not a coverage
-discount.
+abstention is a **read failure** under this ADR, not a coverage discount. The abstaining criterion
+keeps its place in the denominator with a zero contribution, so the abstention itself cannot raise
+a composite.
 
-**Why, given the Context above.** The Context calls a read failure "rare and accidental", and a
-depth-1 checkout is neither: it is the `actions/checkout` default. The ruling still treats it as
-a read failure, for three reasons:
+That is narrower than "a shallow clone never scores higher than the full clone", which does not
+hold. A criterion whose applicability depends on history can become not applicable on a shallow
+clone and leave the composite. For example, A2 on a repository whose only secret surface is a
+`.env` committed and later deleted. This ruling does not cover that case (#556).
+
+**The recording agent's explanation (not the operator's words).** The Context above calls a read
+failure "rare and accidental", and a depth-1 checkout is neither: it is the `actions/checkout`
+default. The points below are the agent's reasoning; the operator neither adopted nor rejected them:
 - the history Cejel needs is absent from the checkout, not present and skipped;
 - the scanning user can remove the limit, and the certificate says how (`fetch-depth: 0`);
-- treating it as coverage would drop A2 and B2 from the denominator instead, which can raise a
-  composite.
+- treating the abstention as coverage would drop A2 and B2 from the denominator instead, which can
+  raise a composite.
 
 **What it does not change.** No code, rubric, policy text or default changes. v17 and v18-v26 do not
 abstain on a shallow clone; they disclose it as a history limitation, as before. The ruling covers
-only the v27 shallow-clone abstentions. Any other systematic limit needs its own ruling.
+only the v27 shallow-clone abstentions. It decides nothing about any other systematic limit.
