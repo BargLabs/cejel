@@ -32,15 +32,22 @@ import { READ_FAILURE_CLASSES, checkNoRise, lostFindings } from './v27-no-rise.j
 // still awaits the operator's confirmation: this class recognises what v27 does today, records no
 // ruling on it, and changes if the operator rules otherwise.
 
-// git_absent cannot be produced on a host that has git, so, as #560's own test does, one mode of
-// this file's execGit mock reports it; every other call runs the real git.
-const mode = { current: 'real' as 'real' | 'git-absent' };
+// The execGit seam, by mode. 'small-blob-buffer' runs the real git for the history blob reads
+// (`git show`) with execGit's own maxBufferBytes option lowered to 16 bytes, so real git output
+// exceeds a real limit. git_absent and a timeout cannot be produced cheaply on a host that has git
+// (the 30-second timeout has no knob), so, as #560's own tests do, those modes report the reason;
+// every other call runs the real git unchanged.
+const mode = { current: 'real' as 'real' | 'git-absent' | 'small-blob-buffer' | 'blob-timeout' };
 vi.mock('../git-exec.js', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../git-exec.js')>();
   return {
     ...actual,
-    execGit: (argv: readonly string[], options: Parameters<typeof actual.execGit>[1]) =>
-      mode.current === 'git-absent' ? { ok: false as const, reason: 'git_absent' as const } : actual.execGit(argv, options),
+    execGit: (argv: readonly string[], options: Parameters<typeof actual.execGit>[1]) => {
+      if (mode.current === 'git-absent') return { ok: false as const, reason: 'git_absent' as const };
+      if (argv[0] === 'show' && mode.current === 'blob-timeout') return { ok: false as const, reason: 'timeout' as const };
+      if (argv[0] === 'show' && mode.current === 'small-blob-buffer') return actual.execGit(argv, { ...options, maxBufferBytes: 16 });
+      return actual.execGit(argv, options);
+    },
   };
 });
 
@@ -96,6 +103,29 @@ describe('#560 failed-history abstentions are a recognised read failure: every c
   it('reads the causes from A2HistoryIncompleteness', () => {
     expect(fields).toContain('shallow');
     expect(causes.length).toBeGreaterThanOrEqual(6);
+  });
+
+  // The comment groups two fields under one bullet (limitHits and otherFailure are both "a failed
+  // git read"), so the fields and bullets are matched through this table rather than by count. A
+  // field without a bullet, a bullet without a field, or a table entry naming neither fails.
+  const FIELD_BULLETS: Readonly<Record<string, string>> = {
+    limitHits: 'a failed git read',
+    otherFailure: 'a failed git read',
+    blobCapHit: "the history secret scan's 5,000-file cap",
+    controlCharacterSkip: 'a credential-shaped history path skipped for control characters',
+    gitUnavailable: 'git itself could not be run',
+    repositoryUnopenable: 'a `.git` entry is visible but git cannot open it',
+  };
+
+  it('matches every cause field to a comment bullet, and every bullet to a cause field', () => {
+    const bullets = commentCauses().map(({ bullet }) => bullet);
+    expect([...causes].sort()).toEqual(Object.keys(FIELD_BULLETS).sort());
+    for (const [field, start] of Object.entries(FIELD_BULLETS)) {
+      expect(bullets.filter((bullet) => bullet.startsWith(start)), `${field}: "${start}"`).toHaveLength(1);
+    }
+    for (const bullet of bullets) {
+      expect(Object.values(FIELD_BULLETS).some((start) => bullet.startsWith(start)), bullet).toBe(true);
+    }
   });
 
   it.each(causes)('%s: the note v27 writes, on the scoring and the not-applicable path, is failed-history', (field) => {
@@ -170,7 +200,7 @@ function withoutGit(repo: string): string {
 }
 
 describe('#560 failed-history abstentions on real scans pass the no-rise property against v17', () => {
-  const repos = { full: '', missingBlobs: '', controlCharacters: '', overCap: '' };
+  const repos = { full: '', missingBlobs: '', controlCharacters: '' };
 
   beforeAll(() => {
     const origin = buildShallowA2Origin(ISSUE_556_SHAPE);
@@ -185,13 +215,7 @@ describe('#560 failed-history abstentions on real scans pass the no-rise propert
       ]),
       'full',
     );
-    const certs: Record<string, string> = { ...base, '.gitignore': '.env\n' };
-    for (let index = 0; index < 5_001; index += 1) certs[`certs/c${index}.pem`] = `c${index}\n`;
-    repos.overCap = cloneShallowA2Origin(
-      buildA2HistoryOrigin('no-rise-over-cap', [{ write: certs }, { write: { 'README.md': '# c\n' } }]),
-      'full',
-    );
-  }, 180_000);
+  }, 600_000);
 
   afterAll(() => {
     mode.current = 'real';
@@ -203,11 +227,25 @@ describe('#560 failed-history abstentions on real scans pass the no-rise propert
     expectFailedHistoryNoRise(repos.missingBlobs, 'Cejel could not read part of the commit history');
   });
 
-  // The slowest case (about 100 s: both rubrics read 5,000 historical blobs), kept because the cap
-  // is a cause the abstention.ts comment lists and no cheaper repository reaches it.
-  it('the history secret scan cap of 5,000 files', () => {
-    expectFailedHistoryNoRise(repos.overCap, 'stopped at its own cap of 5,000 historical files');
-  }, 240_000);
+  // The 5,000-file cap is in v27-no-rise-failed-history-cap.test.ts, a file of its own (see there).
+
+  it('a failed git read: a history blob read over a real output limit (execGit maxBufferBytes lowered)', () => {
+    mode.current = 'small-blob-buffer';
+    try {
+      expectFailedHistoryNoRise(repos.full, 'output limit');
+    } finally {
+      mode.current = 'real';
+    }
+  });
+
+  it('a failed git read: a history blob read that times out (reason injected, as in #560)', () => {
+    mode.current = 'blob-timeout';
+    try {
+      expectFailedHistoryNoRise(repos.full, "stopped at Cejel's own 30-second timeout");
+    } finally {
+      mode.current = 'real';
+    }
+  });
 
   it('a credential-shaped history path with control characters', () => {
     expectFailedHistoryNoRise(repos.controlCharacters, 'unread because its name contains control characters');
