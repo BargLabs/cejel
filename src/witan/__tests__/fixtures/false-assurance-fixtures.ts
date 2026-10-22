@@ -1754,6 +1754,7 @@ for (const [name, purpose, pyproject, run, env] of [
   ['review14-uv-inline-table', '`[tool]` then `uv = { ... }`.', `${PY_LIBRARY['pyproject.toml']}\n[tool]\nuv = { keyring-provider = "subprocess" }\n`, 'uv publish', UV_ENV],
   ['review14-uv-quoted-key', '`[tool."uv"]`.', `${PY_LIBRARY['pyproject.toml']}\n[tool."uv"]\nkeyring-provider = "subprocess"\n`, 'uv publish', UV_ENV],
   ['review14-uv-escaped-key', 'A TOML escape spelling `uv` (`[tool."' + BACKSLASH + 'u0075v"]`).', `${PY_LIBRARY['pyproject.toml']}\n[tool."${BACKSLASH}u0075v"]\nkeyring-provider = "subprocess"\n`, 'uv publish', UV_ENV],
+  ['review15-uv-hex-escaped-key', 'A TOML 1.1 `\\x` escape spelling `uv` (`[tool."u' + BACKSLASH + 'x76"]`).', `${PY_LIBRARY['pyproject.toml']}\n[tool."u${BACKSLASH}x76"]\nkeyring-provider = "subprocess"\n`, 'uv publish', UV_ENV],
   ['review14-poetry-quoted-requires-plugins', '`[tool.poetry."requires-plugins"]`.', `${PY_LIBRARY['pyproject.toml']}\n[tool.poetry."requires-plugins"]\npoetry-plugin-x = ">=1"\n`, 'poetry publish', POETRY_ENV],
 ] as const) {
   FALSE_ASSURANCE_FIXTURES_REVIEW.push({

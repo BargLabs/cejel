@@ -1061,6 +1061,7 @@ describe('publish-only admits no glob in flag position, no unknown flag, no unli
     'review14-uv-quoted-key',
     'review14-uv-escaped-key',
     'review14-poetry-quoted-requires-plugins',
+    'review15-uv-hex-escaped-key',
   ])('%s keeps its credit under v27', (name) => {
     for (const id of ['B2', 'B3']) {
       expect(criterion(name, V27, id), `${name} ${id}`).toEqual(criterion(name, V17, id));

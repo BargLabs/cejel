@@ -5864,11 +5864,12 @@ const UV_CONFIGURATION_PATH_PATTERN = /(?:^|\/)uv\.toml$/;
 // so no TOML spelling escapes it (review of #562): uv settings can be written as `[tool.uv]`,
 // `[[tool.uv.index]]`, `[tool]` then `uv.x = ...` or `uv = { ... }`, a root dotted key
 // `tool.uv.x = ...`, or `[tool."uv"]`, so the bare token `uv` anywhere is doubt; for Poetry, the
-// token `plugins` anywhere. A TOML `\u`/`\U` escape can spell either, so any escape is doubt too.
+// token `plugins` anywhere. A TOML escape (`\u`, `\U`, and TOML 1.1's `\x`) can spell either, so any
+// backslash is doubt too.
 // Over-matching only keeps a workflow's credit. Both are single alternations with no nested
 // quantifier, linear in the file.
-const PYPROJECT_UV_TOKEN_PATTERN = /\buv\b|\\[uU]/;
-const PYPROJECT_POETRY_PLUGINS_PATTERN = /plugins|\\[uU]/;
+const PYPROJECT_UV_TOKEN_PATTERN = /\buv\b|\\/;
+const PYPROJECT_POETRY_PLUGINS_PATTERN = /plugins|\\/;
 
 
 /**
