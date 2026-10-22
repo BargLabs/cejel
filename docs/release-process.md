@@ -46,6 +46,17 @@ the version and requires 14 of 14. **A release is complete only when stage 13 pa
 refuses because the tap bump or the site record is not done yet, finish them and re-run with
 `--from 13`.
 
+**Empty run listings and unreadable run logs are retried (2026-10-22).** GitHub's run listing
+filtered by `--branch` and `--status` can answer with an empty list for runs that finished hours
+earlier: on 2026-10-22 a `--from 13` resume of 0.6.8 refused at stage 7 ("no successful
+publish-npm run on v0.6.8 has a '+ @cejel/cejel@0.6.8' log line") although run 39755971745 carries
+that line. The driver now retries an empty listing, a failed `gh` listing call and a failed or
+empty `gh run view --log` up to `RELEASE_RUN_LIST_TRIES` times (default 5, a whole number of at
+least 1, else it refuses), `RELEASE_RUN_FIND_SLEEP` seconds apart (default 3), printing one line
+per retry on stderr. After the last try it passes on `gh`'s stderr and refuses naming the try count
+and the cause (an empty or failing listing, or an unreadable log), not a missing log line. A resume
+on which a lookup only ever gets empty answers can take up to 12 s more per such lookup.
+
 The sections below stay authoritative; the script references them and does not restate them.
 
 ## Required claim-retirement step

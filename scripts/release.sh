@@ -22,7 +22,10 @@
 #
 # Test seams (env): RELEASE_POLL_INTERVAL (default 20 s), RELEASE_POLL_MAX (default 600 s),
 # RELEASE_CURRENCY_WAIT (default 300 s), RELEASE_MCP_RETRY_DELAY (default 3 s),
-# RELEASE_SKIP_VALIDATE=1 (tests only).
+# RELEASE_RUN_LIST_TRIES (default 5; tries for an empty run listing or a failed run-log read, a
+# whole number of at least 1, else the driver refuses), RELEASE_RUN_FIND_SLEEP (default 3 s between
+# those tries, and between run-appearance checks after a dispatch), RELEASE_SKIP_VALIDATE=1 (tests
+# only).
 
 set -euo pipefail
 
@@ -38,6 +41,7 @@ POLL_MAX="${RELEASE_POLL_MAX:-600}"
 CURRENCY_WAIT="${RELEASE_CURRENCY_WAIT:-300}"
 MCP_TIMEOUT=45
 MCP_RETRY_DELAY="${RELEASE_MCP_RETRY_DELAY:-3}"
+RUN_LIST_TRIES="${RELEASE_RUN_LIST_TRIES:-5}"
 MCP_NOT_LAG="re-read before writing current-release.mjs; a read error is not a lag"
 CURRENCY_SURFACES=14 # the SURFACES list in scripts/verify-release-currency.mjs
 if command -v crane >/dev/null 2>&1; then OCI_TOOL=crane; else OCI_TOOL=curl; fi
@@ -70,6 +74,8 @@ trap cleanup EXIT
 
 say()  { echo "[release $VERSION] $*"; }
 die()  { echo "[release $VERSION] REFUSE: $*" >&2; exit 1; }
+# Refused rather than clamped: zero tries would turn every lookup into "nothing found" unread.
+[[ "$RUN_LIST_TRIES" =~ ^[1-9][0-9]*$ ]] || die "RELEASE_RUN_LIST_TRIES must be a whole number of at least 1 (got '$RUN_LIST_TRIES')"
 done_() { say "stage $1 ($2): already done -- $3"; }
 
 # Facts gathered for the handback.
@@ -162,16 +168,40 @@ dispatch_and_watch() {
 # GitHub's run listing filtered by --branch and --status can answer with an empty list for a
 # while even for runs that finished hours ago: on 2026-10-22, two of four identical calls for
 # v0.6.8's publish-npm runs returned [] and the other two both runs, which made a `--from 13`
-# resume refuse at stage 7. So an empty answer is retried before it is believed.
+# resume refuse at stage 7. So an empty answer, or a failed gh call, is retried before it is
+# believed; gh's stderr from the last failed try is passed on, so a refusal can be traced.
 # success_run_ids <workflow> <limit>: ids of successful runs of <workflow> on $TAG, newest first.
 success_run_ids() {
-  local wf="$1" limit="$2" n out tries="${RELEASE_RUN_LIST_TRIES:-5}"
+  local wf="$1" limit="$2" n out tries="$RUN_LIST_TRIES" err="$WORK/run-list.err"
   for ((n = 1; n <= tries; n++)); do
-    out="$(gh_r run list --workflow "$wf" --branch "$TAG" --status success --limit "$limit" --json databaseId --jq '.[].databaseId')"
+    out="$(gh_r run list --workflow "$wf" --branch "$TAG" --status success --limit "$limit" --json databaseId --jq '.[].databaseId' 2>"$err")" || out=""
     if [ -n "$out" ]; then echo "$out"; return 0; fi
-    [ "$n" -lt "$tries" ] && sleep "${RELEASE_RUN_FIND_SLEEP:-3}"
+    if [ "$n" -lt "$tries" ]; then
+      say "  $wf run listing on $TAG empty or gh failed; retry $((n + 1))/$tries" >&2
+      sleep "${RELEASE_RUN_FIND_SLEEP:-3}"
+    fi
   done
+  say "  $wf run listing on $TAG still empty or failing after $tries tries" >&2
+  [ -s "$err" ] && cat "$err" >&2
   return 0
+}
+
+# read_run_log <run id>: the run's log on stdout. A failed or empty `gh run view --log` is retried
+# like an empty listing (the same 2026-10-22 incident class); after the last try gh's stderr is
+# passed on and the function fails, so a caller refuses for an unreadable log, not a missing line.
+read_run_log() {
+  local id="$1" n out tries="$RUN_LIST_TRIES" err="$WORK/run-view.err"
+  for ((n = 1; n <= tries; n++)); do
+    out="$(gh_r run view "$id" --log 2>"$err")" || out=""
+    if [ -n "$out" ]; then printf '%s\n' "$out"; return 0; fi
+    if [ "$n" -lt "$tries" ]; then
+      say "  run $id log empty or gh failed; retry $((n + 1))/$tries" >&2
+      sleep "${RELEASE_RUN_FIND_SLEEP:-3}"
+    fi
+  done
+  say "  run $id log still unreadable after $tries tries" >&2
+  [ -s "$err" ] && cat "$err" >&2
+  return 1
 }
 
 latest_success_run() { # latest_success_run <workflow>
@@ -350,7 +380,8 @@ stage5() {
 
 # ---------------------------------------------------------------- stage 6 / 7
 npm_log_plus_line() { # npm_log_plus_line <run id>
-  gh_r run view "$1" --log 2>/dev/null | grep -F "+ $NPM_PKG@$VERSION" | head -1 || true
+  local log; log="$(read_run_log "$1")" || return 0
+  grep -F "+ $NPM_PKG@$VERSION" <<<"$log" | head -1 || true
 }
 
 stage6() {
@@ -404,8 +435,8 @@ find_npm_publish_run() {
 
 finish_npm() {
   GIT_HEAD="$(registry_gitHead)"
-  if [ -z "$RUN_NPM" ]; then die "registry entry is clean but no successful publish-npm run on $TAG has a '+ $NPM_PKG@$VERSION' log line"; fi
-  local log; log="$(gh_r run view "$RUN_NPM" --log 2>/dev/null)"
+  if [ -z "$RUN_NPM" ]; then die "registry entry is clean but no successful publish-npm run on $TAG was found with a '+ $NPM_PKG@$VERSION' log line after $RUN_LIST_TRIES tries (the run listing stayed empty or gh failed, or no run's log carries the line; gh's stderr, if any, is above)"; fi
+  local log; log="$(read_run_log "$RUN_NPM")" || die "could not read run $RUN_NPM's log after $RUN_LIST_TRIES tries (gh failed or returned nothing; gh's stderr, if any, is above)"
   grep -qF "+ $NPM_PKG@$VERSION" <<<"$log" || die "run $RUN_NPM log has no '+ $NPM_PKG@$VERSION' line"
   TLOG_URL="$(grep -Eo 'https://search\.sigstore\.dev/[^ ]+' <<<"$log" | head -1 || true)"
   say "  npm run $RUN_NPM; gitHead ${GIT_HEAD:-none}; transparency log: ${TLOG_URL:-<not found in run log>}"
