@@ -14543,6 +14543,93 @@ interface GitHistoryEntry {
   path: string;
 }
 
+// #567: when one of A2's whole-history reads stops at Cejel's own output limit or timeout, it is
+// re-run over the commit list in pages and batches, each small enough to finish within those
+// limits, instead of being given up. Only a read that hits a limit falls back, so every other
+// repository is read exactly as before, byte for byte.
+const HISTORY_COMMIT_PAGE = 50_000;
+const HISTORY_COMMIT_BATCH = 1_000;
+
+function stoppedAtOwnLimit(result: GitExecResult): boolean {
+  return !result.ok && (result.reason === 'buffer_exceeded' || result.reason === 'timeout');
+}
+
+/**
+ * #567: `git rev-list HEAD` in pages of HISTORY_COMMIT_PAGE commits, in the same order as one
+ * call. A page that fails is declared, and the commits read so far are returned.
+ */
+function readHistoryCommitsInPages(
+  repoPath: string,
+  scanLimitations: Set<string>,
+  operation: string,
+): string[] {
+  const commits: string[] = [];
+  for (let skip = 0; ; skip += HISTORY_COMMIT_PAGE) {
+    const page = execGit(['rev-list', `--max-count=${HISTORY_COMMIT_PAGE}`, `--skip=${skip}`, 'HEAD'], {
+      cwd: repoPath,
+    });
+    if (!page.ok) {
+      if (!isExpectedHistoryAbsence(scanLimitations, page)) {
+        declareHistoryFailure(scanLimitations, page.reason, operation);
+      }
+      return commits;
+    }
+    const lines = page.stdout.split('\n').filter((line) => line !== '');
+    commits.push(...lines);
+    if (lines.length < HISTORY_COMMIT_PAGE) return commits;
+  }
+}
+
+/**
+ * #567: runs `argv`, which reads commit ids on stdin, over `commits` in order, HISTORY_COMMIT_BATCH
+ * at a time. A batch that stops at Cejel's own output limit or timeout is halved and retried, so the
+ * outputs, concatenated, are what one call would have printed. A single commit that still hits a
+ * limit, or any other failure, is declared and skipped. `stop` ends the run early once a caller has
+ * what it needs. Returns each batch's output, in order.
+ */
+function runHistoryCommandInBatches(
+  repoPath: string,
+  argv: readonly string[],
+  commits: readonly string[],
+  scanLimitations: Set<string>,
+  operation: string,
+  stop?: (output: string) => boolean,
+): string[] {
+  const outputs: string[] = [];
+  const queue: string[][] = [];
+  for (let start = 0; start < commits.length; start += HISTORY_COMMIT_BATCH) {
+    queue.push(commits.slice(start, start + HISTORY_COMMIT_BATCH));
+  }
+  while (queue.length > 0) {
+    const batch = queue.shift() as string[];
+    const result = execGit(argv, { cwd: repoPath, input: `${batch.join('\n')}\n` });
+    if (result.ok) {
+      outputs.push(result.stdout);
+      if (stop?.(result.stdout)) break;
+      continue;
+    }
+    if (isExpectedHistoryAbsence(scanLimitations, result)) continue;
+    if (stoppedAtOwnLimit(result) && batch.length > 1) {
+      const middle = Math.ceil(batch.length / 2);
+      queue.unshift(batch.slice(0, middle), batch.slice(middle));
+      continue;
+    }
+    declareHistoryFailure(scanLimitations, result.reason, operation);
+  }
+  return outputs;
+}
+
+const HISTORY_TREE_ENUMERATION_ARGV = [
+  'diff-tree',
+  '--stdin',
+  '--root',
+  '--name-only',
+  '-r',
+  '--diff-filter=AM',
+  '-z',
+  '--pretty=format:commit:%H%x00',
+] as const;
+
 function readCredentialHistoryEntries(
   repoPath: string,
   scanLimitations: Set<string>,
@@ -14562,47 +14649,58 @@ function readCredentialHistoryEntries(
   // A report is bound to the checked-out revision. Unrelated local branches and
   // remote-tracking refs are ambient clone state, not evidence for that revision.
   const commitsResult = execGit(['rev-list', 'HEAD'], { cwd: repoPath });
-  if (!commitsResult.ok && !isExpectedHistoryAbsence(scanLimitations, commitsResult)) {
+  let commits: string[] | undefined;
+  if (commitsResult.ok) {
+    commits = undefined;
+  } else if (stoppedAtOwnLimit(commitsResult)) {
+    commits = readHistoryCommitsInPages(repoPath, scanLimitations, 'history revision enumeration');
+  } else if (!isExpectedHistoryAbsence(scanLimitations, commitsResult)) {
     declareHistoryFailure(scanLimitations, commitsResult.reason, 'history revision enumeration');
   }
+  const treeOutputs: string[] = [];
   if (commitsResult.ok) {
-    const historyResult = execGit(
-      [
-        'diff-tree',
-        '--stdin',
-        '--root',
-        '--name-only',
-        '-r',
-        '--diff-filter=AM',
-        '-z',
-        '--pretty=format:commit:%H%x00',
-      ],
-      { cwd: repoPath, input: commitsResult.stdout },
+    const historyResult = execGit(HISTORY_TREE_ENUMERATION_ARGV, {
+      cwd: repoPath,
+      input: commitsResult.stdout,
+    });
+    if (historyResult.ok) {
+      treeOutputs.push(historyResult.stdout);
+    } else if (stoppedAtOwnLimit(historyResult)) {
+      commits = commitsResult.stdout.split('\n').filter((line) => line !== '');
+    } else if (!isExpectedHistoryAbsence(scanLimitations, historyResult)) {
+      declareHistoryFailure(scanLimitations, historyResult.reason, 'history tree enumeration');
+    }
+  }
+  if (commits !== undefined) {
+    treeOutputs.push(
+      ...runHistoryCommandInBatches(
+        repoPath,
+        HISTORY_TREE_ENUMERATION_ARGV,
+        commits,
+        scanLimitations,
+        'history tree enumeration',
+      ),
     );
-    if (!historyResult.ok) {
-      if (!isExpectedHistoryAbsence(scanLimitations, historyResult)) {
-        declareHistoryFailure(scanLimitations, historyResult.reason, 'history tree enumeration');
+  }
+  for (const treeOutput of treeOutputs) {
+    let currentCommit: string | null = null;
+    for (const rawToken of treeOutput.split('\0')) {
+      const token = rawToken.startsWith('\n') ? rawToken.slice(1) : rawToken;
+      if (token.startsWith('commit:')) {
+        currentCommit = token.slice('commit:'.length);
+        continue;
       }
-    } else {
-      let currentCommit: string | null = null;
-      for (const rawToken of historyResult.stdout.split('\0')) {
-        const token = rawToken.startsWith('\n') ? rawToken.slice(1) : rawToken;
-        if (token.startsWith('commit:')) {
-          currentCommit = token.slice('commit:'.length);
-          continue;
-        }
-        const path = token;
-        if (!currentCommit || !path) continue;
-        if (/[\u0000-\u001f\u007f]/.test(path)) {
-          skipControlCharacterHistoryPath(
-            scanLimitations,
-            isCredentialHistoryPath(path, useV36Detectors, useV23PemPrivateKeyGrammar),
-          );
-          continue;
-        }
-        if (!isCredentialHistoryPath(path, useV36Detectors, useV23PemPrivateKeyGrammar)) continue;
-        appendEntry({ commit: currentCommit, path });
+      const path = token;
+      if (!currentCommit || !path) continue;
+      if (/[\u0000-\u001f\u007f]/.test(path)) {
+        skipControlCharacterHistoryPath(
+          scanLimitations,
+          isCredentialHistoryPath(path, useV36Detectors, useV23PemPrivateKeyGrammar),
+        );
+        continue;
       }
+      if (!isCredentialHistoryPath(path, useV36Detectors, useV23PemPrivateKeyGrammar)) continue;
+      appendEntry({ commit: currentCommit, path });
     }
   }
 
@@ -14649,26 +14747,29 @@ function readDeletedCredentialHistoryPaths(
   useV36Detectors = false,
   useV23PemPrivateKeyGrammar = false,
 ): string[] {
-  const historyResult = execGit(
-    [
-      'log',
-      '--no-show-signature',
-      'HEAD',
-      '--diff-filter=D',
-      '--name-only',
-      '-z',
-      '--format=commit:%H%x00',
-    ],
-    { cwd: repoPath },
-  );
-  if (!historyResult.ok) {
+  const flags = ['--diff-filter=D', '--name-only', '-z', '--format=commit:%H%x00'];
+  const historyResult = execGit(['log', '--no-show-signature', 'HEAD', ...flags], { cwd: repoPath });
+  let output: string;
+  if (historyResult.ok) {
+    output = historyResult.stdout;
+  } else if (stoppedAtOwnLimit(historyResult)) {
+    // #567: the same log, one batch of commits at a time, in the same order.
+    const commits = readHistoryCommitsInPages(repoPath, scanLimitations, 'deleted-path history scan');
+    output = runHistoryCommandInBatches(
+      repoPath,
+      ['log', '--no-show-signature', '--no-walk=unsorted', '--stdin', ...flags],
+      commits,
+      scanLimitations,
+      'deleted-path history scan',
+    ).join('\0');
+  } else {
     if (isExpectedHistoryAbsence(scanLimitations, historyResult)) return [];
     declareHistoryFailure(scanLimitations, historyResult.reason, 'deleted-path history scan');
     return [];
   }
   const paths: string[] = [];
   const seen = new Set<string>();
-  for (const rawToken of historyResult.stdout.split('\0')) {
+  for (const rawToken of output.split('\0')) {
     const path = rawToken.startsWith('\n') ? rawToken.slice(1) : rawToken;
     if (path.startsWith('commit:') || !path) continue;
     if (/[\u0000-\u001f\u007f]/.test(path)) {
@@ -15312,16 +15413,31 @@ function readGitHead(repoPath: string): string | null {
 // True if any .env* file has ever been added/modified in git history (including deleted files).
 // A once-committed .env file is a ratable secrets surface even after deletion.
 function hasEnvPathInGitHistory(repoPath: string, scanLimitations: Set<string>): boolean {
-  const historyResult = execGit(
-    ['log', '--no-show-signature', 'HEAD', '--diff-filter=AM', '--name-only', '-z', '--format='],
-    { cwd: repoPath },
-  );
+  const flags = ['--diff-filter=AM', '--name-only', '-z', '--format='];
+  const historyResult = execGit(['log', '--no-show-signature', 'HEAD', ...flags], { cwd: repoPath });
   if (!historyResult.ok) {
+    if (stoppedAtOwnLimit(historyResult)) {
+      // #567: the same log, one batch of commits at a time, stopping at the first .env path.
+      const commits = readHistoryCommitsInPages(repoPath, scanLimitations, 'environment-file history scan');
+      let found = false;
+      runHistoryCommandInBatches(
+        repoPath,
+        ['log', '--no-show-signature', '--no-walk=unsorted', '--stdin', ...flags],
+        commits,
+        scanLimitations,
+        'environment-file history scan',
+        (output) => (found = envPathInHistoryOutput(output, scanLimitations)),
+      );
+      return found;
+    }
     if (isExpectedHistoryAbsence(scanLimitations, historyResult)) return false;
     declareHistoryFailure(scanLimitations, historyResult.reason, 'environment-file history scan');
     return false;
   }
-  const output = historyResult.stdout;
+  return envPathInHistoryOutput(historyResult.stdout, scanLimitations);
+}
+
+function envPathInHistoryOutput(output: string, scanLimitations: Set<string>): boolean {
   if (!output) return false;
   return output.split('\0').some((rawPath) => {
     const path = rawPath.startsWith('\n') ? rawPath.slice(1) : rawPath;
