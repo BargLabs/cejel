@@ -48,5 +48,30 @@
       "repository": "BargLabs/cejel",
       "number": 558
     }
+  },
+  {
+    "statement": "Revert a temporary injection by naming exactly the files it edited, and commit your own work before any revert. In cejel #558 round 2 an agent checked out a parallel branch's scoring files into its worktree to test compatibility, then reverted with git checkout -- src/witan. That also discarded its own uncommitted test edits in src/witan/__tests__. They had to be reapplied from the conversation and re-verified, and only the green rerun showed nothing was lost. Rules: commit (or stash by path) before overlaying or injecting; revert by listing the injected paths, never a directory; and after a revert, check git status shows only the expected paths before trusting a later run.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "git",
+      "process",
+      "agent-error"
+    ],
+    "tags": [
+      "git-checkout",
+      "worktree-hygiene",
+      "injection-revert",
+      "lost-work",
+      "write-through"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-10-22T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 558
+    }
   }
 ]
