@@ -25,7 +25,7 @@ import {
   falseAssuranceFixture,
   lfsPointerFor,
 } from './fixtures/false-assurance-fixtures.js';
-import { checkNoRise } from './v27-no-rise.js';
+import { checkNoRise, lostFindings } from './v27-no-rise.js';
 
 // #517, #518, #519, #520, #442: places where a v17 certificate asserted more than Cejel read.
 // Synthetic fixtures only (fixtures/false-assurance-fixtures.ts), built from each issue's repro.
@@ -844,9 +844,11 @@ describe('v27 keeps every collector critical finding v17 reports', () => {
         );
         if (own.length === 0) continue;
         const v27 = after.criteria.find(({ id }) => id === v17.id);
-        expect(v27?.findings.map(({ summary }) => summary), v17.id).toEqual(
-          expect.arrayContaining(own.map(({ summary }) => summary)),
-        );
+        // Same summary and still critical: a downgrade to warning is a loss (#531 review).
+        expect(
+          v27?.findings.filter(({ severity }) => severity === 'critical').map(({ summary }) => summary),
+          v17.id,
+        ).toEqual(expect.arrayContaining(own.map(({ summary }) => summary)));
       }
     });
   }
@@ -861,6 +863,7 @@ describe('no score, status or composite rises from v17 to v27 on any fixture', (
   for (const fixture of FALSE_ASSURANCE_FIXTURES) {
     it(fixture.name, () => {
       expect(checkNoRise(report(fixture.name, V17), report(fixture.name, V27)).problems).toEqual([]);
+      expect(lostFindings(report(fixture.name, V17), report(fixture.name, V27))).toEqual([]);
     });
   }
 

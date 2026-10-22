@@ -12,13 +12,21 @@ import { SHALLOW_HISTORY_V27_ABSTENTION } from '../history-depth.js';
 //
 //   - a status may not move toward assurance, and a criterion v17 left unscored (not applicable or
 //     insufficient_data) may not be scored, or change unscored state, under v27;
-//   - (a) every insufficient_data that v27 introduces must be a read-failure abstention: listed in
-//     contentReadSummary.affectedCriteria or the v27 shallow-clone abstention of A2 or B2, scored
-//     0, and kept in its category's denominator (ADR-0001: an abstention can never raise a
-//     composite). The denominator is checked arithmetically against the reported composite, not
-//     inferred from a label;
+//   - (a) every insufficient_data that v27 introduces must be a read-failure abstention, scored 0
+//     and kept in its category's denominator (ADR-0001: an abstention can never raise a
+//     composite). A read failure is either the v27 shallow-clone abstention of A2 or B2, or a
+//     content-read abstention: listed in contentReadSummary.affectedCriteria AND carrying the
+//     read-failure note (Git LFS pointers, or content that could not be read), with a read-failure
+//     reason counted in byReason. affectedCriteria alone is not evidence: it also lists criteria
+//     whose only skips were self-imposed (too_large, excluded_by_extension), which leave the
+//     composite. The denominator is checked arithmetically against the reported composite, not
+//     inferred from a label. For criteria insufficient_data under both rubrics the arithmetic is
+//     lenient: they are counted as the fewest v17's composite is consistent with;
 //   - (b) a composite scored under v17 and null under v27 is a move to report, and fails, as does
 //     the reverse (which norise.mjs already counts as a rise).
+//
+// lostFindings, beside it, requires every v17 finding to survive under v27 at the same or a higher
+// severity, with the removals v27 makes by rule enumerated there.
 
 export const NO_RISE_COMPOSITES = ['overallScore', 'codeTrustScore', 'processTrustScore'] as const;
 
@@ -79,6 +87,21 @@ function keptCounts(scored: readonly WitanCriterionScore[], most: number, report
   return counts;
 }
 
+// The notes buildWitanInputFromRepo's wholesale abstention writes for a read failure (repo-signals.ts,
+// wholesaleCriterionAbstention). The self-imposed note ("... a disclosed coverage limit, not a read
+// failure, and does not affect the composite score.") is deliberately absent.
+export const READ_FAILURE_NOTES: readonly string[] = [
+  'Cejel abstained on this criterion because relevant files in this checkout are Git LFS pointers, so their content was not read. Fetch the LFS content (git lfs pull) and re-scan.',
+  'Cejel abstained on this criterion because one or more relevant repository files could not be read. Resolve the content-read limitations and re-scan.',
+];
+
+function contentReadFailure(report: WitanReport, criterion: WitanCriterionScore): boolean {
+  const summary = report.contentReadSummary;
+  if (!summary || !summary.affectedCriteria.includes(criterion.id)) return false;
+  const readFailures = summary.byReason.unreadable + summary.byReason.deniedPath + (summary.byReason.lfsPointer ?? 0);
+  return readFailures > 0 && READ_FAILURE_NOTES.includes(criterion.notes ?? '');
+}
+
 function shallowAbstention(report: WitanReport, criterion: WitanCriterionScore): boolean {
   return (
     (criterion.id === 'A2' || criterion.id === 'B2') &&
@@ -117,11 +140,11 @@ export function checkNoRise(before: WitanReport, after: WitanReport): NoRiseResu
 
     if (v27.status === 'insufficient_data' && v17.status !== 'insufficient_data') {
       // (a) an abstention v27 introduced.
-      const contentRead = (after.contentReadSummary?.affectedCriteria ?? []).includes(v27.id);
+      const contentRead = contentReadFailure(after, v27);
       const shallow = shallowAbstention(after, v27);
       if (!contentRead && !shallow) {
         problems.push(
-          `${v27.id} abstains under v27 (was ${v17.status}) without a read failure: not in contentReadSummary.affectedCriteria and not the shallow-clone abstention`,
+          `${v27.id} abstains under v27 (was ${v17.status}) without a read failure: neither a content-read failure (in contentReadSummary.affectedCriteria with the read-failure note) nor the shallow-clone abstention`,
         );
       }
       if (v27.score !== 0) problems.push(`${v27.id} abstains under v27 with score ${v27.score}, not 0`);
@@ -200,10 +223,50 @@ export function checkNoRise(before: WitanReport, after: WitanReport): NoRiseResu
   };
 }
 
+const FINDING_SEVERITY: Readonly<Record<string, number>> = { info: 1, warning: 2, critical: 3 };
+
 /**
- * v27 abstains; it does not hide. A collector's own critical finding under v17 is still present
- * under v27 (the curated test's preservation property, applied to any pair of reports).
+ * v27 abstains; it does not hide. Every finding v17 reports is still reported under v27, on the
+ * same criterion, with the same summary and the same or a higher severity. The removals v27 makes
+ * by rule, each because the finding stated more than Cejel read:
+ *
+ *   - a metric-derived summary ("<id> metric-derived score is ...") restates the score, so it
+ *     changes whenever the score falls; the score itself is checked by checkNoRise;
+ *   - a criterion that abstains as a read failure under v27 (checkNoRise's (a)) reports nothing it
+ *     derived from the content it did not read. A critical finding is never removed this way:
+ *     v27 keeps a collector's critical finding through an LFS abstention, and A2 does not abstain
+ *     on a shallow clone while one stands;
+ *   - A1's "Test suite files are present, ..." finding, where v27 measures a test_to_source_ratio of
+ *     0: the only test-shaped files were conftest.py, which v27 does not count as tests (#518), so
+ *     the finding's premise is false under v27.
  */
+export function lostFindings(before: WitanReport, after: WitanReport): string[] {
+  const lost: string[] = [];
+  for (const v17 of before.criteria) {
+    const v27 = after.criteria.find(({ id }) => id === v17.id);
+    const abstained = v27?.status === 'insufficient_data' && v17.status !== 'insufficient_data';
+    for (const finding of v17.findings) {
+      if (finding.summary.includes('metric-derived score')) continue;
+      if (abstained && finding.severity !== 'critical') continue;
+      if (
+        v17.id === 'A1' &&
+        finding.summary.startsWith('Test suite files are present') &&
+        v27?.metrics.find(({ name }) => name === 'test_to_source_ratio')?.value === 0
+      ) {
+        continue;
+      }
+      const kept = v27?.findings.some(
+        ({ summary, severity }) =>
+          summary === finding.summary &&
+          (FINDING_SEVERITY[severity] ?? 0) >= (FINDING_SEVERITY[finding.severity] ?? 99),
+      );
+      if (!kept) lost.push(`${v17.id}: ${finding.severity} "${finding.summary}" is absent or less severe under v27`);
+    }
+  }
+  return lost;
+}
+
+/** The critical findings v17 reports that v27 does not report as critical with the same summary. */
 export function lostCriticalFindings(before: WitanReport, after: WitanReport): string[] {
   const lost: string[] = [];
   for (const v17 of before.criteria) {
@@ -212,7 +275,7 @@ export function lostCriticalFindings(before: WitanReport, after: WitanReport): s
     );
     if (own.length === 0) continue;
     const v27 = after.criteria.find(({ id }) => id === v17.id);
-    const kept = new Set(v27?.findings.map(({ summary }) => summary) ?? []);
+    const kept = new Set(v27?.findings.filter(({ severity }) => severity === 'critical').map(({ summary }) => summary) ?? []);
     for (const { summary } of own) if (!kept.has(summary)) lost.push(`${v17.id}: ${summary}`);
   }
   return lost;

@@ -13,19 +13,26 @@ import { lfsPointerFor } from './false-assurance-fixtures.js';
 // __tests__/), so the no-rise property also runs over shapes generated from the dimensions the
 // fixes read, rather than hand-picked:
 //
-//   core (exhaustive product)   test-directory name x conftest placement x hook form
-//   covered pairwise            LFS placement x workflow shape x CRLF workflows x git history x
-//                               configuration surface (none, an .env template, a committed secret)
+//   exhaustive product   test-directory name x conftest placement x hook form x LFS placement
+//                        (the four #531 names), plus, for every test-directory x conftest x hook
+//                        combination, both a full and a depth-1 shape with no LFS pointer
+//   covered pairwise     workflow shape x CRLF workflows x git history x configuration surface
+//                        (none, an .env template, a committed secret), against each other and the
+//                        four above
 //
-// Every combination of the three core dimensions is generated. The four others are assigned to
-// those rows greedily so that every valid pair of values, across all seven dimensions, appears in
-// at least one shape (rows are appended for any pair the core rows leave uncovered). Generation is
-// deterministic: no randomness, a fixed tie-break, fixed commit dates, so a failure reproduces by
-// its shape name.
+// Rows of the product that only repeat another shape are generated once: a hook in a conftest.py
+// that is itself an LFS pointer, or a module-level pytestmark in modules that are all pointers, has
+// no effect, so it is the plain shape. The four pairwise dimensions are assigned greedily so that
+// every pair of values, across all eight dimensions, that takes effect appears in at least one
+// shape; rows are appended for any pair the product leaves uncovered. Generation is deterministic:
+// no randomness, a fixed tie-break, fixed commit dates, so a failure reproduces by its shape name.
+//
+// Every shape carries a changelog, a security policy and a runbook, so B4 is scored and the process
+// composite can show whether a B2 or B3 abstention stayed in its denominator.
 //
 // To extend: add a value to a dimension (and its files below), or a workflow shape to
-// WORKFLOW_SHAPES. A new value joins the pairwise cover automatically; the case count grows by the
-// rows it needs.
+// WORKFLOW_SHAPES. A new value joins the cover automatically; the case count grows by the rows it
+// needs (a value of a product dimension multiplies it).
 
 export const TEST_DIRECTORIES = ['tests', 'test', 'testing', 'spec', '__tests__', 'src/cachelib/tests', '.'] as const;
 export const CONFTEST_PLACEMENTS = ['none', 'root', 'test-directory', 'nested', 'only'] as const;
@@ -92,9 +99,11 @@ export interface NoRiseShape {
 
 type Dimension = keyof NoRiseShape;
 
-const CORE: readonly Dimension[] = ['testDirectory', 'conftest', 'hook'];
-// Assigned in this order, so a value's constraints only look at dimensions already set.
-const COVERED: readonly Dimension[] = ['workflow', 'lineEndings', 'lfs', 'history', 'configuration'];
+/** The exhaustive product, in this order. */
+const PRODUCT: readonly Dimension[] = ['testDirectory', 'conftest', 'hook', 'lfs'];
+// Covered pairwise, assigned in this order, so a value's constraints only look at dimensions set.
+const COVERED: readonly Dimension[] = ['workflow', 'lineEndings', 'history', 'configuration'];
+const ALL: readonly Dimension[] = [...PRODUCT, ...COVERED];
 
 export const DIMENSION_VALUES: Readonly<Record<Dimension, readonly string[]>> = {
   testDirectory: TEST_DIRECTORIES,
@@ -107,17 +116,18 @@ export const DIMENSION_VALUES: Readonly<Record<Dimension, readonly string[]>> = 
   configuration: CONFIGURATIONS,
 };
 
-const CONFTEST_HOOKS = new Set(HOOK_FORMS.filter((hook) => hook !== 'plain' && !hook.startsWith('pytestmark')));
+const CONFTEST_HOOKS = new Set<string>(HOOK_FORMS.filter((hook) => hook !== 'plain' && !hook.startsWith('pytestmark')));
+const isModuleMark = (hook: string | undefined): boolean => hook?.startsWith('pytestmark') ?? false;
 
 /**
- * The binary constraints between dimensions: a combination that would only repeat another shape
- * (a hook with no conftest to hold it, a pointer on a file the shape lacks, CRLF with no workflow).
+ * The binary constraints between dimensions: a combination that names a file the shape lacks (a
+ * hook with no conftest to hold it, a pointer on a file the shape lacks, CRLF with no workflow).
  * Each involves two dimensions, so a pair is valid exactly when this accepts it.
  */
 function compatible(shape: Partial<NoRiseShape>): boolean {
   const { testDirectory, conftest, hook, lfs, workflow, lineEndings } = shape;
   if (conftest === 'none' && hook !== undefined && CONFTEST_HOOKS.has(hook)) return false;
-  if (conftest === 'only' && hook?.startsWith('pytestmark')) return false;
+  if (conftest === 'only' && isModuleMark(hook)) return false;
   if (testDirectory === '.' && conftest === 'test-directory') return false;
   if (conftest === 'none' && lfs === 'conftest') return false;
   if (conftest === 'only' && (lfs === 'one-test-module' || lfs === 'every-test-module')) return false;
@@ -125,20 +135,35 @@ function compatible(shape: Partial<NoRiseShape>): boolean {
   return true;
 }
 
-const ALL: readonly Dimension[] = [...CORE, ...COVERED];
+/** Whether a hook form takes effect beside this LFS placement (it does not inside a pointer). */
+function hookTakesEffect(hook: string, lfs: string): boolean {
+  if (lfs === 'conftest' && CONFTEST_HOOKS.has(hook)) return false;
+  if (lfs === 'every-test-module' && isModuleMark(hook)) return false;
+  return true;
+}
+
+/** The shape with a hook that has no effect written as 'plain', the shape it repeats. */
+function effective<T extends Partial<NoRiseShape>>(shape: T): T {
+  return shape.hook !== undefined && shape.lfs !== undefined && !hookTakesEffect(shape.hook, shape.lfs)
+    ? { ...shape, hook: 'plain' }
+    : shape;
+}
 
 function pairKey(a: Dimension, aValue: string, b: Dimension, bValue: string): string {
   return ALL.indexOf(a) < ALL.indexOf(b) ? `${a}=${aValue}|${b}=${bValue}` : `${b}=${bValue}|${a}=${aValue}`;
 }
 
-/** Every valid pair of values across two different dimensions. */
+/** Every pair of values, across two different dimensions, that a shape can hold and that takes effect. */
 export function validPairs(): Set<string> {
   const pairs = new Set<string>();
   ALL.forEach((a, i) => {
     for (const b of ALL.slice(i + 1)) {
       for (const aValue of DIMENSION_VALUES[a]) {
         for (const bValue of DIMENSION_VALUES[b]) {
-          if (compatible({ [a]: aValue, [b]: bValue } as Partial<NoRiseShape>)) pairs.add(pairKey(a, aValue, b, bValue));
+          const pair = { [a]: aValue, [b]: bValue } as Partial<NoRiseShape>;
+          if (!compatible(pair)) continue;
+          if (pair.hook !== undefined && pair.lfs !== undefined && !hookTakesEffect(pair.hook, pair.lfs)) continue;
+          pairs.add(pairKey(a, aValue, b, bValue));
         }
       }
     }
@@ -146,10 +171,15 @@ export function validPairs(): Set<string> {
   return pairs;
 }
 
+/** The pairs a shape holds that take effect (a hook with no effect pairs with nothing). */
 export function pairsOf(shape: NoRiseShape): string[] {
+  const inert = !hookTakesEffect(shape.hook, shape.lfs);
   const pairs: string[] = [];
   ALL.forEach((a, i) => {
-    for (const b of ALL.slice(i + 1)) pairs.push(pairKey(a, shape[a], b, shape[b]));
+    for (const b of ALL.slice(i + 1)) {
+      if (inert && (a === 'hook' || b === 'hook')) continue;
+      pairs.push(pairKey(a, shape[a], b, shape[b]));
+    }
   });
   return pairs;
 }
@@ -166,12 +196,26 @@ function product(dimensions: readonly Dimension[]): Partial<NoRiseShape>[] {
   );
 }
 
+/** Every test-directory x conftest x hook x LFS combination that takes effect, once each. */
+export function productRows(): Partial<NoRiseShape>[] {
+  const seen = new Set<string>();
+  return product(PRODUCT)
+    .map(effective)
+    .filter((row) => {
+      const key = PRODUCT.map((dimension) => row[dimension]).join('|');
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
 /** Fills the unset covered dimensions of `row`, each with the valid value that covers most new pairs. */
 function complete(row: Partial<NoRiseShape>, uncovered: Set<string>, rowIndex: number): NoRiseShape {
   const filled: Partial<NoRiseShape> = { ...row };
+  const inert = !hookTakesEffect(row.hook!, row.lfs!);
   for (const dimension of COVERED) {
     if (filled[dimension] !== undefined) continue;
-    const set = ALL.filter((other) => filled[other] !== undefined);
+    const set = ALL.filter((other) => filled[other] !== undefined && !(inert && other === 'hook'));
     const candidates = DIMENSION_VALUES[dimension].filter((value) => compatible({ ...filled, [dimension]: value }));
     const gains = candidates.map(
       (value) => set.filter((other) => uncovered.has(pairKey(dimension, value, other, filled[other]!))).length,
@@ -188,7 +232,17 @@ export function shapeName(shape: NoRiseShape): string {
   return ALL.map((dimension) => `${dimension}=${shape[dimension]}`).join(' ');
 }
 
-/** The generated shapes, in a fixed order, each distinct in what it commits. */
+/** The test-directory x conftest x hook combination a shape belongs to. */
+export function coreKey(shape: Pick<NoRiseShape, 'testDirectory' | 'conftest' | 'hook'>): string {
+  return `${shape.testDirectory}|${shape.conftest}|${shape.hook}`;
+}
+
+/** Every valid test-directory x conftest x hook combination. */
+export function coreKeys(): string[] {
+  return product(['testDirectory', 'conftest', 'hook']).map((row) => coreKey(row as NoRiseShape));
+}
+
+/** The generated shapes, in a fixed order, each distinct. */
 export function generateNoRiseShapes(): NoRiseShape[] {
   const uncovered = validPairs();
   const shapes: NoRiseShape[] = [];
@@ -196,22 +250,32 @@ export function generateNoRiseShapes(): NoRiseShape[] {
     shapes.push(shape);
     for (const pair of pairsOf(shape)) uncovered.delete(pair);
   };
-  product(CORE).forEach((row, index) => add(complete(row, uncovered, index)));
-  // Any pair the core rows did not reach gets a row of its own, seeded from a core row that admits it.
+  for (const row of productRows()) {
+    // With no pointer, the combination gets both histories, so each test-directory x conftest x hook
+    // combination has a full-history shape in which v27 reads every file (A1 can be scored).
+    const rows = row.lfs === 'none' ? HISTORIES.map((history) => ({ ...row, history })) : [row];
+    for (const seeded of rows) add(complete(seeded, uncovered, shapes.length));
+  }
+  // Any pair the product did not reach gets a row of its own, seeded from a product row admitting it.
+  const rows = productRows();
   for (const pair of [...uncovered]) {
     if (!uncovered.has(pair)) continue;
     const seed = Object.fromEntries(pair.split('|').map((part) => part.split('='))) as Partial<NoRiseShape>;
-    const core = product(CORE).find((row) => compatible({ ...row, ...seed }) && CORE.every((d) => seed[d] === undefined || seed[d] === row[d]));
-    if (!core) throw new Error(`no core row admits ${pair}`);
-    add(complete({ ...core, ...seed }, uncovered, shapes.length));
+    const base = rows.find(
+      (row) =>
+        compatible({ ...row, ...seed }) &&
+        PRODUCT.every((dimension) => seed[dimension] === undefined || seed[dimension] === row[dimension]),
+    );
+    if (!base) throw new Error(`no product row admits ${pair}`);
+    add(complete({ ...base, ...seed }, uncovered, shapes.length));
   }
-  const seen = new Set<string>();
-  return shapes.filter((shape) => {
-    const key = JSON.stringify(Object.entries(shapeFiles(shape)).sort()) + shape.history;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
+  return shapes;
+}
+
+/** Shard `index` of `count`, by test-directory x conftest x hook combination, so each shard holds whole combinations. */
+export function noRiseShard(shapes: readonly NoRiseShape[], index: number, count: number): NoRiseShape[] {
+  const keys = coreKeys();
+  return shapes.filter((shape) => keys.indexOf(coreKey(shape)) % count === index);
 }
 
 // ---- Materialisation -------------------------------------------------------------------------
@@ -265,6 +329,14 @@ const CONFIGURATION_FILES: Readonly<Record<(typeof CONFIGURATIONS)[number], Read
   },
 };
 
+// A changelog, security policy and runbook make B4 scored, so the process composite has a scored
+// criterion besides B2 and B3 and can show whether their abstention stayed in its denominator.
+const PROCESS_FILES: Readonly<Record<string, string>> = {
+  'CHANGELOG.md': '# Changelog\n\n## 1.0.0 - 2026-09-15\n\n- First release.\n\n## 0.9.0 - 2026-08-01\n\n- Beta.\n',
+  'SECURITY.md': '# Security\n\nReport issues privately to the maintainers.\n',
+  'docs/runbook.md': '# Runbook\n\n## Release\n\nTag and publish from the 2026 checklist.\n',
+};
+
 const under = (directory: string, path: string): string => (directory === '' ? path : `${directory}/${path}`);
 
 /** The files one shape commits, path -> contents. */
@@ -282,6 +354,7 @@ export function shapeFiles(shape: NoRiseShape): Record<string, string> {
     'src/cachelib/lru.py':
       'class LRU:\n    def __init__(self, size):\n        self.size = size\n        self.items = {}\n\n    def get(self, key):\n        return self.items.get(key)\n',
     ...CONFIGURATION_FILES[shape.configuration],
+    ...PROCESS_FILES,
   };
   const modules: string[] = [];
   if (shape.conftest !== 'only') {
@@ -317,7 +390,10 @@ export function shapeFiles(shape: NoRiseShape): Record<string, string> {
               : [];
   for (const path of pointed) {
     if (path === undefined || files[path] === undefined) throw new Error(`${shapeName(shape)}: nothing to point at`);
-    files[path] = lfsPointerFor(files[path]);
+    const pointer = lfsPointerFor(files[path]);
+    // A workflow pointer keeps the shape's line endings, so CRLF takes effect beside it (#519
+    // recognises CRLF pointers).
+    files[path] = shape.lfs === 'workflow' && shape.lineEndings === 'crlf' ? pointer.replace(/\n/g, '\r\n') : pointer;
   }
   return files;
 }
