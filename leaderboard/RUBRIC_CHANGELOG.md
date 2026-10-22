@@ -686,22 +686,35 @@ after two review passes on #558.
   abstentions it holds, each at 0, so the check requires every introduced abstention on top of
   those v17's composite holds. For criteria that are `insufficient_data` under both rubrics this is
   lenient: they are counted as the fewest that v17's composite is consistent with.
-  **Pending class.** #560 adds a third v27 read failure: A2 abstains when Cejel's reads of earlier
-  commits fail (a git error, timeout or output limit). Whichever of #558 and #560 lands second adds
-  that class to the table. It is recognised by the note prefix
-  `WITAN_V27_A2_FAILED_HISTORY_NOTE_PREFIX` and the `scanLimitations` entry ending "Cejel continued
-  with reduced Git history evidence.", never by the note alone. Until then the checker reports those
-  abstentions as unrecognised.
+  **Interaction with #560.** #560 adds a third v27 read failure: A2 abstains when Cejel's reads of
+  earlier commits do not all complete. The causes include a git error, a timeout and an output
+  limit, and, by operator decision, Cejel's own size and time limits and its 5,000-blob history
+  cap. #560 also makes shallow A2 abstain where v17 says not applicable, and it edits
+  `false-assurance-v27.test.ts` (the #442 sentence). Whichever of #558 and #560 lands second must:
+  - add the failed-history class to the table, recognised by the note prefix
+    `WITAN_V27_A2_FAILED_HISTORY_NOTE_PREFIX` and the `scanLimitations` entry ending "Cejel
+    continued with reduced Git history evidence.", never by the note alone;
+  - rerun all six generated shards and the curated test on the merged code.
+
+  Until then the checker reports those abstentions as unrecognised.
 - **(b) Null composites are compared.** A composite scored under v17 and null under v27 fails, as
   does the reverse. So does a criterion that v17 left `not_applicable` or `insufficient_data` and
   v27 scores or moves to another unscored state, except a read-failure abstention under (a).
 - **Findings.** Every v17 finding must still be reported under v27 on the same criterion, with the
-  same summary and the same or a higher severity. A critical finding must stay critical; the curated
-  preservation test now checks severity too. Three removals are allowed, each by a stated rule:
+  same summary, the same evidence pointer (kind, path, line, URL and content hash; the label is
+  wording and is not compared) and the same or a higher severity. Collector summaries are generic
+  and only the pointer names the file, so a finding re-cited to another file counts as lost. A
+  critical finding must stay critical at the same pointer; the curated preservation test now checks
+  severity and pointer too. The allowed removals are each stated as a rule:
   - a metric-derived summary, which restates the score;
-  - a non-critical finding on a criterion that abstains as a read failure;
+  - a non-critical finding on a criterion whose v27 abstention is a recognised read failure (checked
+    against the table, not assumed);
   - A1's "Test suite files are present" finding where v27 measures a test-to-source ratio of 0
     (the only test-shaped files were conftest.py, #518).
+
+  One re-citation is allowed: a non-critical finding that v17 anchors to a conftest.py may be
+  anchored under v27 to a file that is not a conftest.py, with the same summary and evidence kind.
+  v27 does not cite conftest.py as test evidence (#518).
 - **(c) Generated shapes.** `src/witan/__tests__/fixtures/v27-norise-shapes.ts` generates 1,563
   repositories:
   - **The full product, every combination that takes effect:** 7 test-directory names (including
@@ -721,10 +734,16 @@ after two review passes on #558.
   - **782 shapes are depth-1 clones.** Generation is deterministic, with no randomness and fixed
     commit dates, and a failing shape's test name holds all its coordinates.
   - **To extend it,** add an entry to `WORKFLOW_SHAPES` or a value to a dimension.
-- **Coverage is asserted on what the scorer did, not on labels.** In each of the six shard files,
-  A1 must be scored under v27 in every test-directory × conftest × hook combination the shard
-  holds. Every abstention kind seen on every criterion must have at least one case where the
-  composite arithmetic shows it held in the denominator.
+- **Coverage is asserted on what the scorer did, not on labels.** Each of the six shard files checks
+  the combinations it holds:
+  - A1 must be scored under v27 in every test-directory × conftest × hook combination;
+  - B2 and B3 must be scored for every workflow shape × line ending held readable on full history;
+  - every abstention kind seen on every criterion must have at least one case where the composite
+    arithmetic shows it held in the denominator.
+
+  `false-assurance-v27-shards.test.ts` requires exactly six shard files, with file n registering
+  shard n − 1 exactly once. A missing file, a duplicated index, or a raised shard count without a
+  new file therefore fails instead of silently dropping shapes.
 
 The checker is `src/witan/__tests__/v27-no-rise.ts`, and the curated test and the generated suite
 both use it. The suite is `src/witan/__tests__/v27-no-rise-generated-suite.ts`, run as
@@ -733,9 +752,10 @@ both use it. The suite is `src/witan/__tests__/v27-no-rise-generated-suite.ts`, 
 
 **Result.** On the candidate at `release/0.6.8` `8deafad9f`, the checker found no rise, no
 self-imposed abstention and no lost or weakened finding, on the curated fixtures or the generated
-shapes. The generated shapes produced 3,392 introduced abstentions, all read failures: 2,615
-content reads and 777 shallow-clone abstentions. The composite arithmetic shows every one of them
-held in the denominator. Composites fell in 1,482 of the 1,563 shapes, and none rose.
+shapes. The tests assert that result. One further measurement is not asserted by any test; it comes
+from one run of the generated shapes at `03226caba`, before the round-2 changes: 3,392 introduced
+abstentions, all read failures (2,615 content reads and 777 shallow-clone abstentions), and for
+every one the composite arithmetic shows it held in the denominator.
 
 **Runtime.** About 0.38 s of CPU per shape, almost all of it the two scans. The six shard files
 take about 175 s each and run in parallel. The full suite went from 4 min 29 s (139 files, before
