@@ -2742,7 +2742,11 @@ function collectA2IsolationEvidence(
   // clone is shallow (its history reads completed over a truncated history), or one of A2's history
   // reads failed (a git error, timeout or output limit; on a partial clone, a history object that
   // is not present and was not fetched). Both are computed once the two reads above have run.
-  const historyIncompleteness = a2HistoryIncompleteness(repoPath, a2HistoryReads);
+  const historyIncompleteness = a2HistoryIncompleteness(
+    repoPath,
+    a2HistoryReads,
+    historySecretScan?.truncated === true,
+  );
   // DB client import file (checked before migrationFiles so we can use it as evidence anchor).
   const dbLayerImportFile =
     migrationFiles.length === 0
@@ -5293,27 +5297,38 @@ const V27_A2_SHALLOW_APPLICABILITY_NOTE =
  * - `limitHits`: a read stopped at one of Cejel's own limits (an output limit or the timeout). These
  *   fire on complete clones too, deterministically for a large history, so a re-scan of the same
  *   repository does not lift them;
- * - `otherFailure`: any other failed read (a missing object, as on a partial clone, or a git error).
+ * - `otherFailure`: any other failed read (a missing object, as on a partial clone, or a git error);
+ * - `blobCapHit`: the history secret scan stopped at its own cap on how many historical files it
+ *   reads (HISTORY_SECRET_SCAN_CREDENTIAL_BLOB_LIMIT) before reading every candidate. Counted as an
+ *   incomplete read by the operator's decision of 2026-10-22 on #560 (#526); like the limits above
+ *   it fires on complete clones and a re-scan does not lift it. It is not a git failure, so it is
+ *   not in the scan limitations; the history secret scan's own finding names it where A2 scores.
  */
 export interface A2HistoryIncompleteness {
   readonly shallow: boolean;
   readonly limitHits: readonly string[];
   readonly otherFailure: boolean;
+  readonly blobCapHit?: boolean;
 }
 
 function a2HistoryIncompleteness(
   repoPath: string,
   reads: HistoryReadRecorder,
+  blobCapHit: boolean,
 ): A2HistoryIncompleteness | null {
   const shallow = isShallowRepository(repoPath);
   const limitHits = [...reads.limitHits].sort();
-  return shallow || limitHits.length > 0 || reads.otherFailure
-    ? { shallow, limitHits, otherFailure: reads.otherFailure }
+  return shallow || limitHits.length > 0 || reads.otherFailure || blobCapHit
+    ? { shallow, limitHits, otherFailure: reads.otherFailure, ...(blobCapHit ? { blobCapHit } : {}) }
     : null;
 }
 
 const historyReadFailed = (incompleteness: A2HistoryIncompleteness) =>
-  incompleteness.limitHits.length > 0 || incompleteness.otherFailure;
+  incompleteness.limitHits.length > 0 || incompleteness.otherFailure || incompleteness.blobCapHit === true;
+
+// A function, not a constant: HISTORY_SECRET_SCAN_CREDENTIAL_BLOB_LIMIT is declared further down.
+const historySecretScanCapName = () =>
+  `cap of ${HISTORY_SECRET_SCAN_CREDENTIAL_BLOB_LIMIT.toLocaleString('en-US')} historical files`;
 
 /** The detected causes, in Cejel's own words, joined into one clause. */
 function a2HistoryIncompletenessCauses(incompleteness: A2HistoryIncompleteness): string {
@@ -5328,8 +5343,14 @@ function a2HistoryIncompletenessCauses(incompleteness: A2HistoryIncompleteness):
       : []),
     ...(incompleteness.otherFailure ? ['Cejel could not read part of the commit history'] : []),
   ];
-  const named = historyReadFailed(incompleteness) ? ' (the scan limitations name each failed read)' : '';
-  return `${causes.join(', and ')}${named}`;
+  const named =
+    incompleteness.limitHits.length > 0 || incompleteness.otherFailure
+      ? ' (the scan limitations name each failed read)'
+      : '';
+  const cap = incompleteness.blobCapHit
+    ? [`Cejel's scan of earlier commits for credential-shaped values stopped at its own ${historySecretScanCapName()}`]
+    : [];
+  return [`${causes.join(', and ')}${named}`, ...cap].filter((part) => part !== '').join(', and ');
 }
 
 /** What a re-scan can and cannot change, per detected cause. */
@@ -5340,10 +5361,9 @@ function a2HistoryIncompletenessAdvice(incompleteness: A2HistoryIncompleteness):
   } else if (incompleteness.shallow) {
     advice.push('Re-scan a full clone (for actions/checkout, set fetch-depth: 0).');
   }
-  if (incompleteness.limitHits.length > 0) {
-    advice.push(
-      `A re-scan of the same repository will not lift Cejel's own ${incompleteness.limitHits.length === 1 ? 'limit' : 'limits'}.`,
-    );
+  const limits = incompleteness.limitHits.length + (incompleteness.blobCapHit ? 1 : 0);
+  if (limits > 0) {
+    advice.push(`A re-scan of the same repository will not lift Cejel's own ${limits === 1 ? 'limit' : 'limits'}.`);
   }
   return advice.join(' ');
 }
