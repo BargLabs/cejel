@@ -1,0 +1,25 @@
+[
+  {
+    "statement": "Key a scripted fault to the call site under test, then prove the test with a mutant that reverts only that call site. Cejel #579's first test faked an empty GitHub run listing for the first two `gh run list` calls of any kind; an earlier stage's lookup absorbed both, so the test passed with the fix to stage 7's lookup reverted, and passed 66/66 for the wrong reason. Both review passes found it independently. Rules: scope a fake transient failure to the exact call it targets (here, publish-npm.yml listings; a run log read keyed by run id), and for each fixed call site run a mutant that reverts only that site and confirm the targeted test fails; a mutant reverting everything at once does not show which test pins which site.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "testing",
+      "claim-hygiene"
+    ],
+    "tags": [
+      "fault-injection",
+      "mutation-testing",
+      "test-scoping",
+      "release-driver"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-10-22T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 579
+    }
+  }
+]
