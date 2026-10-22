@@ -779,7 +779,9 @@ take about 175 s each and run in parallel. On the same machine the full suite we
 for #558. In some full runs, wall-clock timing guards missed their budgets and passed when run
 alone: `regex-redos-guard` (50 ms per family) once, and `scan-path-regex-bounds` (2,000 ms scan
 budget) in four runs, up to 5 of its tests at 2.1-3.8 s. Neither reads the files #558 changes. The
-machine also carried other sessions' load at the time (load average 10-21 on 18 cores). With only
+machine also carried other sessions' load at the time (load average 10-21 on 18 cores). The last
+full run before merge, at a load average of about 6, passed with no timing miss (146 files, 5,263
+tests, 7 min 10 s). With only
 the six shards running beside it, `scan-path-regex-bounds` passed. How much of the miss is #558's
 added CPU (about 600 CPU-seconds per run) is not separated. One reviewer's run of a subset checker also
 reported 100 lost findings that did not reproduce. That is now #574: scanner evidence may depend
