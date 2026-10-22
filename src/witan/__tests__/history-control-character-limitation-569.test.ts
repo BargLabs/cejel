@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, it } from 'vitest';
 
 import { scoreRepoWithPublicCejel } from '../public-scan.js';
-import { WITAN_RUBRIC_VERSION_V17, WITAN_RUBRIC_VERSION_V27 } from '../rubric-version.js';
+import { WITAN_RUBRIC_VERSION_V17, WITAN_RUBRIC_VERSION_V23, WITAN_RUBRIC_VERSION_V27 } from '../rubric-version.js';
 import type { WitanReport } from '../schemas.js';
 import { buildA2HistoryOrigin, cloneShallowA2Origin, removeShallowA2Fixtures } from './fixtures/shallow-a2-shapes.js';
 
@@ -63,4 +63,30 @@ describe('#569: the control-character limitation calls a path credential-shaped 
       [CREDENTIAL_SHAPED, OTHER].sort(),
     );
   });
+
+  // #571 review (both passes): the wording follows the rubric's own history rules. Under v23 the
+  // history scan also counts key-shaped JSON (service-account.json) as credential-shaped; under v17
+  // and v27 it does not. A control-character path of that shape is worded accordingly.
+  it('a key-shaped JSON path is credential-shaped under v23 only, as the history scan decides', () => {
+    const repo = repoWith('control-character-key-json', { 'config/\bservice-account.json': '{}\n' });
+    expect(scoreAt(repo, WITAN_RUBRIC_VERSION_V23).scanLimitations).toEqual([CREDENTIAL_SHAPED]);
+    for (const rubricVersion of [WITAN_RUBRIC_VERSION_V17, WITAN_RUBRIC_VERSION_V27]) {
+      expect(scoreAt(repo, rubricVersion).scanLimitations, rubricVersion).toEqual([OTHER]);
+    }
+  });
+
+  it('a deleted key-shaped JSON path is worded the same way (the deleted-path reader decides alike)', () => {
+    const repo = cloneShallowA2Origin(
+      buildA2HistoryOrigin('control-character-key-json-deleted', [
+        { write: base },
+        { write: { 'config/\bservice-account.json': '{}\n' } },
+        { remove: ['config/\bservice-account.json'] },
+        { write: { 'README.md': '# c\n' } },
+      ]),
+      'full',
+    );
+    expect(scoreAt(repo, WITAN_RUBRIC_VERSION_V23).scanLimitations).toEqual([CREDENTIAL_SHAPED]);
+    expect(scoreAt(repo, WITAN_RUBRIC_VERSION_V17).scanLimitations).toEqual([OTHER]);
+  });
 });
+

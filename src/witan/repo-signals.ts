@@ -2742,7 +2742,8 @@ function collectA2IsolationEvidence(
   );
   // Only scan history when the current tree has no .env* to avoid redundant scanning.
   const hasEnvInHistory =
-    committedEnvFilePath === undefined && hasEnvPathInGitHistory(repoPath, a2HistoryReads);
+    committedEnvFilePath === undefined &&
+    hasEnvPathInGitHistory(repoPath, a2HistoryReads, useV36Detectors, useV23PemPrivateKeyGrammar);
   // #556: whether A2's history evidence is incomplete, and why, as far as Cejel detected it: the
   // clone is shallow (its history reads completed over a truncated history), or one of A2's history
   // reads failed (a git error, timeout or output limit; on a partial clone, a history object that
@@ -14328,17 +14329,18 @@ function isExpectedHistoryAbsence(
  * #560: a history path with control characters in its name is left unread and named in the scan
  * limitations. When the path is one the read would otherwise have used (`candidate`), A2's recorder
  * also counts it as an incomplete read. #569: the limitation calls the path credential-shaped only
- * when it is credential- or `.env`-shaped, whichever read met it.
+ * when `credentialShaped` says so, and every caller decides that with the rubric's own history
+ * rules (isCredentialHistoryPath with the rubric's flags; under v23 that includes key-shaped JSON),
+ * the same decision the history scan makes, so the sentence never contradicts the scan.
  */
 function skipControlCharacterHistoryPath(
   scanLimitations: Set<string>,
-  path: string,
   candidate: boolean,
+  credentialShaped: boolean,
 ): void {
   if (candidate && scanLimitations instanceof HistoryReadRecorder) {
     scanLimitations.controlCharacterCandidate = true;
   }
-  const credentialShaped = isCredentialHistoryPath(path) || /(?:^|\/)\.env(?:\.|$)/i.test(path);
   scanLimitations.add(
     credentialShaped
       ? CONTROL_CHARACTER_HISTORY_PATH_LIMITATION
@@ -14611,7 +14613,7 @@ function readCredentialHistoryEntries(
         if (/[\u0000-\u001f\u007f]/.test(path)) {
           skipControlCharacterHistoryPath(
             scanLimitations,
-            path,
+            isCredentialHistoryPath(path, useV36Detectors, useV23PemPrivateKeyGrammar),
             isCredentialHistoryPath(path, useV36Detectors, useV23PemPrivateKeyGrammar),
           );
           continue;
@@ -14690,7 +14692,7 @@ function readDeletedCredentialHistoryPaths(
     if (/[\u0000-\u001f\u007f]/.test(path)) {
       skipControlCharacterHistoryPath(
         scanLimitations,
-        path,
+        isCredentialHistoryPath(path, useV36Detectors, useV23PemPrivateKeyGrammar),
         isCredentialHistoryPath(path, useV36Detectors, useV23PemPrivateKeyGrammar),
       );
       continue;
@@ -15328,7 +15330,12 @@ function readGitHead(repoPath: string): string | null {
 
 // True if any .env* file has ever been added/modified in git history (including deleted files).
 // A once-committed .env file is a ratable secrets surface even after deletion.
-function hasEnvPathInGitHistory(repoPath: string, scanLimitations: Set<string>): boolean {
+function hasEnvPathInGitHistory(
+  repoPath: string,
+  scanLimitations: Set<string>,
+  useV36Detectors = false,
+  useV23PemPrivateKeyGrammar = false,
+): boolean {
   const historyResult = execGit(
     ['log', '--no-show-signature', 'HEAD', '--diff-filter=AM', '--name-only', '-z', '--format='],
     { cwd: repoPath },
@@ -15343,7 +15350,14 @@ function hasEnvPathInGitHistory(repoPath: string, scanLimitations: Set<string>):
   return output.split('\0').some((rawPath) => {
     const path = rawPath.startsWith('\n') ? rawPath.slice(1) : rawPath;
     if (/[\u0000-\u001f\u007f]/.test(path)) {
-      skipControlCharacterHistoryPath(scanLimitations, path, /(?:^|\/)\.env(?:\.|$)/i.test(path));
+      // Counted when this read would have used it (an .env path); worded with the rubric's own
+      // history rules, like the history scan's reads (#569).
+      const envShaped = /(?:^|\/)\.env(?:\.|$)/i.test(path);
+      skipControlCharacterHistoryPath(
+        scanLimitations,
+        envShaped,
+        envShaped || isCredentialHistoryPath(path, useV36Detectors, useV23PemPrivateKeyGrammar),
+      );
       return false;
     }
     return /(?:^|\/)\.env(?:\.|$)/i.test(path);
