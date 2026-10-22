@@ -1054,6 +1054,13 @@ describe('publish-only admits no glob in flag position, no unknown flag, no unli
     'review13-uv-toml-committed',
     'review13-uv-pyproject-table',
     'review13-rust-toolchain-toml',
+    'review14-uv-index-array-table',
+    'review14-uv-under-tool-table-dotted',
+    'review14-uv-root-dotted-key',
+    'review14-uv-inline-table',
+    'review14-uv-quoted-key',
+    'review14-uv-escaped-key',
+    'review14-poetry-quoted-requires-plugins',
   ])('%s keeps its credit under v27', (name) => {
     for (const id of ['B2', 'B3']) {
       expect(criterion(name, V27, id), `${name} ${id}`).toEqual(criterion(name, V17, id));

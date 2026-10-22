@@ -1744,6 +1744,27 @@ for (const [name, purpose, files] of [
   FALSE_ASSURANCE_FIXTURES_REVIEW.push({ name, issue: '#527', foundInReview: true, purpose, commits: [files] });
 }
 
+// Round 5 of the review of #562: TOML spellings of uv and Poetry plugin settings that a table-header
+// match missed. Each keeps its credit.
+const BACKSLASH = String.fromCharCode(92);
+for (const [name, purpose, pyproject, run, env] of [
+  ['review14-uv-index-array-table', '`[[tool.uv.index]]`, uv\'s documented index form.', `${PY_LIBRARY['pyproject.toml']}\n[[tool.uv.index]]\nurl = "https://example.invalid/simple"\n`, 'uv publish', UV_ENV],
+  ['review14-uv-under-tool-table-dotted', '`[tool]` then `uv.keyring-provider = ...`.', `${PY_LIBRARY['pyproject.toml']}\n[tool]\nuv.keyring-provider = "subprocess"\n`, 'uv publish', UV_ENV],
+  ['review14-uv-root-dotted-key', 'A root dotted key `tool.uv.keyring-provider = ...` before any table.', `tool.uv.keyring-provider = "subprocess"\n${PY_LIBRARY['pyproject.toml']}`, 'uv publish', UV_ENV],
+  ['review14-uv-inline-table', '`[tool]` then `uv = { ... }`.', `${PY_LIBRARY['pyproject.toml']}\n[tool]\nuv = { keyring-provider = "subprocess" }\n`, 'uv publish', UV_ENV],
+  ['review14-uv-quoted-key', '`[tool."uv"]`.', `${PY_LIBRARY['pyproject.toml']}\n[tool."uv"]\nkeyring-provider = "subprocess"\n`, 'uv publish', UV_ENV],
+  ['review14-uv-escaped-key', 'A TOML escape spelling `uv` (`[tool."' + BACKSLASH + 'u0075v"]`).', `${PY_LIBRARY['pyproject.toml']}\n[tool."${BACKSLASH}u0075v"]\nkeyring-provider = "subprocess"\n`, 'uv publish', UV_ENV],
+  ['review14-poetry-quoted-requires-plugins', '`[tool.poetry."requires-plugins"]`.', `${PY_LIBRARY['pyproject.toml']}\n[tool.poetry."requires-plugins"]\npoetry-plugin-x = ">=1"\n`, 'poetry publish', POETRY_ENV],
+] as const) {
+  FALSE_ASSURANCE_FIXTURES_REVIEW.push({
+    name,
+    issue: '#527',
+    foundInReview: true,
+    purpose,
+    commits: [{ ...PY_LIBRARY, 'pyproject.toml': pyproject, '.github/workflows/publish.yml': PUSH_UPLOAD(run, env) }],
+  });
+}
+
 export const FALSE_ASSURANCE_FIXTURES: readonly FalseAssuranceFixture[] = [
   ...FALSE_ASSURANCE_FIXTURES_ISSUES,
   ...FALSE_ASSURANCE_FIXTURES_REVIEW,

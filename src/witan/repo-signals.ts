@@ -5840,7 +5840,7 @@ function isPublishOnlyWorkflow(
   if (needs.has('poetry') && (known.hasPoetryProjectConfiguration || pyprojectMayMatch(repoPath, known, PYPROJECT_POETRY_PLUGINS_PATTERN))) {
     return false;
   }
-  if (needs.has('uv') && (known.hasUvConfiguration || pyprojectMayMatch(repoPath, known, PYPROJECT_UV_TABLE_PATTERN))) {
+  if (needs.has('uv') && (known.hasUvConfiguration || pyprojectMayMatch(repoPath, known, PYPROJECT_UV_TOKEN_PATTERN))) {
     return false;
   }
   if (needs.has('package') && !packageManifestRunsNoRepositoryCode(repoPath, inventory as PublishOnlyInventory)) {
@@ -5860,9 +5860,15 @@ const POETRY_PROJECT_CONFIGURATION_PATH_PATTERN = /^(?:\.poetry\/|poetry\.toml$)
 // uv configuration files. uv's settings include keyring providers and index configuration, and it
 // was not verified from uv's source that `uv publish` runs nothing they name, so any is doubt.
 const UV_CONFIGURATION_PATH_PATTERN = /(?:^|\/)uv\.toml$/;
-// The pyproject.toml tables that configure those tools: `[tool.uv...]`, Poetry plugin requirements.
-const PYPROJECT_UV_TABLE_PATTERN = /^[ \t]*\[[ \t]*tool[ \t]*\.[ \t]*uv\b/m;
-const PYPROJECT_POETRY_PLUGINS_PATTERN = /requires-plugins|^[ \t]*\[[ \t]*tool[ \t]*\.[ \t]*poetry[ \t]*\.[ \t]*plugins\b/m;
+// pyproject.toml text that may configure those tools, matched as tokens rather than table headers
+// so no TOML spelling escapes it (review of #562): uv settings can be written as `[tool.uv]`,
+// `[[tool.uv.index]]`, `[tool]` then `uv.x = ...` or `uv = { ... }`, a root dotted key
+// `tool.uv.x = ...`, or `[tool."uv"]`, so the bare token `uv` anywhere is doubt; for Poetry, the
+// token `plugins` anywhere. A TOML `\u`/`\U` escape can spell either, so any escape is doubt too.
+// Over-matching only keeps a workflow's credit. Both are single alternations with no nested
+// quantifier, linear in the file.
+const PYPROJECT_UV_TOKEN_PATTERN = /\buv\b|\\[uU]/;
+const PYPROJECT_POETRY_PLUGINS_PATTERN = /plugins|\\[uU]/;
 
 
 /**
