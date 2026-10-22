@@ -302,5 +302,10 @@ describe('git subprocess chokepoint', () => {
       throw Object.assign(new Error('spawnSync git ENOBUFS'), { code: 'ENOBUFS', signal: 'SIGTERM' });
     });
     expect(execGit(['log'], { cwd: '/repo' })).toEqual({ ok: false, reason: 'buffer_exceeded' });
+    // A SIGTERM Cejel did not send (no ETIMEDOUT) is a failed read, not Cejel's timeout.
+    execFileSyncMock.mockImplementationOnce(() => {
+      throw Object.assign(new Error('Command failed: git log'), { signal: 'SIGTERM', status: null });
+    });
+    expect(execGit(['log'], { cwd: '/repo' })).toEqual({ ok: false, reason: 'exec_failed' });
   });
 });
