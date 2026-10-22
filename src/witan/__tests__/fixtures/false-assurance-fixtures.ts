@@ -1728,7 +1728,7 @@ for (const [name, purpose, files] of [
   [
     'review13-rust-toolchain-toml',
     '`cargo publish --no-verify` with a committed `rust-toolchain.toml`: rustup resolves the cargo proxy from it.',
-    { ...RUST_LIBRARY, 'rust-toolchain.toml': '[toolchain]\npath = "/home/runner/work/x/x/tc"\n', '.github/workflows/release.yml': PUSH_WORKFLOW('      - run: cargo publish --no-verify\n') },
+    { ...RUST_LIBRARY, 'rust-toolchain.toml': '[toolchain]\npath = "../tc"\n', '.github/workflows/release.yml': PUSH_WORKFLOW('      - run: cargo publish --no-verify\n') },
   ],
   [
     'review13-poetry-publish-control',
