@@ -180,6 +180,16 @@ control-character limitation's wording, which calls every such path credential-s
 
 Tests: `a2-history-round5-560.test.ts`, `git-metadata-visibility-560.test.ts`.
 
+**Review round 6 (#560 review pass 2 on `5aaa0d314`, an AI reviewer).** Round 5's exact list
+recognised only the "(or any of the parent directories)" and "(or any parent up to mount point)"
+forms of git's "not a git repository" message. git 2.50 has others: "not a git repository: %s" (a
+`.git` file whose gitdir is missing, as in a copied submodule or worktree, or `GIT_DIR`), "not a git
+repository: '%s'", and "Not a git repository". With a dangling `.git` file, HEAD resolution then
+threw and the scan failed, where `main` completes it as a directory with no repository. Every form
+is now recognised by the message's start, anchored at the start of the line, which a path cannot
+reach; the code lists git's full set of no-repository messages. The scan completes again under v17
+and v27, as on `main`, so no report changes against `main` here.
+
 Round 5 was measured like round 4 (below): the 23 public rows under v17 and v27 with round 5's code,
 against round 4's (`cf7fde7ac`), on the same clean, pinned clones. All 46 `report.json` pairs are
 byte-identical; no row has a gitlink at a credential-shaped path in its history, or a failed read
