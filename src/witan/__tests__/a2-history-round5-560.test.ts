@@ -1,4 +1,5 @@
-import { rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { afterAll, describe, expect, it } from 'vitest';
@@ -103,6 +104,28 @@ describe('#560 F2: a submodule at a credential-shaped path is not a failed histo
       expect(report.scanLimitations ?? [], rubricVersion).toEqual([]);
       expect(a2(report).status, rubricVersion).not.toBe('insufficient_data');
       expect(a2(report).disclosures, rubricVersion).toBeUndefined();
+    }
+  });
+});
+
+// Round 6 (pass 2 on 5aaa0d314, R5-1): a `.git` file whose gitdir is missing (a copied submodule or
+// worktree) makes git print "fatal: not a git repository: <gitdir>". Round 5's exact-message list did
+// not recognise that form, so HEAD resolution threw and the scan failed; on main the scan completed as
+// a directory with no repository. It completes again, under v17 and v27.
+describe('#560 R5-1: a .git file pointing at a missing gitdir is still "no repository"', () => {
+  it('the scan completes under v17 and v27, as on main', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'cejel-dangling-gitdir-'));
+    try {
+      writeFileSync(join(dir, '.git'), 'gitdir: /nonexistent/modules/x\n');
+      writeFileSync(join(dir, 'package.json'), '{"name":"dangling","version":"1.0.0"}\n');
+      writeFileSync(join(dir, 'index.js'), 'export const a = 1;\n');
+      for (const rubricVersion of [V17, V27]) {
+        const report = scoreAt(dir, rubricVersion);
+        expect(report.repo.headSha, rubricVersion).toBeUndefined();
+        expect(report.scanLimitations ?? [], rubricVersion).toEqual([]);
+      }
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
     }
   });
 });

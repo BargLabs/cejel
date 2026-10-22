@@ -282,6 +282,10 @@ describe('git subprocess chokepoint', () => {
     // git's own no-repository and no-revision diagnostics still classify as before.
     for (const stderr of [
       'fatal: not a git repository (or any of the parent directories): .git\n',
+      'fatal: not a git repository: /nonexistent/modules/x\n',
+      "fatal: not a git repository: '/nonexistent/.git'\n",
+      'fatal: Not a git repository\n',
+      'fatal: not a git repository (or any parent up to mount point /home)\nStopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).\n',
       "fatal: ambiguous argument 'HEAD': unknown revision or path not in the working tree.\nUse '--' to separate paths from revisions, like this:\n",
       "fatal: your current branch 'main' does not have any commits yet\n",
       'fatal: Needed a single revision\n',

@@ -173,14 +173,26 @@ function stderrText(error: unknown): string {
 }
 
 // git's own diagnostics that mean "there is no usable repository or revision here", each matched as
-// git's literal message: anchored at the start of a stderr line and, wherever git could print a path
-// or argument after it, to the end of the line too. git prints some arguments unquoted (for example
-// "fatal: bad object <commit>:<path>"), so no pattern may skip over text with ".*" to reach a phrase
-// further along the line: a repository path containing the phrase would then match (#560). The
+// git's literal message from the start of a stderr line. git prints some arguments unquoted (for
+// example "fatal: bad object <commit>:<path>"), so no pattern may skip over text with ".*" to reach a
+// phrase further along a line: a repository path containing the phrase would then match (#560). The
 // paths Cejel passes to git never contain a line break (history paths with control characters are
-// never read), so a path cannot start a line of its own.
+// never read), so a path cannot start a line of its own, and text after an anchored message start
+// cannot change the outcome.
+//
+// git's messages for a missing or unusable repository (git 2.50 source, setup.c and others; checked
+// against the strings in the installed binary), each printed after "fatal: " by die():
+//   not a git repository (or any of the parent directories): %s
+//   not a git repository (or any parent up to mount point %s)
+//   not a git repository: %s          (GIT_DIR, or a `.git` file whose gitdir is missing)
+//   not a git repository: '%s'
+//   Not a git repository              (and "Not a git repository. Use --no-index ...", git diff)
+//   not a git repository, but the field '%.*s' requires access to object data
+//   not in a git directory
+//   this operation must be run in a work tree
+// All the "not a git repository" forms are recognised by their common start; the rest exactly.
 const GIT_NO_REPOSITORY_DIAGNOSTICS: readonly RegExp[] = [
-  /^fatal: not a git repository \(or any (?:of the parent directories\): \.git$|parent up to mount point\b)/,
+  /^(?:fatal|error): not a git repository\b/i,
   /^fatal: not in a git directory$/,
   /^fatal: this operation must be run in a work tree$/,
   /^fatal: ambiguous argument 'HEAD': unknown revision or path not in the working tree\.$/,
