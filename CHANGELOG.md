@@ -70,18 +70,28 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   went unread, and the failure went into `scanLimitations`. Such a read is now re-run over the
   commit list in pages and batches small enough for the limit and the 30-second timeout, halving a
   batch that still hits one; only a single commit that still does is reported. A read that does
-  not hit a limit runs exactly as before. **This changes v17 reports:** on biomejs and react the
-  history limitations disappear, so their v17 badges become rated (3.0/4.0 conditional) and
-  `--min-score` applies; react's A2 gains an info finding (a non-template `.env` file tracked in
-  history, no secret-shaped value), with no score change. Under
-  `witan-rubric-v27-prospective-2026-10-19`, biomejs's A2 no longer abstains (overall 2.5 to 3.0).
-  A preregistered paired public delta on the 23 public rows confirmed this: successor
-  preregistration `5450b687f`, result `6adf3a398`, E0-E3 held
-  (`docs/experiments/public-delta-567-paging-successor-2026-10-22/`). An earlier scoring at the
-  original plan's pins was set aside when `main` moved; it is disclosed there and not used. The
-  merged tree differs from that run's candidate, `5b154064a`, only outside the scan path: in the
-  experiment records, in this entry and its `leaderboard/RUBRIC_CHANGELOG.md` entry (2026-10-22,
-  #567), in fixtures added to the paging test after review, and in a lesson seed.
+  not hit a limit runs exactly as before. **This changes v17 reports.** A preregistered paired
+  public delta on the 23 public rows recorded these report changes: successor preregistration
+  `5450b687f`, result `6adf3a398`, E0-E3 held
+  (`docs/experiments/public-delta-567-paging-successor-2026-10-22/`).
+  - The history scan limitations of biomejs and react disappear.
+  - react's A2 gains an info finding (a non-template `.env` file tracked in history, no
+    secret-shaped value). Its score does not change.
+  - Under `witan-rubric-v27-prospective-2026-10-19`, biomejs's A2 no longer abstains (overall 2.5
+    to 3.0).
+
+  Under the v17 gating rule, the emptied scan limitations make the v17 badges of biomejs and react
+  rated, and `--min-score` applies to them. The badge text "3.0/4.0 conditional" comes
+  from the earlier informal measurement, not from the preregistered run.
+
+  An earlier scoring at the original plan's pins was set aside when `main` moved; it is disclosed
+  there and not used. The merged tree differs from that run's candidate, `5b154064a`, only outside
+  the scan path:
+  - the experiment records;
+  - this entry and its `leaderboard/RUBRIC_CHANGELOG.md` entry (2026-10-22, #567);
+  - test changes made after review: new fixtures, the `'whole-only'` and `'tree-only'` mock modes,
+    a batch-order check, and a stdin variant of the shared fixture git helper;
+  - a lesson seed.
 - **Incomplete history could take A2 out of the score, or score it higher (#556).** A2 reads
   earlier commits for `.env` files and credential-shaped values, and is marked not applicable only
   when that finds nothing and the tree holds no secrets or data surface. On a shallow clone those

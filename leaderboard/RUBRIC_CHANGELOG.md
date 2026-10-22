@@ -61,16 +61,25 @@ successor preregistration `5450b687f` (baseline `75c951e40`, candidate `5b154064
 `6adf3a398`. Every expected value held:
 - E0: 23 of 23 rows in each of the four runs, with no errors.
 - E1 (v17): one scoring row moved, react's A2 info finding. Placements and fingerprints did not
-  move. The only other change is `scanLimitations` on biomejs and react.
+  move. The only other change is `scanLimitations` on biomejs and react, which became empty. The
+  run records the emptied limitations. That the two v17 badges become rated follows from the v17
+  gating rule. The badge text "3.0/4.0 conditional" is from the informal measurement above.
 - E2 (v27): biomejs A2 went from abstaining to verified 3.2, and react moved as under v17. There
   were 10 recorded placement moves.
-- E3: no row scores higher under v27 than under v17.
+- E3: no row scores higher under v27 than under v17, and nothing is scored under v27 that v17
+  left null or absent.
 
 The original preregistration (`09f017229`, at the old pins) was scored once before `main` moved.
-The successor discloses that run as a pre-plan deviation; its outputs are not used. The merged tree
-differs from the candidate only outside the scan path: the experiment records, this entry, its
-`CHANGELOG.md` entry, fixtures added to the paging test after review, and a lesson seed. The run
-makes no precision or recall claim.
+The successor discloses that run as a pre-plan deviation; its outputs are not used.
+
+The merged tree differs from the candidate only outside the scan path:
+- the experiment records;
+- this entry and its `CHANGELOG.md` entry;
+- test changes made after review: new fixtures, the `'whole-only'` and `'tree-only'` mock modes, a
+  batch-order check, and a stdin variant of the shared fixture git helper;
+- a lesson seed.
+
+The run makes no precision or recall claim.
 
 Tests: `src/witan/__tests__/a2-history-paging-567.test.ts`.
 
