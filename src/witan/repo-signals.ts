@@ -2742,7 +2742,8 @@ function collectA2IsolationEvidence(
   );
   // Only scan history when the current tree has no .env* to avoid redundant scanning.
   const hasEnvInHistory =
-    committedEnvFilePath === undefined && hasEnvPathInGitHistory(repoPath, a2HistoryReads);
+    committedEnvFilePath === undefined &&
+    hasEnvPathInGitHistory(repoPath, a2HistoryReads, useV36Detectors, useV23PemPrivateKeyGrammar);
   // #556: whether A2's history evidence is incomplete, and why, as far as Cejel detected it: the
   // clone is shallow (its history reads completed over a truncated history), or one of A2's history
   // reads failed (a git error, timeout or output limit; on a partial clone, a history object that
@@ -14299,6 +14300,11 @@ interface HistorySecretScanResult {
 
 const CONTROL_CHARACTER_HISTORY_PATH_LIMITATION =
   'Git history contained a credential-shaped pathname with control characters. Cejel omitted that path from historical blob inspection and continued with reduced history evidence.';
+// #569: the same skip for a path that is neither credential- nor `.env`-shaped. The sentence above
+// called every such path credential-shaped, which was false (axios's `\bMIGRATION_GUIDE.md`). It is
+// still a scan limitation, so the badge and `--min-score` outcome do not change; only its words do.
+const CONTROL_CHARACTER_HISTORY_OTHER_PATH_LIMITATION =
+  'Git history contained a pathname with control characters that is not credential-shaped. Cejel did not read that path in its history scans.';
 
 const HISTORY_READ_FAILURE_SUFFIX = ' Cejel continued with reduced Git history evidence.';
 
@@ -14320,15 +14326,45 @@ function isExpectedHistoryAbsence(
 }
 
 /**
- * #560: a history path with control characters in its name is left unread and named in the scan
- * limitations, exactly as before. When the path is one the read would otherwise have used
- * (`candidate`), A2's recorder also counts it as an incomplete read.
+ * #569: the one definition of "credential-shaped" for the control-character limitation's wording,
+ * shared by all three history readers so a path gets the same sentence whichever reader meets it.
+ * It classifies the name's shape under the rubric's own grammar (hasCredentialHistoryPathShape with
+ * the rubric's flags; under v23 that includes key-shaped JSON), ignoring the hard-excluded-directory
+ * rule, or'd with the `.env` pattern. When in doubt it errs toward the credential-shaped sentence,
+ * the cautious one: a path in `node_modules/` named `secret.key` has a credential-shaped name.
  */
-function skipControlCharacterHistoryPath(scanLimitations: Set<string>, candidate: boolean): void {
+function controlCharacterPathIsCredentialShaped(
+  path: string,
+  useV36Detectors: boolean,
+  useV23PemPrivateKeyGrammar: boolean,
+): boolean {
+  return (
+    /(?:^|\/)\.env(?:\.|$)/i.test(path) ||
+    hasCredentialHistoryPathShape(path, useV36Detectors, useV23PemPrivateKeyGrammar)
+  );
+}
+
+/**
+ * #560: a history path with control characters in its name is left unread and named in the scan
+ * limitations. When the path is one the reader would otherwise have used (`candidate`), A2's
+ * recorder also counts it as an incomplete read. #569: the sentence is chosen by
+ * controlCharacterPathIsCredentialShaped, the same for every reader.
+ */
+function skipControlCharacterHistoryPath(
+  scanLimitations: Set<string>,
+  path: string,
+  candidate: boolean,
+  useV36Detectors: boolean,
+  useV23PemPrivateKeyGrammar: boolean,
+): void {
   if (candidate && scanLimitations instanceof HistoryReadRecorder) {
     scanLimitations.controlCharacterCandidate = true;
   }
-  scanLimitations.add(CONTROL_CHARACTER_HISTORY_PATH_LIMITATION);
+  scanLimitations.add(
+    controlCharacterPathIsCredentialShaped(path, useV36Detectors, useV23PemPrivateKeyGrammar)
+      ? CONTROL_CHARACTER_HISTORY_PATH_LIMITATION
+      : CONTROL_CHARACTER_HISTORY_OTHER_PATH_LIMITATION,
+  );
 }
 
 function declareHistoryFailure(
@@ -14596,7 +14632,10 @@ function readCredentialHistoryEntries(
         if (/[\u0000-\u001f\u007f]/.test(path)) {
           skipControlCharacterHistoryPath(
             scanLimitations,
+            path,
             isCredentialHistoryPath(path, useV36Detectors, useV23PemPrivateKeyGrammar),
+            useV36Detectors,
+            useV23PemPrivateKeyGrammar,
           );
           continue;
         }
@@ -14674,7 +14713,10 @@ function readDeletedCredentialHistoryPaths(
     if (/[\u0000-\u001f\u007f]/.test(path)) {
       skipControlCharacterHistoryPath(
         scanLimitations,
+        path,
         isCredentialHistoryPath(path, useV36Detectors, useV23PemPrivateKeyGrammar),
+        useV36Detectors,
+        useV23PemPrivateKeyGrammar,
       );
       continue;
     }
@@ -14731,10 +14773,22 @@ function isV23PemCredentialHistoryPath(basename: string): boolean {
 
 function isCredentialHistoryPath(
   path: string,
-  _useV36Detectors = false,
+  useV36Detectors = false,
   useV23PemPrivateKeyGrammar = false,
 ): boolean {
   if (isHardExcludedPath(path)) return false;
+  return hasCredentialHistoryPathShape(path, useV36Detectors, useV23PemPrivateKeyGrammar);
+}
+
+// The name-shape half of isCredentialHistoryPath: whether the path's name is credential-shaped
+// under the rubric's grammar, whatever directory it sits in. isCredentialHistoryPath adds the
+// hard-excluded-directory rule; the control-character limitation's wording uses the shape alone
+// (#571 review), since "not credential-shaped" would describe the name falsely.
+function hasCredentialHistoryPathShape(
+  path: string,
+  _useV36Detectors = false,
+  useV23PemPrivateKeyGrammar = false,
+): boolean {
   // Note: template paths (.env.example etc.) are intentionally NOT excluded here —
   // a real secret can still leak through a template path (e.g. committed, then later
   // redacted to placeholders in a follow-up commit); the path alone never proves the
@@ -15311,7 +15365,12 @@ function readGitHead(repoPath: string): string | null {
 
 // True if any .env* file has ever been added/modified in git history (including deleted files).
 // A once-committed .env file is a ratable secrets surface even after deletion.
-function hasEnvPathInGitHistory(repoPath: string, scanLimitations: Set<string>): boolean {
+function hasEnvPathInGitHistory(
+  repoPath: string,
+  scanLimitations: Set<string>,
+  useV36Detectors = false,
+  useV23PemPrivateKeyGrammar = false,
+): boolean {
   const historyResult = execGit(
     ['log', '--no-show-signature', 'HEAD', '--diff-filter=AM', '--name-only', '-z', '--format='],
     { cwd: repoPath },
@@ -15326,7 +15385,14 @@ function hasEnvPathInGitHistory(repoPath: string, scanLimitations: Set<string>):
   return output.split('\0').some((rawPath) => {
     const path = rawPath.startsWith('\n') ? rawPath.slice(1) : rawPath;
     if (/[\u0000-\u001f\u007f]/.test(path)) {
-      skipControlCharacterHistoryPath(scanLimitations, /(?:^|\/)\.env(?:\.|$)/i.test(path));
+      // Counted when this read would have used it (an .env path); worded by the shared rule (#569).
+      skipControlCharacterHistoryPath(
+        scanLimitations,
+        path,
+        /(?:^|\/)\.env(?:\.|$)/i.test(path),
+        useV36Detectors,
+        useV23PemPrivateKeyGrammar,
+      );
       return false;
     }
     return /(?:^|\/)\.env(?:\.|$)/i.test(path);
