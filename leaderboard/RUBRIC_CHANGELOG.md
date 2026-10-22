@@ -87,10 +87,12 @@ A reader admits a workflow only when all of the following hold. Anything else ke
   `.cargo/config.toml`, which can name a credential provider cargo executes.
 - `cargo publish` is also refused when the inventory holds `rust-toolchain` or
   `rust-toolchain.toml`. `poetry publish` is refused on any root `.poetry/` path, a `poetry.toml`,
-  or a `pyproject.toml` that holds the token `plugins` or any TOML `\u`/`\U` escape. `uv publish` is
-  refused on any `uv.toml`, or a `pyproject.toml` that holds the bare token `uv` or any escape. These
+  or a `pyproject.toml` that holds the token `plugins` or any backslash. A backslash covers every TOML
+  escape, including TOML 1.1's `\x`. `uv publish` is refused on any `uv.toml`, or a `pyproject.toml`
+  that holds the bare token `uv` or any backslash. These
   are token matches, not table-header matches, so `[[tool.uv.index]]`, dotted and inline `uv` keys,
-  quoted or escaped keys, and a quoted `"requires-plugins"` are all refused (rounds 4 and 5).
+  quoted or escaped keys (including `[tool."u\x76"]`), and a quoted `"requires-plugins"` are all refused
+  (rounds 4 to 6).
 
 **What each admitted publisher reads from the repository that could run code, and how it is
 handled.** "Docs" means the tool's documentation, "review" means a review pass on #562 reported it
@@ -101,8 +103,8 @@ change.
 |---|---|---|---|
 | npm, pnpm, yarn `publish` | Root `package.json` lifecycle scripts (`prepublishOnly`, `prepack`, `publish`, ...), `workspaces`, `gypfile` or `binding.gyp`, local dependencies; `.npmrc` (`script-shell`, `node-options`), `.yarnrc`, `.yarnrc.yml`, `.yarn/plugins/`, `.pnpmfile.cjs`, `pnpmfile.js`, `bunfig.toml`, `pnpm-workspace.yaml`, `lerna.json` | Refused when present (#553's guards, unchanged). Flags that redirect the package are not on the allowlist | Docs, and #553's review rounds. Not re-verified from source here |
 | `twine upload` | `.pypirc` is read from the home directory, not the repository; `--config-file` | `--config-file` is not admitted; the home directory is not repository content. Python start-up paths (`PYTHONPATH`, `PYTHONUSERBASE`, `PYTHONHOME`) are not admitted variables | Docs. Not verified from source |
-| `uv publish` | `uv.toml`, any `uv` setting in `pyproject.toml` (keyring providers, index configuration) | Refused on a `uv.toml`, or on the token `uv` or any escape in `pyproject.toml` | Not verified from source that publish runs nothing these settings name, so refused conservatively |
-| `poetry publish` | Project plugins: `.poetry/plugins` is added with `addsitedir()` before any command, so a `.pth` there runs; `poetry.toml`; plugin requirements in `pyproject.toml` | Refused on a `.poetry/` path or `poetry.toml`, or on the token `plugins` or any escape in `pyproject.toml`. `--no-plugins` is not relied on | Source read by the reviewer (`Application._run` → `_load_plugins` → `add_project_plugin_path` → `addsitedir`, skipped only with `--no-plugins`). Cejel's handling reproduced; Poetry itself not run. Other `[tool.poetry]` settings were not verified to be inert for `publish` |
+| `uv publish` | `uv.toml`, any `uv` setting in `pyproject.toml` (keyring providers, index configuration) | Refused on a `uv.toml`, or on the token `uv` or any backslash in `pyproject.toml` | Not verified from source that publish runs nothing these settings name, so refused conservatively |
+| `poetry publish` | Project plugins: `.poetry/plugins` is added with `addsitedir()` before any command, so a `.pth` there runs; `poetry.toml`; plugin requirements in `pyproject.toml` | Refused on a `.poetry/` path or `poetry.toml`, or on the token `plugins` or any backslash in `pyproject.toml`. `--no-plugins` is not relied on | Source read by the reviewer (`Application._run` → `_load_plugins` → `add_project_plugin_path` → `addsitedir`, skipped only with `--no-plugins`). Cejel's handling reproduced; Poetry itself not run. Other `[tool.poetry]` settings were not verified to be inert for `publish` |
 | `gh release create`/`upload` | Only the user's configuration directory; extensions are installed per user | `GH_CONFIG_DIR` and `XDG_CONFIG_HOME` are not admitted variables | Docs. Not verified from source |
 | `cargo publish --no-verify` | `.cargo/config` and `.cargo/config.toml` in the directory or any parent (credential provider, aliases, build settings); `rust-toolchain` or `rust-toolchain.toml` (rustup resolves the `cargo` proxy, possibly from a custom path); `build.rs` is not run with `--no-verify` | Refused when either kind of file is present; `--config` and the `CARGO_*`/`RUSTUP_*` home variables are not admitted | Docs. Not verified from source |
 
@@ -194,7 +196,7 @@ the same commit scores the same under v17 and v27 whatever refs the checkout hol
 or deletes a `master` branch, renames `main`, points `origin/HEAD` at `main` or `master`, and
 detaches HEAD. It fails when a rule that reads `refs/heads/master` is injected.
 
-**Measured, release/0.6.8 (`8deafad9f`) against this change (`b4dfcddba`).** Fixtures were built once
+**Measured, release/0.6.8 (`8deafad9f`) against this change (`59fd9367e`).** Fixtures were built once
 from this change's definitions and scored by both scanners. The public rows are the 0.6.8
 confirmation's full-history clones (copy-on-write copies, with identity checked before and after
 each scan). This is not a preregistered run.
@@ -204,14 +206,14 @@ each scan). This is not a preregistered run.
 | Behaviour corpus (30) | 0 | 30 | 1 (`workspace-package-scripts`) | 0 violations |
 | Calibration anchors (5) | 0 | 5 | 0 | 0 violations |
 | Disclosure-gap fixtures (24) | 0 | 24 | 2 (the two print-only fixtures) | 0 violations |
-| False-assurance fixtures (196, 45 new) | 0 | 190 (6 `review10/11-print-only-*` lose the false #540 disclosure) | 39 (8 new down, 6 existing upload-only down, 25 back up to exactly v17's value: 2 `review10-upload-only-*`, `review11-twine-upload-pwsh-hashtable-argument`, 10 `review12-*`, 5 `review13-*` and 7 `review14-*`) | 0 violations |
+| False-assurance fixtures (197, 46 new) | 0 | 191 (6 `review10/11-print-only-*` lose the false #540 disclosure) | 40 (8 new down, 6 existing upload-only down, 26 back up to exactly v17's value: 2 `review10-upload-only-*`, `review11-twine-upload-pwsh-hashtable-argument`, 10 `review12-*`, 5 `review13-*`, 7 `review14-*` and `review15-uv-hex-escaped-key`) | 0 violations |
 | Public corpus (23, full history) | 0 | 23 | 0 | 0 violations |
 
-**This change moves 42 fixture rows: 17 to below v17's value and 25 back to exactly v17's value.
-No fixture is above v17.** Across all 255 fixtures, 56 have a v27 overall score below v17's. Most of
-those come from earlier v27 changes. The 25 rows that rise are the two `review10-upload-only-*` rows,
+**This change moves 43 fixture rows: 17 to below v17's value and 26 back to exactly v17's value.
+No fixture is above v17.** Across all 256 fixtures, 56 have a v27 overall score below v17's. Most of
+those come from earlier v27 changes. The 26 rows that rise are the two `review10-upload-only-*` rows,
 `review11-twine-upload-pwsh-hashtable-argument`, the ten `review12-*` rows, the five non-control
-`review13-*` rows and the seven `review14-*` rows. v27's publish-only
+`review13-*` rows, the seven `review14-*` rows and `review15-uv-hex-escaped-key`. v27's publish-only
 reader used to claim each of them, on a Windows or self-hosted runner, with a pwsh hashtable
 argument, or with a glob, unlisted variable, or Cargo, rustup, Poetry or uv configuration that runs (or may
 run) repository code. So v27
@@ -257,6 +259,7 @@ v27, before to after, for every row this change moves:
 | false-assurance | review14-uv-quoted-key | at_risk | 1.8 → 2 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
 | false-assurance | review14-uv-root-dotted-key | at_risk | 1.8 → 2 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
 | false-assurance | review14-uv-under-tool-table-dotted | at_risk | 1.8 → 2 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
+| false-assurance | review15-uv-hex-escaped-key | at_risk | 1.8 → 2 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
 | false-assurance | review7-b3-cargo-publish-no-verify | at_risk | 2.1 → 1.7 | 2.1 → 1.3 | B2 warning 3.2 → warning 1.6 | 2 → 1 | 1 | 1 |
 | false-assurance | review8-b3-gh-release-upload | at_risk | 2.3 → 1.9 | 2.1 → 1.3 | B2 warning 3.2 → warning 1.6 | 2 → 1 | 1 | 1 |
 | false-assurance | review8-b3-npm-publish-without-install | at_risk | 2.3 → 1.9 | 2.1 → 1.3 | B2 warning 3.2 → warning 1.6 | 2 → 1 | 1 | 1 |
@@ -264,7 +267,7 @@ v27, before to after, for every row this change moves:
 | false-assurance | review8-b3-pypi-upload-only-ungated | at_risk → unverified | 1.8 → 1.4 | 2.1 → 1.3 | B2 warning 3.2 → warning 1.6 | 2 → 1 | 1 | 1 |
 | false-assurance | review8-b3-twine-upload-only | at_risk → unverified | 1.8 → 1.4 | 2.1 → 1.3 | B2 warning 3.2 → warning 1.6 | 2 → 1 | 1 | 1 |
 
-v17 to v27 at this change, for every row this change moves to below v17 (the other 25 now equal v17):
+v17 to v27 at this change, for every row this change moves to below v17 (the other 26 now equal v17):
 
 | Set | Row | Verdict | Overall | Code | Process | Criteria that moved, v17 → v27 |
 |---|---|---|---|---|---|---|
@@ -306,12 +309,22 @@ child start-up included, against a 2 s scan budget. A version with four of each 
 other guards miss their budget when the full suite ran in parallel (they passed with it skipped),
 so it was cut to one of each. On a scratch fixture of eight of each, in one run on one machine, a
 scan took 1.19 s under v27 and 0.97 s under v17. Before this change v27 took 1.46 s, because B3 ran
-the publish-only reader three times per workflow. Regular expressions added over repository text are the anchored, single-pass argument patterns
-(`PRINT_ONLY_RUN_LINE_PATTERN`, `PUBLISH_ONLY_INERT_WORD_PATTERN`, `PUBLISH_ONLY_PLAIN_WORD_PATTERN`,
-`PUBLISH_ONLY_ENV_VALUE_PATTERN`) and the two `pyproject.toml` token patterns,
-`PYPROJECT_UV_TOKEN_PATTERN` (`/\buv\b|\\[uU]/`) and `PYPROJECT_POETRY_PLUGINS_PATTERN`
-(`/plugins|\\[uU]/`). None has a nested quantifier, each is linear in its input, and the ReDoS guard
-(`regex-redos-guard.test.ts`) passes. Runner labels are an exact set, not a pattern.
+the publish-only reader three times per workflow. Every regular-expression literal this change adds under `src/` outside tests is listed below. The
+list was derived mechanically from the added lines of `git diff origin/main...HEAD -- src/`.
+- **Over file contents:**
+  - `PRINT_ONLY_RUN_LINE_PATTERN`, `PUBLISH_ONLY_INERT_WORD_PATTERN`, `PUBLISH_ONLY_PLAIN_WORD_PATTERN`,
+    the inline character class in `isFileOperand` (`/^[A-Za-z0-9_.,:/+=*-]+$/`),
+    `PUBLISH_ONLY_ENV_VALUE_PATTERN` and `POETRY_TOKEN_ENV_KEY_PATTERN`;
+  - the jobs-key pattern `/^jobs[ \t]*:[ \t]*$/`, in both readers;
+  - `PYPROJECT_UV_TOKEN_PATTERN` (`/\buv\b|\\/`) and `PYPROJECT_POETRY_PLUGINS_PATTERN`
+    (`/plugins|\\/`).
+- **Over repository paths:** `CARGO_CONFIGURATION_PATH_PATTERN`,
+  `POETRY_PROJECT_CONFIGURATION_PATH_PATTERN`, `UV_CONFIGURATION_PATH_PATTERN` and
+  `/^\.github\/workflows\//`.
+
+Each is either anchored with single quantifiers over character classes, or a plain alternation of
+literals. None has a nested quantifier, each is linear in its input, and the ReDoS guard
+(`src/__tests__/regex-redos-guard.test.ts`) passes. Runner labels are an exact set, not a pattern.
 
 **Fingerprints.** v17 stays
 `sha256:5cd48f8c642300ae8736a09d4a24ce3a4f8885f6e099b5f27f99d950e0c944b4`. v27 moves from

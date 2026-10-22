@@ -411,7 +411,7 @@ unchanged. v17 output changes in two places:
 
 v18-v26 rest on gating and their unchanged fingerprints. The
 measured tables are in `leaderboard/RUBRIC_CHANGELOG.md` (2026-10-22):
-- this change moves 42 fixture rows, 17 to below v17's value and 25 back to exactly v17's value, and
+- this change moves 43 fixture rows, 17 to below v17's value and 26 back to exactly v17's value, and
   no fixture is above v17;
 - no public row moves (informal, not a preregistered run);
 - v27's fingerprint moves from `sha256:fb4edfa0…` to
