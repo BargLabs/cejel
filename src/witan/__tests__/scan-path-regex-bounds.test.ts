@@ -52,6 +52,9 @@ interface ChildScan {
   readonly elapsedMs: number;
   readonly a1Findings: readonly string[];
   readonly b3ScriptDepthCondition: string | null;
+  readonly b2Notes: string | null;
+  readonly b3Notes: string | null;
+  readonly b3Disclosures: readonly string[];
 }
 
 function scanInChild(repo: string, rubricVersion: string): ChildScan {
@@ -224,7 +227,44 @@ const REVIEW_521_READER_FIXTURE: Record<string, string> = {
   'tests/bound/conftest.py': `def pytest_collection_modifyitems(items):\n${'    items.clear()\n'.repeat(28_000)}`,
 };
 
+// #527 and #535 (v27): B2 and B3 each run the shared uncredited-workflow predicate (publish-only
+// reader, then print-only reader) over every CI workflow, B3 once for both depth metrics. A
+// print-only workflow of 24,000 steps and an upload-only workflow of 3,300 download-and-upload step
+// pairs, each just under the content limit, are read that way under v27. (Four of each made the
+// other guards in this file miss their budget when the full suite ran in parallel.)
+const PRINT_ONLY_LONG_WORKFLOW = `name: e2e\non:\n  pull_request:\njobs:\n  e2e:\n    runs-on: ubuntu-latest\n    steps:\n${'      - run: echo a\n'.repeat(24_000)}`;
+const UPLOAD_ONLY_LONG_WORKFLOW = `name: publish\non:\n  push:\n    tags: ['*']\njobs:\n  publish:\n    runs-on: ubuntu-latest\n    permissions:\n      id-token: write\n    steps:\n${'      - uses: actions/download-artifact@v4\n        with:\n          name: dist\n          path: dist\n      - uses: pypa/gh-action-pypi-publish@release/v1\n'.repeat(3_300)}`;
+const UNCREDITED_WORKFLOW_FIXTURE: Record<string, string> = {
+  'pyproject.toml': '[project]\nname = "uncredited"\nversion = "1.0.0"\ndependencies = []\n',
+  'src/uncredited/__init__.py': 'def f():\n    return 1\n',
+  '.github/workflows/print.yml': PRINT_ONLY_LONG_WORKFLOW,
+  '.github/workflows/upload.yml': UPLOAD_ONLY_LONG_WORKFLOW,
+};
+
 describe('timing guards: the real scan finishes on pathological repository input', () => {
+  it.each([WITAN_RUBRIC_VERSION_V17, WITAN_RUBRIC_VERSION_V27])(
+    'a print-only and an upload-only workflow just under the content limit, read by B2 and B3 (#527, #535) — %s',
+    (rubric) => {
+      expect(PRINT_ONLY_LONG_WORKFLOW.length).toBeLessThan(512_000);
+      expect(PRINT_ONLY_LONG_WORKFLOW.length).toBeGreaterThan(450_000);
+      expect(UPLOAD_ONLY_LONG_WORKFLOW.length).toBeLessThan(512_000);
+      expect(UPLOAD_ONLY_LONG_WORKFLOW.length).toBeGreaterThan(450_000);
+      const scan = scanInChild(makeRepo(UNCREDITED_WORKFLOW_FIXTURE), rubric);
+      expect(scan.elapsedMs).toBeLessThan(SCAN_BUDGET_MS);
+      // Both readers classified both files in full: an early bail-out would keep them credited and
+      // drop them from these sentences, so a fast but incomplete reader fails here.
+      if (rubric === WITAN_RUBRIC_VERSION_V27) {
+        for (const notes of [scan.b2Notes, scan.b3Notes]) {
+          expect(notes).toContain('.github/workflows/print.yml');
+          expect(notes).toContain('.github/workflows/upload.yml');
+        }
+      } else {
+        expect(scan.b3Disclosures.join(' ')).toContain('.github/workflows/print.yml only prints text');
+      }
+    },
+    KILL_AFTER_MS + 10_000,
+  );
+
   it.each([WITAN_RUBRIC_VERSION_V17, WITAN_RUBRIC_VERSION_V27])(
     'CI lines and a conftest whitespace run just under the content limit — %s',
     (rubric) => {

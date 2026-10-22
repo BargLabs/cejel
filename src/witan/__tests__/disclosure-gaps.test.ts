@@ -355,6 +355,28 @@ describe('B3: counted PR-gate workflows not shown to run a check are named', () 
     );
   });
 
+  // v27 (#535): the workflows this disclosure names are not counted, so the #540 disclosure gives
+  // way to v27's own disclosure and note, which name a root workflow as such.
+  it('v27: stops counting the print-only workflows instead of disclosing them', () => {
+    const v27 = 'witan-rubric-v27-prospective-2026-10-19';
+    const planted = criterion('b2b3-planted-workflows', 'B3', v27);
+    expect(planted.metrics.find((metric) => metric.name === 'default_branch_ci_depth')?.value).toBe(2);
+    expect(planted.disclosures).toEqual([
+      'B3 did not count CI workflows Cejel did not see run a check: .github/workflows/e2e.yml only checks out the repository, prints text or does nothing.',
+    ]);
+    expect(planted.notes).toBe(
+      '1 workflow not shown to run a check (every step Cejel reads only checks out the repository, prints text or does nothing) is not counted as CI verification: .github/workflows/e2e.yml.',
+    );
+    const root = criterion('b3-monorepo-root-print-only', 'B3', v27);
+    expect(root.metrics.find((metric) => metric.name === 'default_branch_ci_depth')?.value).toBe(1);
+    expect(root.disclosures).toEqual([
+      'B3 did not count CI workflows Cejel did not see run a check: .github/workflows/e2e.yml at the monorepo root only checks out the repository, prints text or does nothing.',
+    ]);
+    expect(root.notes).toBe(
+      '1 workflow not shown to run a check (every step Cejel reads only checks out the repository, prints text or does nothing) is not counted as CI verification: .github/workflows/e2e.yml at the monorepo root.',
+    );
+  });
+
   it.each([
     'b2b3-control-pr-workflows',
     'b3-master-target-with-master-branch',
@@ -439,6 +461,36 @@ describe('B3: counted PR-gate workflows not shown to run a check are named', () 
   ])('claims nothing for %s at the job or workflow level', (_shape, jobs) => {
     expect(isPrintOnlyWorkflow(`on:\n  pull_request:\njobs:\n  e2e:\n    name: E2E\n    runs-on: ubuntu-latest\n    timeout-minutes: 5\n    steps:\n      - run: echo ok\n`)).toBe(true);
     expect(isPrintOnlyWorkflow(`on:\n  pull_request:\n${jobs}`)).toBe(false);
+  });
+
+  // Review of #562: `jobs :` is the jobs key. A second jobs key written that way after a print-only
+  // one was skipped as another top-level key, so the steps it holds went unread.
+  it('reads `jobs :` as the jobs key, so a second one makes no claim', () => {
+    const printOnly = 'jobs :\n  e2e:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo ok\n';
+    expect(isPrintOnlyWorkflow(`on:\n  pull_request:\n${printOnly}`)).toBe(true);
+    expect(
+      isPrintOnlyWorkflow(
+        `on:\n  pull_request:\njobs:\n  e2e:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo ok\njobs :\n  t:\n    runs-on: ubuntu-latest\n    steps:\n      - run: pnpm test\n`,
+      ),
+    ).toBe(false);
+  });
+
+  // #564: claims are made only where a step's text is read as bash reads it.
+  it.each([
+    ['windows-latest with a pwsh hashtable', 'windows-latest', 'echo @{suite=./run-tests.ps1}'],
+    ['windows-latest with inert text', 'windows-latest', 'echo ok'],
+    ['self-hosted', 'self-hosted', 'echo ok'],
+    ['an expression', '${{ matrix.os }}', 'echo ok'],
+    ['a list', '[ubuntu-latest]', 'echo ok'],
+    ['ubuntu with an equals sign', 'ubuntu-latest', 'echo a=b'],
+    ['ubuntu with a tilde', 'ubuntu-latest', 'echo ~'],
+    ['ubuntu with a percent sign', 'ubuntu-latest', 'printf %s x'],
+  ])('claims nothing for %s', (_shape, runsOn, run) => {
+    expect(isPrintOnlyWorkflow(`on:\n  pull_request:\njobs:\n  e2e:\n    runs-on: ${runsOn}\n    steps:\n      - run: ${run}\n`)).toBe(false);
+  });
+
+  it('claims nothing for a job with no runs-on', () => {
+    expect(isPrintOnlyWorkflow('on:\n  pull_request:\njobs:\n  e2e:\n    steps:\n      - run: echo ok\n')).toBe(false);
   });
 
   it('reads lines that end in a lone line terminator in linear time', () => {
@@ -675,8 +727,11 @@ const SCORING_SURFACE_PINS: Readonly<Record<string, string>> = {
     '9abd0b3001b65a4f8d77e3ff1d009cc9a5b4d40109dfa1cb117989119dd99697',
   'b2b3-planted-workflows@witan-rubric-v26-prospective-2026-10-14':
     'd36a15cabb651e6ee00d01a50edd62de230097c186f38f22b235a734281a44e0',
+  // Re-captured 2026-10-22 for #535, v27 only: v27 stops counting the print-only workflow these
+  // disclosures name (B3 default_branch_ci_depth 3 to 2, B2 pr_trace_primitives 4 to 3). Every
+  // other rubric's pin, and every other fixture's, is unchanged.
   'b2b3-planted-workflows@witan-rubric-v27-prospective-2026-10-19':
-    '9abd0b3001b65a4f8d77e3ff1d009cc9a5b4d40109dfa1cb117989119dd99697',
+    '947f74848f4727112e41b8576640f950cfd12fe1ddc7a9c141a505073ab20e63',
   'b2b3-control-pr-workflows@witan-rubric-v17-2026-07-24':
     'bb36e73518c7e570fcf31f4d5de8ee792f32eac0118594631f28feb09201eccc',
   'b2b3-control-pr-workflows@witan-rubric-v18-prospective-2026-07-25':
@@ -1049,6 +1104,8 @@ const SCORING_SURFACE_PINS: Readonly<Record<string, string>> = {
     'c5a11cff205543bded3bbdd684d7364168df3db26d71af52885cc9f6f4e3b042',
   'b3-monorepo-root-print-only@witan-rubric-v26-prospective-2026-10-14':
     'dbc5b7c625981fd7810e9995da0387d73c510fac2423e771a301aedf55e5b989',
+  // Re-captured 2026-10-22 for #535, v27 only: the monorepo root's print-only workflow is not
+  // counted (B3 default_branch_ci_depth 2 to 1).
   'b3-monorepo-root-print-only@witan-rubric-v27-prospective-2026-10-19':
-    'c5a11cff205543bded3bbdd684d7364168df3db26d71af52885cc9f6f4e3b042',
+    '110945e1c299996652f7d9ff82e8894de6207bedd0afc2e15238d5102667294b',
 };

@@ -19,7 +19,7 @@ import { HERMETIC_GIT_ENV } from './behaviour-corpus.js';
 
 export interface FalseAssuranceFixture {
   readonly name: string;
-  readonly issue: '#517' | '#518' | '#519' | '#520' | '#442';
+  readonly issue: '#517' | '#518' | '#519' | '#520' | '#442' | '#527' | '#535' | '#564';
   /** Set for a case an adversarial review of #521 found against the first implementation. */
   readonly foundInReview?: true;
   readonly purpose: string;
@@ -1510,6 +1510,260 @@ for (const [name, purpose, files] of [
   ],
 ] as const) {
   FALSE_ASSURANCE_FIXTURES_REVIEW.push({ name, issue: '#517', foundInReview: true, purpose, commits: [files] });
+}
+
+// #527 and #535 (2026-10-22): B2 and B3 credited CI workflows that run no check Cejel can see. A
+// workflow that only publishes (upload-only, as #553 narrowed it) or whose every step only checks
+// out and prints is not credited under v27 by either criterion. Control/change pairs on PY_LIBRARY,
+// whose own ci.yml runs pytest on pull requests and pushes to main.
+const { '.github/workflows/ci.yml': _pyLibraryCi, ...PY_LIBRARY_WITHOUT_CI } = PY_LIBRARY;
+const PRINT_ONLY_PR_WORKFLOW = (echo: string): string =>
+  `name: e2e\non:\n  push:\n    branches: [main]\n  pull_request:\n    branches: [main]\njobs:\n  e2e:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - run: ${echo}\n`;
+const MASTER_CONFINED_WORKFLOW =
+  'name: security\non:\n  push:\n    branches: [master]\n  pull_request:\n    branches:\n      - master\njobs:\n  audit:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - run: pip-audit\n';
+for (const [name, issue, purpose, files] of [
+  [
+    'b2-publish-only-is-the-only-workflow',
+    '#527',
+    'Change: the only CI workflow downloads a built artifact and uploads it to PyPI on tags. v17 credits it as a PR-trace CI workflow.',
+    { ...PY_LIBRARY_WITHOUT_CI, '.github/workflows/publish.yml': PYPI_UPLOAD_ONLY("on:\n  push:\n    tags: ['*']\n", '    environment: pypi\n') },
+  ],
+  [
+    'b2-publish-only-beside-test-workflow',
+    '#527',
+    'Change: the same upload-only workflow beside a workflow that runs pytest. v17 counts two CI workflows for B2.',
+    { ...PY_LIBRARY, '.github/workflows/publish.yml': PYPI_UPLOAD_ONLY("on:\n  push:\n    tags: ['*']\n", '    environment: pypi\n') },
+  ],
+  [
+    'b2-test-workflow-only',
+    '#527',
+    'Control: the pytest workflow alone. B2 credits one CI workflow under every rubric.',
+    { ...PY_LIBRARY },
+  ],
+  [
+    'b2-test-then-upload-stays-credited',
+    '#527',
+    'Corner: a workflow that runs pytest and then uploads is credited by B2 and B3 under v27.',
+    { ...PY_LIBRARY_WITHOUT_CI, '.github/workflows/ci.yml': PUSH_WORKFLOW('      - run: pip install pytest\n      - run: pytest\n      - run: twine upload dist/*\n', 'on:\n  push:\n    branches: [main]\n  pull_request:\n') },
+  ],
+  [
+    'b3-print-only-pr-workflow-beside-tests',
+    '#535',
+    "Change: #535's repro. A pull-request workflow whose only step prints \"e2e skipped\", beside the pytest workflow. v17 counts both for B3's PR-gate count and for B2.",
+    { ...PY_LIBRARY, '.github/workflows/e2e.yml': PRINT_ONLY_PR_WORKFLOW('echo "e2e skipped"') },
+  ],
+  [
+    'b3-print-only-is-the-only-workflow',
+    '#535',
+    'Change: the only CI workflow is the print-only pull-request workflow.',
+    { ...PY_LIBRARY_WITHOUT_CI, '.github/workflows/e2e.yml': PRINT_ONLY_PR_WORKFLOW('echo "e2e skipped"') },
+  ],
+  [
+    'b3-print-only-echo-names-a-test-command',
+    '#535',
+    'Change: the only workflow prints "pytest skipped". v17 credits a CI test command for the word pytest in the printed text.',
+    { ...PY_LIBRARY_WITHOUT_CI, '.github/workflows/e2e.yml': PRINT_ONLY_PR_WORKFLOW('echo "pytest skipped"') },
+  ],
+  [
+    'b3-echo-then-unplaced-action-stays-credited',
+    '#535',
+    'Corner: a print step beside an action the print-only reader does not place. Not shown to only print, so credited.',
+    { ...PY_LIBRARY_WITHOUT_CI, '.github/workflows/e2e.yml': PRINT_ONLY_PR_WORKFLOW('echo start\n      - uses: org/run-e2e@v1') },
+  ],
+  [
+    'b3-echo-in-a-run-block-with-a-test-stays-credited',
+    '#535',
+    'Corner: a run block that prints and then runs pytest. Credited.',
+    { ...PY_LIBRARY_WITHOUT_CI, '.github/workflows/e2e.yml': PRINT_ONLY_PR_WORKFLOW('|\n          echo start\n          pytest') },
+  ],
+  [
+    'b3-master-confined-workflow-on-main-still-counted',
+    '#535',
+    'Branch half of #535, ruled out of condition 3 by the operator on 2026-10-22: a workflow confined to master in a repository whose only branch is main. Which branches exist is ref state, not a function of the attested revision, so v27 still counts it.',
+    { ...PY_LIBRARY_WITHOUT_CI, '.github/workflows/security.yml': MASTER_CONFINED_WORKFLOW },
+  ],
+] as const) {
+  FALSE_ASSURANCE_FIXTURES_REVIEW.push({ name, issue, purpose, commits: [files] });
+}
+
+// #564 (2026-10-22, review of #562): the print-only reader assumed bash. On a Windows runner the
+// default shell is pwsh, where `echo @{suite=./run-tests.ps1}` evaluates the hashtable and runs the
+// repository's script; a self-hosted runner may run any shell. Each must keep its credit under v27
+// and get no print-only disclosure under any rubric.
+const RUNNER_WORKFLOW = (runsOn: string, run: string): string =>
+  `name: test\non:\n  push:\n    branches: [main]\n  pull_request:\njobs:\n  test:\n    runs-on: ${runsOn}\n    steps:\n      - uses: actions/checkout@v4\n      - run: ${run}\n`;
+for (const [name, purpose, runsOn, run] of [
+  ['review10-print-only-windows-latest-pwsh-hashtable', 'windows-latest, `echo @{suite=./run-tests.ps1}`: pwsh runs the script.', 'windows-latest', 'echo @{suite=./run-tests.ps1}'],
+  ['review10-print-only-windows-2022-pwsh-hashtable', 'windows-2022, `echo @{r=pytest}`.', 'windows-2022', 'echo @{r=pytest}'],
+  ['review10-print-only-self-hosted-printf', 'self-hosted, `printf @{r=pytest}`: any shell.', 'self-hosted', 'printf @{r=pytest}'],
+  ['review10-print-only-ubuntu-inert-text', 'Control: ubuntu-latest, `echo "e2e skipped"` is still print-only.', 'ubuntu-latest', 'echo "e2e skipped"'],
+  ['review10-print-only-ubuntu-equals-sign', 'ubuntu-latest, `echo a=b`: `=` is outside the inert allowlist, so no claim.', 'ubuntu-latest', 'echo a=b'],
+  ['review10-print-only-runner-expression', 'runs-on is an expression: no claim.', '${{ matrix.os }}', 'echo ok'],
+  ['review11-print-only-ubuntu-xlarge-label', '`ubuntu-22.04-xlarge` is not a documented GitHub-hosted label (an owner names larger Ubuntu runners): no claim.', 'ubuntu-22.04-xlarge', 'echo ok'],
+] as const) {
+  FALSE_ASSURANCE_FIXTURES_REVIEW.push({
+    name,
+    issue: '#564',
+    foundInReview: true,
+    purpose,
+    commits: [{ ...PY_LIBRARY_WITHOUT_CI, '.github/workflows/test.yml': RUNNER_WORKFLOW(runsOn, run) }],
+  });
+}
+FALSE_ASSURANCE_FIXTURES_REVIEW.push({
+  name: 'review11-upload-only-with-pull-request-trigger',
+  issue: '#527',
+  foundInReview: true,
+  purpose: 'The upload-only workflow with a pull-request trigger: the publish-only reader requires no pull-request trigger, so v27 counts it as v17 does, and the glossary says so.',
+  commits: [{ ...PY_LIBRARY, '.github/workflows/publish.yml': PYPI_UPLOAD_ONLY('on:\n  push:\n    branches: [main]\n  pull_request:\n    branches: [main]\n', '') }],
+});
+FALSE_ASSURANCE_FIXTURES_REVIEW.push({
+  name: 'review11-twine-upload-pwsh-hashtable-argument',
+  issue: '#564',
+  foundInReview: true,
+  purpose: '`twine upload dist/x.whl @{a=./t.ps1}` on ubuntu-latest: the argument is outside the inert allowlist, so publish-only is not claimed and B3 counts the workflow as v17 does.',
+  commits: [{ ...PY_LIBRARY, '.github/workflows/publish.yml': PUSH_WORKFLOW('      - run: twine upload dist/x.whl @{a=./t.ps1}\n') }],
+});
+for (const [name, purpose, runsOn] of [
+  ['review10-upload-only-windows-runner', 'An upload-only workflow on every push to main, on windows-latest: publish-only is not claimed (#564), so B3 counts it as v17 does.', 'windows-latest'],
+  ['review10-upload-only-self-hosted-runner', 'An upload-only workflow on a self-hosted runner: not claimed.', 'self-hosted'],
+] as const) {
+  FALSE_ASSURANCE_FIXTURES_REVIEW.push({
+    name,
+    issue: '#564',
+    foundInReview: true,
+    purpose,
+    commits: [{ ...PY_LIBRARY, '.github/workflows/publish.yml': PYPI_UPLOAD_ONLY('on:\n  push:\n    branches: [main]\n', '').replace('runs-on: ubuntu-latest', `runs-on: ${runsOn}`) }],
+  });
+}
+
+// Round 3 of the review of #562: the publish-only reader admitted globs in flag position, any
+// flag, any environment name not on a code-loading blocklist, and cargo with a committed Cargo
+// configuration. Each shape runs repository code; each must keep its credit.
+const EVIL_PACKAGE = `${JSON.stringify({ name: 'evil', version: '1.0.0', scripts: { prepublishOnly: 'node ../check.js' } }, null, 2)}\n`;
+for (const [name, purpose, files] of [
+  [
+    'review12-pnpm-publish-glob-flag',
+    '`pnpm publish --no-git-checks --d*` beside a committed file named `--dir=evil`: bash expands the glob to `--dir=evil` and pnpm publishes `evil/`, running its prepublishOnly.',
+    { ...JS_LIBRARY, '--dir=evil': '\n', 'evil/package.json': EVIL_PACKAGE, 'check.js': 'process.exit(0);\n', '.github/workflows/release.yml': PUSH_WORKFLOW('      - run: pnpm publish --no-git-checks --d*\n') },
+  ],
+  [
+    'review12-yarn-publish-glob-flag',
+    '`yarn publish --c*` beside a committed `--cwd=evil`.',
+    { ...JS_LIBRARY, '--cwd=evil': '\n', 'evil/package.json': EVIL_PACKAGE, '.github/workflows/release.yml': PUSH_WORKFLOW('      - run: yarn publish --c*\n') },
+  ],
+  [
+    'review12-npm-publish-unknown-flag',
+    '`npm publish --userconfig=evil.npmrc`: an unknown flag (it points npm at another configuration).',
+    { ...JS_LIBRARY, 'evil.npmrc': 'script-shell=./check.sh\n', '.github/workflows/release.yml': PUSH_WORKFLOW('      - run: npm publish --userconfig=evil.npmrc\n') },
+  ],
+  [
+    'review12-cargo-publish-glob-flag',
+    '`cargo publish --no-verify --c*` beside a committed `--config=x.toml`.',
+    { ...RUST_LIBRARY, '--config=x.toml': '[registry]\ncredential-provider = ["./run-tests.sh"]\n', '.github/workflows/release.yml': PUSH_WORKFLOW('      - run: cargo publish --no-verify --c*\n') },
+  ],
+  [
+    'review12-cargo-credential-provider-variable',
+    '`CARGO_REGISTRY_CREDENTIAL_PROVIDER=./run-tests.sh cargo publish --no-verify`: cargo executes the provider.',
+    { ...RUST_LIBRARY, 'run-tests.sh': 'cargo test\n', '.github/workflows/release.yml': PUSH_WORKFLOW('      - run: CARGO_REGISTRY_CREDENTIAL_PROVIDER=./run-tests.sh cargo publish --no-verify\n') },
+  ],
+  [
+    'review12-twine-pythonuserbase-variable',
+    '`PYTHONUSERBASE=./ub twine upload dist/x.whl`: a committed `.pth` under the user site runs.',
+    { ...PY_LIBRARY, 'ub/lib/python3.12/site-packages/check.pth': 'import subprocess\n', '.github/workflows/publish.yml': PUSH_WORKFLOW('      - run: PYTHONUSERBASE=./ub twine upload dist/x.whl\n') },
+  ],
+  [
+    'review12-cargo-home-step-env',
+    'A step `env:` setting `CARGO_HOME` for `cargo publish --no-verify`.',
+    { ...RUST_LIBRARY, '.github/workflows/release.yml': PUSH_WORKFLOW('      - run: cargo publish --no-verify\n        env:\n          CARGO_HOME: ./ch\n') },
+  ],
+  [
+    'review12-gh-release-xdg-config-step-env',
+    'A step `env:` setting `XDG_CONFIG_HOME` for `gh release upload`.',
+    { ...JS_LIBRARY, '.github/workflows/release.yml': PUSH_WORKFLOW('      - run: gh release upload v1.0.0 dist/app.tgz\n        env:\n          XDG_CONFIG_HOME: ./x\n') },
+  ],
+  [
+    'review12-cargo-committed-config-credential-provider',
+    'A committed `.cargo/config.toml` naming a credential provider, with `cargo publish --no-verify`.',
+    { ...RUST_LIBRARY, '.cargo/config.toml': '[registry]\ncredential-provider = ["./run-tests.sh"]\n', 'run-tests.sh': 'cargo test\n', '.github/workflows/release.yml': PUSH_WORKFLOW('      - run: cargo publish --no-verify\n') },
+  ],
+  [
+    'review12-twine-upload-flag-glob',
+    '`twine upload --c* dist/x.whl` beside a committed `--config-file=evil.pypirc`.',
+    { ...PY_LIBRARY, '--config-file=evil.pypirc': '[distutils]\n', '.github/workflows/publish.yml': PUSH_WORKFLOW('      - run: twine upload --c* dist/x.whl\n') },
+  ],
+] as const) {
+  FALSE_ASSURANCE_FIXTURES_REVIEW.push({ name, issue: '#527', foundInReview: true, purpose, commits: [files] });
+}
+
+// Round 4 of the review of #562: publisher configuration committed in the repository that runs
+// code before the upload. Each shape must keep its credit; the controls stay publish-only.
+const UPLOAD_STEP_PREFIX =
+  '      - uses: actions/download-artifact@v4\n        with:\n          name: dist\n          path: dist\n';
+const TAG_UPLOAD = (run: string, env: string): string =>
+  `name: publish\non:\n  push:\n    tags: ['*']\njobs:\n  publish:\n    runs-on: ubuntu-latest\n    steps:\n${UPLOAD_STEP_PREFIX}      - run: ${run}\n${env}`;
+const POETRY_ENV = '        env:\n          POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_TOKEN }}\n';
+const UV_ENV = '        env:\n          UV_PUBLISH_TOKEN: ${{ secrets.PYPI_TOKEN }}\n';
+const PUSH_UPLOAD = (run: string, env: string): string => TAG_UPLOAD(run, env).replace("    tags: ['*']\n", '    branches: [main]\n');
+for (const [name, purpose, files] of [
+  [
+    'review13-poetry-project-plugin-pth',
+    '`poetry publish` with a committed `.poetry/plugins/evil.pth`: Poetry adds the directory with addsitedir() before any command, so the `.pth` runs.',
+    { ...PY_LIBRARY, '.poetry/plugins/evil.pth': 'import os\n', '.github/workflows/publish.yml': PUSH_UPLOAD('poetry publish', POETRY_ENV) },
+  ],
+  [
+    'review13-poetry-requires-plugins',
+    '`poetry publish` with `[tool.poetry.requires-plugins]` in pyproject.toml.',
+    { ...PY_LIBRARY, 'pyproject.toml': `${PY_LIBRARY['pyproject.toml']}\n[tool.poetry.requires-plugins]\npoetry-plugin-x = ">=1"\n`, '.github/workflows/publish.yml': PUSH_UPLOAD('poetry publish', POETRY_ENV) },
+  ],
+  [
+    'review13-uv-toml-committed',
+    '`uv publish` with a committed `uv.toml`.',
+    { ...PY_LIBRARY, 'uv.toml': 'keyring-provider = "subprocess"\n', '.github/workflows/publish.yml': PUSH_UPLOAD('uv publish', UV_ENV) },
+  ],
+  [
+    'review13-uv-pyproject-table',
+    '`uv publish` with a `[tool.uv]` table in pyproject.toml.',
+    { ...PY_LIBRARY, 'pyproject.toml': `${PY_LIBRARY['pyproject.toml']}\n[tool.uv]\nkeyring-provider = "subprocess"\n`, '.github/workflows/publish.yml': PUSH_UPLOAD('uv publish', UV_ENV) },
+  ],
+  [
+    'review13-rust-toolchain-toml',
+    '`cargo publish --no-verify` with a committed `rust-toolchain.toml`: rustup resolves the cargo proxy from it.',
+    { ...RUST_LIBRARY, 'rust-toolchain.toml': '[toolchain]\npath = "../tc"\n', '.github/workflows/release.yml': PUSH_WORKFLOW('      - run: cargo publish --no-verify\n') },
+  ],
+  [
+    'review13-poetry-publish-control',
+    'Control: `poetry publish` of a downloaded artifact with no Poetry project configuration stays publish-only.',
+    { ...PY_LIBRARY, '.github/workflows/publish.yml': PUSH_UPLOAD('poetry publish', POETRY_ENV) },
+  ],
+  [
+    'review13-uv-publish-control',
+    'Control: `uv publish` of a downloaded artifact with no uv configuration stays publish-only.',
+    { ...PY_LIBRARY, '.github/workflows/publish.yml': PUSH_UPLOAD('uv publish', UV_ENV) },
+  ],
+] as const) {
+  FALSE_ASSURANCE_FIXTURES_REVIEW.push({ name, issue: '#527', foundInReview: true, purpose, commits: [files] });
+}
+
+// Round 5 of the review of #562: TOML spellings of uv and Poetry plugin settings that a table-header
+// match missed. Each keeps its credit.
+const BACKSLASH = String.fromCharCode(92);
+for (const [name, purpose, pyproject, run, env] of [
+  ['review14-uv-index-array-table', '`[[tool.uv.index]]`, uv\'s documented index form.', `${PY_LIBRARY['pyproject.toml']}\n[[tool.uv.index]]\nurl = "https://example.invalid/simple"\n`, 'uv publish', UV_ENV],
+  ['review14-uv-under-tool-table-dotted', '`[tool]` then `uv.keyring-provider = ...`.', `${PY_LIBRARY['pyproject.toml']}\n[tool]\nuv.keyring-provider = "subprocess"\n`, 'uv publish', UV_ENV],
+  ['review14-uv-root-dotted-key', 'A root dotted key `tool.uv.keyring-provider = ...` before any table.', `tool.uv.keyring-provider = "subprocess"\n${PY_LIBRARY['pyproject.toml']}`, 'uv publish', UV_ENV],
+  ['review14-uv-inline-table', '`[tool]` then `uv = { ... }`.', `${PY_LIBRARY['pyproject.toml']}\n[tool]\nuv = { keyring-provider = "subprocess" }\n`, 'uv publish', UV_ENV],
+  ['review14-uv-quoted-key', '`[tool."uv"]`.', `${PY_LIBRARY['pyproject.toml']}\n[tool."uv"]\nkeyring-provider = "subprocess"\n`, 'uv publish', UV_ENV],
+  ['review14-uv-escaped-key', 'A TOML escape spelling `uv` (`[tool."' + BACKSLASH + 'u0075v"]`).', `${PY_LIBRARY['pyproject.toml']}\n[tool."${BACKSLASH}u0075v"]\nkeyring-provider = "subprocess"\n`, 'uv publish', UV_ENV],
+  ['review15-uv-hex-escaped-key', 'A TOML 1.1 `\\x` escape spelling `uv` (`[tool."u' + BACKSLASH + 'x76"]`).', `${PY_LIBRARY['pyproject.toml']}\n[tool."u${BACKSLASH}x76"]\nkeyring-provider = "subprocess"\n`, 'uv publish', UV_ENV],
+  ['review14-poetry-quoted-requires-plugins', '`[tool.poetry."requires-plugins"]`.', `${PY_LIBRARY['pyproject.toml']}\n[tool.poetry."requires-plugins"]\npoetry-plugin-x = ">=1"\n`, 'poetry publish', POETRY_ENV],
+] as const) {
+  FALSE_ASSURANCE_FIXTURES_REVIEW.push({
+    name,
+    issue: '#527',
+    foundInReview: true,
+    purpose,
+    commits: [{ ...PY_LIBRARY, 'pyproject.toml': pyproject, '.github/workflows/publish.yml': PUSH_UPLOAD(run, env) }],
+  });
 }
 
 export const FALSE_ASSURANCE_FIXTURES: readonly FalseAssuranceFixture[] = [

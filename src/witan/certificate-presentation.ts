@@ -3,6 +3,8 @@ import {
   WITAN_A2_TENANT_ISOLATION_UNSETTLED_DISCLOSURE,
   WITAN_A3_BUILD_STEP_UNSETTLED_DISCLOSURE,
   WITAN_A5_RECONCILIATION_UNSETTLED_DISCLOSURE,
+  WITAN_B2_UNCREDITED_CI_WORKFLOW_PREFIX,
+  WITAN_B3_UNCREDITED_CI_WORKFLOW_PREFIX,
   WITAN_B3_UNSHOWN_CHECK_PREFIX,
 } from './abstention.js';
 import {
@@ -194,7 +196,7 @@ export const CERTIFICATE_GLOSSARY: readonly CertificateGlossaryEntry[] = [
     key: 'pr-trace-basic-checks',
     term: 'PR trace basic checks',
     definition:
-      'A capped scoring input that counts detected CI workflow files, a pull-request template, and a review-gate record such as CODEOWNERS or branch-protection documentation. The raw count is capped at two for scoring.',
+      'A capped scoring input that counts detected CI workflow files, a pull-request template, and a review-gate record such as CODEOWNERS or branch-protection documentation. The raw count is capped at two for scoring. Under the prospective witan-rubric-v27, a CI workflow file is not counted when Cejel reads every step as only checking out, printing text or doing nothing, or, for a workflow with no pull-request trigger, as only uploading an already-built artifact. Cejel makes either reading only when the runs-on value of every job names a documented GitHub-hosted Ubuntu or macOS runner label. Such a file was not shown to run a check, which is not a finding that it runs none.',
     metricNames: ['pr_trace_primitives'],
   },
   {
@@ -292,7 +294,7 @@ export const CERTIFICATE_GLOSSARY: readonly CertificateGlossaryEntry[] = [
     key: 'pr-gate-ci-workflow-count',
     term: 'PR-gate CI workflow count (automated build/test pipeline)',
     definition:
-      'The number of detected CI workflow files configured for pull requests or the main or master branch, including a covering monorepo-root workflow, capped at four for scoring.',
+      'The number of detected CI workflow files configured for pull requests or the main or master branch, including a covering monorepo-root workflow, capped at four for scoring. Under the prospective witan-rubric-v27, a workflow file is not counted when Cejel reads every step as only checking out, printing text or doing nothing, or, for a workflow with no pull-request trigger, as only uploading an already-built artifact. Cejel makes either reading only when the runs-on value of every job names a documented GitHub-hosted Ubuntu or macOS runner label. Such a file was not shown to run a check, which is not a finding that it runs none.',
     metricNames: ['default_branch_ci_depth'],
   },
   {
@@ -935,6 +937,21 @@ function unshownCheckWorkflowDisclosures(report: WitanReport): string[] {
   return criterionDisclosures(report, 'B3', WITAN_B3_UNSHOWN_CHECK_PREFIX);
 }
 
+// Prospective v27 (#527, #535): the B2 and B3 disclosures naming CI workflows not counted because
+// Cejel did not see them run a check. Listed only while that criterion is scored.
+function uncreditedCiWorkflowDisclosures(report: WitanReport): string[] {
+  return (
+    [
+      ['B2', WITAN_B2_UNCREDITED_CI_WORKFLOW_PREFIX],
+      ['B3', WITAN_B3_UNCREDITED_CI_WORKFLOW_PREFIX],
+    ] as const
+  ).flatMap(([criterionId, prefix]) => {
+    const criterion = report.criteria.find((entry) => entry.id === criterionId);
+    if (!criterion || criterion.status === 'not_applicable' || criterion.status === 'insufficient_data') return [];
+    return criterionDisclosures(report, criterionId, prefix);
+  });
+}
+
 function criterionDisclosures(report: WitanReport, criterionId: string, prefix: string): string[] {
   const criterion = report.criteria.find((entry) => entry.id === criterionId);
   return (criterion?.disclosures ?? []).filter((sentence) => sentence.startsWith(prefix));
@@ -1022,6 +1039,7 @@ export function buildRelyingPartySummary(report: WitanReport): RelyingPartySumma
   gaps.push(...settlingEvidenceDisclosures(report));
   gaps.push(...placeholderSetAsideDisclosures(report));
   gaps.push(...unshownCheckWorkflowDisclosures(report));
+  gaps.push(...uncreditedCiWorkflowDisclosures(report));
   const withheldPathsSentence = buildWithheldPathsGapSentence(report);
   if (withheldPathsSentence !== undefined) {
     gaps.push(withheldPathsSentence);

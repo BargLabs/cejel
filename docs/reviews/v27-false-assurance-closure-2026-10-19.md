@@ -385,3 +385,73 @@ Any later change to v27's scoring makes a new candidate and resets conditions 1,
 
 **What this ruling does not do.** It changes no code, policy text or default, and it is not a
 release. It does not promise that v27 will become the default.
+
+## Addition (2026-10-22): #527 and #535 in v27, a new candidate
+
+*Added 2026-10-22 by an AI agent (Claude Opus 5.5, Claude Code), at the coordinator's request, for
+condition 3 of the ruling above. The text above is left as written.*
+
+**What changed.** Under v27 only, B2 and B3 decide credit for a CI workflow with one predicate. A
+workflow that only publishes (`isPublishOnlyWorkflow`, #553's upload-only rule) or whose every step
+only checks out and prints (`isPrintOnlyWorkflow`, #540's reader) is not credited:
+- B2's `pr_trace_primitives` loses that workflow's CI component (#527);
+- B3's `ci_script_depth` and `default_branch_ci_depth` do not count it (#535, the no-check half).
+
+A reader admits a workflow only when every line of its jobs section fits its grammar, every job's
+`runs-on` is a documented GitHub-hosted Ubuntu or macOS label (an exact list, bash, #564), every
+step is on its allowlist, and arguments use only characters inert in every shell. A publish-only
+workflow also needs known flags only, globs only in file operands, credential variables only and no
+committed Cargo, rustup, Poetry or uv configuration. Anything else keeps the credit. The certificate names uncredited workflows under "What was not established", and no
+sentence says that a workflow runs no check. v17's scores, statuses, metrics and fingerprint are
+unchanged. v17 output changes in two places:
+- **`report.json`:** on a repository whose workflow the old reader alone called print-only (for
+  example a pwsh or self-hosted workflow), the false #540 disclosure is gone (#564).
+- **Certificates:** on every repository, the Markdown, HTML and terminal certificate carry the two
+  updated glossary entries, which describe v27's rule.
+
+v18-v26 rest on gating and their unchanged fingerprints. The
+measured tables are in `leaderboard/RUBRIC_CHANGELOG.md` (2026-10-22):
+- this change moves 43 fixture rows, 17 to below v17's value and 26 back to exactly v17's value, and
+  no fixture is above v17;
+- no public row moves (informal, not a preregistered run);
+- v27's fingerprint moves from `sha256:fb4edfa0…` to
+  `sha256:6e03aa1bf63a31c5ec58a68cb49fb8ef571ba233cf79059a311ec55aecea5bb3`.
+
+**This is a new candidate.** The ruling's last condition paragraph applies: "Any later change to
+v27's scoring makes a new candidate and resets conditions 1, 2, 4 and 5." The candidate is the fingerprint
+above plus #562's merge commit, which is recorded after merge (#563). Conditions 1, 2, 4 and 5 are
+reset for it. #562 moves neither `b3-master-target-*` surface pin. PR #560 touches the same records;
+whichever of the two lands second reconciles them. A release carrying an earlier v27 fingerprint does not count
+toward condition 1 for this one.
+
+**Condition 3 is met by the no-check half. The operator ruled the branch half out of it on
+2026-10-22.** #535 also names a workflow confined to a branch the repository does not have. That
+half is not changed. Fixture `b3-master-confined-workflow-on-main-still-counted` pins the behaviour
+the operator ruled on.
+
+**The operator's decision.** The operator's words, relayed on #526
+([comment](https://github.com/BargLabs/cejel/issues/526#issuecomment-6336750983)) and #535 ([comment](https://github.com/BargLabs/cejel/issues/535#issuecomment-6336751428)), were "yes to both recommendations". The two
+recommendations were this one (the #535 branch half) and extending the ADR-0001 read-failure ruling
+to #556's abstention (#560). The recommendation on this point was to rule the branch half out of
+condition 3. The other options, binding the default branch in the report and dropping all
+branch-filtered credit, were therefore not chosen. The relaying agent's #526 comment describes them
+as declined. The
+optional ref-free disclosure offered with the recommendation was not separately approved and is not
+added. #535's comment records that the question can be revisited if the default branch is ever bound
+in the report and attestation (a format change).
+
+**The reasoning offered for that recommendation** (the author's, not the operator's). Deciding the
+branch half needs the default branch or the branch list, which is ref state. The attestation's only
+repository revision is `repo.headSha` (`src/witan/attestation.ts`), and ref state is not a function
+of it. Reading `origin/HEAD` offline, as #535 suggested, has one of two outcomes:
+- the same commit scores differently with different refs, unless the value is bound in the report;
+- abstaining when the value cannot be read removes credit on most checkouts.
+
+#540 already removed a sentence read from refs because `cejel issue` then refused honest
+reproductions of the same commit. No rule decidable from the commit's tree was found that removes
+only false credit. Two candidates were measured on the 23 public rows, under v27:
+- **Credit only workflows with an unfiltered pull-request trigger.** 16 rows' PR-gate counts move
+  and 8 composites fall. It drops every `branches: [main]` gate, which is usually correct.
+- **Drop a workflow whose filters name `master` and not `main`.** 3 rows move (fastapi, express,
+  guava), and all three repositories' default branch is `master`. Every removal would be a false
+  assertion.

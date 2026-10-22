@@ -47,6 +47,8 @@ import {
 import {
   WITAN_A2_PLACEHOLDER_SET_ASIDE_PREFIX,
   WITAN_A2_TENANT_ISOLATION_UNSETTLED_DISCLOSURE,
+  WITAN_B2_UNCREDITED_CI_WORKFLOW_PREFIX,
+  WITAN_B3_UNCREDITED_CI_WORKFLOW_PREFIX,
   WITAN_B3_UNSHOWN_CHECK_PREFIX,
   WITAN_A3_BUILD_STEP_UNSETTLED_DISCLOSURE,
   WITAN_A5_RECONCILIATION_UNSETTLED_DISCLOSURE,
@@ -308,7 +310,12 @@ function wholesaleCriterionAbstention(
 }
 
 function withoutCountDisclosures(disclosures: readonly string[] | undefined): { disclosures?: string[] } {
-  const kept = (disclosures ?? []).filter((text) => !text.startsWith(WITAN_B3_UNSHOWN_CHECK_PREFIX));
+  const kept = (disclosures ?? []).filter(
+    (text) =>
+      !text.startsWith(WITAN_B3_UNSHOWN_CHECK_PREFIX) &&
+      !text.startsWith(WITAN_B2_UNCREDITED_CI_WORKFLOW_PREFIX) &&
+      !text.startsWith(WITAN_B3_UNCREDITED_CI_WORKFLOW_PREFIX),
+  );
   return kept.length > 0 ? { disclosures: kept } : {};
 }
 
@@ -5264,17 +5271,31 @@ function collectB2PrTraceEvidence(
   const branchProtectionDoc = repoFiles.find(
     (file) => /branch.*protection|review.*gate/i.test(file) || GITHUB_CODEOWNERS_PATH_PATTERN.test(file),
   );
+  // v27 (#527): a CI workflow Cejel does not see run a check earns no PR-trace credit. The same
+  // predicate decides B3's counts (uncreditedCiWorkflowReason), so the two criteria cannot disagree
+  // about a workflow. Every rubric other than v27 reads nothing here and credits every CI file. A
+  // workflow that cannot be read counts as a read failure of B2, which then abstains at 0.
+  const uncredited: ReadonlyMap<string, UncreditedCiWorkflowReason> = useV27FalseAssuranceClosure
+    ? withContentReadSignal('B2', 'pr_trace_primitives', () =>
+        uncreditedCiWorkflows(repoPath, workflows, ownPublishOnlyInventory(repoFiles)),
+      )
+    : new Map();
+  const creditedWorkflowCount = workflows.length - uncredited.size;
   const citedWorkflows = workflows.slice(0, 3);
   const unreadWorkflows = unreadCiWorkflowReasons(() => true);
   const workflowLabel = (file: string) =>
-    fittedCiWorkflowCitationLabel(b2WorkflowCitationBaseLabels(repoPath, file), (baseLabel) =>
-      ciWorkflowCitationLabel(
-        baseLabel,
-        'counted',
-        workflows.length,
-        citedWorkflows.length,
-        unreadWorkflows,
-      ),
+    fittedCiWorkflowCitationLabel(
+      uncredited.has(file)
+        ? [B2_UNCREDITED_CI_WORKFLOW_LABEL]
+        : b2WorkflowCitationBaseLabels(repoPath, file),
+      (baseLabel) =>
+        ciWorkflowCitationLabel(
+          baseLabel,
+          uncredited.size > 0 ? 'read' : 'counted',
+          workflows.length,
+          citedWorkflows.length,
+          unreadWorkflows,
+        ),
     );
   const evidence = [
     ...citedWorkflows.map((file) =>
@@ -5319,7 +5340,7 @@ function collectB2PrTraceEvidence(
       metric(
         'pr_trace_primitives',
         'PR trace basic checks',
-        workflows.length + (prTemplate ? 1 : 0) + (branchProtectionDoc ? 1 : 0),
+        creditedWorkflowCount + (prTemplate ? 1 : 0) + (branchProtectionDoc ? 1 : 0),
         2,
         0.8,
         'signals',
@@ -5327,10 +5348,14 @@ function collectB2PrTraceEvidence(
         'saturating_count',
         {
           components: [
-            { label: 'CI workflow', count: workflows.length },
+            {
+              label: uncredited.size > 0 ? B2_CREDITED_CI_WORKFLOW_COMPONENT_LABEL : 'CI workflow',
+              count: creditedWorkflowCount,
+            },
             { label: 'pull-request template', count: prTemplate ? 1 : 0 },
             { label: 'review-gate record', count: branchProtectionDoc ? 1 : 0 },
           ],
+          ...(uncredited.size > 0 ? { condition: uncreditedCiWorkflowCondition(uncredited.size) } : {}),
         },
       ),
       // Weight lowered from 0.35 (Phase 3 H1): squash-merge and local-history repos with
@@ -5347,6 +5372,14 @@ function collectB2PrTraceEvidence(
         'Uses bounded git history as a deterministic proxy for PR outcome traceability.',
       ),
     ],
+    ...(uncredited.size > 0
+      ? {
+          notes: uncreditedCiWorkflowNote(uncredited, 'a PR-trace CI workflow'),
+          disclosures: [
+            uncreditedCiWorkflowDisclosure(WITAN_B2_UNCREDITED_CI_WORKFLOW_PREFIX, uncredited),
+          ],
+        }
+      : {}),
   };
 }
 
@@ -5363,33 +5396,42 @@ function collectB3CiDisciplineEvidence(
   const workflow = workflows[0];
   // CI workflows at the MONOREPO ROOT gate this sub-package's PRs too — count them.
   const rootWorkflows = mono ? mono.sharedFiles.filter(isCiWorkflow) : [];
-  // v27 (#517): a workflow that only publishes, releases or deploys is not CI verification, so it
+  // v27 (#517, #535): a workflow Cejel does not see run a check (one that only publishes, releases
+  // or deploys, or one whose every step only checks out and prints) is not CI verification, so it
   // counts toward neither depth metric. It stays in `workflows` for evidence and the read count,
   // so a repository whose only workflow publishes still reports B3, at depth 0. Every other rubric
-  // counts it: making it run on every push raised B3.
-  // The repository files a publish-only reading may consult (package.json, setup.py, ...): this
-  // checkout's inventory with its withheld paths, read from the inventory and never the host. A
-  // monorepo root's workflows get none, so any command whose behaviour that root's files decide
-  // keeps them counted.
-  const knownPaths = [...repoFiles, ...withheldRepoPaths().map(({ path }) => path)];
-  const ownInventory: PublishOnlyInventory = {
-    scanned: new Set(repoFiles),
-    known: new Set(knownPaths),
-    hasYarnPlugins: knownPaths.some((path) => path.startsWith('.yarn/plugins/')),
-  };
-  const countsAsCi = (root: string) => (file: string) =>
-    !useV27FalseAssuranceClosure ||
-    !isPublishOnlyWorkflow(root, file, root === repoPath ? ownInventory : null);
+  // counts it: making it run on every push raised B3. B2 uses the same predicate (#527).
+  // A monorepo root's workflows get no inventory, so any command whose behaviour that root's files
+  // decide keeps them counted.
+  // Decided once per workflow, under both depth signals, since each depends on the reading.
+  const uncreditedWorkflows: ReadonlyMap<string, UncreditedCiWorkflowReason> = useV27FalseAssuranceClosure
+    ? withContentReadSignals('B3', ['ci_script_depth', 'default_branch_ci_depth'], () =>
+        uncreditedCiWorkflows(repoPath, workflows, ownPublishOnlyInventory(repoFiles)),
+      )
+    : new Map();
+  const uncreditedRootWorkflows: ReadonlyMap<string, UncreditedCiWorkflowReason> =
+    useV27FalseAssuranceClosure && mono
+      ? withContentReadSignals('B3', ['ci_script_depth', 'default_branch_ci_depth'], () =>
+          uncreditedCiWorkflows(mono.root, rootWorkflows, null),
+        )
+      : new Map();
+  const countsAsCi = (uncredited: ReadonlyMap<string, UncreditedCiWorkflowReason>) => (file: string) =>
+    !uncredited.has(file);
+  // For the note, disclosure and condition: a root workflow is named as such.
+  const b3Uncredited: ReadonlyMap<string, UncreditedCiWorkflowReason> = new Map([
+    ...uncreditedWorkflows,
+    ...[...uncreditedRootWorkflows].map(([file, reason]) => [`${file} at the monorepo root`, reason] as const),
+  ]);
   const { defaultBranchCiCount, defaultBranchCiWorkflows, rootDefaultBranchCiWorkflows } = withContentReadSignal(
     'B3',
     'default_branch_ci_depth',
     () => {
       const counted = workflows
-        .filter(countsAsCi(repoPath))
+        .filter(countsAsCi(uncreditedWorkflows))
         .filter((file) => workflowTargetsDefaultBranch(repoPath, file));
       const rootCounted = mono
         ? rootWorkflows
-            .filter(countsAsCi(mono.root))
+            .filter(countsAsCi(uncreditedRootWorkflows))
             .filter((file) => workflowTargetsDefaultBranch(mono.root, file))
         : [];
       return {
@@ -5411,11 +5453,6 @@ function collectB3CiDisciplineEvidence(
         )
       : { printOnly: [] },
   );
-  const publishOnlyWorkflows = useV27FalseAssuranceClosure
-    ? withContentReadSignals('B3', ['ci_script_depth', 'default_branch_ci_depth'], () =>
-        workflows.filter((file) => isPublishOnlyWorkflow(repoPath, file, ownInventory)),
-      )
-    : [];
 
   if (packageJson && scripts.has('test')) {
     evidence.push(evidenceForRelative(repoPath, packageJson, 'test_run', 'Test script'));
@@ -5521,12 +5558,12 @@ function collectB3CiDisciplineEvidence(
     'ci_script_depth',
     () => ({
       repoCategoryHits: CI_COMMAND_CATEGORIES.map((pattern) =>
-        workflows.filter(countsAsCi(repoPath)).some((file) => fileContains(repoPath, file, pattern)),
+        workflows.filter(countsAsCi(uncreditedWorkflows)).some((file) => fileContains(repoPath, file, pattern)),
       ),
       rootCategoryHits: mono
         ? CI_COMMAND_CATEGORIES.map((pattern) =>
             rootWorkflows
-              .filter(countsAsCi(mono.root))
+              .filter(countsAsCi(uncreditedRootWorkflows))
               .some((file) => fileContains(mono.root, file, pattern)),
           )
         : [],
@@ -5581,21 +5618,150 @@ function collectB3CiDisciplineEvidence(
         'saturating_count',
         b3UnshownCheckCount(unshownCheckWorkflows) > 0
           ? { condition: b3UnshownCheckCondition(unshownCheckWorkflows) }
-          : undefined,
+          : b3Uncredited.size > 0
+            ? { condition: uncreditedCiWorkflowCondition(b3Uncredited.size) }
+            : undefined,
       ),
     ],
-    ...(publishOnlyWorkflows.length > 0 ? { notes: b3PublishOnlyNote(publishOnlyWorkflows) } : {}),
-    ...b3UnshownCheckDisclosures(unshownCheckWorkflows),
+    ...(b3Uncredited.size > 0 ? { notes: b3UncreditedWorkflowsNote(b3Uncredited) } : {}),
+    ...b3Disclosures(
+      unshownCheckWorkflows,
+      b3Uncredited.size > 0
+        ? uncreditedCiWorkflowDisclosure(WITAN_B3_UNCREDITED_CI_WORKFLOW_PREFIX, b3Uncredited)
+        : '',
+    ),
   };
 }
 
-function b3UnshownCheckDisclosures(unshown: B3UnshownCheckWorkflows): { disclosures?: string[] } {
-  const sentence = b3UnshownCheckDisclosure(unshown, CRITERION_DISCLOSURE_MAX_LENGTH);
-  return sentence ? { disclosures: [sentence] } : {};
+function b3Disclosures(unshown: B3UnshownCheckWorkflows, uncredited: string): { disclosures?: string[] } {
+  const sentences = [b3UnshownCheckDisclosure(unshown, CRITERION_DISCLOSURE_MAX_LENGTH), uncredited].filter(
+    (sentence) => sentence !== '',
+  );
+  return sentences.length > 0 ? { disclosures: sentences } : {};
 }
 
-function b3PublishOnlyNote(publishOnlyWorkflows: readonly string[]): string {
-  return `${publishOnlyWorkflows.length === 1 ? '1 workflow that only publishes, releases or deploys' : `${publishOnlyWorkflows.length} workflows that only publish, release or deploy`} (no pull-request trigger, and every step Cejel reads only checks out, sets up a toolchain, configures credentials or uploads an already-built artifact) ${publishOnlyWorkflows.length === 1 ? 'is' : 'are'} not counted as CI verification: ${publishOnlyWorkflows.slice(0, 4).join(', ')}${publishOnlyWorkflows.length > 4 ? ', ...' : ''}.`.slice(0, CRITERION_NOTES_MAX_LENGTH);
+/**
+ * v27 (#517, #527, #535): why Cejel does not credit a CI workflow as running a check, or null when
+ * it credits it. B2 and B3 both decide credit with this one predicate. Each reason is a claim about
+ * every step, made by an allowlist reader that refuses any line it cannot place and admits only
+ * commands that run no repository-configured code (isPublishOnlyWorkflow, isPrintOnlyWorkflow); any
+ * doubt returns null and the workflow keeps its credit. The predicate only removes credit, and is
+ * stated to a reader as "not shown to run a check", never as a claim that the workflow runs none.
+ * A print-only file is recognised wherever B3's #540 disclosure names one, so under v27 every
+ * workflow that disclosure would name is uncredited instead.
+ */
+function uncreditedCiWorkflowReason(
+  root: string,
+  file: string,
+  inventory: PublishOnlyInventory | null,
+): UncreditedCiWorkflowReason | null {
+  if (isPublishOnlyWorkflow(root, file, inventory)) return 'publish_only';
+  if (!/^\.github\/workflows\//.test(file)) return null;
+  const fullPath = join(root, file);
+  if (!isRegularFile(fullPath)) return null;
+  return isPrintOnlyWorkflow(readRepoText(fullPath, 'utf8')) ? 'print_only' : null;
+}
+
+type UncreditedCiWorkflowReason = 'publish_only' | 'print_only';
+
+/** The uncredited workflows among `workflows`, in their order, with each one's reason. */
+function uncreditedCiWorkflows(
+  root: string,
+  workflows: readonly string[],
+  inventory: PublishOnlyInventory | null,
+): Map<string, UncreditedCiWorkflowReason> {
+  const uncredited = new Map<string, UncreditedCiWorkflowReason>();
+  for (const file of workflows) {
+    const reason = uncreditedCiWorkflowReason(root, file, inventory);
+    if (reason) uncredited.set(file, reason);
+  }
+  return uncredited;
+}
+
+/**
+ * The repository files a publish-only reading may consult (package.json, setup.py, ...): this
+ * checkout's inventory with its withheld paths, read from the inventory and never the host.
+ */
+function ownPublishOnlyInventory(repoFiles: readonly string[]): PublishOnlyInventory {
+  const knownPaths = [...repoFiles, ...withheldRepoPaths().map(({ path }) => path)];
+  return {
+    scanned: new Set(repoFiles),
+    known: new Set(knownPaths),
+    hasYarnPlugins: knownPaths.some((path) => path.startsWith('.yarn/plugins/')),
+    hasCargoConfiguration: knownPaths.some((path) => CARGO_CONFIGURATION_PATH_PATTERN.test(path)),
+    hasPoetryProjectConfiguration: knownPaths.some((path) => POETRY_PROJECT_CONFIGURATION_PATH_PATTERN.test(path)),
+    hasUvConfiguration: knownPaths.some((path) => UV_CONFIGURATION_PATH_PATTERN.test(path)),
+  };
+}
+
+const B2_UNCREDITED_CI_WORKFLOW_LABEL = 'CI workflow not shown to run a check (not counted)';
+// B2's CI component label when some CI workflow is not credited, so that a zero reads as "none
+// credited", never as "no CI workflow" (review of #562).
+const B2_CREDITED_CI_WORKFLOW_COMPONENT_LABEL = 'credited CI workflow';
+
+/** A metric condition (schema maximum 240) counting the workflows not credited. */
+function uncreditedCiWorkflowCondition(count: number): string {
+  return `${count} CI workflow file${count === 1 ? '' : 's'} not shown to run a check ${count === 1 ? 'is' : 'are'} not counted`;
+}
+
+const UNCREDITED_CI_WORKFLOW_REASON_TEXT: Readonly<Record<UncreditedCiWorkflowReason, string>> = {
+  print_only: 'only checks out the repository, prints text or does nothing',
+  publish_only: 'only checks out, sets up a toolchain, configures credentials or uploads an already-built artifact',
+};
+
+/**
+ * v27: the certificate disclosure naming uncredited workflows, `prefix` then up to three
+ * `<path> <reason>` items, then fewer, then a count, within CRITERION_DISCLOSURE_MAX_LENGTH.
+ */
+export function uncreditedCiWorkflowDisclosure(
+  prefix: string,
+  uncredited: ReadonlyMap<string, UncreditedCiWorkflowReason>,
+  budget = CRITERION_DISCLOSURE_MAX_LENGTH,
+): string {
+  const items = [...uncredited].map(([file, reason]) => `${file} ${UNCREDITED_CI_WORKFLOW_REASON_TEXT[reason]}`);
+  for (let shown = Math.min(3, items.length); shown > 0; shown -= 1) {
+    const sentence = `${prefix}${items.slice(0, shown).join('; ')}${items.length > shown ? `; and ${items.length - shown} more` : ''}.`;
+    if (sentence.length <= budget) return sentence;
+  }
+  return `${prefix}${items.length} workflow${items.length === 1 ? '' : 's'}.`;
+}
+
+function b3UncreditedWorkflowsNote(uncredited: ReadonlyMap<string, UncreditedCiWorkflowReason>): string {
+  return uncreditedCiWorkflowNote(uncredited, 'CI verification');
+}
+
+/**
+ * One sentence per reason, in the collector's own words. Workflow paths are listed, up to four per
+ * reason, then fewer, then none, so the note fits CRITERION_NOTES_MAX_LENGTH whole. With only
+ * publish-only workflows and `CI verification`, this is v27's #517 sentence unchanged.
+ */
+function uncreditedCiWorkflowNote(
+  uncredited: ReadonlyMap<string, UncreditedCiWorkflowReason>,
+  notCountedAs: string,
+): string {
+  const of = (reason: UncreditedCiWorkflowReason) =>
+    [...uncredited].filter(([, why]) => why === reason).map(([file]) => file);
+  const publishOnly = of('publish_only');
+  const printOnly = of('print_only');
+  const listed = (files: readonly string[], shown: number) =>
+    shown === 0 ? '' : `: ${files.slice(0, shown).join(', ')}${files.length > shown ? ', ...' : ''}`;
+  const sentences = (shown: number) => [
+    ...(publishOnly.length > 0
+      ? [
+          `${publishOnly.length === 1 ? '1 workflow that only publishes, releases or deploys' : `${publishOnly.length} workflows that only publish, release or deploy`} (no pull-request trigger, and every step Cejel reads only checks out, sets up a toolchain, configures credentials or uploads an already-built artifact) ${publishOnly.length === 1 ? 'is' : 'are'} not counted as ${notCountedAs}${listed(publishOnly, shown)}.`,
+        ]
+      : []),
+    ...(printOnly.length > 0
+      ? [
+          `${printOnly.length === 1 ? '1 workflow' : `${printOnly.length} workflows`} not shown to run a check (every step Cejel reads only checks out the repository, prints text or does nothing) ${printOnly.length === 1 ? 'is' : 'are'} not counted as ${notCountedAs}${listed(printOnly, shown)}.`,
+        ]
+      : []),
+  ].join(' ');
+  for (const shown of [4, 3, 2, 1]) {
+    const note = sentences(shown);
+    if (note.length <= CRITERION_NOTES_MAX_LENGTH) return note;
+  }
+  return sentences(0);
 }
 
 // v27 (#517). A step that ships an artifact or changes a running environment, from a bounded
@@ -5669,10 +5835,51 @@ function isPublishOnlyWorkflow(
   // An npm-family publish runs the root package's scripts (`prepack`, `prepublishOnly`, `publish`,
   // ...), so it is admitted only when that manifest is read and holds none.
   if (needs.size > 0 && inventory === null) return false;
+  const known = inventory as PublishOnlyInventory;
+  if (needs.has('cargo') && known.hasCargoConfiguration) return false;
+  if (needs.has('poetry') && (known.hasPoetryProjectConfiguration || pyprojectMayMatch(repoPath, known, PYPROJECT_POETRY_PLUGINS_PATTERN))) {
+    return false;
+  }
+  if (needs.has('uv') && (known.hasUvConfiguration || pyprojectMayMatch(repoPath, known, PYPROJECT_UV_TOKEN_PATTERN))) {
+    return false;
+  }
   if (needs.has('package') && !packageManifestRunsNoRepositoryCode(repoPath, inventory as PublishOnlyInventory)) {
     return false;
   }
   return true;
+}
+
+// Cargo configuration files, which can name a credential provider cargo executes, or change the
+// registry, target or build settings (review of #562). Cargo reads them from the working directory
+// and every parent; a workflow here runs at the root, so any committed one is doubt.
+const CARGO_CONFIGURATION_PATH_PATTERN = /(?:^|\/)(?:\.cargo\/config(?:\.toml)?|rust-toolchain(?:\.toml)?)$/;
+// Poetry project configuration that runs code before any command: `.poetry/plugins` is put on
+// `sys.path` with `addsitedir()`, so a `.pth` there runs (PluginManager.add_project_plugin_path), and
+// `poetry.toml` holds project settings. Any `.poetry/` path at the root, or `poetry.toml`, is doubt.
+const POETRY_PROJECT_CONFIGURATION_PATH_PATTERN = /^(?:\.poetry\/|poetry\.toml$)/;
+// uv configuration files. uv's settings include keyring providers and index configuration, and it
+// was not verified from uv's source that `uv publish` runs nothing they name, so any is doubt.
+const UV_CONFIGURATION_PATH_PATTERN = /(?:^|\/)uv\.toml$/;
+// pyproject.toml text that may configure those tools, matched as tokens rather than table headers
+// so no TOML spelling escapes it (review of #562): uv settings can be written as `[tool.uv]`,
+// `[[tool.uv.index]]`, `[tool]` then `uv.x = ...` or `uv = { ... }`, a root dotted key
+// `tool.uv.x = ...`, or `[tool."uv"]`, so the bare token `uv` anywhere is doubt; for Poetry, the
+// token `plugins` anywhere. A TOML escape (`\u`, `\U`, and TOML 1.1's `\x`) can spell either, so any
+// backslash is doubt too.
+// Over-matching only keeps a workflow's credit. Both are single alternations with no nested
+// quantifier, linear in the file.
+const PYPROJECT_UV_TOKEN_PATTERN = /\buv\b|\\/;
+const PYPROJECT_POETRY_PLUGINS_PATTERN = /plugins|\\/;
+
+
+/**
+ * True when the root pyproject.toml matches `pattern`, or exists but was not scanned (doubt). False
+ * only when there is none, or it was read and does not match.
+ */
+function pyprojectMayMatch(root: string, inventory: PublishOnlyInventory, pattern: RegExp): boolean {
+  if (!inventory.known.has('pyproject.toml')) return false;
+  if (!inventory.scanned.has('pyproject.toml')) return true;
+  return pattern.test(readRepoText(join(root, 'pyproject.toml'), 'utf8'));
 }
 
 /** What a publish-only reading may consult: scanned paths, and every path known to exist. */
@@ -5681,10 +5888,20 @@ interface PublishOnlyInventory {
   readonly known: ReadonlySet<string>;
   /** Decided once per scan, so each workflow's check stays constant-time in the inventory. */
   readonly hasYarnPlugins: boolean;
+  /**
+   * Any committed `.cargo/config`, `.cargo/config.toml`, `rust-toolchain` or `rust-toolchain.toml`
+   * (CARGO_CONFIGURATION_PATH_PATTERN): a credential provider cargo executes, or a toolchain rustup
+   * resolves for the `cargo` proxy, possibly by path.
+   */
+  readonly hasCargoConfiguration: boolean;
+  /** Any root `.poetry/` path or `poetry.toml` (POETRY_PROJECT_CONFIGURATION_PATH_PATTERN). */
+  readonly hasPoetryProjectConfiguration: boolean;
+  /** Any committed `uv.toml` (UV_CONFIGURATION_PATH_PATTERN). */
+  readonly hasUvConfiguration: boolean;
 }
 
 /** The repository configuration an admitted command runs code from. */
-type PublishOnlyRepositoryCheck = 'package';
+type PublishOnlyRepositoryCheck = 'package' | 'cargo' | 'poetry' | 'uv';
 
 interface PublishOnlyClassification {
   readonly kind: 'publish' | 'setup' | 'other';
@@ -5777,10 +5994,13 @@ function isPlainOneLineValue(value: string): boolean {
  * a publish workflow holds, or null when any line of the jobs section is one the grammar does not
  * place. The top level holds only the keys PRINT_ONLY_TOP_LEVEL_KEY_PATTERN names (no top-level
  * `env` or `defaults`), and one `jobs:`. A job holds only PUBLISH_ONLY_JOB_KEYS, with
- * `permissions` and `environment` as a one-line scalar or a one-level mapping of plain entries.
+ * `permissions` and `environment` as a one-line scalar or a one-level mapping of plain entries,
+ * and every job's `runs-on` names a documented GitHub-hosted Ubuntu or macOS label, so the shell words below
+ * are read as bash reads them (#564).
  * A step holds only PUBLISH_ONLY_STEP_KEYS and exactly one of `uses` and `run`; `with` and `env`
  * are one-level mappings of plain entries, a `with` value may be a `|`/`>` block, and an `env`
- * key never loads code (CODE_LOADING_ENV_KEYS). A flow item, a quoted, capitalised or explicit
+ * key is a credential the publishers read as data (PUBLISH_ONLY_CREDENTIAL_ENV_KEYS) with a
+ * secret, the job token or an inert literal as its value. A flow item, a quoted, capitalised or explicit
  * key, a lone CR or other YAML line break, a plain value continued onto a deeper line, and a quoted
  * `run:` value are not placed. Linear in the file.
  */
@@ -5793,7 +6013,7 @@ function placedPublishWorkflowSteps(contents: string): PlacedWorkflowStep[] | nu
     const raw = lines[index] ?? '';
     if (!isContent(raw) || /^[ \t]/.test(raw)) continue;
     if (!PRINT_ONLY_TOP_LEVEL_KEY_PATTERN.test(raw)) return null;
-    if (/^jobs:[ \t]*$/.test(stripYamlComment(raw))) {
+    if (/^jobs[ \t]*:[ \t]*$/.test(stripYamlComment(raw))) {
       if (jobsStart !== -1) return null;
       jobsStart = index;
     }
@@ -5813,6 +6033,8 @@ function placedPublishWorkflowSteps(contents: string): PlacedWorkflowStep[] | nu
     | { kind: 'plain'; column: number }
     | { kind: 'mapping'; column: number; entryColumn: number; textColumn: number; owner: 'with' | 'env' | 'job' }
     | null = null;
+  // Every job must name a GitHub-hosted bash runner (#564); null before the first job.
+  let jobHasBashRunner: boolean | null = null;
   const openStep = () => step as { uses?: string; inputs: Set<string>; run?: string[] } | null;
   const closeStep = (): boolean => {
     if (step === null) return true;
@@ -5843,7 +6065,9 @@ function placedPublishWorkflowSteps(contents: string): PlacedWorkflowStep[] | nu
         if (!entry) return null;
         const name = entry[1] ?? '';
         const value = (entry[2] ?? '').trim();
-        if (body.owner === 'env' && isCodeLoadingEnvKey(name)) return null;
+        if (body.owner === 'env' && (!isPublishOnlyCredentialEnvKey(name) || !PUBLISH_ONLY_ENV_VALUE_PATTERN.test(value))) {
+          return null;
+        }
         if (body.owner === 'with') {
           openStep()?.inputs.add(name);
           if (BLOCK_SCALAR_INDICATOR_PATTERN.test(value)) {
@@ -5863,7 +6087,9 @@ function placedPublishWorkflowSteps(contents: string): PlacedWorkflowStep[] | nu
     if (indent < jobIndent) return null;
     if (indent === jobIndent) {
       if (!closeStep()) return null;
+      if (jobHasBashRunner === false) return null;
       if (!/^[ \t]*[A-Za-z_][A-Za-z0-9_-]*:[ \t]*$/.test(text)) return null;
+      jobHasBashRunner = false;
       keyIndent = -1;
       inSteps = false;
       continue;
@@ -5888,6 +6114,10 @@ function placedPublishWorkflowSteps(contents: string): PlacedWorkflowStep[] | nu
       }
       if (key[1] === 'needs' && NEEDS_FLOW_SEQUENCE_PATTERN.test(value)) continue;
       if (!isPlainOneLineValue(value)) return null;
+      if (key[1] === 'runs-on') {
+        if (!isGitHubHostedBashRunner(value)) return null;
+        jobHasBashRunner = true;
+      }
       body = { kind: 'plain', column: indent };
       continue;
     }
@@ -5931,6 +6161,7 @@ function placedPublishWorkflowSteps(contents: string): PlacedWorkflowStep[] | nu
     }
   }
   if (!closeStep()) return null;
+  if (jobHasBashRunner !== true) return null;
   return steps;
 }
 
@@ -5951,27 +6182,28 @@ function joinShellContinuationLines(lines: readonly string[]): string[] {
   return joined;
 }
 
-// Environment variables that make a shell, runtime or loader run code other than the step's own
-// command, or find another program in place of the one named (`PATH`). An assignment to one, on
-// a command line, after `export`, or under a step's `env:`, is doubt.
-const CODE_LOADING_ENV_KEYS = new Set([
-  'BASH_ENV', 'ENV', 'NODE_OPTIONS', 'LD_PRELOAD', 'LD_AUDIT', 'LD_LIBRARY_PATH', 'PYTHONPATH', 'PYTHONSTARTUP',
-  'PERL5OPT', 'PERL5LIB', 'RUBYOPT', 'PATH', 'NPM_CONFIG_NODE_OPTIONS', 'NPM_CONFIG_SCRIPT_SHELL',
+// The environment variables a publish-only workflow may set, on a command line or under a step's
+// `env:`: credentials and registry endpoints the admitted publishers read as data (review of #562).
+// An allowlist, because a blocklist of code-loading variables never converged: CARGO_HOME,
+// CARGO_REGISTRY_CREDENTIAL_PROVIDER, PYTHONUSERBASE, PYTHONHOME, XDG_CONFIG_HOME and
+// GIT_CONFIG_GLOBAL each make a publisher run repository code. Any other name is doubt.
+const PUBLISH_ONLY_CREDENTIAL_ENV_KEYS: ReadonlySet<string> = new Set([
+  'TWINE_USERNAME', 'TWINE_PASSWORD', 'TWINE_REPOSITORY_URL', 'TWINE_NON_INTERACTIVE',
+  'NODE_AUTH_TOKEN', 'NPM_TOKEN', 'CARGO_REGISTRY_TOKEN',
+  'UV_PUBLISH_TOKEN', 'UV_PUBLISH_USERNAME', 'UV_PUBLISH_PASSWORD', 'UV_PUBLISH_URL',
+  'GH_TOKEN', 'GITHUB_TOKEN',
 ]);
+const POETRY_TOKEN_ENV_KEY_PATTERN = /^POETRY_PYPI_TOKEN_[A-Z0-9_]+$/;
 
 // Both callers pass an unquoted identifier (a plain mapping key, or the name before `=` in an
-// assignment word), so no quote stripping is needed; the regex that did it was quadratic on quote
-// runs (review of #553).
-function isCodeLoadingEnvKey(name: string): boolean {
-  return CODE_LOADING_ENV_KEYS.has(name) || CODE_LOADING_ENV_KEYS.has(name.toUpperCase());
+// assignment word). Matched exactly: environment names are case-sensitive on the bash runners.
+function isPublishOnlyCredentialEnvKey(name: string): boolean {
+  return PUBLISH_ONLY_CREDENTIAL_ENV_KEYS.has(name) || POETRY_TOKEN_ENV_KEY_PATTERN.test(name);
 }
 
-// npm-family flags that point a publish at another package or directory, whose manifest Cejel did
-// not read.
-const PACKAGE_TARGET_FLAGS = new Set([
-  '--prefix', '-C', '--dir', '--cwd', '--workspace', '-w', '--workspaces', '-ws', '--filter', '-F',
-  '-r', '--recursive', '--global', '-g',
-]);
+// A step `env:` value: a secret or the job token by expression, or an inert literal.
+const PUBLISH_ONLY_ENV_VALUE_PATTERN =
+  /^(?:\$\{\{[ \t]*(?:secrets\.[A-Za-z_][A-Za-z0-9_]*|github\.token)[ \t]*\}\}|[A-Za-z0-9_.,:/+=-]+)$/;
 
 /** A flag's name without `=value`. */
 function flagName(word: string): string {
@@ -5979,67 +6211,144 @@ function flagName(word: string): string {
   return equals === -1 ? word : word.slice(0, equals);
 }
 
-/** npm-family publish arguments that stay on the root package: flags only, none redirecting it. */
-function targetsRootPackageOnly(args: readonly string[]): boolean {
-  return args.every((word) => word.startsWith('-') && !PACKAGE_TARGET_FLAGS.has(flagName(word)));
-}
-
 // `npm config set <key>` keys that only point at a registry or hold its token.
 function isRegistryConfigKey(key: string): boolean {
   return key.startsWith('//') || key === 'registry' || key.endsWith(':registry');
 }
+
+// A word with no glob character, from the inert allowlist.
+const PUBLISH_ONLY_PLAIN_WORD_PATTERN = /^[A-Za-z0-9_.,:/+=-]+$/;
+// A file operand: not a flag, and any `*` comes after a `/`, so every expansion still starts with
+// the directory written before it and can never become a flag (review of #562: `--d*` expanded to a
+// committed `--dir=evil`).
+function isFileOperand(word: string): boolean {
+  if (word.startsWith('-')) return false;
+  const star = word.indexOf('*');
+  if (star === -1) return PUBLISH_ONLY_PLAIN_WORD_PATTERN.test(word);
+  const slash = word.indexOf('/');
+  return slash !== -1 && slash < star && /^[A-Za-z0-9_.,:/+=*-]+$/.test(word);
+}
+
+/**
+ * A publisher's arguments, each a known flag (`switches`, or `valued` followed by one plain word
+ * or written `--flag=word`) or, where the tool takes files, a file operand. Anything else is
+ * doubt: an unknown flag may point the tool at another directory, configuration or program.
+ */
+function publishArgumentsAreKnown(
+  args: readonly string[],
+  switches: ReadonlySet<string>,
+  valued: ReadonlySet<string>,
+  operands: 'files' | 'none',
+): boolean {
+  for (let index = 0; index < args.length; index += 1) {
+    const word = args[index] ?? '';
+    if (word.startsWith('-')) {
+      if (!PUBLISH_ONLY_PLAIN_WORD_PATTERN.test(word)) return false;
+      const name = flagName(word);
+      if (word.includes('=')) {
+        if (!valued.has(name)) return false;
+        continue;
+      }
+      if (switches.has(word)) continue;
+      if (!valued.has(word)) return false;
+      const value = args[index + 1];
+      if (value === undefined || value.startsWith('-') || !PUBLISH_ONLY_PLAIN_WORD_PATTERN.test(value)) return false;
+      index += 1;
+      continue;
+    }
+    if (operands === 'none' || !isFileOperand(word)) return false;
+  }
+  return true;
+}
+
+const NO_FLAGS: ReadonlySet<string> = new Set();
+const NPM_PUBLISH_SWITCHES: ReadonlySet<string> = new Set(['--provenance', '--no-git-checks', '--non-interactive']);
+const NPM_PUBLISH_VALUED: ReadonlySet<string> = new Set(['--access', '--tag']);
+const TWINE_UPLOAD_SWITCHES: ReadonlySet<string> = new Set(['--skip-existing', '--non-interactive', '--verbose', '--disable-progress-bar']);
+const TWINE_UPLOAD_VALUED: ReadonlySet<string> = new Set(['--repository-url']);
+const UV_PUBLISH_VALUED: ReadonlySet<string> = new Set(['--publish-url', '--trusted-publishing']);
+const POETRY_PUBLISH_SWITCHES: ReadonlySet<string> = new Set(['--skip-existing', '--no-interaction', '-n']);
+const GH_RELEASE_SWITCHES: ReadonlySet<string> = new Set(['--clobber', '--draft', '--prerelease', '--generate-notes', '--verify-tag']);
+const CARGO_PUBLISH_SWITCHES: ReadonlySet<string> = new Set(['--no-verify', '--allow-dirty', '--locked']);
 
 /**
  * One shell command of a run step, in a workflow being tested as publish-only. A publish-only
  * workflow only checks out, configures credentials and uploads an already-built artifact, so the
  * admitted commands are exactly:
  *   - credential or registry configuration: `npm`/`pnpm`/`yarn config set` of a registry or token
- *     key ('setup'), and leading `NAME=value` credentials on an admitted command;
- *   - uploads of an artifact already built ('publish'): `twine upload`, `uv publish` with no build
- *     flag, `poetry publish` without `--build`, `gh release create`/`upload`,
- *     `cargo publish --no-verify`, and npm/pnpm/yarn `publish` with no positional target or
- *     package-redirecting flag, which runs the root package's scripts and so needs 'package'.
+ *     key ('setup'), and leading `NAME=value` assignments of PUBLISH_ONLY_CREDENTIAL_ENV_KEYS;
+ *   - uploads of an artifact already built ('publish'): `twine upload`, `uv publish`, `poetry
+ *     publish`, `gh release create`/`upload`, `cargo publish --no-verify` (needs 'cargo': no
+ *     committed Cargo configuration), and npm/pnpm/yarn `publish` with no operand (needs 'package':
+ *     it runs the root package's scripts), each with only the flags its allowlist names.
  * Everything else is 'other' and keeps the workflow counted: any install, sync, build or package
- * command, semantic-release, goreleaser, deploy CLIs, shell builtins, `--dry-run`, a code-loading
- * variable assignment, and any separator, substitution or redirect glued inside a word.
+ * command, semantic-release, goreleaser, deploy CLIs, shell builtins, `--dry-run`, an unknown flag,
+ * an unlisted variable, and any glob a shell could turn into a flag.
  */
+const PUBLISH_ONLY_INERT_WORD_PATTERN = /^[A-Za-z0-9_.,:/+=*-]+$/;
+
 function classifyPublishOnlyRunCommand(input: readonly string[]): PublishOnlyClassification {
   const other = { kind: 'other' } as const;
-  if (input.some((word) => /[`&|;<>]|\$\(/.test(word))) return other;
+  // Every word from a character allowlist inert in every shell (#564, review of #562): no
+  // expansion, substitution, redirect, separator, splat or hashtable (`$`, `@`, `{`, `(`, `%`, `!`,
+  // `~`, `;`, `|`, `&`, `<`, `>`, `\`, quotes). `*` passes this first test but is admitted only in a
+  // file operand (isFileOperand); a glob is expanded by the shell from the repository's own file
+  // names, so anywhere else it can become a flag.
+  if (input.some((word) => !PUBLISH_ONLY_INERT_WORD_PATTERN.test(word))) return other;
   // Leading `NAME=value` assignments set the command's environment. Indexes, not repeated slices,
   // so a long run of them stays linear.
   let start = 0;
   while (start < input.length && /^[A-Za-z_][A-Za-z0-9_]*=/.test(input[start] ?? '')) {
-    if (isCodeLoadingEnvKey(flagName(input[start] ?? ''))) return other;
+    const word = input[start] ?? '';
+    if (!isPublishOnlyCredentialEnvKey(flagName(word)) || !PUBLISH_ONLY_PLAIN_WORD_PATTERN.test(word)) return other;
     start += 1;
   }
   if (start === input.length) return other;
   const words = input.slice(start);
   const [first = '', second = '', third = ''] = words;
-  if (words.some((word) => word.startsWith('--dry-run'))) return other;
   switch (first) {
     case 'npm':
     case 'pnpm':
     case 'yarn': {
       if (second === 'config') {
-        return third === 'set' && isRegistryConfigKey(words[3] ?? '') && words.length <= 5 ? { kind: 'setup' } : other;
+        return third === 'set' &&
+          isRegistryConfigKey(words[3] ?? '') &&
+          words.length <= 5 &&
+          words.every((word) => PUBLISH_ONLY_PLAIN_WORD_PATTERN.test(word))
+          ? { kind: 'setup' }
+          : other;
       }
       const publishFrom = second === 'publish' ? 2 : first === 'yarn' && second === 'npm' && third === 'publish' ? 3 : -1;
       if (publishFrom === -1) return other;
-      return targetsRootPackageOnly(words.slice(publishFrom)) ? { kind: 'publish', needs: ['package'] } : other;
+      return publishArgumentsAreKnown(words.slice(publishFrom), NPM_PUBLISH_SWITCHES, NPM_PUBLISH_VALUED, 'none')
+        ? { kind: 'publish', needs: ['package'] }
+        : other;
     }
     case 'twine':
-      return second === 'upload' ? { kind: 'publish' } : other;
-    case 'uv':
-      return second === 'publish' && !words.some((word) => word.includes('build')) ? { kind: 'publish' } : other;
-    case 'poetry':
-      return second === 'publish' && !words.some((word) => word.startsWith('--build')) ? { kind: 'publish' } : other;
-    case 'gh':
-      return second === 'release' && (third === 'create' || third === 'upload') ? { kind: 'publish' } : other;
-    case 'cargo':
-      // `cargo publish` builds the crate, running its build script, unless told not to verify.
-      return second === 'publish' && words.includes('--no-verify') && !words.includes('-n')
+      return second === 'upload' && publishArgumentsAreKnown(words.slice(2), TWINE_UPLOAD_SWITCHES, TWINE_UPLOAD_VALUED, 'files')
         ? { kind: 'publish' }
+        : other;
+    case 'uv':
+      return second === 'publish' && publishArgumentsAreKnown(words.slice(2), NO_FLAGS, UV_PUBLISH_VALUED, 'files')
+        ? { kind: 'publish', needs: ['uv'] }
+        : other;
+    case 'poetry':
+      return second === 'publish' && publishArgumentsAreKnown(words.slice(2), POETRY_PUBLISH_SWITCHES, NO_FLAGS, 'none')
+        ? { kind: 'publish', needs: ['poetry'] }
+        : other;
+    case 'gh':
+      return second === 'release' &&
+        (third === 'create' || third === 'upload') &&
+        publishArgumentsAreKnown(words.slice(3), GH_RELEASE_SWITCHES, NO_FLAGS, 'files')
+        ? { kind: 'publish' }
+        : other;
+    case 'cargo':
+      // `cargo publish` builds the crate, running its build script, unless told not to verify; and
+      // a committed `.cargo/config.toml` can name a credential provider that cargo executes.
+      return second === 'publish' &&
+        words.includes('--no-verify') &&
+        publishArgumentsAreKnown(words.slice(2), CARGO_PUBLISH_SWITCHES, NO_FLAGS, 'none')
+        ? { kind: 'publish', needs: ['cargo'] }
         : other;
     default:
       return other;
@@ -6250,9 +6559,31 @@ function fittedCiWorkflowCitationLabel(
   return label(candidates[candidates.length - 1] ?? WORKFLOW_TRIGGER_NOT_READ_LABEL);
 }
 
-// A run line that only prints or does nothing. Anything compound (a pipe, `&&`, `;`, a command
-// substitution, a redirect) or any other command is not claimed.
-const PRINT_ONLY_RUN_LINE_PATTERN = /^(?:(?:echo|printf)(?:[ \t][^|&;`$()<>\\]*)?|true|:|exit[ \t]+0)$/;
+// A run line that only prints or does nothing. The arguments are an allowlist of characters inert
+// in every shell a runner might use (bash, sh, pwsh, cmd): letters, digits, blanks, `_ . , : / + -`
+// and quotes, so no expansion, substitution, glob, redirect, separator, hashtable or splat (`@{`,
+// `$`, `%`, `!`, `~`, `*`, `?`, `[`, `{`, `=`, `\`) can appear (#564). Anything else is not claimed.
+const PRINT_ONLY_RUN_LINE_PATTERN = /^(?:(?:echo|printf)(?:[ \t][A-Za-z0-9 \t_.,:/+"'-]*)?|true|:|exit[ \t]+0)$/;
+// The `runs-on` labels GitHub documents for its own hosted Ubuntu and macOS runners, whose default
+// `run` shell is bash (#564). Exact labels only: a larger Ubuntu runner, a self-hosted runner or a
+// runner group is named by its owner, so the name says nothing about the OS or shell, and Windows
+// runners default to pwsh. Any other value (an expression, a list, a group, a label not listed) is
+// refused. This guarantees the label is one of these strings, not who operates the machine: a
+// self-hosted runner given one of these labels would be read as hosted.
+const GITHUB_HOSTED_BASH_RUNNER_LABELS: ReadonlySet<string> = new Set([
+  'ubuntu-latest', 'ubuntu-24.04', 'ubuntu-22.04', 'ubuntu-24.04-arm', 'ubuntu-22.04-arm',
+  'macos-latest', 'macos-15', 'macos-14', 'macos-13',
+  'macos-latest-large', 'macos-15-large', 'macos-14-large', 'macos-13-large',
+  'macos-latest-xlarge', 'macos-15-xlarge', 'macos-14-xlarge', 'macos-13-xlarge',
+]);
+
+/** A one-line `runs-on` value, plain or quoted, naming one of GITHUB_HOSTED_BASH_RUNNER_LABELS. */
+function isGitHubHostedBashRunner(value: string): boolean {
+  const trimmed = value.trim();
+  const quote = trimmed[0];
+  const label = (quote === '"' || quote === "'") && trimmed.length > 1 && trimmed.endsWith(quote) ? trimmed.slice(1, -1) : trimmed;
+  return GITHUB_HOSTED_BASH_RUNNER_LABELS.has(label);
+}
 const BLOCK_SCALAR_INDICATOR_PATTERN = /^[|>][-+0-9]*$/;
 const PRINT_ONLY_JOB_KEYS = new Set(['runs-on', 'name', 'timeout-minutes', 'steps']);
 // The top-level keys a print-only workflow may hold, written plain at column 0. `env` and
@@ -6289,9 +6620,11 @@ function isOneLineScalar(value: string): boolean {
  * True for a GitHub Actions workflow whose every step only prints text. This is a claim about
  * every step, so it is made only when every line of the `jobs:` section fits a small grammar the
  * reader fully places, and nothing else is in it: each job holds only `runs-on`, `name`,
- * `timeout-minutes` and `steps`; each step holds only `name` and either
- * `uses: actions/checkout@<ref>` or `run:`; every run line, one-line or in a `|`/`>` block,
- * matches PRINT_ONLY_RUN_LINE_PATTERN with its quotes balanced on the line. Any other key (`env`,
+ * `timeout-minutes` and `steps`, and its `runs-on` names a documented GitHub-hosted Ubuntu or macOS label
+ * (GITHUB_HOSTED_BASH_RUNNER_LABELS), so its steps run under bash (#564); each step holds only
+ * `name` and either `uses: actions/checkout@<ref>` or `run:`; every run line, one-line or in a
+ * `|`/`>` block, matches PRINT_ONLY_RUN_LINE_PATTERN (arguments from a character allowlist inert
+ * in every shell) with its quotes balanced on the line. Any other key (`env`,
  * `shell`, `services`, `with`, `if`, a quoted or capitalised key, a top-level `env` or
  * `defaults`), any flow collection, and any line the grammar does not place claim nothing.
  */
@@ -6306,7 +6639,7 @@ export function isPrintOnlyWorkflow(contents: string): boolean {
     const raw = lines[index] ?? '';
     if (!isContent(raw) || /^[ \t]/.test(raw)) continue;
     if (!PRINT_ONLY_TOP_LEVEL_KEY_PATTERN.test(raw)) return false;
-    if (/^jobs:[ \t]*$/.test(stripYamlComment(raw))) {
+    if (/^jobs[ \t]*:[ \t]*$/.test(stripYamlComment(raw))) {
       if (jobsStart !== -1) return false;
       jobsStart = index;
     }
@@ -6319,6 +6652,8 @@ export function isPrintOnlyWorkflow(contents: string): boolean {
   let step: { run?: boolean; uses?: boolean } | null = null;
   let body: { column: number; block: boolean } | null = null;
   let runSteps = 0;
+  // Every job must name a GitHub-hosted bash runner (#564); null before the first job.
+  let jobHasBashRunner: boolean | null = null;
   const closeStep = () => {
     if (step && step.run && step.uses) return false;
     if (step?.run) runSteps += 1;
@@ -6348,7 +6683,9 @@ export function isPrintOnlyWorkflow(contents: string): boolean {
     if (indent < jobIndent) return false;
     if (indent === jobIndent) {
       if (!closeStep()) return false;
+      if (jobHasBashRunner === false) return false;
       if (!/^[ \t]*[A-Za-z_][A-Za-z0-9_-]*:[ \t]*$/.test(text)) return false;
+      jobHasBashRunner = false;
       keyIndent = -1;
       inSteps = false;
       continue;
@@ -6368,6 +6705,10 @@ export function isPrintOnlyWorkflow(contents: string): boolean {
         continue;
       }
       if (value === '' || /^[[{&*|>!]/.test(value) || !isOneLineScalar(value)) return false;
+      if (key[1] === 'runs-on') {
+        if (!isGitHubHostedBashRunner(value)) return false;
+        jobHasBashRunner = true;
+      }
       continue;
     }
     if (!inSteps) return false;
@@ -6405,6 +6746,7 @@ export function isPrintOnlyWorkflow(contents: string): boolean {
     }
   }
   if (!closeStep()) return false;
+  if (jobHasBashRunner !== true) return false;
   return runSteps > 0;
 }
 
