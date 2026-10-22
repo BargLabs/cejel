@@ -1421,6 +1421,192 @@ tables are left as measured. They compare two scanners on the same depth-1 input
 v27 would publish: on full-history clones, A2 and B2 do not abstain for shallow history. How v27
 compares with v17 there has not been measured. Found by a review pass on #542.
 
+### Addition — 2026-10-22: the no-rise property, strengthened (#531 items a-c); no score moved
+
+The 2026-10-21 ruling on #526, accepted by the operator on 2026-10-22, makes #531 its condition 2.
+The no-rise test this entry cites above checked curated fixtures only. It skipped a criterion that
+became `insufficient_data` and it skipped null composites. It now checks the following, and #531
+items (a)-(c) are covered. This addition changes tests only. No scoring code, rubric,
+behaviour-corpus fixture or fingerprint pin changed, so no score moved. The tests were revised
+after two review passes on #558.
+
+- **(a) Abstentions are read failures.** Every `insufficient_data` that v27 introduces must match a
+  recognised read-failure class, score 0, and stay in its category's denominator. The classes are a
+  table (`READ_FAILURE_CLASSES`):
+  - the v27 shallow-clone abstention of A2 or B2;
+  - a content-read abstention. It must be listed in `contentReadSummary.affectedCriteria`, carry
+    the read-failure note (Git LFS pointers, or content that could not be read), and have a
+    read-failure reason counted in `byReason`. Being listed in `affectedCriteria` is not enough,
+    because that list also names criteria whose only skips were self-imposed (`too_large`,
+    `excluded_by_extension`), and those leave the composite;
+  - a failed-history abstention (#560): A2's abstention after an incomplete read of the commit
+    history, other than the shallow-only case, recognised by its note starting with
+    `WITAN_V27_A2_FAILED_HISTORY_NOTE_PREFIX`. Added in the #560 integration below.
+
+  The denominator is checked against the reported composite. A composite only shows how many
+  abstentions it holds, each at 0, so the check requires every introduced abstention on top of
+  those v17's composite holds. For criteria that are `insufficient_data` under both rubrics this is
+  lenient: they are counted as the fewest that v17's composite is consistent with.
+  **Interaction with #560, fulfilled.** #560 merged first (`44cb9ee80`), so #558 integrated it:
+  failed-history is the third class above, and all six generated shards and the curated test were
+  rerun on the merged code (see "Rerun on the synced candidate" below). This departs from what the
+  earlier version of this note required, a key "on report evidence beyond the note itself": the
+  class is keyed on the note prefix alone, as the comment on the prefix in `src/witan/abstention.ts`
+  (the source of truth) prescribes. Two reasons make the prefix enough:
+  - a single function writes it (`v27A2FailedHistoryNote` in `repo-signals.ts`), and only on v27's
+    read-failure path;
+  - the classification is not the only check. The composite arithmetic still requires the
+    abstention held in the denominator at 0, so a self-imposed abstention that borrowed the prefix
+    would still fail.
+- **(b) Null composites are compared.** A composite scored under v17 and null under v27 fails, as
+  does the reverse. So does a criterion that v17 left `not_applicable` or `insufficient_data` and
+  v27 scores or moves to another unscored state, except a read-failure abstention under (a).
+- **Findings.** Every v17 finding must still be reported under v27 on the same criterion, with the
+  same summary, the same evidence pointer (kind, path, line, URL and content hash; the label is
+  wording and is not compared) and the same or a higher severity. Collector summaries are generic
+  and only the pointer names the file, so a finding re-cited to another file counts as lost. A
+  critical finding must stay critical at the same pointer; the curated preservation test now checks
+  severity and pointer too. The allowed removals are each stated as a rule:
+  - a metric-derived summary, which restates the score;
+  - a non-critical finding on a criterion whose v27 abstention is a recognised read failure (checked
+    against the table, not assumed);
+  - A1's "Test suite files are present" finding where v27 measures a test-to-source ratio of 0
+    (the only test-shaped files were conftest.py, #518).
+
+  One re-citation is allowed, and only this one. A1's finding "Test suite files are present, …" at
+  severity `info`, which v17 anchors to a `conftest.py` with evidence kind `test_run`, may be
+  anchored by v27 to a pointer v17 already holds, and only that pointer. It is the first "Detected
+  test file" entry in v17's own A1 evidence that is not a conftest.py, with the same kind, label,
+  path, line and content hash, and the finding must still be `info`. So v27 can only re-cite to a
+  file v17 read and cited, at the position and content v17 recorded. v27 does not cite conftest.py
+  as test evidence (#518). No other finding may change its pointer.
+- **(c) Generated shapes.** `src/witan/__tests__/fixtures/v27-norise-shapes.ts` generates 1,563
+  repositories:
+  - **The full product, every combination that takes effect:** 7 test-directory names (including
+    `__tests__`, where the 2026-10-19 review found a rise) × 5 conftest placements × 10 hook forms ×
+    6 LFS placements. That gives 1,286 rows. A hook inside a conftest.py that is itself a pointer,
+    and a module-level pytestmark in modules that are all pointers, have no effect, so those rows
+    are generated once, as the plain shape.
+  - **A full and a depth-1 shape with no LFS pointer for each of the 277 test-directory × conftest ×
+    hook combinations**, so v27 reads every file in at least one shape per combination.
+  - **Four more dimensions covered pairwise:** 8 workflow shapes (none, pull-request test, push-only
+    test, publish-only, print-only, branch-filtered, test-then-publish, test plus a separate
+    publish-only), LF or CRLF workflows, full or depth-1 history, and 3 configuration surfaces.
+    Every one of the 755 value pairs that takes effect, across all eight dimensions, appears; a
+    CRLF workflow that is an LFS pointer keeps its CRLF endings, so that pair takes effect.
+  - **Every shape carries a changelog, a security policy and a runbook**, so B4 is scored and the
+    process composite shows whether a B2 or B3 abstention stayed in the denominator.
+  - **782 shapes are depth-1 clones.** Generation is deterministic, with no randomness and fixed
+    commit dates, and a failing shape's test name holds all its coordinates.
+  - **To extend it,** add an entry to `WORKFLOW_SHAPES` or a value to a dimension.
+- **Coverage is asserted on what the scorer did, not on labels.** Each of the six shard files checks
+  the combinations it holds:
+  - A1 must be scored under v27 in every test-directory × conftest × hook combination;
+  - B2 and B3 must be scored for every workflow shape × line ending held readable on full history;
+  - every abstention kind seen on every criterion must have at least one case where the composite
+    arithmetic shows it held in the denominator.
+
+  `false-assurance-v27-shards.test.ts` requires exactly six shard files, each equal byte for byte
+  to a fixed template that registers shard n − 1 in file n. A missing file, a duplicated or
+  disguised index, a comment, a skip, a condition, or a raised shard count without a new file
+  therefore fails instead of silently dropping shapes. Two backstops cover what the shard files
+  cannot show:
+  - the suite module may contain no `.skip`, `.only`, `.todo`, `skipIf` or `runIf`. It must import
+    `describe` and `it` from vitest once, without renaming, rebinding or indexing them. Before its
+    describe it may have no early return and no condition other than describing the generator in
+    shard 0, and its line choosing the shard's shapes is pinned exactly;
+  - vitest itself is asked (`createVitest(...).getTestFilepaths()` on `vitest.config.ts`) whether
+    every shard file is collected, so an include or exclude change that drops one fails.
+
+  Each shard also records the name of every shape test whose body ran. A test outside the shard's
+  describe then requires that set to equal the shard recomputed from the generator, so a filter, a
+  skip or an aliased skip that drops shapes fails at run time.
+
+The checker is `src/witan/__tests__/v27-no-rise.ts`, and the curated test and the generated suite
+both use it. The suite is `src/witan/__tests__/v27-no-rise-generated-suite.ts`, run as
+`false-assurance-v27-generated-1.test.ts` to `-6.test.ts`. Its definition matches the board's
+(`docs/experiments/public-delta-0-6-8-2026-10-21/norise.mjs`) and is stricter where #531 asks.
+
+**Result.** On the candidate at `release/0.6.8` `8deafad9f`, the checker found no rise, no
+self-imposed abstention and no lost or weakened finding, on the curated fixtures or the generated
+shapes. The tests assert that result. One further measurement is not asserted by any test; it comes
+from one run of the generated shapes at `03226caba`, before the round-2 changes: 3,392 introduced
+abstentions, all read failures (2,615 content reads and 777 shallow-clone abstentions), and for
+every one the composite arithmetic shows it held in the denominator.
+
+**Rerun on the synced candidate (#560 integration).** #560 merged to `main` as `44cb9ee80` (then
+#575), and the branch was synced by a merge commit of `origin/main` `c9d341d5f` (`39e3b0be5`). This
+changes the candidate under test. It now carries #527/#535 (B2 and B3 stop crediting workflows that
+run no check) and #560 (A2's history-read abstentions), and v27's behaviour fingerprint on it is
+`sha256:6e03aa1bf63a31c5ec58a68cb49fb8ef571ba233cf79059a311ec55aecea5bb3`. The tests changed in one
+way: `READ_FAILURE_CLASSES` gained **failed-history**, A2's abstention whose note starts with
+`WITAN_V27_A2_FAILED_HISTORY_NOTE_PREFIX`. It is recognised by that prefix and not by any one
+cause, per the comment on the prefix in `src/witan/abstention.ts`, which is the source of truth.
+`v27-no-rise-failed-history.test.ts` checks this two ways, with the causes derived from the code
+rather than listed by hand:
+- **From the code.** It reads the fields of `A2HistoryIncompleteness` from its declaration. For
+  each cause field, alone and beside a shallow clone, the note `v27A2FailedHistoryNote` writes on
+  both paths must be recognised as failed-history. It also reads the comment's cause bullets, and
+  every note marker they quote must appear in one of those notes. A table matches every cause field
+  to exactly one bullet and every bullet to a field. The comment groups `limitHits` and
+  `otherFailure` under one bullet, so the two are matched through the table rather than by count,
+  and a new field or bullet on either side fails.
+- **On real scans.** For each cause, the full no-rise property (with `lostFindings`) must pass
+  against v17, with A2 counted as a failed-history abstention held in the denominator. The causes:
+  - a failed git read: a clone missing history blobs, and a history blob read over a real output
+    limit (real git, with execGit's own `maxBufferBytes` option lowered);
+  - the 5,000-file cap, in its own file, `v27-no-rise-failed-history-cap.test.ts`. It takes about
+    115 s alone and up to about 185 s beside the suite or under load, and its 600 s timeouts leave
+    over 3x headroom;
+  - a control-character credential path;
+  - a dangling `.git` symlink and an unreadable `.git` directory.
+
+  Two causes are injected through the execGit mock rather than produced, as in #560's own tests:
+  git not runnable, and the 30-second timeout, which has no seam. So git actually timing out is
+  not covered on a real scan (later: #583).
+
+  The unopenable-`.git` cause (the dangling symlink and the unreadable directory) still awaits the
+  operator's confirmation. The class recognises what v27 does today, records no ruling on it, and
+  changes if the operator rules otherwise.
+
+Results at `bdd06c0d7`:
+- the six shards, the curated test and the guard: 8 files, 2,288 tests, all passed;
+- the failed-history tests: 15 passed (now 17 plus 1 in the cap file, after round 7).
+
+The rule triggers moved, so the "nothing else moved" claims were re-checked by measurement (one
+run of the generated shapes, not asserted by a test). The 1,563 shapes still show no problem and
+no lost finding.
+
+| Count (one-off) | At `03226caba` | Synced |
+|---|---|---|
+| Introduced abstentions | 3,392 | 3,544 |
+| Shallow A2 | 172 | 324 |
+| Shallow B2 | 605 | 605 |
+| Content reads | 2,615 | 2,615 |
+| Shapes where B2 fell | 882 | 1,089 |
+| Shapes where B3 fell | 298 | 460 |
+
+Every introduced abstention is still held in the denominator. The new shallow A2 abstentions are
+#560's (A2 abstains on a shallow clone where v17 marks it not applicable). The extra B2 and B3 falls
+are #527/#535's removals of credit.
+
+**Runtime.** About 0.38 s of CPU per shape, almost all of it the two scans. The six shard files
+take about 175 s each and run in parallel. On the same machine the full suite went from 4 min 29 s
+(139 files, before #558) to between 6 min 12 s and 8 min 44 s (146 files) across the runs measured
+for #558. In some full runs, wall-clock timing guards missed their budgets and passed when run
+alone: `regex-redos-guard` (50 ms per family) once, and `scan-path-regex-bounds` (2,000 ms scan
+budget) in four runs, up to 5 of its tests at 2.1-3.8 s. Neither reads the files #558 changes. The
+machine also carried other sessions' load at the time (load average 10-21 on 18 cores). The last
+full run before merge, at a load average of about 6, passed with no timing miss (146 files, 5,263
+tests, 7 min 10 s). With only
+the six shards running beside it, `scan-path-regex-bounds` passed. How much of the miss is #558's
+added CPU (about 600 CPU-seconds per run) is not separated. One reviewer's run of a subset checker also
+reported 100 lost findings that did not reproduce. That is now #574: scanner evidence may depend
+on load, possibly through git timeouts. Until #574 is investigated, a `lostFindings` mismatch that
+does not reproduce when its shape is run alone is to be treated as #574 (or #561), not as a v27
+defect. Failure messages now carry the first five failing findings in full (criterion, summary,
+the v17 pointer and the v27 pointers), so such a failure leaves a record.
+
 ## 2026-10-15 — v26 item 8: A3's build or type-check finding fires on settling evidence only (v26 alone); no repository moved
 
 **Status.** The second change `witan-rubric-v26-prospective-2026-10-14` makes of its own,
