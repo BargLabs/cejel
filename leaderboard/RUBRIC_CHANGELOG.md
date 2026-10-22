@@ -248,6 +248,24 @@ Round 7 (pass 1 on `3a941f9bb`, a fresh AI reviewer; pass 2 approved):
   being unavailable, only as a directory holding `HEAD` or a file whose first 4 KiB hold a
   `gitdir:` line (`git-metadata-visibility-560.test.ts`).
 
+Round 8 (pass 1 on `e337befd5`, a fresh AI reviewer; pass 2 approved):
+- **H1 (a regression from round 7's G2).** The tightened `.git` check used an existence test for
+  `HEAD`, which reports "absent" when the directory cannot be read, so a `.git` directory of mode 000
+  looked like a stray one: A2 scored on the tree alone, above the complete clone, and said nothing
+  (round 6 abstained). A `.git` directory now counts unless reading it proves `HEAD` absent (ENOENT
+  or ENOTDIR); a permission error or any other error counts it as git metadata.
+- **L1 (before #560).** A `.git` symbolic link whose target is gone (a copied checkout, the symlink
+  twin of a copied worktree) was treated as no repository. Any symbolic link named `.git` now counts
+  as git metadata, so it is a repository git could not open.
+
+Under v27 A2 abstains at 0 in both cases unless a confirmed critical finding stands; every other
+rubric keeps its scoring and, where A2 is not applicable, now carries the disclosure ("a .git entry
+is present but git could not open it as a repository, so Cejel read none of the commit history").
+A `.git/HEAD` that is itself a directory counts as git metadata (conservative; unchanged). Tests:
+`git-metadata-visibility-560.test.ts` (a mode-000 `.git`, skipped on Windows and as root; a dangling
+`.git` symlink). The 23 public rows, re-measured with the CLI against round 7, are byte-identical
+(46 of 46 reports): both cases need a `.git` that git cannot open, which no complete clone has.
+
 Round 7 was merged with `main` after #562 and measured on the same clean, pinned clones with the
 CLI, under v17 and v27, against round 6 (`3a941f9bb`). All 23 v17 `report.json` files are
 byte-identical. Each of the 23 v27 files differs only in `rubricBehaviourFingerprint` (#562's
@@ -428,7 +446,9 @@ abstention on any row": on the same clones this candidate adds one A2 abstention
 0.6.8 record is unchanged; it describes the candidate it measured. These limits are Cejel's own: the history reads buffer their whole output, and on these large
 histories it exceeds 8 MiB. The operator's ADR-0001 ruling of 2026-10-22 names an output limit as a
 failed read, so v27 abstains as designed; the real fix is streaming those reads (#567). The v17
-board is unchanged; there is no published v27 board.
+board is unchanged; there is no published v27 board. #562's statement that the 0.6.8 v27 table
+still describes v27's public scores held for #562's candidate; with this change, biomejs's v27 row
+moves.
 
 Review round 4 was measured the same way, informally: the 23 rows were scanned with the CLI's
 defaults under v17 and v27, once at `ae236c9f3` (before round 4) and once with round 4's code, on

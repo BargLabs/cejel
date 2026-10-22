@@ -1,5 +1,5 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { chmodSync, cpSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { platform, tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -7,6 +7,29 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { hasVisibleGitMetadata, withGitDiscoveryConfinedTo } from '../git-exec.js';
 import { scoreRepoWithPublicCejel } from '../public-scan.js';
 import { WITAN_RUBRIC_VERSION_V17, WITAN_RUBRIC_VERSION_V27 } from '../rubric-version.js';
+import type { WitanReport } from '../schemas.js';
+import {
+  ISSUE_556_SHAPE,
+  buildShallowA2Origin,
+  cloneShallowA2Origin,
+  removeShallowA2Fixtures,
+} from './fixtures/shallow-a2-shapes.js';
+
+const canDenyReadAccess = platform() !== 'win32' && process.getuid?.() !== 0;
+const UNOPENABLE = 'a .git entry is present but git could not open it as a repository';
+
+function scanA2(repoPath: string, rubricVersion: string) {
+  const report: WitanReport = scoreRepoWithPublicCejel({
+    repoPath,
+    productSlug: 'git-metadata-fixture',
+    productDisplayName: 'Git metadata fixture',
+    generatedAt: '2026-10-22T00:00:00.000Z',
+    rubricVersion,
+    ingestPatterns: [],
+    autoDiscoverIngest: false,
+  });
+  return report.criteria.find(({ id }) => id === 'A2');
+}
 
 // #560 F3: hasVisibleGitMetadata tells "git could not be run in a repository" from "this is not a
 // repository" (#568) with a filesystem check only. It must find a `.git` entry in the scanned
@@ -104,5 +127,47 @@ describe('a stray empty .git directory in a parent is not an unopenable reposito
       expect(a2?.status, rubricVersion).toBe('not_applicable');
       expect(a2?.disclosures, rubricVersion).toBeUndefined();
     }
+  });
+});
+
+// #560 review round 8. H1: a `.git` directory Cejel cannot look into must count as git metadata;
+// existsSync reported a mode-000 `.git` as having no HEAD, so it looked stray and A2 scored on the
+// tree alone, above the complete clone, saying nothing. L1: a `.git` symlink whose target is gone (a
+// copied checkout) must count too.
+describe('an unreadable or dangling .git still counts as a repository Cejel could not read (#560 round 8)', () => {
+  afterEach(() => {
+    removeShallowA2Fixtures();
+  });
+
+  it.skipIf(!canDenyReadAccess)('a mode-000 .git directory', () => {
+    const clone = cloneShallowA2Origin(buildShallowA2Origin(ISSUE_556_SHAPE), 'full');
+    expect(scanA2(clone, WITAN_RUBRIC_VERSION_V27)?.status).toBe('critical');
+    chmodSync(join(clone, '.git'), 0o000);
+    try {
+      expect(hasVisibleGitMetadata(clone)).toBe(true);
+      const v27 = scanA2(clone, WITAN_RUBRIC_VERSION_V27);
+      expect(v27?.status).toBe('insufficient_data');
+      expect(v27?.score).toBe(0);
+      expect(v27?.notes ?? '').toContain(UNOPENABLE);
+      const v17 = scanA2(clone, WITAN_RUBRIC_VERSION_V17);
+      expect(v17?.status).toBe('not_applicable');
+      expect((v17?.disclosures ?? []).some((text) => text.includes(UNOPENABLE))).toBe(true);
+    } finally {
+      chmodSync(join(clone, '.git'), 0o755);
+    }
+  });
+
+  it('a .git symlink whose target is gone', () => {
+    const clone = cloneShallowA2Origin(buildShallowA2Origin(ISSUE_556_SHAPE), 'full');
+    const copy = join(root, 'copied');
+    cpSync(clone, copy, { recursive: true, filter: (source) => !source.split(/[\\/]/).includes('.git') });
+    symlinkSync(join(root, 'gone', '.git'), join(copy, '.git'));
+    expect(hasVisibleGitMetadata(copy)).toBe(true);
+    const v27 = scanA2(copy, WITAN_RUBRIC_VERSION_V27);
+    expect(v27?.status).toBe('insufficient_data');
+    expect(v27?.notes ?? '').toContain(UNOPENABLE);
+    const v17 = scanA2(copy, WITAN_RUBRIC_VERSION_V17);
+    expect(v17?.status).toBe('not_applicable');
+    expect((v17?.disclosures ?? []).some((text) => text.includes(UNOPENABLE))).toBe(true);
   });
 });

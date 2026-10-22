@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { closeSync, existsSync, openSync, readSync, realpathSync, statSync } from 'node:fs';
+import { closeSync, lstatSync, openSync, readSync, realpathSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 
 export const GIT_EXEC_MAX_BUFFER_BYTES = 8 * 1024 * 1024;
@@ -111,21 +111,43 @@ export function withGitDiscoveryConfinedTo<T>(root: string, scan: () => T): T {
 // The most of a `.git` file read to find its `gitdir:` line. git writes that line first.
 const GIT_FILE_PREFIX_BYTES = 4096;
 
+/** The error code of a failed filesystem call, if any. */
+function fsErrorCode(error: unknown): unknown {
+  return typeof error === 'object' && error !== null ? (error as { code?: unknown }).code : undefined;
+}
+
+/** A filesystem error that proves the entry is not there (as opposed to unreadable). */
+const isDefinitelyAbsent = (error: unknown) => fsErrorCode(error) === 'ENOENT' || fsErrorCode(error) === 'ENOTDIR';
+
 /**
- * True when `path` looks like git metadata, not merely a name (#560 review, G2): a directory that
- * holds `HEAD`, or a regular file whose first 4 KiB hold a line starting `gitdir:` (the file a
- * worktree or submodule uses). A stray empty `.git` directory, or any other `.git` file, does not
- * count. A filesystem check only; it runs no git.
+ * True when `path` looks like git metadata, not merely a name (#560 review, G2):
+ * - any symbolic link named `.git`, even one whose target is gone (a copied checkout whose link
+ *   no longer resolves), so the unopenable and unavailable causes apply to it;
+ * - a directory, unless it is readable and definitely holds no `HEAD`: a `.git` directory Cejel
+ *   cannot look into (EACCES or any other error) counts, so an unreadable repository is never
+ *   mistaken for a stray directory (#560 review round 8, H1);
+ * - a regular file whose first 4 KiB hold a line starting `gitdir:` (the file a worktree or
+ *   submodule uses), or one Cejel cannot read.
+ * A stray empty `.git` directory, or any other `.git` file, does not count. A filesystem check
+ * only; it runs no git.
  */
 function isGitMetadataEntry(path: string): boolean {
-  let stats;
+  let link;
   try {
-    stats = statSync(path);
-  } catch {
-    return false;
+    link = lstatSync(path);
+  } catch (error: unknown) {
+    return !isDefinitelyAbsent(error);
   }
-  if (stats.isDirectory()) return existsSync(join(path, 'HEAD'));
-  if (!stats.isFile()) return false;
+  if (link.isSymbolicLink()) return true;
+  if (link.isDirectory()) {
+    try {
+      lstatSync(join(path, 'HEAD'));
+      return true;
+    } catch (error: unknown) {
+      return !isDefinitelyAbsent(error);
+    }
+  }
+  if (!link.isFile()) return false;
   let descriptor: number | undefined;
   try {
     descriptor = openSync(path, 'r');
@@ -133,7 +155,7 @@ function isGitMetadataEntry(path: string): boolean {
     const length = readSync(descriptor, buffer, 0, GIT_FILE_PREFIX_BYTES, 0);
     return /^gitdir:/m.test(buffer.subarray(0, length).toString('utf8'));
   } catch {
-    return false;
+    return true;
   } finally {
     if (descriptor !== undefined) closeSync(descriptor);
   }

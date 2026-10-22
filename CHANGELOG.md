@@ -111,7 +111,9 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     entry git cannot open as a repository (a copied worktree or submodule whose gitdir is gone);
     that one awaits the operator's confirmation. For both `.git` causes a `.git` entry counts only
     as a directory holding `HEAD` or a file with a `gitdir:` line, so a stray empty `.git`
-    directory in a parent changes nothing. Where no history read could succeed, the note and
+    directory in a parent changes nothing; a `.git` directory Cejel cannot read, and a `.git`
+    symbolic link whose target is gone, both count (under v17 they now get the disclosure where A2
+    is not applicable; under v27 A2 abstains). Where no history read could succeed, the note and
     disclosure say only that Cejel read none of the history.
 - **A file name could decide how a failed git read was classified (#560 review).** Under every
   rubric, Cejel classified a failed git command from text that included Node's error message,
