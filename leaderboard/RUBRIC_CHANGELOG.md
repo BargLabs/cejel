@@ -65,15 +65,29 @@ causes it can detect, and the note and disclosure advise per cause:
 - a read that stopped at one of Cejel's own limits (the 8 MiB output limit on history enumeration,
   the 500 KiB limit on one historical blob, or the 30-second timeout): the limit is named, and a
   re-scan of the same repository will not lift it. These limits fire on complete clones too,
-  systematically on large histories (biomejs and react below); streaming those reads is #567;
+  systematically on large histories (biomejs and react below); streaming those reads is #567. The
+  history secret scan's cap of 5,000 historical files counts the same way: a scan that stops at the
+  cap before reading every candidate is an incomplete read ("Cejel's scan of earlier commits for
+  credential-shaped values stopped at its own cap of 5,000 historical files"). Until this change a
+  capped scan with nothing found let A2 be marked not applicable, or score, as if it had read every
+  candidate. The cap is not a git failure, so it adds no scan limitation (one would make every v17
+  badge unrated and `--min-score` refuse); where A2 scores, the scan's existing finding names it;
 - any other failed read (a missing object, as on a partial clone, or a git error): "Cejel could not
   read part of the commit history", and re-scan a full, unfiltered clone.
 
-A credential-shaped path
-skipped for control characters, and the scan's own cap on the number of historical blobs it reads,
-are not counted: both are fixed rules applied to every clone alike. On a complete clone whose
-history reads all completed, and in a directory that is not a git repository, nothing changes under
-any rubric.
+The operator decided how Cejel's own limits count on 2026-10-22, in reply to "What should v27 do when
+an A2 history read hits one of Cejel's own size or time limits on a complete clone?". The reply was
+"1": a limit hit counts as a failed read, so v27's A2 abstains at 0, kept in the composite; the
+5,000-file cap counts as an incomplete read too; the cause is fixed by streaming (#567). The other
+option, treating a limit hit as a coverage limit, was not chosen because it would drop A2 from the
+composite, which can raise a score (#526,
+[comment 6337508926](https://github.com/BargLabs/cejel/issues/526#issuecomment-6337508926)).
+
+A credential-shaped path skipped for control characters is not counted: it is a fixed rule applied
+to every clone alike, and it can hide a value in such a path. The separate 500-file budget for
+PEM-widened candidates applies only under `witan-rubric-v23-prospective-2026-09-06`, not v27, and is
+unchanged. On a complete clone whose history reads
+all completed, and in a directory that is not a git repository, nothing changes under any rubric.
 
 **`witan-rubric-v27-prospective-2026-10-19` (scoring).** Where A2's history evidence is incomplete
 and no confirmed critical finding stands, A2 abstains through the existing shallow-clone abstention
@@ -195,6 +209,9 @@ before and after each scan.
 |---|---|---|---|
 | v17 | 23 | 23 | none: no A2 disclosure appears, since A2 is scored, not not-applicable, on every row with a failed history read |
 | v27 | 23 | 22 | biomejs |
+
+No row's history secret scan stops at the 5,000-file cap: no report, before or after this change,
+carries the scan's cap finding or the cap wording, and no not-applicable row moved.
 
 Every row, A2 and overall (and code_trust under v27):
 

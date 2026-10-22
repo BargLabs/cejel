@@ -426,9 +426,14 @@ to it, in the words "yes to both recommendations", recorded on #526
 ([comment 6336750983](https://github.com/BargLabs/cejel/issues/526#issuecomment-6336750983),
 "Operator decisions (2026-10-22)"). That covers v27's A2 abstention at 0, kept in the composite,
 where A2 would otherwise be not applicable or scored on history Cejel could not fully read: a
-shallow clone, or a failed history read. ADR-0001 records it in its dated section "Operator ruling
-(2026-10-22, second)", which supersedes the "does not cover that case (#556)" sentence for v27 once
-this change lands.
+shallow clone, or a failed history read. After the review showed that Cejel's own limits fire on
+complete clones, the operator was asked "What should v27 do when an A2 history read hits one of
+Cejel's own size or time limits on a complete clone?" and replied "1" (#526,
+[comment 6337508926](https://github.com/BargLabs/cejel/issues/526#issuecomment-6337508926)): a limit
+hit counts as a failed read, A2 abstains at 0, the history secret scan's 5,000-blob cap counts as an
+incomplete read too, and the cause is fixed by streaming those reads (#567). ADR-0001 records both
+decisions in its dated section "Operator ruling (2026-10-22, second)", which supersedes the "does
+not cover that case (#556)" sentence for v27 once this change lands.
 
 **What it adds to "Why every v27 movement can only lower a score".** That table lists the
 abstention path and not the not-applicable gate, and its #442 row covers shallow clones only. A

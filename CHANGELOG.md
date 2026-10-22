@@ -25,16 +25,18 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   when a git read fails, times out or exceeds its output limit, a read that did not complete was
   treated as finding nothing. So a repository whose only A2 surface was a secret-bearing `.env`,
   committed and later deleted, was marked not applicable (shallow, treeless) or scored a warning
-  instead of critical (blobless), and the score rose.
+  instead of critical (blobless), and the score rose. A history secret scan that stopped at its
+  own cap of 5,000 historical files with nothing found was treated the same way.
   - **Every rubric, including the default (presentation only).** When A2 is not applicable after
     an incomplete read of the commit history, it now says so in `criteria[].disclosures` (report
     format 1.8, no new field), and the certificate lists it under "What was not established": "A2's
     applicability was decided from an incomplete read of the commit history: [each cause Cejel
     detected]. [...]", ending with the advice each cause admits: re-scan a full clone (shallow), a
     full, unfiltered clone (a missing object or git error), or none, because a re-scan of the same
-    repository will not lift Cejel's own output or time limits. Under v17 and v18-v26 no score, status, metric value, finding count or fingerprint moves.
-  - **`witan-rubric-v27-prospective-2026-10-19` (scoring).** When the clone is shallow or any of
-    A2's history reads failed, A2 abstains unless a confirmed critical finding stands, on the
+    repository will not lift Cejel's own output or time limits or the scan's cap. Under v17 and v18-v26 no score, status, metric value, finding count or fingerprint moves.
+  - **`witan-rubric-v27-prospective-2026-10-19` (scoring).** When the clone is shallow, any of
+    A2's history reads failed or stopped at one of Cejel's own limits, or the history secret scan
+    stopped at its 5,000-file cap, A2 abstains unless a confirmed critical finding stands, on the
     not-applicable and scoring paths alike, as a read failure kept in the composite at 0.
     Composites can only fall. v27's shallow-clone sentence in `historyLimitations` no longer says
     that a not-applicable criterion stays not applicable, and states exactly which abstentions
@@ -45,7 +47,9 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     confirmation's 23 full-history clones (informally, not a preregistered run) leaves every v17
     report byte-identical and moves one v27 row, biomejs, whose history reads exceed Cejel's own
     8 MiB output limit (A2 verified 3.2 to an abstention at 0, overall 3.0 to 2.5). Streaming those
-    reads is tracked in #567. The v17 board does not move. See
+    reads is tracked in #567. No row hits the 5,000-file cap. The v17 board does not move. Counting
+    Cejel's own limits and the cap this way is the operator's decision of 2026-10-22 (reply "1",
+    recorded on #526 and in ADR-0001). See
     [`leaderboard/RUBRIC_CHANGELOG.md`](./leaderboard/RUBRIC_CHANGELOG.md) (2026-10-22).
 
 ## [0.6.8] — 2026-10-22

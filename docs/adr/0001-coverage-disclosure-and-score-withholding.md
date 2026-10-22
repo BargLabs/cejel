@@ -237,20 +237,33 @@ only the v27 shallow-clone abstentions. It decides nothing about any other syste
 ## Operator ruling (2026-10-22, second): the read-failure ruling extends to #556's abstention
 
 Recorded by an AI agent (Claude Opus 5.5, Claude Code) in #560, at the operator's instruction. The
-operator's decision is recorded on #526
+operator made two decisions that day, both recorded on #526
 ([comment 6336750983](https://github.com/BargLabs/cejel/issues/526#issuecomment-6336750983),
-"Operator decisions (2026-10-22)"). The text above is unchanged apart from the Status line.
+"Operator decisions (2026-10-22)", and
+[comment 6337508926](https://github.com/BargLabs/cejel/issues/526#issuecomment-6337508926),
+"Operator decision (2026-10-22)"). The text above is unchanged apart from the Status line.
 
 **The operator's decision.** The agent recommended that the read-failure ruling above also cover
 the v27 A2 abstention #560 adds. The operator's words were "yes to both recommendations". The
 second recommendation in that reply concerns #535 and condition 3 of the #526 ruling, not this ADR.
 The operator gave no reasons.
 
+**The operator's second decision: Cejel's own limits.** #560's review then showed that Cejel's own
+size and time limits fire on complete clones. The agent asked: "What should v27 do when an A2 history
+read hits one of Cejel's own size or time limits on a complete clone?" Option 1 (recommended): keep
+counting a limit hit as a failed read, so A2 abstains at 0; for consistency, also count the 5,000-blob
+cap on the history secret scan as an incomplete read (until then it was silently "nothing found");
+fix the cause by streaming those reads (#567). Option 2: treat a limit hit as a coverage limit, which
+takes A2 out of the composite and can raise a score. The operator's reply was "1". The operator gave
+no reasons.
+
 **What is covered.** Under `witan-rubric-v27-prospective-2026-10-19`, A2 abstains where it would
 otherwise have been marked not applicable, or scored, on commit history Cejel could not fully read:
-- the clone is shallow; or
-- one of A2's history reads failed (for example on a partial clone, or on a git timeout or output
-  limit).
+- the clone is shallow;
+- one of A2's history reads failed (for example on a partial clone, or a git error); or
+- one of A2's history reads stopped at one of Cejel's own limits: the 8 MiB output limit, the 500 KiB
+  limit on one historical blob, the 30-second timeout, or the history secret scan's cap of 5,000
+  historical files. These fire on complete clones too.
 
 That abstention is a **read failure** under this ADR. A2 abstains at 0 and keeps its place in the
 composite. A confirmed critical finding still stands and is scored.
@@ -260,9 +273,10 @@ composite. A confirmed critical finding still stands and is scored.
 covered.
 
 **What it does not change.** v17 and v18-v26 do not abstain on such a clone. They only disclose it:
-a shallow clone in "History limitations", a failed history read in the scan limitations, and, where
-A2 is marked not applicable on such history, a sentence among A2's disclosures. The ruling decides
-nothing about any other systematic limit.
+a shallow clone in "History limitations", a failed git read in the scan limitations, a capped history
+secret scan in that scan's own finding where A2 scores, and, where A2 is marked not applicable on
+such history, a sentence among A2's disclosures. The rulings decide nothing about any other
+systematic limit.
 
 **The recording agent's explanation (not the operator's words).** The failed reads are of two kinds.
 A partial clone, or a git error, leaves out objects that history reads need, and Cejel's git
@@ -271,7 +285,8 @@ re-scanning a full, unfiltered clone. A read that stops at one of Cejel's own ou
 is different: it is not rare or accidental but systematic on large histories, and fires on
 complete clones too (in an informal re-score of the 0.6.8 confirmation's full-history clones,
 biomejs and react each hit the 8 MiB output limit), and a re-scan of the same repository does not
-lift it; streaming those reads is #567. The operator's words cover both ("a timeout or an output
-limit" is named in the recommendation they accepted). Treating either kind as a coverage limit
+lift it; streaming those reads is #567. The 5,000-file cap is of the same kind. The operator's
+decisions cover both kinds: "a timeout or an output limit" is named in the first recommendation they
+accepted, and the second decision names the limits and the cap. Treating either kind as a coverage limit
 would let A2 leave the composite, or score on a read that did not complete, which can raise a
 composite.
