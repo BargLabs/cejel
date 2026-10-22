@@ -6,10 +6,10 @@ import { dirname, join } from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
 
 import { buildWitanCliSummary } from '../../summary.js';
-import { WITAN_A2_SHALLOW_APPLICABILITY_DISCLOSURE } from '../abstention.js';
 import { renderWitanBadgeSvg } from '../badge.js';
 import { HISTORY_READING_CRITERIA, SHALLOW_HISTORY_LIMITATION, detectHistoryLimitations } from '../history-depth.js';
 import { scoreRepoWithPublicCejel } from '../public-scan.js';
+import { a2HistoryApplicabilityDisclosure } from '../repo-signals.js';
 import type { WitanReport } from '../schemas.js';
 
 // Issue #428: a shallow clone hands history-reading criteria a truncated history. The scan must
@@ -101,7 +101,9 @@ describe('shallow history is disclosed, never scored', () => {
     const { historyLimitations: _disclosure, ...shallowRest } = shallowReport;
     const shallowA2 = shallowRest.criteria.find(({ id }) => id === 'A2');
     expect(shallowA2?.status).toBe('not_applicable');
-    expect(shallowA2?.disclosures).toEqual([WITAN_A2_SHALLOW_APPLICABILITY_DISCLOSURE]);
+    expect(shallowA2?.disclosures).toEqual([
+      a2HistoryApplicabilityDisclosure({ shallow: true, readFailed: false }),
+    ]);
     expect(fullReport.criteria.find(({ id }) => id === 'A2')?.disclosures).toBeUndefined();
     expect({
       ...shallowRest,

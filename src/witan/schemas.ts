@@ -652,8 +652,8 @@ export const WITAN_ATTESTATION_PREDICATE_TYPE = 'https://cejel.dev/attestations/
 // present only on reports that ingested external documents; a no-ingest report is byte-identical.
 // 1.8 (#540): criteria[].disclosures, present only when a collector read and set aside a
 // credential-shaped placeholder (A2) or counted a workflow it did not see run a check (B3). A
-// report with neither is byte-identical to a 1.7 report. After 0.6.8, still 1.8 (#556, no new
-// field): A2's disclosures may also say that A2 was marked not applicable on a shallow clone.
+// report with neither is byte-identical to a 1.7 report. #556 (still 1.8, no new field): A2's
+// disclosures may also say that A2 was marked not applicable on incomplete commit history.
 export const WITAN_REPORT_FORMAT_VERSION = '1.8' as const;
 
 export const WitanAttestationOutcomeSchema = z.discriminatedUnion('status', [

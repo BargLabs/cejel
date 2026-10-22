@@ -6,11 +6,15 @@ import { fileURLToPath } from 'node:url';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { WITAN_A2_SHALLOW_APPLICABILITY_DISCLOSURE } from '../abstention.js';
+import {
+  WITAN_A2_HISTORY_APPLICABILITY_PREFIX,
+  WITAN_V27_A2_FAILED_HISTORY_NOTE_PREFIX,
+} from '../abstention.js';
 import { buildRelyingPartySummary } from '../certificate-presentation.js';
 import { SHALLOW_HISTORY_LIMITATION, SHALLOW_HISTORY_V27_ABSTENTION } from '../history-depth.js';
 import { renderWitanMarkdownReport } from '../markdown.js';
 import { scoreRepoWithPublicCejel } from '../public-scan.js';
+import { a2HistoryApplicabilityDisclosure } from '../repo-signals.js';
 import { projectWitanScoringSurface } from '../rubric-fingerprint.js';
 import {
   WITAN_RUBRIC_VERSION_V17,
@@ -19,39 +23,63 @@ import {
 } from '../rubric-version.js';
 import type { WitanCriterionScore, WitanReport } from '../schemas.js';
 import {
+  A2_HISTORY_CLONES,
   ISSUE_556_SHAPE,
-  SHALLOW_A2_DEPTHS,
   SHALLOW_A2_SHAPES,
   buildShallowA2Origin,
   cloneShallowA2Origin,
   removeShallowA2Fixtures,
   shallowA2ShapeName,
-  type ShallowA2Depth,
+  type A2HistoryClone,
   type ShallowA2Shape,
 } from './fixtures/shallow-a2-shapes.js';
 
-// #556: on a shallow clone, A2's not-applicable gate rests on two history reads (the .env path
-// scan and the history secret scan) that saw only the commits present. A repository whose only A2
-// surface is a secret-bearing .env committed and later deleted became not applicable there, so A2
-// left the composite and the critical finding the full clone reports disappeared: the score rose.
+// #556: A2's not-applicable gate rests on two history reads (the .env path scan and the history
+// secret scan). On a shallow clone they saw only the commits present; on a partial clone, or when a
+// git read fails, they did not complete and Cejel treated the failure as nothing found. A
+// repository whose only A2 surface is a secret-bearing .env committed and later deleted became not
+// applicable (shallow, treeless) or scored a warning instead of critical (blobless, a failed blob
+// read), so the score rose above the complete clone's.
 //
-// Operator direction (2026-10-22): under witan-rubric-v27-prospective-2026-10-19, A2 abstains there
-// as a read failure kept in the composite at 0. Every other rubric keeps its calibrated scoring
-// (v17 is the public default) and carries a presentation-only disclosure instead.
+// Under witan-rubric-v27-prospective-2026-10-19, A2 abstains whenever its history evidence is
+// incomplete (shallow, or any of its history reads failed), on the not-applicable path and the
+// scoring path alike, as a read failure kept in the composite at 0, unless a confirmed critical
+// finding stands. Every other rubric keeps its calibrated scoring (v17 is the public default) and,
+// where A2 is not applicable on such a decision, carries a presentation-only disclosure.
 //
-// Constructed fixtures only (fixtures/shallow-a2-shapes.ts). Runtime, measured locally: about 18 s
-// for the whole file (13 tests), most of it building 12 origins of 15-17 commits and 36 clones.
+// Constructed fixtures only (fixtures/shallow-a2-shapes.ts): 12 shapes x 6 clones (full, depth 1,
+// depth 12, blobless, treeless, and a complete-looking clone with history blobs missing). Runtime,
+// measured locally: about 35 s alone for the whole file, most of it building 12 origins of 15-17
+// commits and 72 clones.
 
 const V17 = WITAN_RUBRIC_VERSION_V17;
 const V27 = WITAN_RUBRIC_VERSION_V27;
 const BEFORE_V27 = WITAN_SELECTABLE_RUBRIC_VERSIONS.filter((version) => version !== V27);
-const SHALLOW_DEPTHS = SHALLOW_A2_DEPTHS.filter((depth) => depth !== 'full');
+const SHALLOW: readonly A2HistoryClone[] = [1, 12];
+const FAILED_READS: readonly A2HistoryClone[] = ['blobless', 'treeless', 'missing-blobs'];
+const INCOMPLETE = A2_HISTORY_CLONES.filter((clone) => clone !== 'full');
 const COMPOSITES = ['overallScore', 'codeTrustScore', 'processTrustScore'] as const;
 const SHALLOW_A2_NOTE_PREFIX = 'A2 abstained: this repository is a shallow clone';
+const FAILED_A2_NOTE_PREFIX = WITAN_V27_A2_FAILED_HISTORY_NOTE_PREFIX;
+const HISTORY_READ_FAILURE = 'Cejel continued with reduced Git history evidence.';
 const canDenyReadAccess = platform() !== 'win32' && process.getuid?.() !== 0;
 
+// The two sentences the fixtures produce, written out so a wording change is a visible edit here.
+const SHALLOW_DISCLOSURE =
+  "A2's applicability was decided from incomplete commit history: this clone is shallow, so Cejel's " +
+  'scans of earlier commits read only the commits it holds. Marking A2 not applicable rests in part on ' +
+  'those scans, which look for .env files and credential-shaped values, so a complete read of the ' +
+  'history may make A2 applicable and give it a score. Re-scan a full, unfiltered clone (for ' +
+  'actions/checkout, set fetch-depth: 0 and no filter).';
+const FAILED_READ_DISCLOSURE =
+  "A2's applicability was decided from incomplete commit history: some of Cejel's reads of earlier " +
+  'commits did not complete (the scan limitations name each one). Marking A2 not applicable rests in ' +
+  'part on those scans, which look for .env files and credential-shaped values, so a complete read of ' +
+  'the history may make A2 applicable and give it a score. Re-scan a full, unfiltered clone (for ' +
+  'actions/checkout, set fetch-depth: 0 and no filter).';
+
 // Scoring surfaces (sha256 of JSON.stringify(projectWitanScoringSurface(report))) captured from
-// main 71ea38993's scanner, the 0.6.8 release content, before this change: every shape and depth
+// main 71ea38993's scanner, before this change: every shape and clone
 // under v17, and the issue's shape under v18-v26. No rubric before v27 may move.
 const SURFACE_PINS = JSON.parse(
   readFileSync(fileURLToPath(new URL('./fixtures/shallow-a2-surface-pins.json', import.meta.url)), 'utf8'),
@@ -59,14 +87,14 @@ const SURFACE_PINS = JSON.parse(
 
 const clones = new Map<string, string>();
 const reports = new Map<string, WitanReport>();
-const key = (shape: ShallowA2Shape, depth: ShallowA2Depth) => `${shallowA2ShapeName(shape)}@${depth}`;
+const key = (shape: ShallowA2Shape, clone: A2HistoryClone) => `${shallowA2ShapeName(shape)}@${clone}`;
 
 beforeAll(() => {
   for (const shape of SHALLOW_A2_SHAPES) {
     const origin = buildShallowA2Origin(shape);
-    for (const depth of SHALLOW_A2_DEPTHS) clones.set(key(shape, depth), cloneShallowA2Origin(origin, depth));
+    for (const clone of A2_HISTORY_CLONES) clones.set(key(shape, clone), cloneShallowA2Origin(origin, clone));
   }
-}, 180_000);
+}, 300_000);
 
 afterAll(() => {
   removeShallowA2Fixtures();
@@ -84,12 +112,12 @@ function scoreAt(repoPath: string, rubricVersion: string): WitanReport {
   });
 }
 
-function report(shape: ShallowA2Shape, depth: ShallowA2Depth, rubricVersion: string): WitanReport {
-  const cacheKey = `${key(shape, depth)}@${rubricVersion}`;
+function report(shape: ShallowA2Shape, clone: A2HistoryClone, rubricVersion: string): WitanReport {
+  const cacheKey = `${key(shape, clone)}@${rubricVersion}`;
   const cached = reports.get(cacheKey);
   if (cached) return cached;
-  const repo = clones.get(key(shape, depth));
-  if (!repo) throw new Error(`no clone for ${key(shape, depth)}`);
+  const repo = clones.get(key(shape, clone));
+  if (!repo) throw new Error(`no clone for ${key(shape, clone)}`);
   const scored = scoreAt(repo, rubricVersion);
   reports.set(cacheKey, scored);
   return scored;
@@ -129,10 +157,13 @@ function codeTrustWithAndWithoutA2(scored: WitanReport): { kept: number; dropped
   return { kept: round(total / (counted.length + 1)), dropped: round(total / counted.length) };
 }
 
+const historyReadFailed = (scored: WitanReport) =>
+  (scored.scanLimitations ?? []).some((limitation) => limitation.endsWith(HISTORY_READ_FAILURE));
+
 describe("#556: the issue's shape (a secret-bearing .env committed, deleted, then 14 more commits; no other A2 surface)", () => {
   const shape = ISSUE_556_SHAPE;
 
-  it('the full clone reports the critical history finding under v17 and v27', () => {
+  it('the complete clone reports the critical history finding under v17 and v27', () => {
     for (const rubricVersion of [V17, V27]) {
       const full = a2(report(shape, 'full', rubricVersion));
       expect(full.status, rubricVersion).toBe('critical');
@@ -142,107 +173,154 @@ describe("#556: the issue's shape (a secret-bearing .env committed, deleted, the
     }
   });
 
-  it('v17 still scores the shallow clone higher than the full clone (the calibrated behaviour this disclosure qualifies)', () => {
-    for (const depth of SHALLOW_DEPTHS) {
-      expect(a2(report(shape, depth, V17)).status).toBe('not_applicable');
-      expect(report(shape, depth, V17).overallScore as number).toBeGreaterThan(
+  it('v17 still scores every incomplete clone higher than the complete clone (the calibrated behaviour)', () => {
+    const expected: Record<string, string> = {
+      '1': 'not_applicable',
+      '12': 'not_applicable',
+      blobless: 'warning',
+      treeless: 'not_applicable',
+      'missing-blobs': 'warning',
+    };
+    for (const clone of INCOMPLETE) {
+      expect(a2(report(shape, clone, V17)).status, String(clone)).toBe(expected[String(clone)]);
+      expect(report(shape, clone, V17).overallScore as number, String(clone)).toBeGreaterThan(
         report(shape, 'full', V17).overallScore as number,
       );
     }
+    for (const clone of FAILED_READS) expect(historyReadFailed(report(shape, clone, V17)), String(clone)).toBe(true);
+    for (const clone of [...SHALLOW, 'full' as const]) {
+      expect(historyReadFailed(report(shape, clone, V17)), String(clone)).toBe(false);
+    }
   });
 
-  it('every rubric before v27 keeps the scoring surface 0.6.8 produced, and A2 carries the disclosure', () => {
-    for (const depth of SHALLOW_A2_DEPTHS) {
+  it('every rubric before v27 keeps the scoring surface main 71ea38993 produced; A2 discloses where it is not applicable on incomplete history', () => {
+    for (const clone of A2_HISTORY_CLONES) {
       for (const rubricVersion of BEFORE_V27) {
-        const scored = report(shape, depth, rubricVersion);
-        const pin = SURFACE_PINS[`${key(shape, depth)}@${rubricVersion}`];
-        expect(pin, `${depth} ${rubricVersion}`).toMatch(/^[0-9a-f]{64}$/);
-        expect(surface(scored), `${depth} ${rubricVersion}`).toBe(pin);
-        expect(a2(scored).disclosures, `${depth} ${rubricVersion}`).toEqual(
-          depth === 'full' ? undefined : [WITAN_A2_SHALLOW_APPLICABILITY_DISCLOSURE],
-        );
+        const scored = report(shape, clone, rubricVersion);
+        const pin = SURFACE_PINS[`${key(shape, clone)}@${rubricVersion}`];
+        expect(pin, `${clone} ${rubricVersion}`).toMatch(/^[0-9a-f]{64}$/);
+        expect(surface(scored), `${clone} ${rubricVersion}`).toBe(pin);
+        const expected =
+          clone === 1 || clone === 12
+            ? [SHALLOW_DISCLOSURE]
+            : clone === 'treeless'
+              ? [FAILED_READ_DISCLOSURE]
+              : undefined;
+        expect(a2(scored).disclosures, `${clone} ${rubricVersion}`).toEqual(expected);
       }
     }
   });
 
-  it('v17: the certificate lists the disclosure under "What was not established"; the full clone does not', () => {
-    for (const depth of SHALLOW_DEPTHS) {
-      const scored = report(shape, depth, V17);
-      expect(scored.historyLimitations).toEqual([SHALLOW_HISTORY_LIMITATION]);
-      expect(buildRelyingPartySummary(scored).notEstablished).toContain(
-        WITAN_A2_SHALLOW_APPLICABILITY_DISCLOSURE,
-      );
-      expect(renderWitanMarkdownReport(scored)).toContain(WITAN_A2_SHALLOW_APPLICABILITY_DISCLOSURE);
+  it('v17: the certificate lists the disclosure under "What was not established"; the complete clone does not', () => {
+    for (const [clone, sentence] of [
+      [1, SHALLOW_DISCLOSURE],
+      [12, SHALLOW_DISCLOSURE],
+      ['treeless', FAILED_READ_DISCLOSURE],
+    ] as const) {
+      const scored = report(shape, clone, V17);
+      if (clone !== 'treeless') expect(scored.historyLimitations).toEqual([SHALLOW_HISTORY_LIMITATION]);
+      expect(buildRelyingPartySummary(scored).notEstablished, String(clone)).toContain(sentence);
+      expect(renderWitanMarkdownReport(scored), String(clone)).toContain(sentence);
     }
     expect(buildRelyingPartySummary(report(shape, 'full', V17)).notEstablished).not.toContain(
-      "A2's applicability",
+      WITAN_A2_HISTORY_APPLICABILITY_PREFIX,
     );
   });
 
-  it('the disclosure states what was and was not read, in the collector\'s own words, and claims no absence', () => {
-    expect(WITAN_A2_SHALLOW_APPLICABILITY_DISCLOSURE).toContain('read only the commits this clone holds');
-    expect(WITAN_A2_SHALLOW_APPLICABILITY_DISCLOSURE).toContain('fetch-depth: 0');
-    expect(WITAN_A2_SHALLOW_APPLICABILITY_DISCLOSURE).not.toMatch(/\bno secret|\bclean\b|\bnot present\b/i);
-    expect(WITAN_A2_SHALLOW_APPLICABILITY_DISCLOSURE.length).toBeLessThanOrEqual(1000);
+  it("the disclosure names only the causes Cejel detected, in Cejel's own words, and claims no absence", () => {
+    expect(a2HistoryApplicabilityDisclosure({ shallow: true, readFailed: false })).toBe(SHALLOW_DISCLOSURE);
+    expect(a2HistoryApplicabilityDisclosure({ shallow: false, readFailed: true })).toBe(FAILED_READ_DISCLOSURE);
+    const both = a2HistoryApplicabilityDisclosure({ shallow: true, readFailed: true });
+    expect(both).toContain('this clone is shallow');
+    expect(both).toContain('did not complete');
+    for (const sentence of [SHALLOW_DISCLOSURE, FAILED_READ_DISCLOSURE, both]) {
+      expect(sentence.startsWith(WITAN_A2_HISTORY_APPLICABILITY_PREFIX)).toBe(true);
+      expect(sentence).not.toMatch(/\bno secret|\bclean\b|\bnot present\b|\bpartial clone\b|\bfilter=/i);
+      expect(sentence.length).toBeLessThanOrEqual(1000);
+    }
   });
 
-  it('v27: A2 abstains on the shallow clone as a read failure kept in the composite at 0', () => {
-    for (const depth of SHALLOW_DEPTHS) {
-      const scored = report(shape, depth, V27);
+  it('v27: A2 abstains on every incomplete clone as a read failure kept in the composite at 0', () => {
+    for (const clone of INCOMPLETE) {
+      const scored = report(shape, clone, V27);
       const criterion = a2(scored);
-      expect(criterion.status).toBe('insufficient_data');
-      expect(criterion.score).toBe(0);
-      expect(criterion.notes ?? '').toMatch(new RegExp(`^${SHALLOW_A2_NOTE_PREFIX}`));
-      expect(criterion.notes ?? '').toContain('would otherwise have been marked not applicable');
-      expect(criterion.disclosures).toBeUndefined();
-      expect(scored.historyLimitations).toEqual([SHALLOW_HISTORY_V27_ABSTENTION]);
-      expect(buildRelyingPartySummary(scored).notEstablished).not.toContain("A2's applicability");
+      const name = String(clone);
+      expect(criterion.status, name).toBe('insufficient_data');
+      expect(criterion.score, name).toBe(0);
+      expect(
+        (criterion.notes ?? '').startsWith(FAILED_READS.includes(clone) ? FAILED_A2_NOTE_PREFIX : SHALLOW_A2_NOTE_PREFIX),
+        `${name}: ${criterion.notes ?? ''}`,
+      ).toBe(true);
+      // The not-applicable path (shallow, treeless) says so; the scoring path (blobless, missing
+      // blobs: the .env path is visible in history, its value is not) does not.
+      expect((criterion.notes ?? '').includes('would otherwise have been marked not applicable'), name).toBe(
+        clone === 1 || clone === 12 || clone === 'treeless',
+      );
+      expect(criterion.disclosures, name).toBeUndefined();
+      expect(scored.historyLimitations, name).toEqual(
+        clone === 1 || clone === 12 ? [SHALLOW_HISTORY_V27_ABSTENTION] : undefined,
+      );
+      expect(buildRelyingPartySummary(scored).notEstablished, name).not.toContain(
+        WITAN_A2_HISTORY_APPLICABILITY_PREFIX,
+      );
       // Kept in the denominator: code_trust is reproduced with A2 at 0 and not without it.
       expect(
-        scored.criteria.filter(({ category, status }) => category === 'code_trust' && status === 'insufficient_data')
+        scored.criteria
+          .filter(({ category, status }) => category === 'code_trust' && status === 'insufficient_data')
           .map(({ id }) => id),
+        name,
       ).toEqual(['A2']);
       const { kept, dropped } = codeTrustWithAndWithoutA2(scored);
-      expect(kept).not.toBe(dropped);
-      expect(scored.codeTrustScore).toBe(kept);
+      expect(kept, name).not.toBe(dropped);
+      expect(scored.codeTrustScore, name).toBe(kept);
     }
   });
 
-  it('v27: the shallow composites and A2 score do not exceed the full clone\'s', () => {
+  it("v27: no incomplete clone's composites or A2 score exceed the complete clone's", () => {
     const full = report(shape, 'full', V27);
-    for (const depth of SHALLOW_DEPTHS) {
-      const shallow = report(shape, depth, V27);
+    for (const clone of INCOMPLETE) {
+      const incomplete = report(shape, clone, V27);
       for (const composite of COMPOSITES) {
-        expect(rises(full[composite], shallow[composite]), `${depth} ${composite}`).toBe(false);
+        expect(rises(full[composite], incomplete[composite]), `${clone} ${composite}`).toBe(false);
       }
-      expect(a2(shallow).score).toBeLessThanOrEqual(a2(full).score);
-      expect(shallow.overallScore as number).toBeLessThan(full.overallScore as number);
+      expect(a2(incomplete).score, String(clone)).toBeLessThanOrEqual(a2(full).score);
+      expect(incomplete.overallScore as number, String(clone)).toBeLessThan(full.overallScore as number);
     }
   });
 
-  it('v27 against v17 on the same shallow clone: A2 moves from not applicable to an abstention and no composite rises', () => {
-    for (const depth of SHALLOW_DEPTHS) {
-      const before = report(shape, depth, V17);
-      const after = report(shape, depth, V27);
-      expect(a2(before).status).toBe('not_applicable');
-      expect(a2(after).status).toBe('insufficient_data');
-      expect(a2(after).score).toBeLessThanOrEqual(a2(before).score);
+  it('v27 against v17 on the same incomplete clone: A2 moves to an abstention and no composite rises', () => {
+    for (const clone of INCOMPLETE) {
+      const before = report(shape, clone, V17);
+      const after = report(shape, clone, V27);
+      expect(a2(after).status, String(clone)).toBe('insufficient_data');
+      expect(a2(after).score, String(clone)).toBeLessThanOrEqual(a2(before).score);
       for (const composite of COMPOSITES) {
-        expect(rises(before[composite], after[composite]), `${depth} ${composite}`).toBe(false);
+        expect(rises(before[composite], after[composite]), `${clone} ${composite}`).toBe(false);
       }
-      expect(after.codeTrustScore as number).toBeLessThan(before.codeTrustScore as number);
+      expect(after.codeTrustScore as number, String(clone)).toBeLessThan(before.codeTrustScore as number);
     }
   });
 });
 
-describe('#556: not-applicable decisions that do not rest on truncated history are unchanged', () => {
+describe('#556: decisions whose history reads all completed over complete history are unchanged', () => {
   const none: ShallowA2Shape = { secret: 'none', dataLayer: false, cryptoSurface: false };
 
-  it('a full clone with no A2 surface stays not applicable under v27, with no disclosure', () => {
+  it('a complete clone with no A2 surface stays not applicable under v27, with no disclosure', () => {
     for (const rubricVersion of [V17, V27]) {
       const criterion = a2(report(none, 'full', rubricVersion));
       expect(criterion.status, rubricVersion).toBe('not_applicable');
       expect(criterion.disclosures, rubricVersion).toBeUndefined();
+    }
+  });
+
+  it('a blobless clone whose history holds no credential-shaped path reads no blob, so its reads complete and A2 stays not applicable', () => {
+    for (const clone of ['blobless', 'missing-blobs'] as const) {
+      for (const rubricVersion of [V17, V27]) {
+        const scored = report(none, clone, rubricVersion);
+        expect(historyReadFailed(scored), `${clone} ${rubricVersion}`).toBe(false);
+        expect(a2(scored).status, `${clone} ${rubricVersion}`).toBe('not_applicable');
+        expect(a2(scored).disclosures, `${clone} ${rubricVersion}`).toBeUndefined();
+      }
     }
   });
 
@@ -264,6 +342,21 @@ describe('#556: not-applicable decisions that do not rest on truncated history a
     }
   });
 
+  it('a secret in the tree stands as critical on every clone under v27', () => {
+    const inTree: ShallowA2Shape = { secret: 'in-tree', dataLayer: false, cryptoSurface: false };
+    const full = a2(report(inTree, 'full', V27));
+    for (const clone of A2_HISTORY_CLONES) {
+      const criterion = a2(report(inTree, clone, V27));
+      expect([criterion.status, criterion.score], String(clone)).toEqual([full.status, full.score]);
+      // The critical findings it stands on are the complete clone's; a complete clone may add a
+      // history finding of its own (an info), which a shallow or treeless clone cannot see.
+      expect(
+        criterion.findings.filter(({ severity }) => severity === 'critical').map(({ summary }) => summary),
+        String(clone),
+      ).toEqual(full.findings.filter(({ severity }) => severity === 'critical').map(({ summary }) => summary));
+    }
+  });
+
   it.skipIf(!canDenyReadAccess)(
     'a content-read abstention replaces the not-applicable result and drops the applicability sentence with it',
     () => {
@@ -273,7 +366,9 @@ describe('#556: not-applicable decisions that do not rest on truncated history a
       try {
         const criterion = a2(scoreAt(shallow, V17));
         expect(criterion.status).toBe('insufficient_data');
-        expect(criterion.disclosures ?? []).not.toContain(WITAN_A2_SHALLOW_APPLICABILITY_DISCLOSURE);
+        expect((criterion.disclosures ?? []).some((text) => text.startsWith(WITAN_A2_HISTORY_APPLICABILITY_PREFIX))).toBe(
+          false,
+        );
       } finally {
         chmodSync(file, 0o644);
       }
@@ -281,48 +376,58 @@ describe('#556: not-applicable decisions that do not rest on truncated history a
   );
 });
 
-// The property (operator direction 2026-10-22, item 3): under v27, for every generated A2 shape and
-// depth, the shallow clone's composites and A2 score never exceed the full clone's. 12 shapes
-// (secret in the tree / deleted in history / none; data layer yes/no; crypto surface yes/no) x
-// depths 1 and 12, against the full clone. Deterministic: fixed commits, no randomness.
-describe('#556 property: under v27 a shallow clone never scores above its full clone', () => {
-  it('holds for every shape and depth, and A2 is never not applicable on a shallow clone', () => {
+// The property (#556, #560): under v27, for every generated A2 shape, a clone whose history Cejel
+// read incompletely (truncated or failed) never scores above the complete clone, on the composites or
+// A2. 12 shapes (secret in the tree / deleted in history / none; data layer yes/no; crypto surface
+// yes/no) x 5 incomplete clones against the full clone. Deterministic: fixed commits, no randomness.
+describe('#556 property: under v27 a truncated or failed history read never scores above the complete clone', () => {
+  it('holds for every shape and clone, and A2 is never not applicable on incomplete history', () => {
     const problems: string[] = [];
-    let lowered = 0;
+    const lowered: string[] = [];
     for (const shape of SHALLOW_A2_SHAPES) {
       const full = report(shape, 'full', V27);
-      for (const depth of SHALLOW_DEPTHS) {
-        const shallow = report(shape, depth, V27);
-        const name = `${shallowA2ShapeName(shape)} depth ${depth}`;
+      for (const clone of INCOMPLETE) {
+        const incomplete = report(shape, clone, V27);
+        const name = `${shallowA2ShapeName(shape)} ${clone}`;
         for (const composite of COMPOSITES) {
-          if (rises(full[composite], shallow[composite])) {
-            problems.push(`${name}: ${composite} ${String(full[composite])} -> ${String(shallow[composite])}`);
+          if (rises(full[composite], incomplete[composite])) {
+            problems.push(`${name}: ${composite} ${String(full[composite])} -> ${String(incomplete[composite])}`);
           }
         }
-        if (a2(shallow).score > a2(full).score) problems.push(`${name}: A2 ${a2(full).score} -> ${a2(shallow).score}`);
-        if (a2(shallow).status === 'not_applicable') problems.push(`${name}: A2 not applicable on a shallow clone`);
-        if ((shallow.overallScore ?? 0) < (full.overallScore ?? 0)) lowered += 1;
+        if (a2(incomplete).score > a2(full).score) problems.push(`${name}: A2 ${a2(full).score} -> ${a2(incomplete).score}`);
+        const truncatedOrFailed = clone === 1 || clone === 12 || historyReadFailed(incomplete);
+        if (truncatedOrFailed && a2(incomplete).status === 'not_applicable') {
+          problems.push(`${name}: A2 not applicable on incomplete history`);
+        }
+        if ((incomplete.overallScore ?? 0) < (full.overallScore ?? 0)) lowered.push(name);
       }
     }
     expect(problems).toEqual([]);
-    // Liveness: the property is not vacuous. Every shape without a current-tree secret abstains A2 on
-    // its shallow clones (4 + 4 shapes x 2 depths); the in-tree secret stands as critical.
-    expect(lowered).toBe(16);
-  }, 120_000);
+    // Liveness: the property is not vacuous. Lowered: every shape without a secret in the tree on
+    // its shallow and treeless clones (8 x 3), and the 4 deleted-secret shapes on their blobless and
+    // missing-blob clones (4 x 2). The in-tree secret stands as critical; a blobless clone whose
+    // history holds no credential path reads every object it needs.
+    expect(lowered).toHaveLength(32);
+  }, 180_000);
 
-  it('every rubric before v27 is unchanged on every shape (v17 pinned), and discloses exactly where A2 is not applicable on a shallow clone', () => {
+  it('every rubric before v27 is unchanged on every shape (v17 pinned), and discloses exactly where A2 is not applicable on incomplete history', () => {
     const problems: string[] = [];
     for (const shape of SHALLOW_A2_SHAPES) {
-      for (const depth of SHALLOW_A2_DEPTHS) {
-        const scored = report(shape, depth, V17);
-        const name = `${shallowA2ShapeName(shape)} depth ${depth}`;
-        if (surface(scored) !== SURFACE_PINS[`${key(shape, depth)}@${V17}`]) problems.push(`${name}: v17 surface moved`);
-        const expectDisclosure = depth !== 'full' && a2(scored).status === 'not_applicable';
-        const disclosed = (a2(scored).disclosures ?? []).includes(WITAN_A2_SHALLOW_APPLICABILITY_DISCLOSURE);
+      for (const clone of A2_HISTORY_CLONES) {
+        const scored = report(shape, clone, V17);
+        const name = `${shallowA2ShapeName(shape)} ${clone}`;
+        if (surface(scored) !== SURFACE_PINS[`${key(shape, clone)}@${V17}`]) problems.push(`${name}: v17 surface moved`);
+        const truncatedOrFailed = clone === 1 || clone === 12 || historyReadFailed(scored);
+        const expectDisclosure = truncatedOrFailed && a2(scored).status === 'not_applicable';
+        const disclosed = (a2(scored).disclosures ?? []).some((text) =>
+          text.startsWith(WITAN_A2_HISTORY_APPLICABILITY_PREFIX),
+        );
         if (disclosed !== expectDisclosure) problems.push(`${name}: disclosure ${disclosed}, expected ${expectDisclosure}`);
       }
     }
     expect(problems).toEqual([]);
-    expect(Object.keys(SURFACE_PINS)).toHaveLength(SHALLOW_A2_SHAPES.length * SHALLOW_A2_DEPTHS.length + 9 * 3);
-  }, 120_000);
+    expect(Object.keys(SURFACE_PINS)).toHaveLength(
+      SHALLOW_A2_SHAPES.length * A2_HISTORY_CLONES.length + (BEFORE_V27.length - 1) * A2_HISTORY_CLONES.length,
+    );
+  }, 180_000);
 });

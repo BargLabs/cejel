@@ -3,14 +3,22 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 
-// #556: constructed repositories for A2's applicability on a shallow clone. Synthetic only; no
+// #556: constructed repositories for A2 on a clone whose history Cejel reads incompletely: shallow
+// (depth 1 or 12), partial (blobless or treeless, whose missing objects Cejel's git boundary never
+// fetches, so its history reads fail), or complete-looking with history blobs missing (a simulated
+// history-read failure on a repository that is neither shallow nor partial). Synthetic only; no
 // file here is taken from any real repository. Each origin is built with fixed author and
 // committer identities and dates, so its commits, and every clone of it, are the same on every run.
 
 /** Where a credential-shaped value sits: in the current tree, only in a deleted commit, or nowhere. */
 export type ShallowA2Secret = 'in-tree' | 'deleted-in-history' | 'none';
-/** How the origin is checked out for the scan: a full clone or `git clone --depth N`. */
-export type ShallowA2Depth = 'full' | 1 | 12;
+/**
+ * How the origin is checked out for the scan: a full clone, `git clone --depth N`, a partial clone
+ * (`--filter=blob:none` or `--filter=tree:0`), or 'missing-blobs': a blobless clone whose partial
+ * clone configuration is then removed, so git treats it as complete and a read of a historical
+ * blob fails (Cejel's stand-in for any failed history read: a git error, timeout or output limit).
+ */
+export type A2HistoryClone = 'full' | 1 | 12 | 'blobless' | 'treeless' | 'missing-blobs';
 
 export interface ShallowA2Shape {
   readonly secret: ShallowA2Secret;
@@ -20,7 +28,14 @@ export interface ShallowA2Shape {
   readonly cryptoSurface: boolean;
 }
 
-export const SHALLOW_A2_DEPTHS: readonly ShallowA2Depth[] = ['full', 1, 12];
+export const A2_HISTORY_CLONES: readonly A2HistoryClone[] = [
+  'full',
+  1,
+  12,
+  'blobless',
+  'treeless',
+  'missing-blobs',
+];
 
 /** Every combination, in a fixed order: 3 secret placements x data layer x crypto surface. */
 export const SHALLOW_A2_SHAPES: readonly ShallowA2Shape[] = (['in-tree', 'deleted-in-history', 'none'] as const).flatMap(
@@ -88,6 +103,8 @@ export function buildShallowA2Origin(shape: ShallowA2Shape): string {
   const origin = join(parent, 'origin');
   mkdirSync(origin);
   git(origin, 'init', '--quiet');
+  // Lets a partial clone over the file transport request a filter.
+  git(origin, 'config', 'uploadpack.allowFilter', 'true');
   // A small, tested, locked package: its other code_trust criteria score above A2's critical 1.4, so
   // on the issue's shape A2 leaving the composite raises the v17 score, as in the reported repro.
   write(
@@ -155,14 +172,31 @@ export function buildShallowA2Origin(shape: ShallowA2Shape): string {
   return origin;
 }
 
-/** Clones `origin` over the file transport, full or at the given depth, and returns the clone. */
-export function cloneShallowA2Origin(origin: string, depth: ShallowA2Depth): string {
-  const target = join(dirname(origin), `clone-${depth}`);
-  const depthArgs = depth === 'full' ? [] : ['--depth', String(depth)];
-  git(dirname(origin), 'clone', '--quiet', ...depthArgs, `file://${origin}`, target);
+/** Clones `origin` over the file transport, full, at a depth or partial, and returns the clone. */
+export function cloneShallowA2Origin(origin: string, clone: A2HistoryClone): string {
+  const target = join(dirname(origin), `clone-${clone}`);
+  const args =
+    clone === 'full'
+      ? []
+      : clone === 'blobless' || clone === 'missing-blobs'
+        ? ['--filter=blob:none']
+        : clone === 'treeless'
+          ? ['--filter=tree:0']
+          : ['--depth', String(clone)];
+  git(dirname(origin), 'clone', '--quiet', ...args, `file://${origin}`, target);
+  if (clone === 'missing-blobs') {
+    for (const key of ['remote.origin.promisor', 'remote.origin.partialclonefilter', 'extensions.partialclone']) {
+      // `git config --get` with a default never fails; unset only what this git version wrote.
+      if (git(target, 'config', '--default', '', '--get', key) !== '') git(target, 'config', '--unset-all', key);
+    }
+  }
   const shallow = git(target, 'rev-parse', '--is-shallow-repository');
-  if (shallow !== (depth === 'full' ? 'false' : 'true')) {
-    throw new Error(`clone at depth ${depth} reports is-shallow-repository ${shallow}`);
+  if (shallow !== (typeof clone === 'number' ? 'true' : 'false')) {
+    throw new Error(`clone ${clone} reports is-shallow-repository ${shallow}`);
+  }
+  const promisor = git(target, 'config', '--default', '', '--get', 'remote.origin.promisor');
+  if (promisor !== (clone === 'blobless' || clone === 'treeless' ? 'true' : '')) {
+    throw new Error(`clone ${clone} reports remote.origin.promisor ${promisor}`);
   }
   return target;
 }
