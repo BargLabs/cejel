@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -8,11 +9,14 @@ import type { WitanCriterionScore, WitanReport } from '../schemas.js';
 import { buildWitanCliSummary } from '../../summary.js';
 import { renderTerminalCertificate } from '../../terminal.js';
 
+import { WITAN_B3_UNSHOWN_CHECK_PREFIX } from '../abstention.js';
+import { CERTIFICATE_GLOSSARY } from '../certificate-presentation.js';
 import { isGitLfsPointerText, readRepoTextPrefix, trackContentReads } from '../content-reads.js';
 import { SHALLOW_HISTORY_LIMITATION, SHALLOW_HISTORY_V27_ABSTENTION } from '../history-depth.js';
 import { renderWitanHtmlReport } from '../html.js';
 import { renderWitanMarkdownReport } from '../markdown.js';
 import { scoreRepoWithPublicCejel } from '../public-scan.js';
+import { BEHAVIOUR_CORPUS, buildBehaviourFixture } from './fixtures/behaviour-corpus.js';
 import {
   WITAN_RUBRIC_VERSION_V17,
   WITAN_RUBRIC_VERSION_V26,
@@ -369,9 +373,16 @@ describe('review findings against the first implementation stay fixed', () => {
     }
   });
 
-  it('#442: the v27 shallow-clone sentence does not claim A2 abstains where it is not applicable', () => {
-    expect(SHALLOW_HISTORY_V27_ABSTENTION).toContain('where either would be scored');
-    expect(SHALLOW_HISTORY_V27_ABSTENTION).toContain('not applicable stays not applicable');
+  // #556 changed what this sentence must say: on a shallow clone A2 now abstains where it would
+  // otherwise be not applicable (that decision rests on its history scans), so the sentence may no
+  // longer say a not-applicable criterion stays not applicable. The behaviour is pinned in
+  // shallow-a2-applicability-556.test.ts.
+  it('#442, #556: the v27 shallow-clone sentence says where A2 and B2 abstain, including A2 not applicable', () => {
+    expect(SHALLOW_HISTORY_V27_ABSTENTION).toContain(
+      'including where it would otherwise be marked not applicable',
+    );
+    expect(SHALLOW_HISTORY_V27_ABSTENTION).toContain('B2, where it would be scored');
+    expect(SHALLOW_HISTORY_V27_ABSTENTION).not.toContain('stays not applicable');
   });
 });
 
@@ -834,6 +845,317 @@ describe('publish-only means checkout, credentials and an upload of a built arti
 // v27 abstains; it does not hide. A collector's own critical finding under v17 is still present
 // under v27, unless the criterion abstained because the clone is shallow or a test file it read
 // is an LFS pointer, the two cases where the finding was derived from content Cejel did not read.
+// #527 and #535 (2026-10-22): one predicate, uncreditedCiWorkflowReason, decides for B2 and B3
+// whether a CI workflow is credited. A workflow that only publishes (upload-only, #553's rule) or
+// whose every step only checks out and prints is not credited under v27; under v17 both still are.
+const PUBLISH_ONLY_NOTE_TAIL =
+  '1 workflow that only publishes, releases or deploys (no pull-request trigger, and every step Cejel reads only checks out, sets up a toolchain, configures credentials or uploads an already-built artifact) is not counted as';
+const PRINT_ONLY_NOTE_TAIL =
+  '1 workflow not shown to run a check (every step Cejel reads only checks out the repository, prints text or does nothing) is not counted as';
+
+describe('#527 — B2 does not credit a CI workflow not shown to run a check', () => {
+  it('v17 is unchanged: an upload-only workflow is a PR-trace CI workflow, as the issue reports', () => {
+    const b2 = criterion('b2-publish-only-is-the-only-workflow', V17, 'B2');
+    expect(metricValue(b2, 'pr_trace_primitives')).toBe(1);
+    expect(b2.notes).toBeUndefined();
+    expect(criterion('b2-publish-only-beside-test-workflow', V17, 'B2').score).toBeGreaterThan(
+      criterion('b2-test-workflow-only', V17, 'B2').score,
+    );
+  });
+
+  it('v27: the upload-only workflow earns no PR-trace credit, and B2 is still scored, not abstained', () => {
+    const b2 = criterion('b2-publish-only-is-the-only-workflow', V27, 'B2');
+    expect(metricValue(b2, 'pr_trace_primitives')).toBe(0);
+    expect(b2.status).toBe('critical');
+    expect(b2.notes).toBe(`${PUBLISH_ONLY_NOTE_TAIL} a PR-trace CI workflow: .github/workflows/publish.yml.`);
+    expect(b2.evidence.map(({ label }) => label)).toEqual(['CI workflow not shown to run a check (not counted)']);
+  });
+
+  it('v27: adding an upload-only workflow beside a test workflow does not raise B2', () => {
+    const control = criterion('b2-test-workflow-only', V27, 'B2');
+    const change = criterion('b2-publish-only-beside-test-workflow', V27, 'B2');
+    expect(change.score).toBe(control.score);
+    expect(metricValue(change, 'pr_trace_primitives')).toBe(metricValue(control, 'pr_trace_primitives'));
+  });
+
+  it('v27: a CI workflow B2 cannot read is a read failure, so B2 abstains at 0 instead of crediting it', () => {
+    const control = falseAssuranceFixture('b2-test-workflow-only');
+    const repo = buildFalseAssuranceFixture({
+      ...control,
+      name: 'b2-workflow-as-lfs-pointer',
+      commits: [{ ...control.commits[0], '.github/workflows/e2e.yml': lfsPointerFor('e2e workflow') }],
+    });
+    const b2 = (rubricVersion: string) =>
+      scoreRepoWithPublicCejel({
+        repoPath: repo,
+        productSlug: 'false-assurance-fixture',
+        productDisplayName: 'False-assurance fixture',
+        generatedAt: '2026-10-22T00:00:00.000Z',
+        rubricVersion,
+        ingestPatterns: [],
+        autoDiscoverIngest: false,
+      }).criteria.find(({ id }) => id === 'B2');
+    expect(b2(V17)?.status).toBe('warning');
+    expect(b2(V27)?.status).toBe('insufficient_data');
+    expect(b2(V27)?.score).toBe(0);
+  });
+
+  it('v27: a workflow that runs the tests and then uploads keeps its credit in B2 and B3', () => {
+    for (const id of ['B2', 'B3']) {
+      expect(criterion('b2-test-then-upload-stays-credited', V27, id), id).toEqual(
+        criterion('b2-test-then-upload-stays-credited', V17, id),
+      );
+    }
+  });
+});
+
+describe('#535 — B3 does not count a workflow not shown to run a check', () => {
+  it('v17 is unchanged: the print-only workflow is counted, and the #540 disclosure names it', () => {
+    const b3 = criterion('b3-print-only-pr-workflow-beside-tests', V17, 'B3');
+    expect(metricValue(b3, 'default_branch_ci_depth')).toBe(2);
+    expect(b3.disclosures).toEqual([
+      `${WITAN_B3_UNSHOWN_CHECK_PREFIX}.github/workflows/e2e.yml only prints text. The PR-gate CI workflow count still includes it.`,
+    ]);
+    expect(metricValue(criterion('b3-print-only-echo-names-a-test-command', V17, 'B3'), 'ci_script_depth')).toBe(1);
+  });
+
+  it("v27: the issue's repro scores B2 and B3 exactly as the test workflow alone, and says why", () => {
+    for (const id of ['B2', 'B3']) {
+      const change = criterion('b3-print-only-pr-workflow-beside-tests', V27, id);
+      const control = criterion('b2-test-workflow-only', V27, id);
+      expect(change.score, id).toBe(control.score);
+      expect(change.metrics.map(({ name, value }) => [name, value]), id).toEqual(
+        control.metrics.map(({ name, value }) => [name, value]),
+      );
+    }
+    const b3 = criterion('b3-print-only-pr-workflow-beside-tests', V27, 'B3');
+    expect(b3.disclosures).toEqual([
+      'B3 did not count CI workflows Cejel did not see run a check: .github/workflows/e2e.yml only checks out the repository, prints text or does nothing.',
+    ]);
+    expect(b3.notes).toBe(`${PRINT_ONLY_NOTE_TAIL} CI verification: .github/workflows/e2e.yml.`);
+    expect(criterion('b3-print-only-pr-workflow-beside-tests', V27, 'B2').notes).toBe(
+      `${PRINT_ONLY_NOTE_TAIL} a PR-trace CI workflow: .github/workflows/e2e.yml.`,
+    );
+  });
+
+  it('v27: a printed test-command word earns no CI command credit', () => {
+    const b3 = criterion('b3-print-only-echo-names-a-test-command', V27, 'B3');
+    expect(metricValue(b3, 'ci_script_depth')).toBe(0);
+    expect(metricValue(b3, 'default_branch_ci_depth')).toBe(0);
+    expect(b3.status).not.toBe('insufficient_data');
+  });
+
+  it('v27: a print step beside an unplaced action, or a block that also runs pytest, keeps its credit', () => {
+    for (const name of ['b3-echo-then-unplaced-action-stays-credited', 'b3-echo-in-a-run-block-with-a-test-stays-credited']) {
+      for (const id of ['B2', 'B3']) {
+        expect(criterion(name, V27, id), `${name} ${id}`).toEqual(criterion(name, V17, id));
+      }
+    }
+  });
+
+  // The branch half of #535, ruled out of condition 3 by the operator on 2026-10-22 (#526, #535):
+  // which branches exist is ref state, which the attestation's only repository revision,
+  // repo.headSha, does not determine. Pinned so a change is deliberate.
+  it('ruled out: a workflow confined to master in a repository whose only branch is main is still counted under v27', () => {
+    const b3 = criterion('b3-master-confined-workflow-on-main-still-counted', V27, 'B3');
+    expect(metricValue(b3, 'default_branch_ci_depth')).toBe(1);
+    expect(b3).toEqual(criterion('b3-master-confined-workflow-on-main-still-counted', V17, 'B3'));
+  });
+
+  // Branch state is outside the attested revision (the attestation's only repository revision is
+  // repo.headSha). A rule that read refs, such as "a master filter counts only if refs/heads/master
+  // exists", makes these scores differ between the states below; checked by injecting exactly that
+  // rule into workflowTargetsDefaultBranch while writing this test (review of #562).
+  it.each(['b3-master-confined-workflow-on-main-still-counted', 'b3-print-only-pr-workflow-beside-tests'])(
+    'the same commit scores the same whatever refs the checkout holds — %s',
+    (name) => {
+      const repo = buildFalseAssuranceFixture(falseAssuranceFixture(name));
+      const score = () =>
+        [V17, V27].map((rubricVersion) =>
+          JSON.stringify(
+            scoreRepoWithPublicCejel({
+              repoPath: repo,
+              productSlug: 'false-assurance-fixture',
+              productDisplayName: 'False-assurance fixture',
+              generatedAt: '2026-10-22T00:00:00.000Z',
+              rubricVersion,
+              ingestPatterns: [],
+              autoDiscoverIngest: false,
+            }),
+          ),
+        );
+      const git = (...args: string[]) =>
+        execFileSync('git', args, { cwd: repo, stdio: ['ignore', 'pipe', 'ignore'] });
+      const onMain = score();
+      const steps: ReadonlyArray<readonly [string, () => void]> = [
+        ['a master branch added', () => git('branch', 'master')],
+        ['the master branch deleted', () => git('branch', '-D', 'master')],
+        ['main renamed to trunk', () => git('branch', '-m', 'main', 'trunk')],
+        [
+          'an origin/HEAD naming origin/main',
+          () => {
+            git('update-ref', 'refs/remotes/origin/main', 'HEAD');
+            git('symbolic-ref', 'refs/remotes/origin/HEAD', 'refs/remotes/origin/main');
+          },
+        ],
+        [
+          'origin/HEAD moved to origin/master',
+          () => {
+            git('update-ref', 'refs/remotes/origin/master', 'HEAD');
+            git('symbolic-ref', 'refs/remotes/origin/HEAD', 'refs/remotes/origin/master');
+          },
+        ],
+        ['a detached HEAD', () => git('-c', 'advice.detachedHead=false', 'checkout', '--quiet', '--detach')],
+      ];
+      for (const [state, apply] of steps) {
+        apply();
+        expect(score(), state).toEqual(onMain);
+      }
+    },
+  );
+});
+
+describe('#564 — the print-only and publish-only readers claim nothing outside a bash runner', () => {
+  const v17Disclosure = (name: string) => criterion(name, V17, 'B3').disclosures ?? [];
+  it.each([
+    'review10-print-only-windows-latest-pwsh-hashtable',
+    'review10-print-only-windows-2022-pwsh-hashtable',
+    'review10-print-only-self-hosted-printf',
+    'review10-print-only-ubuntu-equals-sign',
+    'review10-print-only-runner-expression',
+    'review10-upload-only-windows-runner',
+    'review10-upload-only-self-hosted-runner',
+    'review11-print-only-ubuntu-xlarge-label',
+    'review11-twine-upload-pwsh-hashtable-argument',
+  ])('%s keeps its credit under v27 and gets no print-only disclosure under v17', (name) => {
+    for (const id of ['B2', 'B3']) {
+      expect(criterion(name, V27, id), `${name} ${id}`).toEqual(criterion(name, V17, id));
+      expect(criterion(name, V27, id).disclosures, `${name} ${id}`).toBeUndefined();
+    }
+    expect(v17Disclosure(name).join(' ')).not.toContain('only prints text');
+  });
+
+  it('control: an inert echo on ubuntu-latest is still print-only under every rubric', () => {
+    expect(v17Disclosure('review10-print-only-ubuntu-inert-text').join(' ')).toContain('test.yml only prints text');
+    expect(metricValue(criterion('review10-print-only-ubuntu-inert-text', V27, 'B3'), 'default_branch_ci_depth')).toBe(0);
+  });
+});
+
+// Review of #562: the glossary states the readers' conditions, so a PR-triggered upload-only
+// workflow, which the publish-only reader never claims, is counted and the glossary says why.
+// Round 3 of the review of #562: each shape makes an admitted publisher run repository code, so
+// the publish-only reader must not claim it, and B2 and B3 keep v17's credit.
+describe('publish-only admits no glob in flag position, no unknown flag, no unlisted variable, no Cargo configuration', () => {
+  it.each([
+    'review12-pnpm-publish-glob-flag',
+    'review12-yarn-publish-glob-flag',
+    'review12-npm-publish-unknown-flag',
+    'review12-cargo-publish-glob-flag',
+    'review12-cargo-credential-provider-variable',
+    'review12-twine-pythonuserbase-variable',
+    'review12-cargo-home-step-env',
+    'review12-gh-release-xdg-config-step-env',
+    'review12-cargo-committed-config-credential-provider',
+    'review12-twine-upload-flag-glob',
+    'review13-poetry-project-plugin-pth',
+    'review13-poetry-requires-plugins',
+    'review13-uv-toml-committed',
+    'review13-uv-pyproject-table',
+    'review13-rust-toolchain-toml',
+    'review14-uv-index-array-table',
+    'review14-uv-under-tool-table-dotted',
+    'review14-uv-root-dotted-key',
+    'review14-uv-inline-table',
+    'review14-uv-quoted-key',
+    'review14-uv-escaped-key',
+    'review14-poetry-quoted-requires-plugins',
+    'review15-uv-hex-escaped-key',
+  ])('%s keeps its credit under v27', (name) => {
+    for (const id of ['B2', 'B3']) {
+      expect(criterion(name, V27, id), `${name} ${id}`).toEqual(criterion(name, V17, id));
+    }
+  });
+
+  it('controls: upload-only shapes with known flags, a file glob after a directory and credential variables stay publish-only', () => {
+    for (const name of ['review8-b3-twine-upload-only', 'review8-b3-npm-publish-without-install', 'review7-b3-cargo-publish-no-verify', 'review8-b3-gh-release-upload', 'review13-poetry-publish-control', 'review13-uv-publish-control']) {
+      expect(criterion(name, V27, 'B3').notes, name).toContain('only publishes, releases or deploys');
+    }
+  });
+});
+
+describe('the v27 glossary sentences state the conditions the readers apply', () => {
+  it('a pull-request-triggered upload-only workflow is counted, and the glossary names that condition', () => {
+    const name = 'review11-upload-only-with-pull-request-trigger';
+    for (const id of ['B2', 'B3']) expect(criterion(name, V27, id), id).toEqual(criterion(name, V17, id));
+    for (const term of ['PR trace basic checks', 'PR-gate CI workflow count (automated build/test pipeline)']) {
+      const entry = CERTIFICATE_GLOSSARY.find((candidate) => candidate.term === term);
+      expect(entry?.definition, term).toContain('for a workflow with no pull-request trigger, as only uploading an already-built artifact');
+      expect(entry?.definition, term).toContain('only when the runs-on value of every job names a documented GitHub-hosted Ubuntu or macOS runner label');
+    }
+  });
+});
+
+describe('v27 certificates say a CI workflow was not credited, never that it is missing (review of #562)', () => {
+  const rendered = (repoPath: string) => {
+    const scored = scoreRepoWithPublicCejel({
+      repoPath,
+      productSlug: 'false-assurance-fixture',
+      productDisplayName: 'False-assurance fixture',
+      generatedAt: '2026-10-22T00:00:00.000Z',
+      rubricVersion: V27,
+      ingestPatterns: [],
+      autoDiscoverIngest: false,
+    });
+    return {
+      markdown: renderWitanMarkdownReport(scored),
+      html: renderWitanHtmlReport(scored),
+      terminal: renderTerminalCertificate(buildWitanCliSummary(scored), scored),
+    };
+  };
+  const corpusFixture = BEHAVIOUR_CORPUS.find(({ name }) => name === 'workspace-package-scripts');
+  it.each([
+    ['workspace-package-scripts', () => buildBehaviourFixture(corpusFixture as (typeof BEHAVIOUR_CORPUS)[number]), 'ci.yml'],
+    ['b2-publish-only-is-the-only-workflow', () => buildFalseAssuranceFixture(falseAssuranceFixture('b2-publish-only-is-the-only-workflow')), 'publish.yml'],
+  ] as const)('%s', (_name, build, file) => {
+    for (const [surface, text] of Object.entries(rendered(build()))) {
+      expect(text, surface).not.toContain('missing: CI workflow');
+      expect(text, surface).toContain('B2 did not count CI workflows Cejel did not see run a check: .github/workflows/' + file);
+      expect(text, surface).toContain('B3 did not count CI workflows Cejel did not see run a check: .github/workflows/' + file);
+    }
+  });
+});
+
+describe('B2 and B3 never disagree about which workflows are credited (v27)', () => {
+  for (const fixture of FALSE_ASSURANCE_FIXTURES) {
+    it(fixture.name, () => {
+      const b2 = criterion(fixture.name, V27, 'B2');
+      const b3 = criterion(fixture.name, V27, 'B3');
+      // Skipped where either abstains: an abstaining criterion carries no count to compare.
+      if (b2.status === 'insufficient_data' || b3.status === 'insufficient_data') return;
+      expect(b2.notes?.replaceAll('a PR-trace CI workflow', 'CI verification')).toBe(b3.notes);
+      // The counts agree too: B2 credits every CI workflow file B3 does not set aside.
+      const files = new Set<string>();
+      for (const commit of fixture.commits) {
+        for (const [path, contents] of Object.entries(commit)) {
+          if (contents === null) files.delete(path);
+          else files.add(path);
+        }
+      }
+      const ciFiles = [...files].filter((path) => /^\.github\/workflows\/.+\.ya?ml$/.test(path)).length;
+      const uncreditedCount = (score: WitanCriterionScore, metricName: string) =>
+        Number(/^(\d+) CI workflow files? not shown to run a check/.exec(
+          score.metrics.find(({ name }) => name === metricName)?.presentation?.condition ?? '',
+        )?.[1] ?? 0);
+      const b3Uncredited = uncreditedCount(b3, 'default_branch_ci_depth');
+      expect(uncreditedCount(b2, 'pr_trace_primitives')).toBe(b3Uncredited);
+      const ciComponent = b2.metrics
+        .find(({ name }) => name === 'pr_trace_primitives')
+        ?.presentation?.components?.find(({ label }) => /CI workflow/.test(label));
+      expect(ciComponent?.count).toBe(ciFiles - b3Uncredited);
+    });
+  }
+});
+
 describe('v27 keeps every collector critical finding v17 reports', () => {
   for (const fixture of FALSE_ASSURANCE_FIXTURES) {
     it(fixture.name, () => {

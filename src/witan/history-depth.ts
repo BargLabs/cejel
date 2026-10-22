@@ -16,15 +16,23 @@ export const SHALLOW_HISTORY_LIMITATION =
 
 /**
  * The same disclosure under witan-rubric-v27-prospective-2026-10-19, which does not score history
- * it did not read (#442). The sentence states what that rubric did instead.
+ * it did not read (#442). The sentence states what that rubric did instead. #556: A2's
+ * not-applicable decision also rests on its history scans, so on a shallow clone A2 abstains there
+ * too; the sentence no longer says a not-applicable criterion stays not applicable. B2 has no
+ * not-applicable result: with no tree evidence it is unmeasured, whatever the history. The composite
+ * sentence is exact: a wholesale content-read abstention whose every skip was self-imposed
+ * (too_large, excluded_by_extension, non_regular_file) replaces the shallow one and is excluded.
  */
 export const SHALLOW_HISTORY_V27_ABSTENTION =
   'This repository is a shallow clone (git rev-parse --is-shallow-repository reports true), so its ' +
   'commit history is truncated. A2 (credentials and .env files in earlier commits) and B2 (pull-request ' +
-  'merge ratio over recent commits) read history. Under this rubric, where either would be scored, A2 ' +
-  'abstains unless a confirmed critical secret finding stands, and B2 abstains when fewer commits are ' +
-  'visible than it reads; each abstention counts as 0 in the composite, as any evidence Cejel expected ' +
-  'to read and could not does. A criterion that is not applicable stays not applicable. ' +
+  'merge ratio over recent commits) read history. Under this rubric A2 abstains unless a confirmed ' +
+  'critical secret finding stands, including where it would otherwise be marked not applicable, ' +
+  'because that decision also rests on its scans of earlier commits. B2, where it would be scored, ' +
+  'abstains when fewer commits are visible than it reads. Each of these shallow-clone abstentions ' +
+  'counts as 0 in the composite, as a read failure does. A criterion that abstains instead only ' +
+  "because Cejel declined files under its own size, type or file-kind limits is left out of the " +
+  'composite, and the scan limitations say so. ' +
   'Re-scan a full clone (for actions/checkout, set fetch-depth: 0).';
 
 /** True when `repoPath` is a shallow clone. False when it is complete or not a git repository. */

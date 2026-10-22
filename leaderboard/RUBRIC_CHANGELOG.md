@@ -22,6 +22,764 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
+## 2026-10-22 — #556: an incomplete read of the commit history no longer takes A2 out of the composite or lets it score higher under v27; every rubric says when A2's applicability was decided from one; no v17 score moved; one v27 row of the 0.6.8 confirmation moves
+
+**Defect.** A2 reads commit history in two places: an `.env` path in `git log HEAD`, and the
+history secret scan (the credential-path enumeration over every commit, the deleted-path scan, and
+the historical blob reads). On a shallow clone those reads see only the commits present. On a
+partial clone (`--filter=blob:none` or `--filter=tree:0`) the objects they need are not present,
+and Cejel's git boundary denies every transport, so the reads fail. A read that failed, timed out
+or exceeded its output limit was recorded in `scanLimitations` ("Cejel continued with reduced Git
+history evidence") and then treated as having found nothing. A repository whose only A2 surface is
+a secret-bearing `.env` committed and later deleted therefore:
+- became A2 not applicable on a shallow or treeless clone, so A2 left the composite and the
+  critical finding the full clone reports disappeared;
+- scored A2 warning 2.8 instead of critical 1.4 on a blobless clone, or wherever the blob read
+  failed, because the `.env` path was visible and its value was not.
+
+Either way the score rose because Cejel read less. A review pass on #554 (an AI reviewer)
+reproduced the shallow case under v27 (full clone: A2 critical 1.4, overall 2.1; `--depth 12`: A2
+not applicable, overall 2.2) and reported it under v17 at depth 1. The first review pass on #560
+(also an AI reviewer) reproduced the partial-clone cases. v27's shallow-clone A2 abstention (#442)
+reached neither: the not-applicable gate runs first, and #442 tested for a shallow clone only.
+
+**Which inputs are history-dependent.** The gate marks A2 not applicable only when it finds none
+of the following:
+- In the tree: a data layer (migrations or a DB client import), an `.env` template, a committed
+  `.env` file, a `.gitignore` `.env` rule, a confirmed secret, or signing/HMAC/secret-comparison
+  code.
+- In history: an `.env` path in `git log HEAD`, or a finding from the history secret scan.
+
+Both history reads run whenever the tree conditions hold, and the gate requires the tree
+conditions, so every not-applicable decision rests on history reads that found nothing. The
+scored result rests on the history secret scan too.
+
+**The rule.** A2's history evidence is incomplete when the clone is shallow (`git rev-parse
+--is-shallow-repository`), or when any of A2's own history reads failed: `git log HEAD` for `.env`
+paths, `rev-list HEAD` and the `diff-tree` enumeration, the deleted-path `git log`, the per-path
+`git log` for deleted paths, or a historical blob read (`git show`). A failed read is one that
+reports a git error, the 30-second timeout or an output limit; Cejel counts what it detected, so
+the report names the failed read, not a cause such as a partial clone. Which of these a failure
+is comes only from Node's error code and git's own diagnostic lines, never from text a repository
+path can reach (see "Review round 4" below). Cejel distinguishes these causes it can detect, and
+the note and disclosure advise per cause:
+- a shallow clone: re-scan a full clone;
+- a read that stopped at one of Cejel's own limits (the 8 MiB output limit on history enumeration,
+  the 500 KiB limit on one historical blob, or the 30-second timeout): the limit is named. A
+  re-scan of the same repository will not lift an output limit; it may not lift the timeout, which
+  depends on the machine and its load. These limits fire on complete clones too,
+  systematically on large histories (biomejs and react below); streaming those reads is #567. The
+  history secret scan's cap of 5,000 historical files counts the same way: a scan that stops at the
+  cap before reading every candidate is an incomplete read ("Cejel's scan of earlier commits for
+  credential-shaped values stopped at its own cap of 5,000 historical files"). Until this change a
+  capped scan with nothing found let A2 be marked not applicable, or score, as if it had read every
+  candidate. The cap is not a git failure, so it adds no scan limitation (one would make every v17
+  badge unrated and `--min-score` refuse); where A2 scores, the scan's existing finding names it;
+- any other failed read (a missing object, as on a partial clone, or a git error): "Cejel could not
+  read part of the commit history", and re-scan a full, unfiltered clone;
+- a credential- or `.env`-shaped path in history left unread because its name contains control
+  characters (Review round 4): "Cejel left a credential-shaped path in the commit history unread
+  because its name contains control characters (the scan limitations say so)", and a re-scan of the
+  same repository will not lift Cejel's own rule on control characters in paths;
+- git itself could not be run while a `.git` entry is visible from the scanned path (Review round
+  4, #568): "git could not be run on the scanning host, so Cejel read none of the commit history",
+  and re-scan on a host where git is installed. Not a git failure, so no scan limitation.
+
+The operator decided how Cejel's own limits count on 2026-10-22, in reply to "What should v27 do when
+an A2 history read hits one of Cejel's own size or time limits on a complete clone?". The reply was
+"1": a limit hit counts as a failed read, so v27's A2 abstains at 0, kept in the composite; the
+5,000-file cap counts as an incomplete read too; the cause is fixed by streaming (#567). The other
+option, treating a limit hit as a coverage limit, was not chosen because it would drop A2 from the
+composite, which can raise a score (#526,
+[comment 6337508926](https://github.com/BargLabs/cejel/issues/526#issuecomment-6337508926)).
+
+A path skipped for control characters in its name is counted only when A2 would otherwise have read
+it (credential- or `.env`-shaped); the rule that skips it is unchanged, and so is its scan
+limitation. Until Review round 4 such a path was not counted, which let a value kept under such a
+name stay out of the scan with A2 marked not applicable. The separate 500-file budget for
+PEM-widened candidates applies only under `witan-rubric-v23-prospective-2026-09-06`, not v27, and is
+unchanged. On a complete clone whose history reads
+all completed, and in a directory that is not a git repository, nothing changes under any rubric.
+
+**`witan-rubric-v27-prospective-2026-10-19` (scoring).** Where A2's history evidence is incomplete
+and no confirmed critical finding stands, A2 abstains through the existing shallow-clone abstention
+(`insufficient_data`, kept in the composite at 0, the read-failure treatment of ADR-0001). This
+applies on the not-applicable path and on the scoring path alike. The note names the detected cause:
+"A2 abstained: this repository is a shallow clone, …" (unchanged on the scoring path; on the
+not-applicable path it adds "A2 would otherwise have been marked not applicable on a decision that
+rests in part on its scans of earlier commits for .env files and credential-shaped values"), or
+"A2 abstained after an incomplete read of this repository's commit history: …", naming each
+detected cause and the advice above. The v27 shallow-history sentence no longer says "A
+criterion that is not applicable stays not applicable"; it says A2 abstains "including where it
+would otherwise be marked not applicable". Its composite sentence is now exact: a shallow-clone
+abstention counts as 0, and a content-read abstention whose every skip was one of Cejel's own size,
+type or file-kind limits is left out of the composite, as before. This can only lower a score: a
+criterion that was out of the composite, or scored above 0, now counts at 0.
+
+**Review round 4 (#560 review pass 1 on `ae236c9f3`, an AI reviewer).** Three code changes:
+- **Classification of a failed git read.** Cejel classified a failed git command from stderr plus
+  Node's error message, and Node's message repeats the whole command line, which for A2's history
+  reads carries repository paths (`git show <commit>:<path>`, `git log -- <path>`). On a blobless
+  clone, a deleted secret in `secrets/not a git repository.txt` made its failed blob read look like
+  "no repository here", an expected absence Cejel does not report: no scan limitation, no
+  abstention, and A2 not applicable under v17 and v27, scoring above the complete clone's critical
+  finding (reviewer's repro: overall 1.9 to 2.1, code_trust 2.3 to 2.7). `secrets/timeout.txt` or
+  `secrets/maxBuffer.txt` made the same failure read as one of Cejel's own limits, with the advice
+  that a re-scan would not lift it. Classification now reads only the spawn error code (ENOENT,
+  ENOBUFS or ERR_CHILD_PROCESS_STDIO_MAXBUFFER, ETIMEDOUT) and git's own "no repository" messages,
+  each matched as git's exact text from the start of a stderr line (to its end wherever git could
+  print a path after it); a bare SIGTERM is no longer called a timeout. Round 4's first version
+  emptied quoted spans and then matched one phrase anywhere later in the line, which an unquoted
+  path still reached (round 5, below). This applies to every git call Cejel makes, under every rubric.
+  It can change a v17 report only where a git read already failed: such a failure, dropped before
+  because a path on the command line named a git message, now appears in `scanLimitations`, which
+  leaves the v17 badge unrated and makes `--min-score` refuse; and a limitation that named a
+  timeout or output limit only because of a path now says the read failed.
+- **git itself unavailable (#568).** When git cannot be run (ENOENT), every read reports an
+  expected absence, so a repository whose only A2 surface was a deleted secret became A2 not
+  applicable with nothing said. Where a `.git` entry is visible from the scanned path (the scanned
+  directory or a parent, within the discovery bounds Cejel already uses), A2 now counts its history
+  read as incomplete; with no `.git` entry, nothing changes. No scan limitation is added.
+- **Control characters.** As described under "The rule".
+
+Under v27 A2 abstains at 0 in each new case unless a confirmed critical finding stands; under every
+other rubric A2's scoring is unchanged and, where it is not applicable, its disclosure names the
+cause. Failed-read abstentions start with "A2 abstained after an incomplete read of this
+repository's commit history"; the control-character cause adds "unread because its name contains
+control characters" to the note, and the git-unavailable cause adds "git could not be run on the
+scanning host". Tests: `git-failure-classification-560.test.ts`, `a2-history-path-names-560.test.ts`,
+`a2-history-read-failures-560.test.ts`, `a2-history-control-characters-560.test.ts`,
+`a2-history-git-unavailable-560.test.ts`, and the classification cases in `git-exec.test.ts`.
+The operator directed these fixes on 2026-10-22, and in a third ADR-0001 ruling the same day
+("for adr-0001 add them") extended the read-failure treatment to the two new causes (a
+control-character path, git unavailable), alongside a shallow clone, a failed history read, Cejel's
+own output and time limits and the 5,000-file cap (#526,
+[comment 6341266476](https://github.com/BargLabs/cejel/issues/526#issuecomment-6341266476)). The
+control-character limitation's wording, which calls every such path credential-shaped, is #569.
+
+**Review round 5 (#560 review pass 1 on `cf7fde7ac`, an AI reviewer).**
+- **F1, classification.** git prints a missing object's path unquoted ("fatal: bad object
+  <commit>:<path>"), and the round-4 pattern for "not inside a work tree" matched that phrase
+  anywhere later in the line. A deleted `.env` holding a secret, under a directory named `not
+  inside a work tree`, with its blob gone, was dropped as an expected absence: no scan limitation,
+  no abstention, A2 a warning (overall 0.7) above the intact repository's critical (0.4), under v17
+  and v27. Every "no repository" pattern now matches git's exact message from the start of the line
+  (that phrase is not one of git's messages, so it is gone); a missing object under a directory
+  named after each recognised message is tested.
+- **F2, submodules.** A gitlink (mode 160000) at a credential-shaped path was read as a file; the
+  read always failed, so a complete clone with a submodule at, say, `config/secrets` reported
+  "historical blob read failed" under every rubric (as `main` did) and, since round 4, abstained
+  under v27 and disclosed an incomplete read under the other rubrics, all falsely. When a
+  historical read fails, Cejel now checks that commit's entry (`git diff-tree --raw`) and skips a
+  gitlink without counting it. Other reads are unchanged. **v17 report change:** for such a
+  repository the "historical blob read failed" scan limitation disappears; if it was the only one,
+  the v17 badge becomes rated and `--min-score` applies.
+- **F3, tests.** The `.git` visibility check behind #568 is tested directly: from a subdirectory,
+  through a worktree's or submodule's `.git` file, with no `.git` entry, and stopping at the
+  discovery ceiling of a confined scan.
+
+Tests: `a2-history-round5-560.test.ts`, `git-metadata-visibility-560.test.ts`.
+
+**Review round 6 (#560 review pass 2 on `5aaa0d314`, an AI reviewer).** Round 5's exact list
+recognised only the "(or any of the parent directories)" and "(or any parent up to mount point)"
+forms of git's "not a git repository" message. git 2.50 has others: "not a git repository: %s" (a
+`.git` file whose gitdir is missing, as in a copied submodule or worktree, or `GIT_DIR`), "not a git
+repository: '%s'", and "Not a git repository". With a dangling `.git` file, HEAD resolution then
+threw and the scan failed, where `main` completes it as a directory with no repository. Every form
+is now recognised by the message's start, anchored at the start of the line, which a path cannot
+reach; the code lists git's full set of no-repository messages. The scan completes again under v17
+and v27, as on `main`, so no report changes against `main` here.
+
+Only git's first "fatal: " line is classified, since git dies after printing it. A repository path
+holding a line break could otherwise, inside a message where git prints the path unquoted ("fatal:
+bad object <commit>:<path>"), start a second line read as "not a git repository". Every
+non-test `execGit(` call (`git grep -n "execGit(" -- src`, tests excluded) was checked for
+repository paths in its arguments. On the witan scan path, the historical blob read
+(`show <commit>:<path>`), the gitlink check (`diff-tree … -- :(literal)<path>`) and the per-path
+log (`log … -- :(literal)<path>`) take only history paths that passed the control-character skip (a
+line break is a control character); the ignore-rule check (`check-ignore -- <target>/`) takes the
+scan target's own path; the other calls in `src/witan/repo-signals.ts`, `src/witan/history-depth.ts:40`
+and `src/witan/public-scan.ts:178` take no path, nor do `src/packs/llm/files.ts:39` and `:46`. One
+call outside the witan scan path takes a repository path:
+`src/packs/d-series/unobserved-control.ts:382` runs `git log --reverse -S<text> -- <path>` with a
+tracked path and no literal pathspec; its failure handling ignores the classification (any failure
+gives no anchor), so classification cannot change what it reports. A history path holding a line break and a git message is tested: it is counted under
+the control-character rule and never read.
+
+Pass 1 on `5aaa0d314` (a fresh AI reviewer) found the same failure as R5-1 on a copied `git worktree`
+checkout whose worktree had been removed (F5; `main` completes the scan, `5aaa0d314` failed), and
+three more:
+- **A `.git` git cannot open (F5, related).** With git present and a `.git` entry visible, git can
+  still report "no repository" (a dangling gitdir, as in that copied worktree). That was an expected
+  absence, so A2 was marked not applicable without reading any history, while git being absent with
+  `.git` visible abstains (#568). A2 now counts it as unread history too, when `git rev-parse
+  --git-dir` also fails (a repository whose branch has no commits yet opens and is not counted).
+  Under v27 A2 abstains at 0: "a .git entry is present but git could not open it as a repository,
+  so Cejel read none of the commit history", advising "Re-scan a checkout that git can open (a full
+  clone, not a copied worktree or submodule)." Other rubrics disclose it where A2 is not applicable.
+  No scan limitation is added, and no other criterion's handling of "no repository" changes. **This
+  cause is not named in the operator's ADR-0001 rulings**; it is of the same kind as git being
+  unavailable (history present but unread for a reason outside it), and it is flagged for the
+  operator to confirm.
+- **Case (F6).** Only the "not a git repository" forms (including git's capitalised "Not a git
+  repository") and "needed a single revision" (git prints "Needed") are matched case-insensitively;
+  the other no-repository messages are matched exactly.
+- **Pathspec magic (F7, before #560).** The per-path history log passed a deleted path as a
+  pathspec, so a deleted file named `:(exclude)secrets` matched other paths' commits and their reads
+  failed: a false failed read (and, since #560, a false abstention or disclosure). The path is now
+  passed as `:(literal)`, as the gitlink check already was. **v17 report change:** for such a
+  repository the false "historical blob read failed" limitation disappears. The ignore-rule check
+  (`check-ignore -- <target>/`) takes the scan target the user named, not a history path, and is
+  unchanged.
+
+Tests: `a2-history-round5-560.test.ts` (dangling gitdir, copied worktree, a repository with no
+commits, a newline path, a pathspec-magic name), `git-exec.test.ts`.
+
+Round 7 (pass 1 on `3a941f9bb`, a fresh AI reviewer; pass 2 approved):
+- **G1.** On the scoring path, v27's note always added "so the scan for credentials and .env files in
+  earlier commits read only part of the history", so where git could not be run, or could not open
+  the repository, it read "Cejel read none of the commit history, so … read only part of the
+  history". When either of those causes holds no history read could succeed, so the note and the
+  every-rubric disclosure now report only that cause and its advice; otherwise they say "only part".
+  The exact sentences for all eight single causes and four combinations, on both paths and in the
+  disclosure, are pinned (`a2-history-sentences-560.test.ts` and its fixture).
+- **G2.** A stray empty `.git` directory in a parent of a directory that is not a repository made it
+  read as a repository git could not open. A `.git` entry now counts, for that cause and for git
+  being unavailable, only as a directory holding `HEAD` or a file whose first 4 KiB hold a
+  `gitdir:` line (`git-metadata-visibility-560.test.ts`).
+
+Round 8 (pass 1 on `e337befd5`, a fresh AI reviewer; pass 2 approved):
+- **H1 (a regression from round 7's G2).** The tightened `.git` check used an existence test for
+  `HEAD`, which reports "absent" when the directory cannot be read, so a `.git` directory of mode 000
+  looked like a stray one: A2 scored on the tree alone, above the complete clone, and said nothing
+  (round 6 abstained). A `.git` directory now counts unless reading it proves `HEAD` absent (ENOENT
+  or ENOTDIR); a permission error or any other error counts it as git metadata.
+- **L1 (before #560).** A `.git` symbolic link whose target is gone (a copied checkout, the symlink
+  twin of a copied worktree) was treated as no repository. Any symbolic link named `.git` now counts
+  as git metadata, so it is a repository git could not open.
+
+Under v27 A2 abstains at 0 in both cases unless a confirmed critical finding stands; every other
+rubric keeps its scoring and, where A2 is not applicable, now carries the disclosure ("a .git entry
+is present but git could not open it as a repository, so Cejel read none of the commit history").
+A `.git/HEAD` that is itself a directory counts as git metadata (conservative; unchanged). Tests:
+`git-metadata-visibility-560.test.ts` (a mode-000 `.git`, skipped on Windows and as root; a dangling
+`.git` symlink). The 23 public rows, re-measured with the CLI against round 7, are byte-identical
+(46 of 46 reports): both cases need a `.git` that git cannot open, which no complete clone has.
+
+Round 7 was merged with `main` after #562 and measured on the same clean, pinned clones with the
+CLI, under v17 and v27, against round 6 (`3a941f9bb`). All 23 v17 `report.json` files are
+byte-identical. Each of the 23 v27 files differs only in `rubricBehaviourFingerprint` (#562's
+`sha256:6e03aa1b…` in place of `sha256:fb4edfa0…`); no score, status, metric, finding, note or
+disclosure differs, and biomejs stays at overall 2.5 with A2 abstaining at 0.
+
+Round 6 was measured like rounds 4 and 5: the 23 public rows under v17 and v27 against round 5
+(`5aaa0d314`), on the same clean, pinned clones. All 46 `report.json` pairs are byte-identical.
+
+Round 5 was measured like round 4 (below): the 23 public rows under v17 and v27 with round 5's code,
+against round 4's (`cf7fde7ac`), on the same clean, pinned clones. All 46 `report.json` pairs are
+byte-identical; no row has a gitlink at a credential-shaped path in its history, or a failed read
+whose path names a git message.
+
+**B2 checked for the same class.** B2's history read (`readRecentCommits`, `git log` of commit
+subjects) needs commits only, which shallow and partial clones both hold, so a partial clone reads
+its whole window. A failed read throws and ends the scan; it cannot score B2 higher. v27's
+shallow-clone B2 abstention (#442) is unchanged.
+
+**v27's identifier.** v27 shipped, prospective and opt-in, in v0.6.8 (tagged at `74b3af581`), which
+predates this change. Its v27 certificates of such clones report A2 not applicable (shallow,
+treeless) or a warning (blobless); builds with this change report the abstention under the same
+identifier.
+The operator directed the #556 fix on 2026-10-22. Keeping the identifier is consistent with the
+accepted #526 ruling, under which a change to v27's scoring makes a new candidate; it was not a
+separate operator decision. Because no behaviour fingerprint moves (below), the candidate is named
+by commit: this change's merge commit, on top of #562's, recorded after merge (#563). 0.6.8's public confirmation scored
+full-history clones, and its v17 results do not change, but one of its v27 rows does: biomejs, whose
+history reads exceed Cejel's own output limit on a complete clone (see "Public board" below).
+
+**Every other rubric, v17 included (presentation only).** Scoring is unchanged. Where A2 is marked
+not applicable while its history evidence is incomplete, its `criteria[].disclosures` (report
+format 1.8, no new field) carries a sentence starting "A2's applicability was decided from an
+incomplete read of the commit history:", naming only the causes Cejel detected:
+- shallow: "this clone is shallow, so Cejel's scans of earlier commits read only the commits it
+  holds";
+- own limit: "some of Cejel's reads of earlier commits stopped at Cejel's own 8 MiB output limit"
+  (or whichever limit fired);
+- other failed read: "Cejel could not read part of the commit history";
+- the cap: "Cejel's scan of earlier commits for credential-shaped values stopped at its own cap of
+  5,000 historical files";
+- a control-character path: "Cejel left a credential-shaped path in the commit history unread
+  because its name contains control characters (the scan limitations say so)";
+- git unavailable: "git could not be run on the scanning host, so Cejel read none of the commit
+  history";
+
+with "(the scan limitations name each failed read)" after a failed read, then "Marking A2 not
+applicable rests in part on Cejel's scans of earlier commits for .env files and credential-shaped
+values, so a complete read of the history may make A2 applicable and give it a score." It ends with
+the advice for each cause: "Re-scan a full clone (for actions/checkout, set fetch-depth: 0)." for a
+shallow clone; "Re-scan a full, unfiltered clone (for actions/checkout, set fetch-depth: 0 and no
+filter)." for any other failed read; "Re-scan on a host where git is installed." where git could
+not be run; "A re-scan of the same repository will not lift Cejel's own limit." for an output limit
+or the cap; "A re-scan of the same repository may not lift Cejel's own timeout, which depends on
+the machine and its load." for the timeout alone (with an output limit or the cap as well: "…will
+not lift Cejel's own limit on size, and may not lift its timeout, which depends on the machine and
+its load."); and "A re-scan of the same repository will not lift Cejel's own rule on control
+characters in paths." for a control-character path. The certificate lists it under "What was not established" while A2 is not applicable. A
+content-read abstention that replaces the not-applicable result drops it. Where A2 scores on a
+failed history read (the blobless case), v17 already lists the failed read in `scanLimitations`,
+which makes the badge unrated and `--min-score` refuse; that is unchanged. The v17 shallow-history
+sentence ("on a full clone their results may differ") already covers applicability and is
+unchanged. No score, status, metric value, finding count or fingerprint moves under v17-v26.
+
+**Measured, `main` `71ea38993` against this change, every selectable rubric.** The behaviour
+corpus, the false-assurance fixtures and the disclosure-gap fixtures, 2,255 reports, and the new
+#556 shapes:
+
+| Set | Scoring-surface moves | Byte differences |
+|---|---|---|
+| Behaviour corpus (330 reports) | 0 | 0 |
+| False-assurance fixtures | 0 | 2, v27 only: the reworded shallow-history sentence on the two depth-1 fixtures, where A2 is applicable and its score is unchanged |
+| Disclosure-gap fixtures | 2, v27 only | 20 under v17-v26: the A2 disclosure on the same two depth-1 checkouts |
+| New #556 shapes (12 shapes × full, depth 1, depth 12, blobless, treeless, missing history blobs; 792 reports) | 20, v27 only | the A2 disclosure where A2 is not applicable on incomplete history under v17-v26 |
+
+No fixture in the first three sets has a failed history read. Another 11 reports
+(`review4-a4-working-directory-through-tracked-symlink`, every rubric) also differ between two runs
+of `main` itself: that fixture is not hermetic, and none of its scoring surfaces moved.
+
+The two disclosure-gap moves are `b3-master-target-depth-1-clone` and `b3-master-target-ci-fetch`
+(depth-1 checkouts with no A2 surface): under v27, A2 not applicable becomes `insufficient_data` at
+0, overall 1.8 to 1.5, code_trust 2.3 to 1.7, process_trust unchanged.
+
+"Missing history blobs" is a blobless clone with its partial-clone configuration removed, so git
+treats it as complete and the historical blob read fails: a stand-in for any failed history read on
+a repository that is neither shallow nor partial.
+
+**v17 against v27 on the #556 shapes** (A2; overall / code_trust; process_trust is 1.4
+throughout). The complete clone scores the same under v17 and v27.
+
+| Shape | Full clone | Clone | v17 (unchanged) | v27 before | v27 after |
+|---|---|---|---|---|---|
+| secret deleted in history, nothing else (the issue's shape) | critical 1.4; 1.8 / 2.2 | depth 1 or 12 | not applicable; 2.0 / 2.5, + disclosure | not applicable; 2.0 / 2.5 | abstains; 1.7 / 1.9 |
+| | | blobless, missing blobs | warning 2.8; 2.0 / 2.6 | warning 2.8; 2.0 / 2.6 | abstains; 1.7 / 1.9 |
+| | | treeless | not applicable; 2.0 / 2.5, + disclosure | not applicable; 2.0 / 2.5 | abstains; 1.7 / 1.9 |
+| secret deleted in history, with a data layer or crypto surface | critical 1.4; 1.8 / 2.2 | blobless, treeless, missing blobs | warning; 2.0 / 2.6 | warning; 2.0 / 2.6 | abstains; 1.6-1.7 / 1.8-1.9 |
+| | | depth 1 or 12 | warning; 2.0 / 2.6 | abstains (#442) | unchanged |
+| no A2 surface | not applicable; 2.0 / 2.5 | depth 1 or 12 | not applicable, + disclosure | not applicable; 2.0 / 2.5 | abstains; 1.7 / 1.9 |
+| | | treeless | not applicable, + disclosure | not applicable; 2.0 / 2.5 | abstains; 1.7 / 1.9 |
+| | | blobless, missing blobs | not applicable (every read completed) | not applicable | unchanged |
+| no secret, with a data layer or crypto surface | warning; 2.0 / 2.6 | treeless | warning | warning; 2.0 / 2.6 | abstains; 1.6-1.7 / 1.8-1.9 |
+| | | depth 1 or 12 | warning | abstains (#442) | unchanged |
+| | | blobless, missing blobs | warning (every read completed) | warning | unchanged |
+| secret in the tree (any) | critical 1.4; 1.8 / 2.2 | every clone | critical | critical | unchanged |
+
+Under v27, no incomplete clone's composite or A2 score exceeds its complete clone's in any of the 60
+incomplete cases, and 32 score lower. A blobless clone whose history holds no credential-shaped path
+needs no historical blob, so its reads complete and nothing changes. Under v17 the issue's shape
+still scores higher on every incomplete clone: that is the calibrated default, now disclosed where
+A2 is not applicable, and already flagged in `scanLimitations` where a read failed.
+
+**Fingerprints.** No rubric's behaviour fingerprint moves with this change: the behaviour corpus
+holds no shallow or partial clone and no failed history read. v17 stays
+`sha256:5cd48f8c642300ae8736a09d4a24ce3a4f8885f6e099b5f27f99d950e0c944b4`. #562, which landed
+first, moved v27's from 0.6.8's
+`sha256:fb4edfa0bdf0d8153af3f84a4b72d4eab6da3fd6e0b2e3e494cea9542ded45a0` to
+`sha256:6e03aa1bf63a31c5ec58a68cb49fb8ef571ba233cf79059a311ec55aecea5bb3`; this change, merged on
+top of #562, leaves it at `sha256:6e03aa1b…` although v27's behaviour on incomplete history changed.
+So the fingerprint alone does not tell #562's candidate from the combined one: the combined
+candidate is `sha256:6e03aa1b…` at this change's merge commit, recorded after merge (#563).
+
+**Public board.** The board is scored from full-history, unfiltered clones (the public-delta
+harness refuses a shallow or filtered target), but a complete clone can still have a failed history
+read. Informal measurement, not a preregistered run: the 23 public rows were re-scored at this
+change, under v17 and v27, on the same full-history clones the 0.6.8 successor confirmation used
+(`docs/experiments/public-delta-0-6-8-successor-2026-10-21/`), with its options, and compared byte
+for byte with that run's candidate reports (the candidate differs from this change's base only in
+records, with no change under `src/`). The clones were verified clean and at their pinned commits
+before and after each scan.
+
+| Rubric | Rows | Byte-identical | Moved |
+|---|---|---|---|
+| v17 | 23 | 23 | none: no A2 disclosure appears, since A2 is scored, not not-applicable, on every row with a failed history read |
+| v27 | 23 | 22 | biomejs |
+
+No row's history secret scan stops at the 5,000-file cap: no report, before or after this change,
+carries the scan's cap finding or the cap wording, and no not-applicable row moved.
+
+Every row, A2 and overall (and code_trust under v27):
+
+| Row | v17 (this change = 0.6.8 run, byte-identical) | v27, 0.6.8 run | v27, this change | Failed history reads |
+|---|---|---|---|---|
+| react | critical 1.4; 3.0 | critical 1.4; 3.0 / 2.1 | unchanged | 1 |
+| vue | not applicable; 3.0 | not applicable; 3.0 / 2.4 | unchanged | 0 |
+| svelte | verified 3.4; 3.1 | verified 3.4; 3.1 / 2.8 | unchanged | 0 |
+| django | warning 2.8; 3.1 | warning 2.8; 3.1 / 2.6 | unchanged | 0 |
+| flask | verified 3.2; 2.9 | verified 3.2; 2.9 / 2.7 | unchanged | 0 |
+| fastapi | warning 2.8; 3.1 | warning 2.8; 3.1 / 2.8 | unchanged | 0 |
+| express | not applicable; 3.1 | not applicable; 3.1 / 3.0 | unchanged | 0 |
+| vite | verified 3.2; 3.4 | verified 3.2; 3.4 / 2.8 | unchanged | 0 |
+| esbuild | not applicable; 2.6 | not applicable; 2.6 / 2.6 | unchanged | 0 |
+| biomejs | verified 3.2; 3.0 | verified 3.2; 3.0 / 2.9 | **abstains at 0; 2.5 / 1.8** | 2 |
+| requests | verified 3.2; 3.0 | verified 3.2; 3.0 / 2.6 | unchanged | 0 |
+| pydantic | not applicable; 3.2 | not applicable; 3.2 / 2.9 | unchanged | 0 |
+| axios | verified 3.6; 3.3 | verified 3.6; 3.3 / 2.6 | unchanged | 0 |
+| zod | verified 3.6; 3.2 | verified 3.6; 3.2 / 3.1 | unchanged | 0 |
+| scorecard | not applicable; 2.9 | not applicable; 2.9 / 2.2 | unchanged | 0 |
+| ripgrep | not applicable; 2.1 | not applicable; 2.1 / 2.1 | unchanged | 0 |
+| guava | not applicable; 1.9 | not applicable; 1.9 / 1.6 | unchanged | 0 |
+| cobra | not applicable; 2.5 | not applicable; 2.5 / 2.6 | unchanged | 0 |
+| sinatra | not applicable; 2.2 | not applicable; 2.2 / 2.0 | unchanged | 0 |
+| automapper | not applicable; 2.1 | not applicable; 2.1 / 2.0 | unchanged | 0 |
+| fmt | not applicable; 2.7 | not applicable; 2.7 / 2.0 | unchanged | 0 |
+| carddemo | not applicable; unscored | not applicable; unscored | unchanged | 0 |
+| cejel | verified 3.3; 2.7 | verified 3.3; 2.7 / 2.3 | unchanged | 0 |
+
+| Row (v27) | Failed history reads in `scanLimitations` | A2 | overall | code_trust | process_trust |
+|---|---|---|---|---|---|
+| biomejs | history tree enumeration and environment-file history scan, each over the 8 MiB output limit | verified 3.2 to `insufficient_data` 0 | 3.0 to 2.5 | 2.9 to 1.8 (A2 kept in the denominator: (2.2 + 0 + 3.2) / 3) | 3.1, unchanged |
+| react | history tree enumeration over the 8 MiB output limit | critical 1.4, unchanged (the confirmed critical finding stands) | 3.0, unchanged | 2.1, unchanged | 3.9, unchanged |
+
+biomejs's v27 overall falls below its v17 overall (3.0), so v27 still does not rise above v17 on any
+row. biomejs's new v27 note reads "A2 abstained after an incomplete read of this repository's commit
+history: some of Cejel's reads of earlier commits stopped at Cejel's own 8 MiB output limit (the
+scan limitations name each failed read), … A re-scan of the same repository will not lift Cejel's
+own limit." For this candidate, that contradicts the 0.6.8 result's "v27 added no A2 or B2
+abstention on any row": on the same clones this candidate adds one A2 abstention (biomejs). The
+0.6.8 record is unchanged; it describes the candidate it measured. These limits are Cejel's own: the history reads buffer their whole output, and on these large
+histories it exceeds 8 MiB. The operator's ADR-0001 ruling of 2026-10-22 names an output limit as a
+failed read, so v27 abstains as designed; the real fix is streaming those reads (#567). The v17
+board is unchanged; there is no published v27 board. #562's statement that the 0.6.8 v27 table
+still describes v27's public scores held for #562's candidate; with this change, biomejs's v27 row
+moves.
+
+Review round 4 was measured the same way, informally: the 23 rows were scanned with the CLI's
+defaults under v17 and v27, once at `ae236c9f3` (before round 4) and once with round 4's code, on
+the same full-history clones, verified clean and at their pinned commits before and after. All 46
+pairs of `report.json` are byte-identical, so round 4 moves no row under either rubric (biomejs's
+v27 abstention above is unchanged: overall 2.5, code_trust 1.8). No row has a failed history read
+whose path names a git message, a credential- or `.env`-shaped history path with control
+characters (axios's one control-character path, `\bMIGRATION_GUIDE.md`, is neither, so it stays
+uncounted), or a scan without git.
+
+**Classification.** Under v27 this changes scoring, so it makes a new v27 candidate (dated
+addition to `docs/reviews/v27-false-assurance-closure-2026-10-19.md`). Under every other rubric it
+is presentation only, except round 4's git-failure classification, which can add a v17 scan
+limitation where a failed history read was dropped before (the v17 badge is then unrated and
+`--min-score` refuses). No holdout or calibration ran, and this entry makes no precision or recall
+claim. Tests: `src/witan/__tests__/shallow-a2-applicability-556.test.ts`.
+
+## 2026-10-22 — v27: B2 and B3 stop crediting CI workflows not shown to run a check (#527, #535 no-check half); the print-only reader assumed bash (#564, every rubric); no published score moved
+
+**Why.** The operator accepted the 2026-10-21 ruling on #526 on 2026-10-22. Its condition 3 reads:
+"#527 and #535 are fixed in v27 before the candidate is pinned. B2 and B3 stop crediting workflows
+that run no check." This entry fixes the no-check half of condition 3: #527 in full and #535's
+no-check half. On 2026-10-22 the operator ruled the branch half of #535 out of condition 3, so this
+change meets condition 3. The operator's words were "yes to both recommendations" ([#526](https://github.com/BargLabs/cejel/issues/526#issuecomment-6336750983),
+[#535](https://github.com/BargLabs/cejel/issues/535#issuecomment-6336751428)). The two recommendations were the #535 branch half (this change) and extending the ADR-0001 read-failure ruling to #556's abstention (#560), so "both" is not two #535 options. The branch half is not changed (below). The scoring change is in
+`witan-rubric-v27-prospective-2026-10-19` only. v17 was measured: no v17 score, status, metric or
+fingerprint moved.
+- **v17 `report.json`:** byte-identical on every fixture and public row measured, apart from six #564
+  fixtures. Those lose the false #540 disclosure (below), which happens on any repository whose
+  workflow the old reader alone called print-only.
+- **v17 certificates** (Markdown, HTML, terminal) change on every repository. The two glossary
+  entries below now describe v27's rule. v18-v26 were not byte-measured. They rest
+on gating (every scoring change is behind the v27 flag, and the #564 reader change reaches them only
+through the presentation-only #540 disclosure) and on their unchanged behaviour fingerprints. v27
+stays prospective and opt-in, and the default stays v17. **No holdout or calibration ran, and this
+entry makes no precision or recall claim.**
+
+**This is a new v27 candidate.** Under the ruling, a candidate is a v27 behaviour identified by its
+`rubricBehaviourFingerprint` at a named commit. Here that is the fingerprint below plus #562's merge
+commit, which is recorded after merge (#563). PR #560 (#556 and partial clones) touches the same
+records. Whichever of #560 and #562 lands second reconciles them. #562 moves neither
+`b3-master-target-*` surface pin.
+
+**What v27 now does.** One predicate decides, for B2 and for B3, whether a CI workflow is credited.
+It is not credited when one of the two existing allowlist readers admits it:
+- **publish-only** (`isPublishOnlyWorkflow`, #517 as narrowed in #553): no pull-request trigger, and
+  every step only checks out, sets up a toolchain, configures credentials or uploads an
+  already-built artifact;
+- **print-only** (`isPrintOnlyWorkflow`, the #540 reader): every step only checks out the
+  repository, prints text or does nothing (`echo`, `printf`, `true`, `:`, `exit 0`), whatever the
+  triggers. This covers every workflow the #540 disclosure names.
+
+A reader admits a workflow only when all of the following hold. Anything else keeps the credit.
+- Every line of the jobs section fits the reader's grammar.
+- Every job's `runs-on` is one of the documented GitHub-hosted Ubuntu or macOS labels, whose `run`
+  shell is bash (#564). The list is exact: `ubuntu-latest`, `ubuntu-24.04`, `ubuntu-22.04`,
+  `ubuntu-24.04-arm`, `ubuntu-22.04-arm`, `macos-latest`, `macos-15`, `macos-14`, `macos-13`, and
+  macOS's `-large` and `-xlarge` variants of those four. An owner-named label, such as a larger
+  Ubuntu runner, a self-hosted runner or a group, is refused, as is an expression or a list. This
+  guarantees the label, not who operates the machine.
+- Every step is on the reader's allowlist, which admits only commands that run no
+  repository-configured code. Print arguments and publish command words are drawn from a character
+  allowlist inert in every shell (#564).
+- For publish-only (review round 3 of #562), every flag must be on the publisher's own allowlist,
+  for example `--provenance`, `--no-git-checks`, `--access <word>`, `--tag <word>`,
+  `--skip-existing`, `--repository-url <word>`, `--clobber` and `--no-verify`. An unknown flag
+  keeps the credit. npm-family publishes take no operand.
+- A `*` is admitted only in a file operand after a directory (`dist/*`), where every expansion
+  still starts with that directory. A glob in a flag can expand to a committed file name: `--d*`
+  becomes `--dir=evil`, and pnpm then publishes `evil/` and runs its lifecycle scripts.
+- Environment names set on a command line or in a step's `env:` must be on a credential allowlist:
+  `TWINE_USERNAME`, `TWINE_PASSWORD`, `TWINE_REPOSITORY_URL`, `TWINE_NON_INTERACTIVE`,
+  `NODE_AUTH_TOKEN`, `NPM_TOKEN`, `CARGO_REGISTRY_TOKEN`, `UV_PUBLISH_TOKEN`,
+  `UV_PUBLISH_USERNAME`, `UV_PUBLISH_PASSWORD`, `UV_PUBLISH_URL`, `POETRY_PYPI_TOKEN_*`,
+  `GH_TOKEN` and `GITHUB_TOKEN`. Step `env:` values must be a secret, the job token or an inert
+  literal. This replaces a blocklist of code-loading variables, which missed
+  `CARGO_REGISTRY_CREDENTIAL_PROVIDER` (cargo executes it), `PYTHONUSERBASE` (a committed `.pth`
+  runs), `CARGO_HOME` and `XDG_CONFIG_HOME`.
+- `cargo publish --no-verify` is refused when the inventory holds any `.cargo/config` or
+  `.cargo/config.toml`, which can name a credential provider cargo executes.
+- `cargo publish` is also refused when the inventory holds `rust-toolchain` or
+  `rust-toolchain.toml`. `poetry publish` is refused on any root `.poetry/` path, a `poetry.toml`,
+  or a `pyproject.toml` that holds the token `plugins` or any backslash. A backslash covers every TOML
+  escape, including TOML 1.1's `\x`. `uv publish` is refused on any `uv.toml`, or a `pyproject.toml`
+  that holds the bare token `uv` or any backslash. These
+  are token matches, not table-header matches, so `[[tool.uv.index]]`, dotted and inline `uv` keys,
+  quoted or escaped keys (including `[tool."u\x76"]`), and a quoted `"requires-plugins"` are all refused
+  (rounds 4 to 6).
+
+**What each admitted publisher reads from the repository that could run code, and how it is
+handled.** "Docs" means the tool's documentation, "review" means a review pass on #562 reported it
+with source references, and "not verified" means the author did not check the tool's source in this
+change.
+
+| Publisher | Repository files or settings that could run code | Handling | Basis |
+|---|---|---|---|
+| npm, pnpm, yarn `publish` | Root `package.json` lifecycle scripts (`prepublishOnly`, `prepack`, `publish`, ...), `workspaces`, `gypfile` or `binding.gyp`, local dependencies; `.npmrc` (`script-shell`, `node-options`), `.yarnrc`, `.yarnrc.yml`, `.yarn/plugins/`, `.pnpmfile.cjs`, `pnpmfile.js`, `bunfig.toml`, `pnpm-workspace.yaml`, `lerna.json` | Refused when present (#553's guards, unchanged). Flags that redirect the package are not on the allowlist | Docs, and #553's review rounds. Not re-verified from source here |
+| `twine upload` | `.pypirc` is read from the home directory, not the repository; `--config-file` | `--config-file` is not admitted; the home directory is not repository content. Python start-up paths (`PYTHONPATH`, `PYTHONUSERBASE`, `PYTHONHOME`) are not admitted variables | Docs. Not verified from source |
+| `uv publish` | `uv.toml`, any `uv` setting in `pyproject.toml` (keyring providers, index configuration) | Refused on a `uv.toml`, or on the token `uv` or any backslash in `pyproject.toml` | Not verified from source that publish runs nothing these settings name, so refused conservatively |
+| `poetry publish` | Project plugins: `.poetry/plugins` is added with `addsitedir()` before any command, so a `.pth` there runs; `poetry.toml`; plugin requirements in `pyproject.toml` | Refused on a `.poetry/` path or `poetry.toml`, or on the token `plugins` or any backslash in `pyproject.toml`. `--no-plugins` is not relied on | Source read by the reviewer (`Application._run` → `_load_plugins` → `add_project_plugin_path` → `addsitedir`, skipped only with `--no-plugins`). Cejel's handling reproduced; Poetry itself not run. Other `[tool.poetry]` settings were not verified to be inert for `publish` |
+| `gh release create`/`upload` | Only the user's configuration directory; extensions are installed per user | `GH_CONFIG_DIR` and `XDG_CONFIG_HOME` are not admitted variables | Docs. Not verified from source |
+| `cargo publish --no-verify` | `.cargo/config` and `.cargo/config.toml` in the directory or any parent (credential provider, aliases, build settings); `rust-toolchain` or `rust-toolchain.toml` (rustup resolves the `cargo` proxy, possibly from a custom path); `build.rs` is not run with `--no-verify` | Refused when either kind of file is present; `--config` and the `CARGO_*`/`RUSTUP_*` home variables are not admitted | Docs. Not verified from source |
+
+Setup actions (`actions/setup-node` and the others PUBLISH_ONLY_SETUP_ACTIONS names) were not
+re-audited in this change.
+
+**The `*`, environment, Cargo, rustup, Poetry and uv gaps already existed in 0.6.8's v27 B3**
+(#553's publish-only rule). They are fixed here for both criteria. Fixtures `review12-*` and
+`review13-*` pin each shape. Each keeps its credit, and in each v27 had scored B3 below v17 on a
+false "only publishes". The `review13-poetry-publish-control` and `review13-uv-publish-control`
+fixtures, which have no tool configuration, stay publish-only.
+
+Under v27:
+- **B2 (#527).** `pr_trace_primitives`' CI component counts credited workflows only. When any
+  workflow is not credited, that component is labelled "credited CI workflow" and the metric carries
+  the condition "N CI workflow file(s) not shown to run a check … not counted". So a certificate
+  never prints "missing: CI workflow" for a repository that has one. Uncredited workflows are still
+  cited, labelled "CI workflow not shown to run a check (not counted)", so B2 still reports, at 0
+  where nothing else is credited, and stays in the composite. A workflow B2 cannot read is a read
+  failure of B2, which then abstains at 0.
+- **B3 (#535, no-check half).** Uncredited workflows count toward neither `ci_script_depth` nor
+  `default_branch_ci_depth`. So a printed word such as `echo "pytest skipped"` no longer earns a CI
+  test command. #517 already did this for publish-only workflows. `default_branch_ci_depth` carries
+  the same kind of condition.
+- **What the certificate says.** The #540 disclosure ("The PR-gate CI workflow count still includes
+  it") gives way to a v27 disclosure on each criterion, listed under "What was not established"
+  while the criterion is scored. Examples: "B2 did not count CI workflows Cejel did not see run a
+  check: <path> only checks out the repository, prints text or does nothing", and the same for B3.
+  The criterion notes carry the same facts. The glossary entries for "PR trace basic checks" and
+  "PR-gate CI workflow count" describe v27's rule. Every sentence is built from Cejel's own words
+  plus workflow paths, never from workflow text. None says that a workflow runs no check.
+
+**#564, every rubric (presentation only outside v27).** Before this change the print-only reader
+did not look at the runner, and judged print arguments with a bash metacharacter blocklist. On a
+Windows runner the default shell is pwsh, where `echo @{suite=./run-tests.ps1}` evaluates a
+hashtable and runs the repository's script. A self-hosted runner can run any shell. So:
+- **Under v17**, the #540 disclosure called such a workflow "only prints text". That is false.
+- **Under v27 before this fix**, B2 and B3 withdrew its credit, a false assertion of absence.
+
+The reader now claims only under the runner gate and argument allowlist above. The publish-only
+reader had the same bash assumption, because it reads `run:` words as bash does. It is pinned the
+same way, and its command words now pass the same kind of inert-character allowlist instead of a
+blocklist. `twine upload dist/x.whl @{a=./t.ps1}` keeps its credit. Under v17 the effect is six
+fewer disclosures on the new fixtures. No score, status, metric or fingerprint moves, since the
+fingerprint projection excludes disclosures. Fixtures
+`review10-*` pin the three reported variants:
+- `windows-latest` with `echo @{suite=./run-tests.ps1}`;
+- `windows-2022` with `echo @{r=pytest}`;
+- `self-hosted` with `printf @{r=pytest}`.
+
+`review11-*` fixtures pin the label `ubuntu-22.04-xlarge`, the twine argument above, and a
+pull-request-triggered upload-only workflow, which is counted. Other `review10-*` fixtures pin a
+`${{ matrix.os }}` runner, `echo a=b`, upload-only workflows on
+Windows and self-hosted runners, and an inert Ubuntu control. The jobs-key detector also reads
+`jobs :` as `jobs` now. Before, a second jobs key written that way after a print-only one went unread.
+
+**The branch half of #535 is not changed, and the operator ruled it out of condition 3 on
+2026-10-22** ([#526](https://github.com/BargLabs/cejel/issues/526#issuecomment-6336750983), [#535](https://github.com/BargLabs/cejel/issues/535#issuecomment-6336751428)). The recommendation the operator accepted was to rule
+it out. So binding the default branch in the report and dropping all branch-filtered credit were not
+chosen (the relaying agent's #526 comment describes them as declined), and no ref-free disclosure is
+added. What follows is the author's reasoning and
+measurement behind that recommendation. A workflow confined to a branch the repository may not
+have (`master` where the default is `main`) is still counted. Deciding it needs the default branch
+or the branch list, which is ref state. The attestation binds the report digest, rubric version,
+product slug, URL, tool version, outcome, signal provenance and one repository revision,
+`repo.headSha`. Ref state is not a function of that commit. #540 removed a sentence read from refs
+because `cejel issue` then refused honest reproductions.
+
+#535 itself suggested reading `origin/HEAD` offline and abstaining when it cannot be read. That
+reduces to the options below:
+- **Read but not bound:** the same commit scores differently with different refs, #540's defect,
+  unless the value is bound in the report (not chosen).
+- **Abstain when unreadable:** most checkouts, including CI runners', hold no `origin/HEAD`, so this
+  removes credit almost everywhere (like dropping all branch-filtered credit, also not chosen).
+
+No rule decidable from the commit's tree was found that removes only false credit. Two were measured
+on the 23 public rows, under v27. The measurement ran at `665598093`; no public workflow is uncredited
+there or at this change, so the counts carry over.
+
+| Option (measured, not shipped) | Rows whose PR-gate count moved | Composites lowered | What it removes |
+|---|---|---|---|
+| Credit only workflows with an unfiltered pull-request trigger (drop every branch-filtered credit) | 16 | Overall falls on 8 rows, by 0.1 to 0.3 (vue, svelte, express, esbuild, pydantic, zod, scorecard, guava). esbuild, one of the 8, also moves conditional → at_risk. requests' process score falls 3.4 → 3.3 | Every `branches: [main]` gate, which is the common correct form |
+| Drop a workflow whose branch filters name `master` and not `main` | 3 (fastapi 9 → 6, express 4 → 2, guava 2 → 0) | 2 (express overall 3.1 → 2.9, guava 1.9 → 1.6) | True credit: all three repositories' default branch is `master` (read from their clones' `origin/HEAD`, for this measurement only) |
+
+The second option would make a false assertion of absence on 3 of 23 public rows, and the first
+drops credit on most rows. Neither is shipped. Fixture
+`b3-master-confined-workflow-on-main-still-counted` pins the behaviour the operator ruled on, and a test shows that
+the same commit scores the same under v17 and v27 whatever refs the checkout holds. The test adds
+or deletes a `master` branch, renames `main`, points `origin/HEAD` at `main` or `master`, and
+detaches HEAD. It fails when a rule that reads `refs/heads/master` is injected.
+
+**Measured, release/0.6.8 (`8deafad9f`) against this change (`59fd9367e`).** Fixtures were built once
+from this change's definitions and scored by both scanners. The public rows are the 0.6.8
+confirmation's full-history clones (copy-on-write copies, with identity checked before and after
+each scan). This is not a preregistered run.
+
+| Set | v17: scoring-surface moves | v17: reports byte-identical | v27: scoring-surface moves | v27 no-rise against v17 |
+|---|---|---|---|---|
+| Behaviour corpus (30) | 0 | 30 | 1 (`workspace-package-scripts`) | 0 violations |
+| Calibration anchors (5) | 0 | 5 | 0 | 0 violations |
+| Disclosure-gap fixtures (24) | 0 | 24 | 2 (the two print-only fixtures) | 0 violations |
+| False-assurance fixtures (197, 46 new) | 0 | 191 (6 `review10/11-print-only-*` lose the false #540 disclosure) | 40 (8 new down, 6 existing upload-only down, 26 back up to exactly v17's value: 2 `review10-upload-only-*`, `review11-twine-upload-pwsh-hashtable-argument`, 10 `review12-*`, 5 `review13-*`, 7 `review14-*` and `review15-uv-hex-escaped-key`) | 0 violations |
+| Public corpus (23, full history) | 0 | 23 | 0 | 0 violations |
+
+**This change moves 43 fixture rows: 17 to below v17's value and 26 back to exactly v17's value.
+No fixture is above v17.** Across all 256 fixtures, 56 have a v27 overall score below v17's. Most of
+those come from earlier v27 changes. The 26 rows that rise are the two `review10-upload-only-*` rows,
+`review11-twine-upload-pwsh-hashtable-argument`, the ten `review12-*` rows, the five non-control
+`review13-*` rows, the seven `review14-*` rows and `review15-uv-hex-escaped-key`. v27's publish-only
+reader used to claim each of them, on a Windows or self-hosted runner, with a pwsh hashtable
+argument, or with a glob, unlisted variable, or Cargo, rustup, Poetry or uv configuration that runs (or may
+run) repository code. So v27
+scored them below v17 on a false assertion.
+
+v27, before to after, for every row this change moves:
+
+| Set | Row | Verdict | Overall | Process | Criteria | B2 CI credit | B3 PR-gate count | B3 CI depth |
+|---|---|---|---|---|---|---|---|---|
+| corpus | workspace-package-scripts | unverified | 1.1 → 0.6 | 1.6 → 0.5 | B2 warning 1.6 → critical 0; B3 verified 1.5 → warning 0.9 | 1 → 0 | 1 → 0 | 2 |
+| disclosure-gap | b2b3-planted-workflows | conditional | 2.8 → 2.7 | 3.4 → 3.1 | B3 verified 3.5 → verified 2.9 | 4 → 3 | 3 → 2 | 5 |
+| disclosure-gap | b3-monorepo-root-print-only | conditional → at_risk | 2.6 → 2.3 | 2.9 → 2.4 | B3 verified 2.9 → verified 2.4 | (B2 unscored) | 2 → 1 | 5 |
+| false-assurance | b2-publish-only-beside-test-workflow | at_risk → unverified | 1.8 → 1.4 | 2.1 → 1.3 | B2 warning 3.2 → warning 1.6 | 2 → 1 | 1 | 1 |
+| false-assurance | b2-publish-only-is-the-only-workflow | unverified | 1.1 → 0.7 | 0.8 → 0 | B2 warning 1.6 → critical 0 | 1 → 0 | 0 | 0 |
+| false-assurance | b3-print-only-echo-names-a-test-command | unverified | 1.4 → 0.8 | 1.3 → 0 | B2 warning 1.6 → critical 0; B3 verified 1 → critical 0 | 1 → 0 | 1 → 0 | 1 → 0 |
+| false-assurance | b3-print-only-is-the-only-workflow | unverified | 1.3 → 0.7 | 1.1 → 0 | B2 warning 1.6 → critical 0; B3 warning 0.6 → critical 0 | 1 → 0 | 1 → 0 | 0 |
+| false-assurance | b3-print-only-pr-workflow-beside-tests | at_risk → unverified | 2 → 1.4 | 2.4 → 1.3 | B2 warning 3.2 → warning 1.6; B3 verified 1.6 → verified 1 | 2 → 1 | 2 → 1 | 1 |
+| false-assurance | review10-print-only-ubuntu-inert-text | unverified | 1.3 → 0.7 | 1.1 → 0 | B2 warning 1.6 → critical 0; B3 warning 0.6 → critical 0 | 1 → 0 | 1 → 0 | 0 |
+| false-assurance | review10-upload-only-self-hosted-runner | at_risk | 1.8 → 2 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
+| false-assurance | review10-upload-only-windows-runner | at_risk | 1.8 → 2 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
+| false-assurance | review11-twine-upload-pwsh-hashtable-argument | at_risk | 1.8 → 2 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
+| false-assurance | review12-cargo-committed-config-credential-provider | at_risk | 2.1 → 2.3 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
+| false-assurance | review12-cargo-credential-provider-variable | at_risk | 2.1 → 2.3 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
+| false-assurance | review12-cargo-home-step-env | at_risk | 2.1 → 2.3 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
+| false-assurance | review12-cargo-publish-glob-flag | at_risk | 2.1 → 2.3 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
+| false-assurance | review12-gh-release-xdg-config-step-env | at_risk → conditional | 2.3 → 2.5 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
+| false-assurance | review12-npm-publish-unknown-flag | at_risk → conditional | 2.3 → 2.5 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
+| false-assurance | review12-pnpm-publish-glob-flag | at_risk → conditional | 2.3 → 2.5 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
+| false-assurance | review12-twine-pythonuserbase-variable | at_risk | 1.8 → 2 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
+| false-assurance | review12-twine-upload-flag-glob | at_risk | 1.8 → 2 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
+| false-assurance | review12-yarn-publish-glob-flag | at_risk → conditional | 2.3 → 2.5 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
+| false-assurance | review13-poetry-publish-control | at_risk → unverified | 1.8 → 1.4 | 2.1 → 1.3 | B2 warning 3.2 → warning 1.6 | 2 → 1 | 1 | 1 |
+| false-assurance | review13-uv-publish-control | at_risk → unverified | 1.8 → 1.4 | 2.1 → 1.3 | B2 warning 3.2 → warning 1.6 | 2 → 1 | 1 | 1 |
+| false-assurance | review13-poetry-project-plugin-pth | at_risk | 1.8 → 2 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
+| false-assurance | review13-poetry-requires-plugins | at_risk | 1.8 → 2 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
+| false-assurance | review13-rust-toolchain-toml | at_risk | 2.1 → 2.3 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
+| false-assurance | review13-uv-pyproject-table | at_risk | 1.8 → 2 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
+| false-assurance | review13-uv-toml-committed | at_risk | 1.8 → 2 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
+| false-assurance | review14-poetry-quoted-requires-plugins | at_risk | 1.8 → 2 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
+| false-assurance | review14-uv-escaped-key | at_risk | 1.8 → 2 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
+| false-assurance | review14-uv-index-array-table | at_risk | 1.8 → 2 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
+| false-assurance | review14-uv-inline-table | at_risk | 1.8 → 2 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
+| false-assurance | review14-uv-quoted-key | at_risk | 1.8 → 2 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
+| false-assurance | review14-uv-root-dotted-key | at_risk | 1.8 → 2 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
+| false-assurance | review14-uv-under-tool-table-dotted | at_risk | 1.8 → 2 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
+| false-assurance | review15-uv-hex-escaped-key | at_risk | 1.8 → 2 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
+| false-assurance | review7-b3-cargo-publish-no-verify | at_risk | 2.1 → 1.7 | 2.1 → 1.3 | B2 warning 3.2 → warning 1.6 | 2 → 1 | 1 | 1 |
+| false-assurance | review8-b3-gh-release-upload | at_risk | 2.3 → 1.9 | 2.1 → 1.3 | B2 warning 3.2 → warning 1.6 | 2 → 1 | 1 | 1 |
+| false-assurance | review8-b3-npm-publish-without-install | at_risk | 2.3 → 1.9 | 2.1 → 1.3 | B2 warning 3.2 → warning 1.6 | 2 → 1 | 1 | 1 |
+| false-assurance | review8-b3-pypi-upload-only-gated | at_risk → unverified | 1.8 → 1.4 | 2.1 → 1.3 | B2 warning 3.2 → warning 1.6 | 2 → 1 | 1 | 1 |
+| false-assurance | review8-b3-pypi-upload-only-ungated | at_risk → unverified | 1.8 → 1.4 | 2.1 → 1.3 | B2 warning 3.2 → warning 1.6 | 2 → 1 | 1 | 1 |
+| false-assurance | review8-b3-twine-upload-only | at_risk → unverified | 1.8 → 1.4 | 2.1 → 1.3 | B2 warning 3.2 → warning 1.6 | 2 → 1 | 1 | 1 |
+
+v17 to v27 at this change, for every row this change moves to below v17 (the other 26 now equal v17):
+
+| Set | Row | Verdict | Overall | Code | Process | Criteria that moved, v17 → v27 |
+|---|---|---|---|---|---|---|
+| corpus | workspace-package-scripts | unverified | 1.1 → 0.6 | 0.6 | 1.6 → 0.5 | B2 warning 1.6 → critical 0; B3 verified 1.5 → warning 0.9 |
+| disclosure-gap | b2b3-planted-workflows | conditional | 2.8 → 2.7 | 2.3 | 3.4 → 3.1 | B3 verified 3.5 → verified 2.9 |
+| disclosure-gap | b3-monorepo-root-print-only | conditional → at_risk | 2.6 → 2.3 | 2.3 | 2.9 → 2.4 | B3 verified 2.9 → verified 2.4 |
+| false-assurance | b2-publish-only-beside-test-workflow | at_risk → unverified | 1.8 → 1.4 | 1.5 | 2.1 → 1.3 | B2 warning 3.2 → warning 1.6 |
+| false-assurance | b2-publish-only-is-the-only-workflow | unverified | 1.1 → 0.7 | 1.4 | 0.8 → 0 | B2 warning 1.6 → critical 0 |
+| false-assurance | b3-print-only-echo-names-a-test-command | unverified | 1.4 → 0.8 | 1.5 | 1.3 → 0 | B2 warning 1.6 → critical 0; B3 verified 1 → critical 0 |
+| false-assurance | b3-print-only-is-the-only-workflow | unverified | 1.3 → 0.7 | 1.4 | 1.1 → 0 | B2 warning 1.6 → critical 0; B3 warning 0.6 → critical 0 |
+| false-assurance | b3-print-only-pr-workflow-beside-tests | at_risk → unverified | 2 → 1.4 | 1.5 | 2.4 → 1.3 | B2 warning 3.2 → warning 1.6; B3 verified 1.6 → verified 1 |
+| false-assurance | review10-print-only-ubuntu-inert-text | unverified | 1.3 → 0.7 | 1.4 | 1.1 → 0 | B2 warning 1.6 → critical 0; B3 warning 0.6 → critical 0 |
+| false-assurance | review13-poetry-publish-control | at_risk → unverified | 2 → 1.4 | 1.5 | 2.4 → 1.3 | B2 warning 3.2 → warning 1.6; B3 verified 1.6 → verified 1 |
+| false-assurance | review13-uv-publish-control | at_risk → unverified | 2 → 1.4 | 1.5 | 2.4 → 1.3 | B2 warning 3.2 → warning 1.6; B3 verified 1.6 → verified 1 |
+| false-assurance | review7-b3-cargo-publish-no-verify | at_risk | 2.3 → 1.7 | 2.1 | 2.4 → 1.3 | B2 warning 3.2 → warning 1.6; B3 verified 1.6 → verified 1 |
+| false-assurance | review8-b3-gh-release-upload | conditional → at_risk | 2.5 → 1.9 | 2.5 | 2.4 → 1.3 | B2 warning 3.2 → warning 1.6; B3 verified 1.6 → verified 1 |
+| false-assurance | review8-b3-npm-publish-without-install | conditional → at_risk | 2.5 → 1.9 | 2.5 | 2.4 → 1.3 | B2 warning 3.2 → warning 1.6; B3 verified 1.6 → verified 1 |
+| false-assurance | review8-b3-pypi-upload-only-gated | at_risk → unverified | 1.8 → 1.4 | 1.5 | 2.1 → 1.3 | B2 warning 3.2 → warning 1.6 |
+| false-assurance | review8-b3-pypi-upload-only-ungated | at_risk → unverified | 2 → 1.4 | 1.5 | 2.4 → 1.3 | B2 warning 3.2 → warning 1.6; B3 verified 1.6 → verified 1 |
+| false-assurance | review8-b3-twine-upload-only | at_risk → unverified | 2 → 1.4 | 1.5 | 2.4 → 1.3 | B2 warning 3.2 → warning 1.6; B3 verified 1.6 → verified 1 |
+
+The corpus specimen `workspace-package-scripts` is a real instance: its only workflow is
+`actions/checkout` and `echo ok` on `ubuntu-latest`. Every other moved row is a fixture built for
+#517, #527, #535 or #564.
+
+**Public corpus (informal, not a preregistered run).** No public row moved under v27 or v17. On the 23 rows no workflow is publish-only
+or print-only as the two readers define them, so no B2 or B3 credit changed and no disclosure was
+added or removed. v17's `report.json` files are byte-identical. v27's differ only in
+`rubricBehaviourFingerprint`. The v27 table of the 0.6.8 confirmation
+(`docs/experiments/public-delta-0-6-8-successor-2026-10-21/`) therefore still describes v27's public
+scores, but not its fingerprint.
+
+**Timing.** B2 and B3 now each run the shared predicate over every CI workflow, and B3 decides once
+for both depth metrics. The child-process timing guard in `scan-path-regex-bounds.test.ts` scans a
+print-only workflow of 24,000 steps beside an upload-only workflow of 3,300 step pairs, each just
+under the content size limit, under v17 and v27. It also asserts that both readers classified both
+files in full, so an early bail-out fails it. Run alone, the test takes 0.4 s to 0.5 s wall time,
+child start-up included, against a 2 s scan budget. A version with four of each made the file's
+other guards miss their budget when the full suite ran in parallel (they passed with it skipped),
+so it was cut to one of each. On a scratch fixture of eight of each, in one run on one machine, a
+scan took 1.19 s under v27 and 0.97 s under v17. Before this change v27 took 1.46 s, because B3 ran
+the publish-only reader three times per workflow. Every regular-expression literal this change adds under `src/` outside tests is listed below. The
+list was derived mechanically from the added lines of `git diff origin/main...HEAD -- src/`.
+- **Over file contents:**
+  - `PRINT_ONLY_RUN_LINE_PATTERN`, `PUBLISH_ONLY_INERT_WORD_PATTERN`, `PUBLISH_ONLY_PLAIN_WORD_PATTERN`,
+    the inline character class in `isFileOperand` (`/^[A-Za-z0-9_.,:/+=*-]+$/`),
+    `PUBLISH_ONLY_ENV_VALUE_PATTERN` and `POETRY_TOKEN_ENV_KEY_PATTERN`;
+  - the jobs-key pattern `/^jobs[ \t]*:[ \t]*$/`, in both readers;
+  - `PYPROJECT_UV_TOKEN_PATTERN` (`/\buv\b|\\/`) and `PYPROJECT_POETRY_PLUGINS_PATTERN`
+    (`/plugins|\\/`).
+- **Over repository paths:** `CARGO_CONFIGURATION_PATH_PATTERN`,
+  `POETRY_PROJECT_CONFIGURATION_PATH_PATTERN`, `UV_CONFIGURATION_PATH_PATTERN` and
+  `/^\.github\/workflows\//`.
+
+Each is either anchored with single quantifiers over character classes, or a plain alternation of
+literals. None has a nested quantifier, each is linear in its input, and the ReDoS guard
+(`src/__tests__/regex-redos-guard.test.ts`) passes. Runner labels are an exact set, not a pattern.
+
+**Fingerprints.** v17 stays
+`sha256:5cd48f8c642300ae8736a09d4a24ce3a4f8885f6e099b5f27f99d950e0c944b4`. v27 moves from
+`sha256:fb4edfa0bdf0d8153af3f84a4b72d4eab6da3fd6e0b2e3e494cea9542ded45a0` to
+`sha256:6e03aa1bf63a31c5ec58a68cb49fb8ef571ba233cf79059a311ec55aecea5bb3`. The B2 and B3
+components and the `workspace-package-scripts` report component moved, measured from the corpus.
+The fixture corpus did not change. The review fixes (#564, labels, disclosures) did not move it
+again. If 0.6.8 is released before this change, its v27 certificates carry the earlier fingerprint
+and remain distinguishable by it. If this change lands first, no released certificate carries the
+earlier one.
+
 ## 2026-10-21 — post-merge review of #521: v27 corrected before first shipping, and A4 stops quoting CI command arguments; no published score moved
 
 **Status.** #521 merged without a recorded review pass. Two post-merge review passes, both AI
@@ -867,6 +1625,37 @@ where A3's findings or notes change.
 The synthetic suite, the choices made where the ruling is silent, and the guard-deletion table are
 in `docs/reviews/v26-a3-build-step-evidence-2026-10-15.md`.
 
+### Public-corpus before-and-after — measured 2026-10-18
+
+The entry above is left as written. The preregistered public run it announced has been performed:
+`docs/experiments/public-delta-0-6-7-2026-10-16/` (preregistration `2b767b56f`, #510; result
+beside it, #511). The baseline is `v0.6.6` (`6aec9d93`). The candidate is the fix commit
+`f5348fb33`, which carries this change and #508, and differs from the 0.6.7 release only in
+version identity and records, with no change under `src/` outside tests. All 23 public corpus
+repositories were scored at their pins, under v17 and under v26. **All four preregistered
+expected values held.**
+
+- Under v17 and under v26, all 23 public reports are byte-identical between the two commits. No
+  score, status, metric, finding, placement or fingerprint moved.
+- **This run did not exercise item 8.** The operator counted A3's build finding in the local raw
+  reports, and `result.md` reports that count; the harness records (`paired-result.json`,
+  `byte-identity.json`) do not hold it. No public report carries it at v0.6.6 under v26, so item
+  8 had nothing to narrow. The run shows that item 8 moves nothing on these 23 rows. It is not
+  evidence about where the finding stops, and it makes no precision or recall claim.
+- In the same count, 17 of the 23 rows carry A3 notes under v17 and v26 alike. Those notes
+  predate item 8, and none of them is item 8's disclosure sentence.
+
+**The operator's private check did not precede the release.** The entry above says it would. By
+the operator's list of that check's run start times, the last run under v26 started on
+2026-10-14, before this change existed, and none ran between this change's merge and the 0.6.7
+release. The change shipped in 0.6.7 on 2026-10-18 without it. v26 remains prospective and
+explicit opt-in; the public default stays v17.
+
+*Added 2026-10-22.* On 2026-10-19 the operator stopped rubric expansion and recalibration; only
+the false-assurance closure (#521, the 2026-10-19 entry above) continues (#485, a v26 issue closed
+that day under that decision). This does not change the measurement above. v26 is still selectable
+by explicit opt-in, and the public default stays v17.
+
 ## 2026-10-15 (entry added 2026-10-21) — #502: a `pnpm run /<regex>/` selector is no longer evaluated (every rubric, no identifier bump); no public repository moved
 
 *Entry added 2026-10-21 (#516). #502 shipped in 0.6.6 and was recorded only in `CHANGELOG.md`
@@ -993,6 +1782,22 @@ previous pin byte for byte.
 The API sources, the red-first run and the guard-deletion table are in
 `docs/reviews/hmac-digest-compare-2026-10-14.md`.
 
+### Public-corpus before-and-after — measured 2026-10-15
+
+The entry above is left as written. The preregistered public run it announced has been performed:
+`docs/experiments/public-delta-0-6-5-2026-10-15/` (preregistration `9b37aa48e`, result beside
+it, both #497). It compared v17 at `v0.6.4` (`093de2a1`) with v17 at the #490 merge `98dbf250`,
+which carries this change, on all 23 public corpus repositories at their pins. **All six
+preregistered expected values held.** No row's score moved down (E3, scoring level); two rows
+that did not move at scoring level were displaced in placement (svelte 7 → 8, requests 6 → 7).
+
+- **The rule changed no public row.** A2 did not move on any row. The run is not evidence
+  about where the rule fires.
+
+The operator's private check ran before the 0.6.5 release, on 2026-10-14, by the operator's list
+of that check's run start times. The date alone does not show whether that run included this
+change, which merged the same day (17:38Z). This section makes no precision or recall claim.
+
 ## 2026-10-14 — A1 test-framework recognition (every rubric, no identifier bump); public paired rescore not run
 
 **Status.** A recognition fix that removes a false absence. It ships under
@@ -1088,6 +1893,24 @@ measurement decision for a prospective rubric.
 
 The idiom sources, the red-first run and the guard-deletion table are in
 `docs/reviews/test-framework-recognition-2026-10-14.md`.
+
+### Public-corpus before-and-after — measured 2026-10-15
+
+The entry above is left as written. The preregistered public run it announced has been performed:
+`docs/experiments/public-delta-0-6-5-2026-10-15/` (preregistration `9b37aa48e`, result beside
+it, both #497). It compared v17 at `v0.6.4` (`093de2a1`) with v17 at the #490 merge `98dbf250`,
+which carries this change, on all 23 public corpus repositories at their pins. **All six
+preregistered expected values held.** No row's score moved down (E3, scoring level); two rows
+that did not move at scoring level were displaced in placement (svelte 7 → 8, requests 6 → 7).
+
+- automapper's A1 `non_hollow_test_share` went from 8 to 22; its A1 score was unchanged.
+- express's A1 `verification_script_ratio` went from 2 to 3 and A1 rose. That move is a
+  verification-script recognition, and this run does not separate the coverage-configuration
+  change (#484) from the test-framework change (#487) for that row.
+
+The operator's private check ran before the 0.6.5 release, on 2026-10-14, by the operator's list
+of that check's run start times. The date alone does not show whether that run included this
+change, which merged the same day (16:34Z). This section makes no precision or recall claim.
 
 ## 2026-10-14 — v26 item 6: A5 and A2 tenant findings fire on settling evidence only, and A5 does not score the absence of Cejel's own format (v26 alone); no repository moved
 
@@ -1189,6 +2012,27 @@ certificate bytes change.
 
 The synthetic suite, the choices made where the ruling is silent, and the guard-deletion table are
 in `docs/reviews/v26-a5-a2-settling-evidence-2026-10-14.md`.
+
+### Public-corpus before-and-after — measured 2026-10-15
+
+The entry above is left as written. The preregistered public run it announced has been performed:
+`docs/experiments/public-delta-0-6-5-2026-10-15/` (preregistration `9b37aa48e`, result beside
+it, both #497). It compared v25 with v26, both at the #490 merge `98dbf250`, which carries this
+change, on all 23 public corpus repositories at their pins. **All six preregistered expected
+values held.**
+
+- **A5.** 16 rows carried the no-reconciliation finding under v25. Under v26 it fires on none of
+  them, each carries the ruling's disclosure sentence, `reconciliation_artifact_depth` is omitted,
+  and A5 rose on all 16. No row names a claim-reconciliation artifact.
+- **The A2 tenant rule was not exercised.** No row carries a tenant-without-RLS finding under v25
+  or v26, so the run says nothing about that rule in either direction.
+- No criterion other than A5 moved. One verdict changed as a result of A5: vite, conditional to
+  verified. v26 is explicit opt-in, so these runs do not describe the published board.
+
+The entry above promised no private check. For information only: the operator's private check
+ran before the 0.6.5 release, on 2026-10-14, by the operator's list of that check's run start
+times. The date alone does not show whether that run covered this change, which merged the same
+day (15:38Z). This section makes no precision or recall claim.
 
 ## 2026-10-14 — A1 coverage-configuration recognition (every rubric, no identifier bump); public paired rescore not run
 
@@ -1310,6 +2154,25 @@ Re-pinned, with no pinned v17 metric moved on any of them:
 All of these recoveries are asserted in the tests. Record:
 `docs/reviews/coverage-config-recognition-2026-10-14.md`.
 
+### Public-corpus before-and-after — measured 2026-10-15
+
+The entry above is left as written. The preregistered public run it announced has been performed:
+`docs/experiments/public-delta-0-6-5-2026-10-15/` (preregistration `9b37aa48e`, result beside
+it, both #497). It compared v17 at `v0.6.4` (`093de2a1`) with v17 at the #490 merge `98dbf250`,
+which carries this change, on all 23 public corpus repositories at their pins. **All six
+preregistered expected values held.** No row's score moved down (E3, scoring level); two rows
+that did not move at scoring level were displaced in placement (svelte 7 → 8, requests 6 → 7).
+
+- scorecard's A1 `verification_script_ratio` went from 1 to 2, its "no coverage configuration"
+  finding no longer fires, and A1 rose.
+- express's A1 `verification_script_ratio` went from 2 to 3 and A1 rose. That move is a
+  verification-script recognition, and this run does not separate the coverage-configuration
+  change (#484) from the test-framework change (#487) for that row.
+
+The operator's private check ran before the 0.6.5 release, on 2026-10-14, by the operator's list
+of that check's run start times. The date alone does not show whether that run included this
+change, which merged the same day (13:45Z). This section makes no precision or recall claim.
+
 ## 2026-10-14 — A3 and B3 read declared workspace package scripts (every rubric, no identifier bump); public paired rescore not run
 
 **Status.** A recognition fix that removes a false absence. It ships under
@@ -1390,6 +2253,25 @@ collide, as declared. The v17 golden, the F2 reads-disclosure pins and the CLI b
 re-pinned. No pinned v17 metric moved on any of them, and restoring only the previous fingerprint
 reproduces each previous pin byte for byte, asserted in the tests. Record:
 `docs/reviews/workspace-package-scripts-2026-10-14.md`.
+
+### Public-corpus before-and-after — measured 2026-10-15
+
+The entry above is left as written. The preregistered public run it announced has been performed:
+`docs/experiments/public-delta-0-6-5-2026-10-15/` (preregistration `9b37aa48e`, result beside
+it, both #497). It compared v17 at `v0.6.4` (`093de2a1`) with v17 at the #490 merge `98dbf250`,
+which carries this change, on all 23 public corpus repositories at their pins. **All six
+preregistered expected values held.** No row's score moved down (E3, scoring level); two rows
+that did not move at scoring level were displaced in placement (svelte 7 → 8, requests 6 → 7).
+
+- **B3, under v17.** biomejs's `ci_script_depth` went from 2 to 3 and B3 rose; react's went from 6
+  to 7, with B3 unchanged at its maximum. Both declare workspaces.
+- **The A3 half was not measured publicly.** A3's finding reads workspace scripts only under v20
+  through v26. This run compared v17 before and after, and its v26 pair compared v25 with v26 at
+  the same commit, so no public before-and-after covers this change's A3 effect.
+
+The operator's private check ran before the 0.6.5 release, on 2026-10-14, by the operator's list
+of that check's run start times. The date alone does not show whether that run included this
+change, which merged the same day (12:11Z). This section makes no precision or recall claim.
 
 ## 2026-10-14 — prospective v26 declared as v25's complete closure; no scoring change, no repository moved
 

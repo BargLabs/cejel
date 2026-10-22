@@ -16,6 +16,137 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- **Prospective v27: B2 and B3 stop crediting CI workflows not shown to run a check (#527, #535).**
+  This meets condition 3 of the accepted ruling on #526 through its no-check half. On 2026-10-22
+  the operator ruled the branch half out of condition 3 ("yes to both recommendations", recorded on
+  #526 and #535). The two recommendations were this #535 branch half and extending the ADR-0001
+  read-failure ruling to #556's abstention (#560). Under
+  `witan-rubric-v27-prospective-2026-10-19` only, two kinds of workflow earn no B2 PR-trace credit
+  and count toward neither B3 depth metric: one whose every step only checks out, prints or does
+  nothing, and one that only uploads an already-built artifact.
+  - One predicate decides this for both criteria. It is built from the existing allowlist readers
+    (`isPublishOnlyWorkflow`, `isPrintOnlyWorkflow`), which admit a workflow only when every line
+    fits their grammar, every job's `runs-on` is a documented GitHub-hosted Ubuntu or macOS label
+    (an exact list), every step is on their allowlist, and command arguments use only characters
+    inert in every shell. Anything else keeps the credit.
+  - The certificate lists the uncredited workflows under "What was not established". B2's component
+    reads "credited CI workflow", so a zero never reads as "missing: CI workflow". No sentence says
+    a workflow runs no check.
+  - The publish-only reader also admits only each publisher's known flags, globs only in file
+    operands after a directory, credential environment variables from an allowlist, and no
+    committed Cargo, rustup, Poetry or uv configuration. Each of these gaps already existed in
+    0.6.8's v27 B3 (#553).
+  - This change moves 43 fixture rows: 17 to below v17's value and 26 back to exactly v17's value.
+    No fixture is above v17. No public row moves (informal, not a preregistered run).
+  - v17's scores, statuses, metrics and fingerprint do not move. v17 `report.json` is byte-identical
+    apart from the #564 fix below. v17 certificates (Markdown, HTML, terminal) change on every
+    repository, because the "PR trace basic checks" and "PR-gate CI workflow count" glossary entries
+    now describe v27's rule. v18-v26 rest on gating and their unchanged fingerprints.
+  - v27's behaviour fingerprint moves to
+    `sha256:6e03aa1bf63a31c5ec58a68cb49fb8ef571ba233cf79059a311ec55aecea5bb3`. That fingerprint plus
+    the merge commit, recorded after merge (#563), is a new v27 candidate.
+  - The branch half of #535 (a workflow confined to a branch the repository may not have) is not
+    changed. Branch state is not a function of the attested revision, and the operator ruled it out
+    of condition 3. The measurement behind that is in `leaderboard/RUBRIC_CHANGELOG.md`
+    (2026-10-22). The default stays v17.
+
+### Fixed
+
+- **The print-only workflow reader assumed bash (#564, every rubric).** It admitted any runner and
+  judged `echo`/`printf` arguments by a bash metacharacter blocklist. On a Windows runner, pwsh runs
+  `echo @{suite=./run-tests.ps1}` by evaluating the hashtable, which runs the repository's script.
+  Even so, the #540 disclosure called the workflow "only prints text" under the default rubric. Now
+  both the print-only and the publish-only readers claim only when every job's `runs-on` is a
+  documented GitHub-hosted Ubuntu or macOS label, and arguments come from a character allowlist inert
+  in every shell. Outside v27 the only effect is in `report.json` and on its certificate: a repository whose workflow the
+  old reader alone called print-only loses that false disclosure. No score, status, metric or
+  fingerprint moves. Fixtures `review10-*` and `review11-*` pin it.
+- **Incomplete history could take A2 out of the score, or score it higher (#556).** A2 reads
+  earlier commits for `.env` files and credential-shaped values, and is marked not applicable only
+  when that finds nothing and the tree holds no secrets or data surface. On a shallow clone those
+  reads see only the commits present. On a partial clone (`--filter=blob:none` or `tree:0`), or
+  when a git read fails, times out or exceeds its output limit, a read that did not complete was
+  treated as finding nothing. So a repository whose only A2 surface was a secret-bearing `.env`,
+  committed and later deleted, was marked not applicable (shallow, treeless) or scored a warning
+  instead of critical (blobless), and the score rose. A history secret scan that stopped at its
+  own cap of 5,000 historical files with nothing found was treated the same way.
+  - **Every rubric, including the default (presentation only).** When A2 is not applicable after
+    an incomplete read of the commit history, it now says so in `criteria[].disclosures` (report
+    format 1.8, no new field), and the certificate lists it under "What was not established": "A2's
+    applicability was decided from an incomplete read of the commit history: [each cause Cejel
+    detected]. [...]", ending with the advice each cause admits: re-scan a full clone (shallow), a
+    full, unfiltered clone (a missing object or git error), a host where git is installed (git
+    could not be run), or none, because a re-scan of the same repository will not lift Cejel's own
+    output limits, the scan's cap or its rule on control characters in paths; for the 30-second
+    timeout, which depends on the machine and its load, a re-scan may not lift it. Under v17 and
+    v18-v26 no score, status, metric value, finding count or fingerprint moves.
+  - **`witan-rubric-v27-prospective-2026-10-19` (scoring).** When the clone is shallow, any of
+    A2's history reads failed or stopped at one of Cejel's own limits, or the history secret scan
+    stopped at its 5,000-file cap, A2 abstains unless a confirmed critical finding stands, on the
+    not-applicable and scoring paths alike, as a read failure kept in the composite at 0.
+    Composites can only fall. v27's shallow-clone sentence in `historyLimitations` no longer says
+    that a not-applicable criterion stays not applicable, and states exactly which abstentions
+    count as 0. v0.6.8, released at `74b3af581`, predates this change: its v27 certificates of
+    such clones report A2 not applicable or a warning. No behaviour fingerprint moves, because the behaviour
+    corpus has no such clone. On a complete clone whose history reads complete, nothing changes
+    under any rubric. A complete clone can still fail a history read: re-scoring the 0.6.8
+    confirmation's 23 full-history clones (informally, not a preregistered run) leaves every v17
+    report byte-identical and moves one v27 row, biomejs, whose history reads exceed Cejel's own
+    8 MiB output limit (A2 verified 3.2 to an abstention at 0, overall 3.0 to 2.5). Streaming those
+    reads is tracked in #567. No row hits the 5,000-file cap. The v17 board does not move. Counting
+    Cejel's own limits and the cap this way is the operator's decision of 2026-10-22 (reply "1",
+    recorded on #526 and in ADR-0001). See
+    [`leaderboard/RUBRIC_CHANGELOG.md`](./leaderboard/RUBRIC_CHANGELOG.md) (2026-10-22).
+  - **Two more incomplete reads (#560 review).** A2 now also counts as incomplete a history read
+    in which git itself could not be run while a `.git` entry is visible from the scanned path
+    (#568; before, every read reported "no repository" and A2 could be marked not applicable over
+    a deleted secret, with nothing said), and a credential- or `.env`-shaped path in history left
+    unread because its name contains control characters (before, a value kept under such a name
+    never reached the scan). Under v27 A2 abstains at 0 in both cases; under every other rubric A2
+    keeps its scoring and, where it is not applicable, says so. Neither adds a scan limitation.
+    Counting both as read failures is the operator's third decision of 2026-10-22 ("for adr-0001
+    add them", recorded on #526 and in ADR-0001). A third cause is counted the same way: a `.git`
+    entry git cannot open as a repository (a copied worktree or submodule whose gitdir is gone);
+    that one awaits the operator's confirmation. For both `.git` causes a `.git` entry counts only
+    as a directory holding `HEAD` or a file with a `gitdir:` line, so a stray empty `.git`
+    directory in a parent changes nothing; a `.git` directory Cejel cannot read, and a `.git`
+    symbolic link whose target is gone, both count (under v17 they now get the disclosure where A2
+    is not applicable; under v27 A2 abstains). Where no history read could succeed, the note and
+    disclosure say only that Cejel read none of the history.
+- **A file name could decide how a failed git read was classified (#560 review).** Under every
+  rubric, Cejel classified a failed git command from text that included Node's error message,
+  which repeats the whole command line, and A2's history reads put repository paths on that line
+  (`git show <commit>:<path>`). On a blobless clone, a deleted secret in a file named, for example,
+  `secrets/not a git repository.txt` made its failed read look like "no repository here", which
+  Cejel does not report: no scan limitation, no abstention, and A2 not applicable above the
+  complete clone's critical finding. A name containing "timeout" or "maxBuffer" made the same
+  failure read as one of Cejel's own limits. Classification now uses only Node's error code and
+  git's own "no repository" messages, each matched from the start of a line (every form of
+  git's "not a git repository" message, and the others exactly), so a path git prints after
+  another message (quoted, or unquoted as in "fatal: bad object <commit>:<path>") cannot match; a bare SIGTERM is no longer called a timeout. **This can change a
+  v17 report:** where such a read failed, the failure now appears in `scanLimitations`, which leaves
+  the v17 badge unrated and makes `--min-score` refuse, and a limitation that named a timeout or
+  output limit because of a path now says the read failed. On the 23 public rows nothing changes
+  (see `leaderboard/RUBRIC_CHANGELOG.md`, 2026-10-22).
+- **A submodule at a credential-shaped path counted as a failed history read (#560 review).**
+  Under every rubric, A2's history secret scan tried to read a submodule entry (a gitlink) at a
+  path such as `config/secrets` as a file. A gitlink has no content in the repository, so the read
+  always failed and was reported as "historical blob read failed"; since #560 it also made v27's
+  A2 abstain and the other rubrics disclose an incomplete read, on a complete clone. A gitlink is
+  now recognised and skipped. **This can change a v17 report:** for such a repository the
+  "historical blob read failed" scan limitation disappears, and if it was the only one, the v17
+  badge becomes rated and `--min-score` applies. The same holds for a deleted file whose name looks
+  like pathspec magic (for example `:(exclude)secrets`): its history is now looked up literally,
+  so it no longer matches other paths' commits and fails their reads.
+- **A `.git` entry git cannot open left A2's history unread without saying so (#560 review).** A
+  copied worktree or submodule whose gitdir is gone makes git report "not a git repository" even
+  though a `.git` entry is present. The scan completes as before, as a directory with no repository
+  (an intermediate version of this change failed it). A2 now counts its history as unread there:
+  under v27 it abstains at 0, and under every other rubric it says so where it is not applicable.
+  A repository git can open whose branch has no commits yet is unchanged.
+
 ## [0.6.8] — 2026-10-22
 
 **Public corpus.** A preregistered confirmation scored the 23 public corpus repositories from

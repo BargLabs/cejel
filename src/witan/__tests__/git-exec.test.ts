@@ -246,4 +246,83 @@ describe('git subprocess chokepoint', () => {
       exitCode: 128,
     });
   });
+
+  // #560: Node's error message repeats the command line, which carries repository paths. Only the
+  // error code, the signal and git's own diagnostic lines may decide the class.
+  it('never classifies from the command line or from a quoted repository path', () => {
+    const failWith = (message: string, stderr: string) => {
+      execFileSyncMock.mockImplementationOnce(() => {
+        throw Object.assign(new Error(message), { status: 128, stderr });
+      });
+      return execGit(['show', 'abc123:secrets/x.txt'], { cwd: '/repo' });
+    };
+    const missingObject = 'fatal: unable to read 0123456789abcdef0123456789abcdef01234567\n';
+    for (const name of [
+      'not a git repository.txt',
+      'timeout.txt',
+      'timed out.txt',
+      'maxBuffer.txt',
+      'ENOBUFS.txt',
+      'ETIMEDOUT.txt',
+    ]) {
+      expect(
+        failWith(`Command failed: git show abc123:secrets/${name}\n${missingObject}`, missingObject),
+        name,
+      ).toEqual({ ok: false, reason: 'exec_failed', exitCode: 128 });
+    }
+    // A repository path quoted inside one of git's own diagnostics cannot match either.
+    expect(
+      failWith('fatal', "fatal: path 'secrets/not a git repository' does not exist in 'abc123'\n"),
+    ).toEqual({ ok: false, reason: 'exec_failed', exitCode: 128 });
+    expect(failWith('fatal', "fatal: invalid object name 'x: not inside a work tree'.\n")).toEqual({
+      ok: false,
+      reason: 'exec_failed',
+      exitCode: 128,
+    });
+    // git's own no-repository and no-revision diagnostics still classify as before.
+    for (const stderr of [
+      'fatal: not a git repository (or any of the parent directories): .git\n',
+      'fatal: not a git repository: /nonexistent/modules/x\n',
+      "fatal: not a git repository: '/nonexistent/.git'\n",
+      'fatal: Not a git repository\n',
+      'fatal: not a git repository (or any parent up to mount point /home)\nStopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).\n',
+      "fatal: ambiguous argument 'HEAD': unknown revision or path not in the working tree.\nUse '--' to separate paths from revisions, like this:\n",
+      "fatal: your current branch 'main' does not have any commits yet\n",
+      'fatal: Needed a single revision\n',
+      'fatal: not in a git directory\n',
+    ]) {
+      expect(failWith('fatal', stderr), stderr).toEqual({
+        ok: false,
+        reason: 'not_a_repo',
+        exitCode: 128,
+      });
+    }
+    // Only git's first "fatal: " line is git's verdict: a path printed unquoted inside it, even one
+    // holding a line break, cannot add a second message. Earlier warning lines do not hide it.
+    expect(
+      failWith(
+        'fatal',
+        'fatal: bad object abc123:secrets/a\nfatal: not a git repository (or any of the parent directories): .git\n',
+      ),
+    ).toEqual({ ok: false, reason: 'exec_failed', exitCode: 128 });
+    expect(failWith('fatal', 'warning: something\nfatal: not a git repository: /nonexistent\n')).toEqual({
+      ok: false,
+      reason: 'not_a_repo',
+      exitCode: 128,
+    });
+    // A timeout and an output limit are known by their codes and signal only.
+    execFileSyncMock.mockImplementationOnce(() => {
+      throw Object.assign(new Error('spawnSync git ETIMEDOUT'), { code: 'ETIMEDOUT', signal: 'SIGTERM' });
+    });
+    expect(execGit(['log'], { cwd: '/repo' })).toEqual({ ok: false, reason: 'timeout' });
+    execFileSyncMock.mockImplementationOnce(() => {
+      throw Object.assign(new Error('spawnSync git ENOBUFS'), { code: 'ENOBUFS', signal: 'SIGTERM' });
+    });
+    expect(execGit(['log'], { cwd: '/repo' })).toEqual({ ok: false, reason: 'buffer_exceeded' });
+    // A SIGTERM Cejel did not send (no ETIMEDOUT) is a failed read, not Cejel's timeout.
+    execFileSyncMock.mockImplementationOnce(() => {
+      throw Object.assign(new Error('Command failed: git log'), { signal: 'SIGTERM', status: null });
+    });
+    expect(execGit(['log'], { cwd: '/repo' })).toEqual({ ok: false, reason: 'exec_failed' });
+  });
 });

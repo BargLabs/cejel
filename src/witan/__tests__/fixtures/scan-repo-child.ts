@@ -29,5 +29,8 @@ process.stdout.write(
     b3ScriptDepthCondition:
       signal('B3')?.metrics?.find((metric) => metric.name === 'ci_script_depth')?.presentation
         ?.condition ?? null,
+    b2Notes: signal('B2')?.notes ?? null,
+    b3Notes: signal('B3')?.notes ?? null,
+    b3Disclosures: signal('B3')?.disclosures ?? [],
   })}\n`,
 );
