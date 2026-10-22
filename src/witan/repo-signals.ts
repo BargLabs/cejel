@@ -14299,6 +14299,11 @@ interface HistorySecretScanResult {
 
 const CONTROL_CHARACTER_HISTORY_PATH_LIMITATION =
   'Git history contained a credential-shaped pathname with control characters. Cejel omitted that path from historical blob inspection and continued with reduced history evidence.';
+// #569: the same skip for a path that is neither credential- nor `.env`-shaped. The sentence above
+// called every such path credential-shaped, which was false (axios's `\bMIGRATION_GUIDE.md`). It is
+// still a scan limitation, so the badge and `--min-score` outcome do not change; only its words do.
+const CONTROL_CHARACTER_HISTORY_OTHER_PATH_LIMITATION =
+  'Git history contained a pathname with control characters that is not credential-shaped. Cejel did not read that path in its history scans.';
 
 const HISTORY_READ_FAILURE_SUFFIX = ' Cejel continued with reduced Git history evidence.';
 
@@ -14321,14 +14326,24 @@ function isExpectedHistoryAbsence(
 
 /**
  * #560: a history path with control characters in its name is left unread and named in the scan
- * limitations, exactly as before. When the path is one the read would otherwise have used
- * (`candidate`), A2's recorder also counts it as an incomplete read.
+ * limitations. When the path is one the read would otherwise have used (`candidate`), A2's recorder
+ * also counts it as an incomplete read. #569: the limitation calls the path credential-shaped only
+ * when it is credential- or `.env`-shaped, whichever read met it.
  */
-function skipControlCharacterHistoryPath(scanLimitations: Set<string>, candidate: boolean): void {
+function skipControlCharacterHistoryPath(
+  scanLimitations: Set<string>,
+  path: string,
+  candidate: boolean,
+): void {
   if (candidate && scanLimitations instanceof HistoryReadRecorder) {
     scanLimitations.controlCharacterCandidate = true;
   }
-  scanLimitations.add(CONTROL_CHARACTER_HISTORY_PATH_LIMITATION);
+  const credentialShaped = isCredentialHistoryPath(path) || /(?:^|\/)\.env(?:\.|$)/i.test(path);
+  scanLimitations.add(
+    credentialShaped
+      ? CONTROL_CHARACTER_HISTORY_PATH_LIMITATION
+      : CONTROL_CHARACTER_HISTORY_OTHER_PATH_LIMITATION,
+  );
 }
 
 function declareHistoryFailure(
@@ -14596,6 +14611,7 @@ function readCredentialHistoryEntries(
         if (/[\u0000-\u001f\u007f]/.test(path)) {
           skipControlCharacterHistoryPath(
             scanLimitations,
+            path,
             isCredentialHistoryPath(path, useV36Detectors, useV23PemPrivateKeyGrammar),
           );
           continue;
@@ -14674,6 +14690,7 @@ function readDeletedCredentialHistoryPaths(
     if (/[\u0000-\u001f\u007f]/.test(path)) {
       skipControlCharacterHistoryPath(
         scanLimitations,
+        path,
         isCredentialHistoryPath(path, useV36Detectors, useV23PemPrivateKeyGrammar),
       );
       continue;
@@ -15326,7 +15343,7 @@ function hasEnvPathInGitHistory(repoPath: string, scanLimitations: Set<string>):
   return output.split('\0').some((rawPath) => {
     const path = rawPath.startsWith('\n') ? rawPath.slice(1) : rawPath;
     if (/[\u0000-\u001f\u007f]/.test(path)) {
-      skipControlCharacterHistoryPath(scanLimitations, /(?:^|\/)\.env(?:\.|$)/i.test(path));
+      skipControlCharacterHistoryPath(scanLimitations, path, /(?:^|\/)\.env(?:\.|$)/i.test(path));
       return false;
     }
     return /(?:^|\/)\.env(?:\.|$)/i.test(path);
