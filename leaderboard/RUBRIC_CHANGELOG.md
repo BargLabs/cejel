@@ -22,6 +22,43 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
+## 2026-10-22 — #567: A2's whole-history reads are paged when they hit Cejel's own output limit; v17 badges of biomejs and react become rated; no v17 score moved (informal measurement, preregistered delta pending)
+
+**Defect.** A2's whole-history reads buffered their output under the git exec limit of 8 MiB (and
+the 30-second timeout): `rev-list HEAD`, the `diff-tree` enumeration of credential-shaped paths,
+the `.env`-path `git log`, and the deleted-path `git log`. On a large complete history a read
+stopped at the limit, the rest of that read was lost, and the failure was reported in
+`scanLimitations`. In the 0.6.8 confirmation's full-history clones, biomejs hit the limit on the
+tree enumeration and the `.env`-path log, and react on the tree enumeration. Under v17 A2 still
+scored on what was read; since #560 v27's A2 abstains there.
+
+**Change, every rubric.** When one of those reads stops at Cejel's own output limit or timeout, it
+is re-run over the commit list: `rev-list HEAD` in pages of 50,000 commits, and the enumeration and
+the two logs over batches of 1,000 commits given on stdin (`git log --no-walk=unsorted --stdin`
+for the logs, which prints in the input order, so the result is what one call would have printed).
+A batch that still hits a limit is halved; only a single commit that still does is declared, as
+before, and the rest of the history is read. A read that does not hit a limit runs exactly as
+before, so no other repository changes.
+
+**Measured.** Informally, not a preregistered run: the 23 public rows were scanned with the CLI's
+defaults under v17 and v27, before (`#560` round 5, `5aaa0d314`) and after, on the 0.6.8
+confirmation's full-history clones, clean and at their pinned commits before and after. 42 of 46
+`report.json` pairs are byte-identical; biomejs and react differ under both rubrics:
+
+| Row | Rubric | Before | After |
+|---|---|---|---|
+| biomejs | v17 | A2 verified 3.2; overall 3.0; badge "unrated: limited evidence" (two history limitations) | unchanged scores; no scan limitation; badge "3.0/4.0 conditional" |
+| biomejs | v27 | A2 abstains at 0; overall 2.5, code_trust 1.8 | A2 verified 3.2; overall 3.0, code_trust 2.9 |
+| react | v17 and v27 | A2 critical 1.4; overall 3.0; badge unrated (one history limitation) | unchanged scores; A2 gains an info finding ("A non-template .env file was tracked in git history; no secret-shaped value was detected."); no scan limitation; badge "3.0/4.0 conditional" |
+
+Under v17 no score, status, metric value or verdict moves; react's A2 info-finding count moves by
+one, and two badges change from unrated to rated. These are changes to the calibrated default's
+reports on public rows, so this change needs the paired public-delta discipline (a preregistered
+before-and-after on the corpus) before it ships; this entry is not that run and makes no precision
+or recall claim.
+
+Tests: `src/witan/__tests__/a2-history-paging-567.test.ts`.
+
 ## 2026-10-22 — #556: an incomplete read of the commit history no longer takes A2 out of the composite or lets it score higher under v27; every rubric says when A2's applicability was decided from one; no v17 score moved; one v27 row of the 0.6.8 confirmation moves
 
 **Defect.** A2 reads commit history in two places: an `.env` path in `git log HEAD`, and the
