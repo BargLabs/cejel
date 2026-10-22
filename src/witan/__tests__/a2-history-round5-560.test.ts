@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -31,6 +31,12 @@ import {
 const V17 = WITAN_RUBRIC_VERSION_V17;
 const V27 = WITAN_RUBRIC_VERSION_V27;
 const base = { 'package.json': '{"name":"corner","version":"1.0.0"}\n', 'src/a.js': 'export const a = 1;\n' };
+const UNOPENABLE_DISCLOSURE =
+  "A2's applicability was decided from an incomplete read of the commit history: a .git entry is " +
+  'present but git could not open it as a repository, so Cejel read none of the commit history. ' +
+  "Marking A2 not applicable rests in part on Cejel's scans of earlier commits for .env files and " +
+  'credential-shaped values, so a complete read of the history may make A2 applicable and give it a ' +
+  'score. Re-scan a checkout that git can open (a full clone, not a copied worktree or submodule).';
 const FAILED_BLOB_READ =
   'Cejel: local git historical blob read failed. Cejel continued with reduced Git history evidence.';
 
@@ -124,6 +130,12 @@ describe('#560 R5-1: a .git file pointing at a missing gitdir is still "no repos
         expect(report.repo.headSha, rubricVersion).toBeUndefined();
         expect(report.scanLimitations ?? [], rubricVersion).toEqual([]);
       }
+      // The `.git` entry is visible but git cannot open it, so A2's history went unread: v17 stays
+      // not applicable and says so; v27 abstains at 0.
+      expect(a2(scoreAt(dir, V17)).disclosures).toEqual([UNOPENABLE_DISCLOSURE]);
+      const v27 = a2(scoreAt(dir, V27));
+      expect(v27.status).toBe('insufficient_data');
+      expect(v27.notes ?? '').toContain('a .git entry is present but git could not open it as a repository');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -153,5 +165,57 @@ describe('#560: a history path with a line break and a git message is never read
     const v27 = a2(scoreAt(origin, V27));
     expect(v27.status).toBe('insufficient_data');
     expect(v27.notes ?? '').toContain('unread because its name contains control characters');
+  });
+});
+
+// Round 6 (pass 1 on 5aaa0d314, F5): a copied `git worktree` checkout whose worktree was then
+// removed. git reports "fatal: not a git repository: <gitdir>"; the scan completes as on main, and A2,
+// whose history went unread, abstains under v27 and discloses under v17.
+describe('#560 F5: a copied worktree whose gitdir is gone', () => {
+  it('scans to completion; A2 says its history went unread', () => {
+    const origin = buildA2HistoryOrigin('worktree-source', [{ write: base }, { write: { 'README.md': '# c\n' } }]);
+    const worktree = join(origin, '..', 'wt');
+    fixtureGit(origin, 'worktree', 'add', '--quiet', worktree);
+    const copy = join(origin, '..', 'wt-copy');
+    cpSync(worktree, copy, { recursive: true });
+    fixtureGit(origin, 'worktree', 'remove', '--force', worktree);
+    const v17 = scoreAt(copy, V17);
+    expect(v17.repo.headSha).toBeUndefined();
+    expect(v17.scanLimitations ?? []).toEqual([]);
+    expect(a2(v17).status).toBe('not_applicable');
+    expect(a2(v17).disclosures).toEqual([UNOPENABLE_DISCLOSURE]);
+    const v27 = a2(scoreAt(copy, V27));
+    expect(v27.status).toBe('insufficient_data');
+    expect(v27.score).toBe(0);
+  });
+
+  it('a repository git can open whose branch has no commits yet is not "unread history"', () => {
+    const origin = buildA2HistoryOrigin('unborn', []);
+    writeFileSync(join(origin, 'package.json'), '{"name":"unborn","version":"1.0.0"}\n');
+    for (const rubricVersion of [V17, V27]) {
+      const criterion = a2(scoreAt(origin, rubricVersion));
+      expect(criterion.status, rubricVersion).toBe('not_applicable');
+      expect(criterion.disclosures, rubricVersion).toBeUndefined();
+    }
+  });
+});
+
+// Round 6 (pass 1 on 5aaa0d314, F7): the per-path history log passed a deleted path as a pathspec,
+// so a file named `:(exclude)secrets` matched every other path's commits and its "blob" reads failed:
+// a false incomplete read. It is passed literally now.
+describe('#560 F7: a deleted path that looks like pathspec magic is read literally', () => {
+  it('a deleted file named ":(exclude)secrets": no failed read, no abstention, no disclosure', () => {
+    const origin = buildA2HistoryOrigin('pathspec-magic', [
+      { write: { ...base, 'lib.py': 'x = 1\n' } },
+      { write: { ':(exclude)secrets': 'not a secret\n' } },
+      { remove: [':(exclude)secrets'], write: { 'lib.py': 'x = 2\n' } },
+      { write: { 'README.md': '# c\n' } },
+    ]);
+    for (const rubricVersion of [V17, V27]) {
+      const report = scoreAt(origin, rubricVersion);
+      expect(report.scanLimitations ?? [], rubricVersion).toEqual([]);
+      expect(a2(report).status, rubricVersion).toBe('not_applicable');
+      expect(a2(report).disclosures, rubricVersion).toBeUndefined();
+    }
   });
 });
