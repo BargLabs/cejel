@@ -208,7 +208,8 @@ accepted 2026-10-22). The text above is unchanged apart from the Status line.
 **The operator's decision.** The agent offered three options: treat the abstention as a read failure
 under this ADR, treat it as a coverage limit, or write a new ADR. The operator's reply was "a,",
 choosing the first: "Rule that a shallow clone is a read failure under ADR-0001. Behaviour stays as
-it is." The operator gave no reasons.
+it is. I'd also add fetch-depth: 0 guidance to the README and the Action docs." The third sentence
+was the agent's proposed follow-up, not part of the ruling. The operator gave no reasons.
 
 **What that means.** When `witan-rubric-v27-prospective-2026-10-19` abstains on A2 or B2 because the
 repository is a shallow clone (`shallowHistoryAbstention` in `src/witan/repo-signals.ts`), the
@@ -218,8 +219,8 @@ a composite.
 
 That is narrower than "a shallow clone never scores higher than the full clone", which does not
 hold. A criterion whose applicability depends on history can become not applicable on a shallow
-clone and leave the composite. For example, A2 on a repository whose only secret surface is a
-`.env` committed and later deleted. This ruling does not cover that case (#556).
+clone and leave the composite. For example, A2 on a repository whose only A2 surface is a `.env`
+committed and later deleted (no data layer and no other A2 surface). This ruling does not cover that case (#556).
 
 **The recording agent's explanation (not the operator's words).** The Context above calls a read
 failure "rare and accidental", and a depth-1 checkout is neither: it is the `actions/checkout`
