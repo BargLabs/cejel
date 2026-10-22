@@ -752,7 +752,8 @@ repositories were scored at their pins, under v17 and under v26. **All four prer
 - Under v17 and under v26, all 23 public reports are byte-identical between the two commits. No
   score, status, metric, finding, placement or fingerprint moved.
 - **This run did not exercise item 8.** The operator counted A3's build finding in the local raw
-  reports; the committed records do not hold that count. No public report carries it at v0.6.6
+  reports, and `result.md` reports that count; the harness records (`paired-result.json`,
+  `byte-identity.json`) do not hold it. No public report carries it at v0.6.6
   under v26, so item 8 had nothing to narrow. The run shows that item 8 moves nothing on these 23 rows. It
   is not evidence about where the finding stops, and it makes no precision or recall claim.
 - In the same count, 17 of the 23 rows carry A3 notes under v17 and v26 alike. Those notes predate item 8, and none of
@@ -762,6 +763,12 @@ repositories were scored at their pins, under v17 and under v26. **All four prer
 last run of that check under v26 started on 2026-10-14, before this change existed, and none ran
 between this change's merge and the 0.6.7 release. The change shipped in 0.6.7 on 2026-10-18
 without it. v26 remains prospective and explicit opt-in; the public default stays v17.
+The run times are from the operator's list of that check's run start times.
+
+*Added 2026-10-22.* On 2026-10-19 the operator stopped rubric expansion and recalibration; only
+the false-assurance closure (#521, the 2026-10-19 entry above) continues (#485, a v26 issue closed
+that day under that decision). This does not change the measurement above. v26 is still selectable
+by explicit opt-in, and the public default stays v17.
 
 ## 2026-10-15 (entry added 2026-10-21) — #502: a `pnpm run /<regex>/` selector is no longer evaluated (every rubric, no identifier bump); no public repository moved
 
@@ -900,8 +907,8 @@ preregistered expected values held.** No row moved down.
 - **The rule was not exercised.** A2 moved on no public row, so the HMAC digest rule changed no
   public report. The run is not evidence about where the rule fires.
 
-The operator's private check ran before the 0.6.5 release, on 2026-10-14. This section makes no
-precision or recall claim.
+The operator's private check ran before the 0.6.5 release, on 2026-10-14, by the operator's list
+of that check's run start times. This section makes no precision or recall claim.
 
 ## 2026-10-14 — A1 test-framework recognition (every rubric, no identifier bump); public paired rescore not run
 
@@ -1012,8 +1019,8 @@ preregistered expected values held.** No row moved down.
   verification-script recognition, and this run does not separate the coverage-configuration
   change (#484) from the test-framework change (#487) for that row.
 
-The operator's private check ran before the 0.6.5 release, on 2026-10-14. This section makes no
-precision or recall claim.
+The operator's private check ran before the 0.6.5 release, on 2026-10-14, by the operator's list
+of that check's run start times. This section makes no precision or recall claim.
 
 ## 2026-10-14 — v26 item 6: A5 and A2 tenant findings fire on settling evidence only, and A5 does not score the absence of Cejel's own format (v26 alone); no repository moved
 
@@ -1132,8 +1139,8 @@ values held.**
 - No criterion other than A5 moved. One verdict changed as a result of A5: vite, conditional to
   verified. v26 is explicit opt-in, so these runs do not describe the published board.
 
-The operator's private check ran before the 0.6.5 release, on 2026-10-14. This section makes no
-precision or recall claim.
+The operator's private check ran before the 0.6.5 release, on 2026-10-14, by the operator's list
+of that check's run start times. This section makes no precision or recall claim.
 
 ## 2026-10-14 — A1 coverage-configuration recognition (every rubric, no identifier bump); public paired rescore not run
 
@@ -1269,8 +1276,8 @@ preregistered expected values held.** No row moved down.
   verification-script recognition, and this run does not separate the coverage-configuration
   change (#484) from the test-framework change (#487) for that row.
 
-The operator's private check ran before the 0.6.5 release, on 2026-10-14. This section makes no
-precision or recall claim.
+The operator's private check ran before the 0.6.5 release, on 2026-10-14, by the operator's list
+of that check's run start times. This section makes no precision or recall claim.
 
 ## 2026-10-14 — A3 and B3 read declared workspace package scripts (every rubric, no identifier bump); public paired rescore not run
 
@@ -1367,8 +1374,8 @@ preregistered expected values held.** No row moved down.
   through v26. This run compared v17 before and after, and its v26 pair compared v25 with v26 at
   the same commit, so no public before-and-after covers this change's A3 effect.
 
-The operator's private check ran before the 0.6.5 release, on 2026-10-14. This section makes no
-precision or recall claim.
+The operator's private check ran before the 0.6.5 release, on 2026-10-14, by the operator's list
+of that check's run start times. This section makes no precision or recall claim.
 
 ## 2026-10-14 — prospective v26 declared as v25's complete closure; no scoring change, no repository moved
 
