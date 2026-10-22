@@ -117,6 +117,9 @@ describe('#569: the control-character limitation calls a path credential-shaped 
     ['vendor/a\tb/.env', CREDENTIAL_SHAPED, CREDENTIAL_SHAPED],
     ['node_modules/a\tb/secret.key', CREDENTIAL_SHAPED, CREDENTIAL_SHAPED],
     ['cfg/a\tb/.env', CREDENTIAL_SHAPED, CREDENTIAL_SHAPED],
+    // The .env half of the rule: a path under an .env.d directory is .env-shaped, though its own
+    // name is not credential-shaped (#571 review round 3).
+    ['cfg/.env.d/a\tb.txt', CREDENTIAL_SHAPED, CREDENTIAL_SHAPED],
     ['config/\bservice-account.json', CREDENTIAL_SHAPED, OTHER],
     ['docs/a\tb/notes.txt', OTHER, OTHER],
   ])('%s: exactly one sentence (v23, then v17 and v27)', (path, underV23, underOthers) => {

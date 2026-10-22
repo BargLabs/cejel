@@ -22,7 +22,8 @@
         "axios": [
           "\bMIGRATION_GUIDE.md"
         ]
-      }
+      },
+      "note": "This walk omits merge diffs (no -m), so a path that appears only in a merge's own diff is not listed; #571 review pass 1 ran the walk with -m and also found such a path only in axios (https://github.com/BargLabs/cejel/pull/571#issuecomment-6348352322)."
     },
     "reviewerReproduction": "the #571 review passes reproduced the axios one-line difference and matched report hashes independently (pass 2 round 2: 28 of 28 hashes of the earlier record; pass 1: 24 hashes); see https://github.com/BargLabs/cejel/pull/571 comments 6348090617 and 6348113615"
   },
