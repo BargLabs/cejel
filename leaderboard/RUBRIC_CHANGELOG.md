@@ -226,6 +226,9 @@ three more:
 Tests: `a2-history-round5-560.test.ts` (dangling gitdir, copied worktree, a repository with no
 commits, a newline path, a pathspec-magic name), `git-exec.test.ts`.
 
+Round 6 was measured like rounds 4 and 5: the 23 public rows under v17 and v27 against round 5
+(`5aaa0d314`), on the same clean, pinned clones. All 46 `report.json` pairs are byte-identical.
+
 Round 5 was measured like round 4 (below): the 23 public rows under v17 and v27 with round 5's code,
 against round 4's (`cf7fde7ac`), on the same clean, pinned clones. All 46 `report.json` pairs are
 byte-identical; no row has a gitlink at a credential-shaped path in its history, or a failed read
