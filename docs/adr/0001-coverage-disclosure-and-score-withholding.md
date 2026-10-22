@@ -281,11 +281,12 @@ systematic limit.
 **The recording agent's explanation (not the operator's words).** The failed reads are of two kinds.
 A partial clone, or a git error, leaves out objects that history reads need, and Cejel's git
 boundary denies every transport, so it never fetches them; the scanning user can remove that by
-re-scanning a full, unfiltered clone. A read that stops at one of Cejel's own output or time limits
-is different: it is not rare or accidental but systematic on large histories, and fires on
-complete clones too (in an informal re-score of the 0.6.8 confirmation's full-history clones,
-biomejs and react each hit the 8 MiB output limit), and a re-scan of the same repository does not
-lift it; streaming those reads is #567. The 5,000-file cap is of the same kind. The operator's
+re-scanning a full, unfiltered clone. A read that stops at one of Cejel's own output limits is
+different: it is not rare or accidental but systematic on large histories, and fires on complete
+clones too (in an informal re-score of the 0.6.8 confirmation's full-history clones, biomejs and
+react each hit the 8 MiB output limit), and a re-scan of the same repository does not lift it;
+streaming those reads is #567. The 5,000-file cap is of the same kind. The 30-second timeout sits
+between the two: it depends on the machine and its load, so a re-scan may or may not lift it. The operator's
 decisions cover both kinds: "a timeout or an output limit" is named in the first recommendation they
 accepted, and the second decision names the limits and the cap. Treating either kind as a coverage limit
 would let A2 leave the composite, or score on a read that did not complete, which can raise a
