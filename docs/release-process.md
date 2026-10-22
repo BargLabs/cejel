@@ -58,7 +58,7 @@ else it refuses), `RELEASE_RUN_FIND_SLEEP` seconds apart (default 3), printing o
 stderr. After its last try a lookup passes on `gh`'s stderr. Stage 7's refusal names the cause that
 happened: the publish-npm listing stayed empty or `gh` failed after N tries, or, of the runs listed,
 how many had a log that could not be read and how many had a log without the line. An unreadable
-currency log refuses at stages 11 and 13 as "could not read currency run N's log after N tries".
+currency log refuses at stages 11 and 13 as "could not read currency run <id>'s log after <n> tries".
 Wall time, when nothing ever answers: up to 12 s more for each listing lookup or log read; stage 7
 with log retries up to about 84 s in theory (61 s was observed with five runs whose logs could not
 be read, as when logs have expired); a whole resume about 108 s, plus the time to download logs and

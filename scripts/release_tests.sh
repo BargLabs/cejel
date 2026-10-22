@@ -367,7 +367,8 @@ run_release "$S" "" --dry-run
 check "#581: stage 9's empty listing is retried and the distribution run recorded" $? "rc=$RC: $OUT"
 
 # 6k. #581: every read of the currency run's log fails: stage 11 refuses naming the unreadable log
-# (before, a failed read exited without a REFUSE line).
+# (before, stage 11 refused with the wrong cause, "reported 0 surfaces": its `currency_read || return 0`
+# disabled set -e inside currency_read, so the failed read went on to be counted).
 S="$TEST_TMP/s6k"; new_state "$S"
 echo '[{"databaseId":36579259365,"createdAt":"2099-09-29T00:00:00Z","event":"workflow_dispatch","status":"completed"}]' >"$S/runlist.json"
 # The fake run list serves this one run for every workflow: stage 7 reads its log twice (lookup and
