@@ -663,6 +663,47 @@ tables are left as measured. They compare two scanners on the same depth-1 input
 v27 would publish: on full-history clones, A2 and B2 do not abstain for shallow history. How v27
 compares with v17 there has not been measured. Found by a review pass on #542.
 
+### Addition — 2026-10-22: the no-rise property, strengthened (#531 items a-c); no score moved
+
+The 2026-10-21 ruling on #526, accepted by the operator on 2026-10-22, makes #531 its condition 2.
+The no-rise test this entry cites above checked curated fixtures only. It skipped a criterion that
+became `insufficient_data` and it skipped null composites. It now checks three more things, and
+#531 items (a)-(c) are covered. This addition changes tests only. No scoring code, rubric,
+behaviour-corpus fixture or fingerprint pin changed, so no score moved.
+
+- **(a) Abstentions are read failures.** Every `insufficient_data` that v27 introduces must be
+  listed in `contentReadSummary.affectedCriteria`, or be the v27 shallow-clone abstention of A2 or
+  B2. It must score 0 and stay in its category's denominator. The denominator is checked against
+  the reported composite. A composite only shows how many abstentions it holds, each at 0, so the
+  check requires every introduced abstention on top of those v17's composite holds. Where both
+  counts give the same composite, for example when every other criterion in the category scores 0,
+  the abstention cannot have raised the composite, and only the listing is checked.
+- **(b) Null composites are compared.** A composite scored under v17 and null under v27 fails, as
+  does the reverse. So does a criterion that v17 left `not_applicable` or `insufficient_data` and
+  v27 scores or moves to another unscored state, except a read-failure abstention under (a).
+- **(c) Generated shapes.** `src/witan/__tests__/fixtures/v27-norise-shapes.ts` generates 277
+  repositories. The exhaustive core is 7 test-directory names (including `__tests__`, where the
+  2026-10-19 review found a rise) × 5 conftest placements × 10 hook forms. Five more dimensions are
+  covered pairwise across all eight, so all 764 valid pairs of values appear: 6 LFS placements,
+  8 workflow shapes (none, pull-request test, push-only test, publish-only, print-only,
+  branch-filtered, test-then-publish, test plus a separate publish-only), LF or CRLF workflows,
+  full or depth-1 history, and 3 configuration surfaces. 138 of the shapes are depth-1 clones.
+  Generation is deterministic, with no randomness and fixed commit dates, and a failing shape's
+  test name holds all its coordinates. To extend it, add an entry to `WORKFLOW_SHAPES` or a value
+  to a dimension.
+
+The checker is `src/witan/__tests__/v27-no-rise.ts`, shared by the curated test and
+`src/witan/__tests__/false-assurance-v27-generated.test.ts`. Its definition matches the board's
+(`docs/experiments/public-delta-0-6-8-2026-10-21/norise.mjs`) and is stricter where #531 asks. On
+the candidate at `release/0.6.8` `8deafad9f`, it found no rise and no self-imposed abstention on
+the curated fixtures or the generated shapes. The generated shapes produced 660 introduced
+abstentions, all read failures: 544 on Git LFS pointers and 116 shallow-clone abstentions. For 530
+of them the composite arithmetic shows the abstention held in the denominator; the other 130 sit in
+a category whose composite is the same either way. A test also confirms that the shapes reached the
+moves v27 makes: shallow A2 and B2 abstentions, LFS abstentions, and A1 and B3 losing credit. The
+generated file takes about 100-115 s on one vitest worker, about 380 ms per shape: building it takes
+about 75 ms, then a v17 scan and a v27 scan take about 150 ms each.
+
 ## 2026-10-15 — v26 item 8: A3's build or type-check finding fires on settling evidence only (v26 alone); no repository moved
 
 **Status.** The second change `witan-rubric-v26-prospective-2026-10-14` makes of its own,

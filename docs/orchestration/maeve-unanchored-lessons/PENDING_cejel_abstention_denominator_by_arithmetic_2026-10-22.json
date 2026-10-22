@@ -1,0 +1,26 @@
+[
+  {
+    "statement": "Whether an abstention stays in a composite's denominator cannot be read from its label, and a composite shows only how many zero-scored abstentions it holds, not which. In cejel #531, v27's no-rise test skipped every criterion that became insufficient_data: two scratch injections, one tagging the shallow-clone abstention self-imposed (excluded from the composite) and one leaving B2 unmeasured, both passed it. A first arithmetic check let any older abstention stand in for the new one, which left it unable to tell kept from excluded on the LFS case it was written for. Rules: recompute the composite and require every introduced abstention on top of the count the baseline composite holds; report cases the arithmetic cannot distinguish instead of counting them as proof; and show the property failing on each injected defect class before trusting a green run.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "false-assurance",
+      "test-strength",
+      "scoring"
+    ],
+    "tags": [
+      "no-rise-property",
+      "abstention",
+      "composite-denominator",
+      "fail-loud-demonstration",
+      "generated-shapes"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-10-22T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "awaiting-fix",
+      "reason": "The strengthened v27 no-rise property for Cejel issue #531 must merge to main."
+    }
+  }
+]
