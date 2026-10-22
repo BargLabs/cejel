@@ -109,5 +109,22 @@ describe('#569: the control-character limitation calls a path credential-shaped 
       }
     }
   });
+
+  // #571 review round 2 (pass 1): the wording classifies the name's shape under the rubric's
+  // grammar, ignoring the hard-excluded-directory rule, so a credential-named path under
+  // node_modules/ keeps the credential-shaped sentence (as main gave it). Each path, one sentence.
+  it.each([
+    ['vendor/a\tb/.env', CREDENTIAL_SHAPED, CREDENTIAL_SHAPED],
+    ['node_modules/a\tb/secret.key', CREDENTIAL_SHAPED, CREDENTIAL_SHAPED],
+    ['cfg/a\tb/.env', CREDENTIAL_SHAPED, CREDENTIAL_SHAPED],
+    ['config/\bservice-account.json', CREDENTIAL_SHAPED, OTHER],
+    ['docs/a\tb/notes.txt', OTHER, OTHER],
+  ])('%s: exactly one sentence (v23, then v17 and v27)', (path, underV23, underOthers) => {
+    const repo = repoWith(`control-character-shape-${path.replace(/[^a-z]/gi, '')}`, { [path]: 'x\n' });
+    expect(scoreAt(repo, WITAN_RUBRIC_VERSION_V23).scanLimitations).toEqual([underV23]);
+    for (const rubricVersion of [WITAN_RUBRIC_VERSION_V17, WITAN_RUBRIC_VERSION_V27]) {
+      expect(scoreAt(repo, rubricVersion).scanLimitations, rubricVersion).toEqual([underOthers]);
+    }
+  });
 });
 

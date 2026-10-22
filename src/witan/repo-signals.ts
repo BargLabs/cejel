@@ -14327,9 +14327,11 @@ function isExpectedHistoryAbsence(
 
 /**
  * #569: the one definition of "credential-shaped" for the control-character limitation's wording,
- * shared by all three history readers so a path gets the same sentence whichever reader meets it:
- * an `.env`-shaped path, or a path the rubric's own history rules count as credential-shaped
- * (isCredentialHistoryPath with the rubric's flags; under v23 that includes key-shaped JSON).
+ * shared by all three history readers so a path gets the same sentence whichever reader meets it.
+ * It classifies the name's shape under the rubric's own grammar (hasCredentialHistoryPathShape with
+ * the rubric's flags; under v23 that includes key-shaped JSON), ignoring the hard-excluded-directory
+ * rule, or'd with the `.env` pattern. When in doubt it errs toward the credential-shaped sentence,
+ * the cautious one: a path in `node_modules/` named `secret.key` has a credential-shaped name.
  */
 function controlCharacterPathIsCredentialShaped(
   path: string,
@@ -14338,7 +14340,7 @@ function controlCharacterPathIsCredentialShaped(
 ): boolean {
   return (
     /(?:^|\/)\.env(?:\.|$)/i.test(path) ||
-    isCredentialHistoryPath(path, useV36Detectors, useV23PemPrivateKeyGrammar)
+    hasCredentialHistoryPathShape(path, useV36Detectors, useV23PemPrivateKeyGrammar)
   );
 }
 
@@ -14771,10 +14773,22 @@ function isV23PemCredentialHistoryPath(basename: string): boolean {
 
 function isCredentialHistoryPath(
   path: string,
-  _useV36Detectors = false,
+  useV36Detectors = false,
   useV23PemPrivateKeyGrammar = false,
 ): boolean {
   if (isHardExcludedPath(path)) return false;
+  return hasCredentialHistoryPathShape(path, useV36Detectors, useV23PemPrivateKeyGrammar);
+}
+
+// The name-shape half of isCredentialHistoryPath: whether the path's name is credential-shaped
+// under the rubric's grammar, whatever directory it sits in. isCredentialHistoryPath adds the
+// hard-excluded-directory rule; the control-character limitation's wording uses the shape alone
+// (#571 review), since "not credential-shaped" would describe the name falsely.
+function hasCredentialHistoryPathShape(
+  path: string,
+  _useV36Detectors = false,
+  useV23PemPrivateKeyGrammar = false,
+): boolean {
   // Note: template paths (.env.example etc.) are intentionally NOT excluded here —
   // a real secret can still leak through a template path (e.g. committed, then later
   // redacted to placeholders in a follow-up commit); the path alone never proves the
