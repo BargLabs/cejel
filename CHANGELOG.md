@@ -16,6 +16,29 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- **A shallow clone could take A2 out of the score and raise it (#556).** A2 is marked not
+  applicable only when Cejel finds no secrets or data surface in the tree and its scans of earlier
+  commits find no `.env` file or credential-shaped value. On a shallow clone those scans read only
+  the commits present. So a repository whose only A2 surface was a secret-bearing `.env`, committed
+  and later deleted, was marked not applicable: A2 left the composite, the critical finding a full
+  clone reports disappeared, and the score rose.
+  - **Every rubric, including the default (presentation only).** When A2 is not applicable on a
+    shallow clone, it now says so in `criteria[].disclosures` (report format 1.8, no new field),
+    and the certificate lists it under "What was not established": "A2's applicability was decided
+    from the commits present in this shallow clone. [...] A full clone may make A2 applicable and
+    give it a score. Re-scan a full clone (for actions/checkout, set fetch-depth: 0)." Under v17
+    and v18-v26 no score, status, metric value, finding count or fingerprint moves.
+  - **`witan-rubric-v27-prospective-2026-10-19` (scoring).** In that case A2 now abstains as a read
+    failure, kept in the composite at 0, so a shallow clone cannot score higher than the full clone
+    on A2's account. Composites can only fall. v27's shallow-clone sentence in `historyLimitations`
+    no longer says that a not-applicable criterion stays not applicable. v27 shipped in 0.6.8; a
+    0.6.8 v27 certificate of such a clone reports A2 not applicable. No behaviour fingerprint
+    moves, because the behaviour corpus has no shallow clone. On a full clone nothing changes under
+    any rubric, and no public board row moves. See
+    [`leaderboard/RUBRIC_CHANGELOG.md`](./leaderboard/RUBRIC_CHANGELOG.md) (2026-10-22).
+
 ## [0.6.8] — 2026-10-22
 
 **Public corpus.** A preregistered confirmation scored the 23 public corpus repositories from

@@ -385,3 +385,44 @@ Any later change to v27's scoring makes a new candidate and resets conditions 1,
 
 **What this ruling does not do.** It changes no code, policy text or default, and it is not a
 release. It does not promise that v27 will become the default.
+
+## Addition (2026-10-22): #556 changes v27 scoring, so it makes a new candidate
+
+*Added on 2026-10-22 by an AI agent (Claude Opus 5.5, Claude Code) in the #556 fix, at the
+operator's direction of the same day. The text above is left as written.*
+
+**What changed.** On a shallow clone, A2's not-applicable gate rests on two history reads (an
+`.env` path in `git log HEAD`, and the history secret scan) that see only the commits present. A
+repository whose only A2 surface is a secret-bearing `.env`, committed and later deleted, was
+marked not applicable there, so A2 left the composite and the score rose above the full clone's.
+Under `witan-rubric-v27-prospective-2026-10-19`, A2 now abstains in that case as a read failure,
+kept in the composite at 0. Every other rubric keeps not applicable, with a presentation-only
+disclosure. The tables are in `leaderboard/RUBRIC_CHANGELOG.md` (2026-10-22).
+
+**Effect on the ruling's conditions.** This is a change to v27's scoring, so under the ruling's
+last condition ("Any later change to v27's scoring makes a new candidate and resets conditions 1,
+2, 4 and 5") the candidate is new: conditions 1, 2, 4 and 5 restart for it. The behaviour
+fingerprint does not identify it: v27's pinned fingerprint
+(`sha256:fb4edfa0bdf0d8153af3f84a4b72d4eab6da3fd6e0b2e3e494cea9542ded45a0`) is unchanged, because
+the behaviour corpus holds no shallow clone. Naming the candidate therefore needs the commit as well
+as the fingerprint.
+
+**What it adds to "Why every v27 movement can only lower a score".** That table lists the
+abstention path and not the not-applicable gate. A criterion leaves the composite either by a
+self-imposed abstention or by a not-applicable result, and this defect was the second kind, in
+a comparison the no-rise test does not make (a shallow clone against a full clone under the same
+rubric). The fix turns a not-applicable result into a read-failure abstention, which only adds a 0
+to the composite. Against v17 on the same clone, that is a move from `not_applicable` to
+`insufficient_data` at 0. The no-rise checks treat it as a fall, not a rise: `norise.mjs` counts it
+as an A2 abstention, and the curated no-rise test accepts it because the score does not rise and
+the status is an abstention. The stricter checker on the #531 branch (`v27-no-rise.ts`, not yet
+merged), run v17 against v27 on the 36 #556 shape clones, reports no problem and classifies each
+of the 16 A2 abstentions v27 introduces there (4 of them from this change, 12 from #442) as the
+shallow-clone abstention, kept in the denominator.
+
+**Two statements above no longer hold for this candidate.**
+- The release-note item "on depth-1 checkouts B2 abstains, and A2 does too unless a confirmed
+  critical secret finding stands or A2 is not applicable": on a shallow clone, v27's A2 is now never
+  not applicable, so A2 abstains unless a confirmed critical secret finding stands.
+- The v27 shallow-history sentence quoted in the code before this change ("A criterion that is not
+  applicable stays not applicable") is replaced.
