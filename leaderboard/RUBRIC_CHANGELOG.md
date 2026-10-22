@@ -192,11 +192,18 @@ and v27, as on `main`, so no report changes against `main` here.
 
 Only git's first "fatal: " line is classified, since git dies after printing it. A repository path
 holding a line break could otherwise, inside a message where git prints the path unquoted ("fatal:
-bad object <commit>:<path>"), start a second line read as "not a git repository". Every git call
-Cejel makes was checked for repository paths in its arguments: the historical blob read, the gitlink
-check and the per-path log take only history paths that passed the control-character skip (a line
-break is a control character); the ignore-rule check takes the scan target's own path; the others
-take no path. A history path holding a line break and a git message is tested: it is counted under
+bad object <commit>:<path>"), start a second line read as "not a git repository". Every
+non-test `execGit(` call (`git grep -n "execGit(" -- src`, tests excluded) was checked for
+repository paths in its arguments. On the witan scan path, the historical blob read
+(`show <commit>:<path>`), the gitlink check (`diff-tree … -- :(literal)<path>`) and the per-path
+log (`log … -- :(literal)<path>`) take only history paths that passed the control-character skip (a
+line break is a control character); the ignore-rule check (`check-ignore -- <target>/`) takes the
+scan target's own path; the other calls in `src/witan/repo-signals.ts`, `src/witan/history-depth.ts:40`
+and `src/witan/public-scan.ts:178` take no path, nor do `src/packs/llm/files.ts:39` and `:46`. One
+call outside the witan scan path takes a repository path:
+`src/packs/d-series/unobserved-control.ts:382` runs `git log --reverse -S<text> -- <path>` with a
+tracked path and no literal pathspec; its failure handling ignores the classification (any failure
+gives no anchor), so classification cannot change what it reports. A history path holding a line break and a git message is tested: it is counted under
 the control-character rule and never read.
 
 Pass 1 on `5aaa0d314` (a fresh AI reviewer) found the same failure as R5-1 on a copied `git worktree`
@@ -214,7 +221,9 @@ three more:
   cause is not named in the operator's ADR-0001 rulings**; it is of the same kind as git being
   unavailable (history present but unread for a reason outside it), and it is flagged for the
   operator to confirm.
-- **Case (F6).** git's message text is matched case-insensitively again.
+- **Case (F6).** Only the "not a git repository" forms (including git's capitalised "Not a git
+  repository") and "needed a single revision" (git prints "Needed") are matched case-insensitively;
+  the other no-repository messages are matched exactly.
 - **Pathspec magic (F7, before #560).** The per-path history log passed a deleted path as a
   pathspec, so a deleted file named `:(exclude)secrets` matched other paths' commits and their reads
   failed: a false failed read (and, since #560, a false abstention or disclosure). The path is now
@@ -225,6 +234,25 @@ three more:
 
 Tests: `a2-history-round5-560.test.ts` (dangling gitdir, copied worktree, a repository with no
 commits, a newline path, a pathspec-magic name), `git-exec.test.ts`.
+
+Round 7 (pass 1 on `3a941f9bb`, a fresh AI reviewer; pass 2 approved):
+- **G1.** On the scoring path, v27's note always added "so the scan for credentials and .env files in
+  earlier commits read only part of the history", so where git could not be run, or could not open
+  the repository, it read "Cejel read none of the commit history, so … read only part of the
+  history". When either of those causes holds no history read could succeed, so the note and the
+  every-rubric disclosure now report only that cause and its advice; otherwise they say "only part".
+  The exact sentences for all eight single causes and four combinations, on both paths and in the
+  disclosure, are pinned (`a2-history-sentences-560.test.ts` and its fixture).
+- **G2.** A stray empty `.git` directory in a parent of a directory that is not a repository made it
+  read as a repository git could not open. A `.git` entry now counts, for that cause and for git
+  being unavailable, only as a directory holding `HEAD` or a file whose first 4 KiB hold a
+  `gitdir:` line (`git-metadata-visibility-560.test.ts`).
+
+Round 7 was merged with `main` after #562 and measured on the same clean, pinned clones with the
+CLI, under v17 and v27, against round 6 (`3a941f9bb`). All 23 v17 `report.json` files are
+byte-identical. Each of the 23 v27 files differs only in `rubricBehaviourFingerprint` (#562's
+`sha256:6e03aa1b…` in place of `sha256:fb4edfa0…`); no score, status, metric, finding, note or
+disclosure differs, and biomejs stays at overall 2.5 with A2 abstaining at 0.
 
 Round 6 was measured like rounds 4 and 5: the 23 public rows under v17 and v27 against round 5
 (`5aaa0d314`), on the same clean, pinned clones. All 46 `report.json` pairs are byte-identical.
@@ -246,7 +274,7 @@ identifier.
 The operator directed the #556 fix on 2026-10-22. Keeping the identifier is consistent with the
 accepted #526 ruling, under which a change to v27's scoring makes a new candidate; it was not a
 separate operator decision. Because no behaviour fingerprint moves (below), the candidate is named
-by commit: the merge commit is recorded after merge (#563). 0.6.8's public confirmation scored
+by commit: this change's merge commit, on top of #562's, recorded after merge (#563). 0.6.8's public confirmation scored
 full-history clones, and its v17 results do not change, but one of its v27 rows does: biomejs, whose
 history reads exceed Cejel's own output limit on a complete clone (see "Public board" below).
 
@@ -331,12 +359,15 @@ needs no historical blob, so its reads complete and nothing changes. Under v17 t
 still scores higher on every incomplete clone: that is the calibrated default, now disclosed where
 A2 is not applicable, and already flagged in `scanLimitations` where a read failed.
 
-**Fingerprints.** No rubric's behaviour fingerprint moves: the behaviour corpus holds no shallow or
-partial clone and no failed history read. v17 stays
-`sha256:5cd48f8c642300ae8736a09d4a24ce3a4f8885f6e099b5f27f99d950e0c944b4`. 0.6.8's v27 fingerprint,
-`sha256:fb4edfa0bdf0d8153af3f84a4b72d4eab6da3fd6e0b2e3e494cea9542ded45a0`, is not moved by this
-change although v27's behaviour on incomplete history changed, so that fingerprint alone does not
-distinguish this candidate from 0.6.8's v27.
+**Fingerprints.** No rubric's behaviour fingerprint moves with this change: the behaviour corpus
+holds no shallow or partial clone and no failed history read. v17 stays
+`sha256:5cd48f8c642300ae8736a09d4a24ce3a4f8885f6e099b5f27f99d950e0c944b4`. #562, which landed
+first, moved v27's from 0.6.8's
+`sha256:fb4edfa0bdf0d8153af3f84a4b72d4eab6da3fd6e0b2e3e494cea9542ded45a0` to
+`sha256:6e03aa1bf63a31c5ec58a68cb49fb8ef571ba233cf79059a311ec55aecea5bb3`; this change, merged on
+top of #562, leaves it at `sha256:6e03aa1b…` although v27's behaviour on incomplete history changed.
+So the fingerprint alone does not tell #562's candidate from the combined one: the combined
+candidate is `sha256:6e03aa1b…` at this change's merge commit, recorded after merge (#563).
 
 **Public board.** The board is scored from full-history, unfiltered clones (the public-delta
 harness refuses a shallow or filtered target), but a complete clone can still have a failed history

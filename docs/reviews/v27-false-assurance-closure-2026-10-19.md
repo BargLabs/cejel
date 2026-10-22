@@ -482,12 +482,13 @@ shadow board under condition 5 would show that abstention until those reads stre
 
 **Effect on the ruling's conditions.** This is a change to v27's scoring, so under the ruling's
 last condition ("Any later change to v27's scoring makes a new candidate and resets conditions 1,
-2, 4 and 5") the candidate is new: conditions 1, 2, 4 and 5 restart for it. The behaviour
-fingerprint does not identify it: 0.6.8's v27 fingerprint
-(`sha256:fb4edfa0bdf0d8153af3f84a4b72d4eab6da3fd6e0b2e3e494cea9542ded45a0`) is not moved by this
-change, because the behaviour corpus holds no shallow or partial clone and no failed history read.
-Naming the candidate therefore needs the commit as well as the fingerprint; the merge commit is
-recorded after merge (#563).
+2, 4 and 5") the candidate is new: conditions 1, 2, 4 and 5 restart for it. #562 landed first and
+made its own new candidate (the addition above), moving v27's fingerprint to
+`sha256:6e03aa1bf63a31c5ec58a68cb49fb8ef571ba233cf79059a311ec55aecea5bb3`. This change, merged on
+top of it, does not move that fingerprint, because the behaviour corpus holds no shallow or partial
+clone and no failed history read. The fingerprint therefore does not tell #562's candidate from the
+combined one; the combined candidate is `sha256:6e03aa1b…` at this change's merge commit, recorded
+after merge (#563).
 
 **Condition 6 and ADR-0001.** This abstention is new in scope relative to the operator's
 condition-6 ruling recorded in #554 (merged as `74b3af581`), which says that ruling "does not cover
@@ -508,7 +509,11 @@ added two causes: a credential- or `.env`-shaped history path left unread becaus
 control characters, and git itself unavailable while a `.git` entry is visible (#568). The operator
 extended the read-failure ruling to both, in the words "for adr-0001 add them" (#526,
 [comment 6341266476](https://github.com/BargLabs/cejel/issues/526#issuecomment-6341266476)), recorded
-in ADR-0001's section "Operator ruling (2026-10-22, third)".
+in ADR-0001's section "Operator ruling (2026-10-22, third)". Review round 6 added one more cause: a
+`.git` entry is visible but git cannot open it as a repository (a copied worktree or submodule whose
+gitdir is gone), counted like git being unavailable. **That cause is awaiting the operator's
+confirmation**: none of the three rulings names it, and v27 abstains on it at 0 until the operator
+confirms or rules otherwise.
 
 **What it adds to "Why every v27 movement can only lower a score".** That table lists the
 abstention path and not the not-applicable gate, and its #442 row covers shallow clones only. A
