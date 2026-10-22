@@ -1,5 +1,6 @@
 import {
   WITAN_A2_PLACEHOLDER_SET_ASIDE_PREFIX,
+  WITAN_A2_SHALLOW_APPLICABILITY_DISCLOSURE,
   WITAN_A2_TENANT_ISOLATION_UNSETTLED_DISCLOSURE,
   WITAN_A3_BUILD_STEP_UNSETTLED_DISCLOSURE,
   WITAN_A5_RECONCILIATION_UNSETTLED_DISCLOSURE,
@@ -935,6 +936,17 @@ function unshownCheckWorkflowDisclosures(report: WitanReport): string[] {
   return criterionDisclosures(report, 'B3', WITAN_B3_UNSHOWN_CHECK_PREFIX);
 }
 
+// Every rubric (#556): A2 was marked not applicable on a shallow clone, from history scans that read
+// only the commits present. Listed only while A2 is not applicable, since that is the result the
+// sentence qualifies. Matched exactly, so no repository text can reach this list through it.
+function shallowApplicabilityDisclosures(report: WitanReport): string[] {
+  const a2 = report.criteria.find((criterion) => criterion.id === 'A2');
+  if (!a2 || a2.status !== 'not_applicable') return [];
+  return (a2.disclosures ?? []).filter(
+    (sentence) => sentence === WITAN_A2_SHALLOW_APPLICABILITY_DISCLOSURE,
+  );
+}
+
 function criterionDisclosures(report: WitanReport, criterionId: string, prefix: string): string[] {
   const criterion = report.criteria.find((entry) => entry.id === criterionId);
   return (criterion?.disclosures ?? []).filter((sentence) => sentence.startsWith(prefix));
@@ -1021,6 +1033,7 @@ export function buildRelyingPartySummary(report: WitanReport): RelyingPartySumma
   }
   gaps.push(...settlingEvidenceDisclosures(report));
   gaps.push(...placeholderSetAsideDisclosures(report));
+  gaps.push(...shallowApplicabilityDisclosures(report));
   gaps.push(...unshownCheckWorkflowDisclosures(report));
   const withheldPathsSentence = buildWithheldPathsGapSentence(report);
   if (withheldPathsSentence !== undefined) {

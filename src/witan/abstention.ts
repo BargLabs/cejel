@@ -39,6 +39,18 @@ export const WITAN_A2_PLACEHOLDER_SET_ASIDE_PREFIX = 'Cejel read and set aside '
 // see run a check (b3UnshownCheckDisclosure in repo-signals.ts). One of B3's criteria[].disclosures,
 // listed under "What was not established". The count itself is unchanged.
 export const WITAN_B3_UNSHOWN_CHECK_PREFIX = 'B3 counted workflows Cejel did not see run a check: ';
+// Every rubric, presentation only (#556): on a shallow clone, A2's not-applicable decision rests in
+// part on its scans of earlier commits for .env files and credential-shaped values, and those scans
+// read only the commits the clone holds. One of A2's criteria[].disclosures, written only when A2 is
+// marked not applicable on a shallow clone and listed under "What was not established" while it
+// is. It moves no score. Under witan-rubric-v27-prospective-2026-10-19 A2 abstains there instead
+// (a read failure kept in the composite at 0), so this sentence is never written under v27.
+export const WITAN_A2_SHALLOW_APPLICABILITY_DISCLOSURE =
+  "A2's applicability was decided from the commits present in this shallow clone. Marking A2 not " +
+  "applicable rests in part on Cejel's scans of earlier commits for .env files and credential-shaped " +
+  'values, and those scans read only the commits this clone holds, not the history before them. A ' +
+  'full clone may make A2 applicable and give it a score. Re-scan a full clone (for ' +
+  'actions/checkout, set fetch-depth: 0).';
 
 export function isWitanNoMeasurementAbstention(report: WitanReport): boolean {
   return (

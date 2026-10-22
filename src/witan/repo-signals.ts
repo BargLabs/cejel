@@ -46,6 +46,7 @@ import {
 
 import {
   WITAN_A2_PLACEHOLDER_SET_ASIDE_PREFIX,
+  WITAN_A2_SHALLOW_APPLICABILITY_DISCLOSURE,
   WITAN_A2_TENANT_ISOLATION_UNSETTLED_DISCLOSURE,
   WITAN_B3_UNSHOWN_CHECK_PREFIX,
   WITAN_A3_BUILD_STEP_UNSETTLED_DISCLOSURE,
@@ -296,7 +297,9 @@ function wholesaleCriterionAbstention(
     insufficientData: true as const,
     ...(insufficientDataReason !== undefined ? { insufficientDataReason } : {}),
     // What the collector read and set aside is still true of the content it did read. B3's names
-    // workflows in a count this abstention removes, so it goes with the count.
+    // workflows in a count this abstention removes, so it goes with the count. A2's shallow-clone
+    // applicability sentence describes a not-applicable result this abstention replaces, so it
+    // goes with that result.
     ...withoutCountDisclosures(signal.disclosures),
     notes:
       insufficientDataReason !== undefined
@@ -308,7 +311,11 @@ function wholesaleCriterionAbstention(
 }
 
 function withoutCountDisclosures(disclosures: readonly string[] | undefined): { disclosures?: string[] } {
-  const kept = (disclosures ?? []).filter((text) => !text.startsWith(WITAN_B3_UNSHOWN_CHECK_PREFIX));
+  const kept = (disclosures ?? []).filter(
+    (text) =>
+      !text.startsWith(WITAN_B3_UNSHOWN_CHECK_PREFIX) &&
+      text !== WITAN_A2_SHALLOW_APPLICABILITY_DISCLOSURE,
+  );
   return kept.length > 0 ? { disclosures: kept } : {};
 }
 
@@ -2742,12 +2749,39 @@ function collectA2IsolationEvidence(
     !hasConfirmedSecretFinding &&
     !cryptoHygiene.hasSurface
   ) {
+    // #556: which of this gate's inputs read commit history. The data layer, .env templates, a
+    // committed .env file, a .gitignore .env rule and signing/HMAC/secret-comparison code are all
+    // read from the checked-out tree. Two inputs are read from history: hasEnvInHistory
+    // (`git log HEAD`, consulted whenever the tree holds no committed .env file) and the history
+    // half of hasConfirmedSecretFinding (historySecretScan, run whenever the tree holds no confirmed
+    // secret). This gate requires both tree conditions, so every not-applicable decision reached
+    // here rests on history reads that matched nothing. On a shallow clone those reads saw only the
+    // commits present, so the decision depends on history Cejel did not read: a secret-bearing .env
+    // committed and later deleted before the clone's boundary is exactly what it cannot see. On a
+    // full clone, or a directory that is not a git repository, nothing was truncated and the
+    // decision stands unchanged.
+    const historyReadsConsulted = committedEnvFilePath === undefined || historySecretScan !== null;
+    const applicabilityReadTruncatedHistory =
+      historyReadsConsulted && isShallowRepository(repoPath);
+    // v27: abstain as a read failure (kept in the composite at 0) rather than leave the composite,
+    // so a shallow clone can never score higher than the full clone on A2's account. Every other
+    // rubric keeps its calibrated not-applicable result and says what it did not read.
+    if (applicabilityReadTruncatedHistory && useV27FalseAssuranceClosure) {
+      return {
+        ...shallowHistoryAbstention('A2', V27_A2_SHALLOW_APPLICABILITY_NOTE),
+        ...placeholderSetAsideDisclosures(placeholderSetAside),
+      };
+    }
+    const disclosures = [
+      ...(placeholderSetAsideDisclosures(placeholderSetAside).disclosures ?? []),
+      ...(applicabilityReadTruncatedHistory ? [WITAN_A2_SHALLOW_APPLICABILITY_DISCLOSURE] : []),
+    ];
     return {
       ...buildNotApplicableSignal(
         'A2',
         'No data layer (DB/ORM/migrations) or ratable secrets surface detected — A2 not applicable to this repo archetype. A ratable surface requires .env* files, .gitignore .env rule, committed/history .env path, or detected signing/HMAC/secret-comparison code; bare env reads (process.env / os.environ / std::env::) do not qualify.',
       ),
-      ...placeholderSetAsideDisclosures(placeholderSetAside),
+      ...(disclosures.length > 0 ? { disclosures } : {}),
     };
   }
 
@@ -5224,6 +5258,13 @@ const V27_A2_SHALLOW_HISTORY_NOTE =
   'A2 abstained: this repository is a shallow clone, so the scan for credentials and .env files in ' +
   'earlier commits read only the commits present, and no confirmed critical finding stands on what ' +
   'was read. Re-scan a full clone (for actions/checkout, set fetch-depth: 0).';
+// #556: the same abstention where A2 would otherwise have been marked not applicable. It starts
+// with the same words as the note above, so a reader of either knows it is the shallow-clone one.
+const V27_A2_SHALLOW_APPLICABILITY_NOTE =
+  'A2 abstained: this repository is a shallow clone, and A2 would otherwise have been marked not ' +
+  'applicable on a decision that rests in part on its scans of earlier commits for .env files and ' +
+  'credential-shaped values, which read only the commits present. Re-scan a full clone (for ' +
+  'actions/checkout, set fetch-depth: 0).';
 const V27_B2_SHALLOW_HISTORY_NOTE =
   `B2 abstained: this repository is a shallow clone with fewer than ${RECENT_COMMIT_WINDOW} commits ` +
   'visible, so the pull-request merge ratio cannot be read over its window. Re-scan a full clone ' +
