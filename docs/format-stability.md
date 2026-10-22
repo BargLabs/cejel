@@ -91,9 +91,10 @@ Stable in report format v1:
   naming something the criterion's collector read and set aside, or counted without seeing it do
   what it is counted for. A2 names credential-shaped values it set aside as documentation
   placeholders (by count and path, never the value); B3 names counted PR-gate workflows it did not
-  see run a check. A2 also states when it was marked not applicable while its history evidence was
-  incomplete (#556): the clone is shallow, or one of its reads of earlier commits failed (the scan
-  limitations name each). That decision rests in part on those reads. The certificate lists them under "What was not established". They are kept
+  see run a check. A2 also states when it was marked not applicable after an incomplete read of the
+  commit history (#556): the clone is shallow, or one of its reads of earlier commits failed (the
+  scan limitations name each; a read that stopped at one of Cejel's own limits is named as such).
+  That decision rests in part on those reads. The certificate lists them under "What was not established". They are kept
   apart from `notes` so that an abstention or a merge that rewrites the notes cannot drop them. They
   move no score, status or metric under any rubric. Absent when there is nothing to disclose; the
   `report.json` of a scan with no disclosure is byte-identical to a 1.7 one (its paired

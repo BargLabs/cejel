@@ -401,7 +401,14 @@ rose above the complete clone's. Under `witan-rubric-v27-prospective-2026-10-19`
 whenever its history evidence is incomplete and no confirmed critical finding stands, on both paths,
 as a read failure kept in the composite at 0. Every other rubric keeps its scoring, with a
 presentation-only disclosure where A2 is not applicable. The tables are in
-`leaderboard/RUBRIC_CHANGELOG.md` (2026-10-22).
+`leaderboard/RUBRIC_CHANGELOG.md` (2026-10-22). A complete clone can also fail a history read: an
+informal re-score of the 0.6.8 successor confirmation's 23 full-history clones (not a preregistered
+run) moves one v27 row, biomejs, whose history reads exceed Cejel's own 8 MiB output limit (A2
+verified 3.2 to an abstention at 0, overall 3.0 to 2.5), and leaves every v17 report byte-identical.
+For this candidate, the 0.6.8 result's "v27 added no A2 or B2 abstention on any row" therefore no
+longer holds; the 0.6.8 record describes the candidate it measured and is unchanged. The limit is
+Cejel's own and fires on complete clones, so A2's note names it and does not advise a re-scan. A v27
+shadow board under condition 5 would show that abstention until those reads stream (#567).
 
 **Effect on the ruling's conditions.** This is a change to v27's scoring, so under the ruling's
 last condition ("Any later change to v27's scoring makes a new candidate and resets conditions 1,

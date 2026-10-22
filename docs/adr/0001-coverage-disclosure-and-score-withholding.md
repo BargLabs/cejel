@@ -264,8 +264,14 @@ a shallow clone in "History limitations", a failed history read in the scan limi
 A2 is marked not applicable on such history, a sentence among A2's disclosures. The ruling decides
 nothing about any other systematic limit.
 
-**The recording agent's explanation (not the operator's words).** A failed history read is closer to
-the "rare and accidental" read failure the Context describes than a shallow clone is. A partial clone
-leaves out objects that history reads need, and Cejel's git boundary denies every transport, so it
-never fetches them. Treating either case as a coverage limit would let A2 leave the composite, or score on a
-read that did not complete, which can raise a composite.
+**The recording agent's explanation (not the operator's words).** The failed reads are of two kinds.
+A partial clone, or a git error, leaves out objects that history reads need, and Cejel's git
+boundary denies every transport, so it never fetches them; the scanning user can remove that by
+re-scanning a full, unfiltered clone. A read that stops at one of Cejel's own output or time limits
+is different: it is not rare or accidental but systematic on large histories, and fires on
+complete clones too (in an informal re-score of the 0.6.8 confirmation's full-history clones,
+biomejs and react each hit the 8 MiB output limit), and a re-scan of the same repository does not
+lift it; streaming those reads is #567. The operator's words cover both ("a timeout or an output
+limit" is named in the recommendation they accepted). Treating either kind as a coverage limit
+would let A2 leave the composite, or score on a read that did not complete, which can raise a
+composite.

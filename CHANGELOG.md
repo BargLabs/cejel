@@ -26,12 +26,13 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   treated as finding nothing. So a repository whose only A2 surface was a secret-bearing `.env`,
   committed and later deleted, was marked not applicable (shallow, treeless) or scored a warning
   instead of critical (blobless), and the score rose.
-  - **Every rubric, including the default (presentation only).** When A2 is not applicable while
-    its history evidence is incomplete, it now says so in `criteria[].disclosures` (report format
-    1.8, no new field), and the certificate lists it under "What was not established": "A2's
-    applicability was decided from incomplete commit history: [the cause Cejel detected]. [...]
-    Re-scan a full, unfiltered clone (for actions/checkout, set fetch-depth: 0 and no filter)."
-    Under v17 and v18-v26 no score, status, metric value, finding count or fingerprint moves.
+  - **Every rubric, including the default (presentation only).** When A2 is not applicable after
+    an incomplete read of the commit history, it now says so in `criteria[].disclosures` (report
+    format 1.8, no new field), and the certificate lists it under "What was not established": "A2's
+    applicability was decided from an incomplete read of the commit history: [each cause Cejel
+    detected]. [...]", ending with the advice each cause admits: re-scan a full clone (shallow), a
+    full, unfiltered clone (a missing object or git error), or none, because a re-scan of the same
+    repository will not lift Cejel's own output or time limits. Under v17 and v18-v26 no score, status, metric value, finding count or fingerprint moves.
   - **`witan-rubric-v27-prospective-2026-10-19` (scoring).** When the clone is shallow or any of
     A2's history reads failed, A2 abstains unless a confirmed critical finding stands, on the
     not-applicable and scoring paths alike, as a read failure kept in the composite at 0.
@@ -40,7 +41,11 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     count as 0. If 0.6.8 is released before this change, its v27 certificates of such clones
     report A2 not applicable or a warning. No behaviour fingerprint moves, because the behaviour
     corpus has no such clone. On a complete clone whose history reads complete, nothing changes
-    under any rubric, and no public board row moves. See
+    under any rubric. A complete clone can still fail a history read: re-scoring the 0.6.8
+    confirmation's 23 full-history clones (informally, not a preregistered run) leaves every v17
+    report byte-identical and moves one v27 row, biomejs, whose history reads exceed Cejel's own
+    8 MiB output limit (A2 verified 3.2 to an abstention at 0, overall 3.0 to 2.5). Streaming those
+    reads is tracked in #567. The v17 board does not move. See
     [`leaderboard/RUBRIC_CHANGELOG.md`](./leaderboard/RUBRIC_CHANGELOG.md) (2026-10-22).
 
 ## [0.6.8] — 2026-10-22

@@ -22,7 +22,7 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
-## 2026-10-22 — #556: incomplete history no longer takes A2 out of the composite or lets it score higher under v27; every rubric says when A2's applicability was decided from incomplete history; no published score moved
+## 2026-10-22 — #556: an incomplete read of the commit history no longer takes A2 out of the composite or lets it score higher under v27; every rubric says when A2's applicability was decided from one; no v17 score moved; one v27 row of the 0.6.8 confirmation moves
 
 **Defect.** A2 reads commit history in two places: an `.env` path in `git log HEAD`, and the
 history secret scan (the credential-path enumeration over every commit, the deleted-path scan, and
@@ -58,8 +58,18 @@ scored result rests on the history secret scan too.
 --is-shallow-repository`), or when any of A2's own history reads failed: `git log HEAD` for `.env`
 paths, `rev-list HEAD` and the `diff-tree` enumeration, the deleted-path `git log`, the per-path
 `git log` for deleted paths, or a historical blob read (`git show`). A failed read is one that
-reports a git error, the 30-second timeout or the output limit; Cejel counts what it detected, so
-the report names the failed read, not a cause such as a partial clone. A credential-shaped path
+reports a git error, the 30-second timeout or an output limit; Cejel counts what it detected, so
+the report names the failed read, not a cause such as a partial clone. Cejel distinguishes three
+causes it can detect, and the note and disclosure advise per cause:
+- a shallow clone: re-scan a full clone;
+- a read that stopped at one of Cejel's own limits (the 8 MiB output limit on history enumeration,
+  the 500 KiB limit on one historical blob, or the 30-second timeout): the limit is named, and a
+  re-scan of the same repository will not lift it. These limits fire on complete clones too,
+  systematically on large histories (biomejs and react below); streaming those reads is #567;
+- any other failed read (a missing object, as on a partial clone, or a git error): "Cejel could not
+  read part of the commit history", and re-scan a full, unfiltered clone.
+
+A credential-shaped path
 skipped for control characters, and the scan's own cap on the number of historical blobs it reads,
 are not counted: both are fixed rules applied to every clone alike. On a complete clone whose
 history reads all completed, and in a directory that is not a git repository, nothing changes under
@@ -72,8 +82,8 @@ applies on the not-applicable path and on the scoring path alike. The note names
 "A2 abstained: this repository is a shallow clone, …" (unchanged on the scoring path; on the
 not-applicable path it adds "A2 would otherwise have been marked not applicable on a decision that
 rests in part on its scans of earlier commits for .env files and credential-shaped values"), or
-"A2 abstained: Cejel's reads of this repository's earlier commits did not all complete (the scan
-limitations name each failed read), …". The v27 shallow-history sentence no longer says "A
+"A2 abstained after an incomplete read of this repository's commit history: …", naming each
+detected cause and the advice above. The v27 shallow-history sentence no longer says "A
 criterion that is not applicable stays not applicable"; it says A2 abstains "including where it
 would otherwise be marked not applicable". Its composite sentence is now exact: a shallow-clone
 abstention counts as 0, and a content-read abstention whose every skip was one of Cejel's own size,
@@ -92,21 +102,26 @@ The operator directed the #556 fix on 2026-10-22. Keeping the identifier is cons
 accepted #526 ruling, under which a change to v27's scoring makes a new candidate; it was not a
 separate operator decision. Because no behaviour fingerprint moves (below), the candidate is named
 by commit: the merge commit is recorded after merge (#563). 0.6.8's public confirmation scored
-full-history clones only, so none of its recorded results changes.
+full-history clones, and its v17 results do not change, but one of its v27 rows does: biomejs, whose
+history reads exceed Cejel's own output limit on a complete clone (see "Public board" below).
 
 **Every other rubric, v17 included (presentation only).** Scoring is unchanged. Where A2 is marked
 not applicable while its history evidence is incomplete, its `criteria[].disclosures` (report
-format 1.8, no new field) carries a sentence starting "A2's applicability was decided from
-incomplete commit history:", naming only the causes Cejel detected:
+format 1.8, no new field) carries a sentence starting "A2's applicability was decided from an
+incomplete read of the commit history:", naming only the causes Cejel detected:
 - shallow: "this clone is shallow, so Cejel's scans of earlier commits read only the commits it
   holds";
-- failed read: "some of Cejel's reads of earlier commits did not complete (the scan limitations
-  name each one)";
+- own limit: "some of Cejel's reads of earlier commits stopped at Cejel's own 8 MiB output limit"
+  (or whichever limit fired);
+- other failed read: "Cejel could not read part of the commit history";
 
-and continuing "Marking A2 not applicable rests in part on those scans, which look for .env files
-and credential-shaped values, so a complete read of the history may make A2 applicable and give it
-a score. Re-scan a full, unfiltered clone (for actions/checkout, set fetch-depth: 0 and no
-filter)." The certificate lists it under "What was not established" while A2 is not applicable. A
+with "(the scan limitations name each failed read)" after a failed read, then "Marking A2 not
+applicable rests in part on Cejel's scans of earlier commits for .env files and credential-shaped
+values, so a complete read of the history may make A2 applicable and give it a score." It ends with
+the advice for each cause: "Re-scan a full clone (for actions/checkout, set fetch-depth: 0)." for a
+shallow clone, "Re-scan a full, unfiltered clone (for actions/checkout, set fetch-depth: 0 and no
+filter)." for any other failed read, and "A re-scan of the same repository will not lift Cejel's
+own limit." for a limit. The certificate lists it under "What was not established" while A2 is not applicable. A
 content-read abstention that replaces the not-applicable result drops it. Where A2 scores on a
 failed history read (the blobless case), v17 already lists the failed read in `scanLimitations`,
 which makes the badge unrated and `--min-score` refuse; that is unchanged. The v17 shallow-history
@@ -167,8 +182,63 @@ partial clone and no failed history read. v17 stays
 change although v27's behaviour on incomplete history changed, so that fingerprint alone does not
 distinguish this candidate from 0.6.8's v27.
 
-**Public board.** No row moves under any rubric: the board is scored from full-history,
-unfiltered clones (the public-delta harness refuses a shallow or filtered target).
+**Public board.** The board is scored from full-history, unfiltered clones (the public-delta
+harness refuses a shallow or filtered target), but a complete clone can still have a failed history
+read. Informal measurement, not a preregistered run: the 23 public rows were re-scored at this
+change, under v17 and v27, on the same full-history clones the 0.6.8 successor confirmation used
+(`docs/experiments/public-delta-0-6-8-successor-2026-10-21/`), with its options, and compared byte
+for byte with that run's candidate reports (the candidate differs from this change's base only in
+records, with no change under `src/`). The clones were verified clean and at their pinned commits
+before and after each scan.
+
+| Rubric | Rows | Byte-identical | Moved |
+|---|---|---|---|
+| v17 | 23 | 23 | none: no A2 disclosure appears, since A2 is scored, not not-applicable, on every row with a failed history read |
+| v27 | 23 | 22 | biomejs |
+
+Every row, A2 and overall (and code_trust under v27):
+
+| Row | v17 (this change = 0.6.8 run, byte-identical) | v27, 0.6.8 run | v27, this change | Failed history reads |
+|---|---|---|---|---|
+| react | critical 1.4; 3.0 | critical 1.4; 3.0 / 2.1 | unchanged | 1 |
+| vue | not applicable; 3.0 | not applicable; 3.0 / 2.4 | unchanged | 0 |
+| svelte | verified 3.4; 3.1 | verified 3.4; 3.1 / 2.8 | unchanged | 0 |
+| django | warning 2.8; 3.1 | warning 2.8; 3.1 / 2.6 | unchanged | 0 |
+| flask | verified 3.2; 2.9 | verified 3.2; 2.9 / 2.7 | unchanged | 0 |
+| fastapi | warning 2.8; 3.1 | warning 2.8; 3.1 / 2.8 | unchanged | 0 |
+| express | not applicable; 3.1 | not applicable; 3.1 / 3.0 | unchanged | 0 |
+| vite | verified 3.2; 3.4 | verified 3.2; 3.4 / 2.8 | unchanged | 0 |
+| esbuild | not applicable; 2.6 | not applicable; 2.6 / 2.6 | unchanged | 0 |
+| biomejs | verified 3.2; 3.0 | verified 3.2; 3.0 / 2.9 | **abstains at 0; 2.5 / 1.8** | 2 |
+| requests | verified 3.2; 3.0 | verified 3.2; 3.0 / 2.6 | unchanged | 0 |
+| pydantic | not applicable; 3.2 | not applicable; 3.2 / 2.9 | unchanged | 0 |
+| axios | verified 3.6; 3.3 | verified 3.6; 3.3 / 2.6 | unchanged | 0 |
+| zod | verified 3.6; 3.2 | verified 3.6; 3.2 / 3.1 | unchanged | 0 |
+| scorecard | not applicable; 2.9 | not applicable; 2.9 / 2.2 | unchanged | 0 |
+| ripgrep | not applicable; 2.1 | not applicable; 2.1 / 2.1 | unchanged | 0 |
+| guava | not applicable; 1.9 | not applicable; 1.9 / 1.6 | unchanged | 0 |
+| cobra | not applicable; 2.5 | not applicable; 2.5 / 2.6 | unchanged | 0 |
+| sinatra | not applicable; 2.2 | not applicable; 2.2 / 2.0 | unchanged | 0 |
+| automapper | not applicable; 2.1 | not applicable; 2.1 / 2.0 | unchanged | 0 |
+| fmt | not applicable; 2.7 | not applicable; 2.7 / 2.0 | unchanged | 0 |
+| carddemo | not applicable; unscored | not applicable; unscored | unchanged | 0 |
+| cejel | verified 3.3; 2.7 | verified 3.3; 2.7 / 2.3 | unchanged | 0 |
+
+| Row (v27) | Failed history reads in `scanLimitations` | A2 | overall | code_trust | process_trust |
+|---|---|---|---|---|---|
+| biomejs | history tree enumeration and environment-file history scan, each over the 8 MiB output limit | verified 3.2 to `insufficient_data` 0 | 3.0 to 2.5 | 2.9 to 1.8 (A2 kept in the denominator: (2.2 + 0 + 3.2) / 3) | 3.1, unchanged |
+| react | history tree enumeration over the 8 MiB output limit | critical 1.4, unchanged (the confirmed critical finding stands) | 3.0, unchanged | 2.1, unchanged | 3.9, unchanged |
+
+biomejs's v27 overall falls below its v17 overall (3.0), so v27 still does not rise above v17 on any
+row. biomejs's new v27 note reads "A2 abstained after an incomplete read of this repository's commit
+history: some of Cejel's reads of earlier commits stopped at Cejel's own 8 MiB output limit (the
+scan limitations name each failed read), … A re-scan of the same repository will not lift Cejel's
+own limit." For this candidate, that contradicts the 0.6.8 result's "v27 added no A2 or B2
+abstention on any row": on the same clones this candidate adds one A2 abstention (biomejs). The
+0.6.8 record is unchanged; it describes the candidate it measured. These limits are Cejel's own: the history reads buffer their whole output, and on these large
+histories it exceeds 8 MiB. The operator's ADR-0001 ruling of 2026-10-22 names an output limit as a
+failed read, so v27 abstains as designed; the real fix is streaming those reads (#567). The v17
+board is unchanged; there is no published v27 board.
 
 **Classification.** Under v27 this changes scoring, so it makes a new v27 candidate (dated
 addition to `docs/reviews/v27-false-assurance-closure-2026-10-19.md`). Under every other rubric it
