@@ -63,6 +63,20 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   in every shell. Outside v27 the only effect is in `report.json` and on its certificate: a repository whose workflow the
   old reader alone called print-only loses that false disclosure. No score, status, metric or
   fingerprint moves. Fixtures `review10-*` and `review11-*` pin it.
+- **A2 lost history evidence on large repositories at Cejel's own output limit (#567).** Under every
+  rubric, A2's whole-history reads (`rev-list HEAD`, the tree enumeration, the `.env`-path log and
+  the deleted-path log) each buffered their whole output under an 8 MiB limit. On a large complete
+  history (biomejs and react among the public rows) a read stopped there, the rest of the history
+  went unread, and the failure went into `scanLimitations`. Such a read is now re-run over the
+  commit list in pages and batches small enough for the limit and the 30-second timeout, halving a
+  batch that still hits one; only a single commit that still does is reported. A read that does
+  not hit a limit runs exactly as before. **This changes v17 reports:** on biomejs and react the
+  history limitations disappear, so their v17 badges become rated (3.0/4.0 conditional) and
+  `--min-score` applies; react's A2 gains an info finding (a non-template `.env` file tracked in
+  history, no secret-shaped value), with no score change. Under
+  `witan-rubric-v27-prospective-2026-10-19`, biomejs's A2 no longer abstains (overall 2.5 to 3.0).
+  Measured informally on the 23 public rows; a preregistered paired public delta is needed before
+  release (see `leaderboard/RUBRIC_CHANGELOG.md`, 2026-10-22, #567).
 - **Incomplete history could take A2 out of the score, or score it higher (#556).** A2 reads
   earlier commits for `.env` files and credential-shaped values, and is marked not applicable only
   when that finds nothing and the tree holds no secrets or data surface. On a shallow clone those
