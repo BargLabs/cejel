@@ -33,7 +33,7 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   - **`witan-rubric-v27-prospective-2026-10-19` (scoring).** In that case A2 now abstains as a read
     failure, kept in the composite at 0, so a shallow clone cannot score higher than the full clone
     on A2's account. Composites can only fall. v27's shallow-clone sentence in `historyLimitations`
-    no longer says that a not-applicable criterion stays not applicable. v27 shipped in 0.6.8; a
+    no longer says that a not-applicable criterion stays not applicable. v27 is in 0.6.8; a
     0.6.8 v27 certificate of such a clone reports A2 not applicable. No behaviour fingerprint
     moves, because the behaviour corpus has no shallow clone. On a full clone nothing changes under
     any rubric, and no public board row moves. See

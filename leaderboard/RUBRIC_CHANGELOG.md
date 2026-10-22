@@ -55,10 +55,12 @@ criterion that is not applicable stays not applicable"; it says A2 abstains "inc
 would otherwise be marked not applicable". This can only lower a score: a criterion that was out of
 the composite enters it at 0.
 
-v27 shipped, prospective and opt-in, in 0.6.8. A 0.6.8 v27 certificate of a shallow clone in this
-shape reports A2 not applicable; this change reports the abstention under the same identifier, as
-the operator directed for v27 on 2026-10-22. 0.6.8's public confirmation scored full-history clones
-only, so none of its recorded results changes.
+v27 is in 0.6.8, prospective and opt-in. A 0.6.8 v27 certificate of a shallow clone in this shape
+reports A2 not applicable; this change reports the abstention under the same identifier. The
+operator directed the #556 fix on 2026-10-22. Keeping the identifier follows the accepted #526
+ruling, under which a change to v27's scoring makes a new candidate; it was not a separate operator
+decision. Because no behaviour fingerprint moves (below), the candidate is named by commit. 0.6.8's
+public confirmation scored full-history clones only, so none of its recorded results changes.
 
 **Every other rubric, v17 included (presentation only).** A2 stays not applicable, and its
 `criteria[].disclosures` (report format 1.8, no new field) carries: "A2's applicability was decided
