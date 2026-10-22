@@ -32,8 +32,11 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     format 1.8, no new field), and the certificate lists it under "What was not established": "A2's
     applicability was decided from an incomplete read of the commit history: [each cause Cejel
     detected]. [...]", ending with the advice each cause admits: re-scan a full clone (shallow), a
-    full, unfiltered clone (a missing object or git error), or none, because a re-scan of the same
-    repository will not lift Cejel's own output or time limits or the scan's cap. Under v17 and v18-v26 no score, status, metric value, finding count or fingerprint moves.
+    full, unfiltered clone (a missing object or git error), a host where git is installed (git
+    could not be run), or none, because a re-scan of the same repository will not lift Cejel's own
+    output limits, the scan's cap or its rule on control characters in paths; for the 30-second
+    timeout, which depends on the machine and its load, a re-scan may not lift it. Under v17 and
+    v18-v26 no score, status, metric value, finding count or fingerprint moves.
   - **`witan-rubric-v27-prospective-2026-10-19` (scoring).** When the clone is shallow, any of
     A2's history reads failed or stopped at one of Cejel's own limits, or the history secret scan
     stopped at its 5,000-file cap, A2 abstains unless a confirmed critical finding stands, on the
@@ -51,6 +54,26 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     Cejel's own limits and the cap this way is the operator's decision of 2026-10-22 (reply "1",
     recorded on #526 and in ADR-0001). See
     [`leaderboard/RUBRIC_CHANGELOG.md`](./leaderboard/RUBRIC_CHANGELOG.md) (2026-10-22).
+  - **Two more incomplete reads (#560 review).** A2 now also counts as incomplete a history read
+    in which git itself could not be run while a `.git` entry is visible from the scanned path
+    (#568; before, every read reported "no repository" and A2 could be marked not applicable over
+    a deleted secret, with nothing said), and a credential- or `.env`-shaped path in history left
+    unread because its name contains control characters (before, a value kept under such a name
+    never reached the scan). Under v27 A2 abstains at 0 in both cases; under every other rubric A2
+    keeps its scoring and, where it is not applicable, says so. Neither adds a scan limitation.
+- **A file name could decide how a failed git read was classified (#560 review).** Under every
+  rubric, Cejel classified a failed git command from text that included Node's error message,
+  which repeats the whole command line, and A2's history reads put repository paths on that line
+  (`git show <commit>:<path>`). On a blobless clone, a deleted secret in a file named, for example,
+  `secrets/not a git repository.txt` made its failed read look like "no repository here", which
+  Cejel does not report: no scan limitation, no abstention, and A2 not applicable above the
+  complete clone's critical finding. A name containing "timeout" or "maxBuffer" made the same
+  failure read as one of Cejel's own limits. Classification now uses only Node's error code and
+  git's own diagnostic lines, with any quoted path removed; a bare SIGTERM is no longer called a
+  timeout. **This can change a v17 report:** where such a read failed, the failure now appears in
+  `scanLimitations`, which leaves the v17 badge unrated and makes `--min-score` refuse, and a
+  limitation that named a timeout or output limit because of a path now says the read failed. On
+  the 23 public rows nothing changes (see `leaderboard/RUBRIC_CHANGELOG.md`, 2026-10-22).
 
 ## [0.6.8] — 2026-10-22
 

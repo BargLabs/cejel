@@ -259,7 +259,7 @@ describe("#556: the issue's shape (a secret-bearing .env committed, deleted, the
     expect(all).toContain('30-second timeout and 8 MiB output limit');
     expect(all).toContain('Cejel could not read part of the commit history');
     expect(all).toContain('set fetch-depth: 0 and no filter');
-    expect(all).toContain("will not lift Cejel's own limits");
+    expect(all).toContain("will not lift Cejel's own limit on size, and may not lift its timeout");
     for (const sentence of [SHALLOW_DISCLOSURE, FAILED_READ_DISCLOSURE, limit, all]) {
       expect(sentence.startsWith(WITAN_A2_HISTORY_APPLICABILITY_PREFIX)).toBe(true);
       expect(sentence).not.toMatch(/\bno secret|\bclean\b|\bnot present\b|\bpartial clone\b|\bfilter=/i);

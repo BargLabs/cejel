@@ -59,12 +59,15 @@ scored result rests on the history secret scan too.
 paths, `rev-list HEAD` and the `diff-tree` enumeration, the deleted-path `git log`, the per-path
 `git log` for deleted paths, or a historical blob read (`git show`). A failed read is one that
 reports a git error, the 30-second timeout or an output limit; Cejel counts what it detected, so
-the report names the failed read, not a cause such as a partial clone. Cejel distinguishes three
-causes it can detect, and the note and disclosure advise per cause:
+the report names the failed read, not a cause such as a partial clone. Which of these a failure
+is comes only from Node's error code and git's own diagnostic lines, never from text a repository
+path can reach (see "Review round 4" below). Cejel distinguishes these causes it can detect, and
+the note and disclosure advise per cause:
 - a shallow clone: re-scan a full clone;
 - a read that stopped at one of Cejel's own limits (the 8 MiB output limit on history enumeration,
-  the 500 KiB limit on one historical blob, or the 30-second timeout): the limit is named, and a
-  re-scan of the same repository will not lift it. These limits fire on complete clones too,
+  the 500 KiB limit on one historical blob, or the 30-second timeout): the limit is named. A
+  re-scan of the same repository will not lift an output limit; it may not lift the timeout, which
+  depends on the machine and its load. These limits fire on complete clones too,
   systematically on large histories (biomejs and react below); streaming those reads is #567. The
   history secret scan's cap of 5,000 historical files counts the same way: a scan that stops at the
   cap before reading every candidate is an incomplete read ("Cejel's scan of earlier commits for
@@ -73,7 +76,14 @@ causes it can detect, and the note and disclosure advise per cause:
   candidate. The cap is not a git failure, so it adds no scan limitation (one would make every v17
   badge unrated and `--min-score` refuse); where A2 scores, the scan's existing finding names it;
 - any other failed read (a missing object, as on a partial clone, or a git error): "Cejel could not
-  read part of the commit history", and re-scan a full, unfiltered clone.
+  read part of the commit history", and re-scan a full, unfiltered clone;
+- a credential- or `.env`-shaped path in history left unread because its name contains control
+  characters (Review round 4): "Cejel left a credential-shaped path in the commit history unread
+  because its name contains control characters (the scan limitations say so)", and a re-scan of the
+  same repository will not lift Cejel's own rule on control characters in paths;
+- git itself could not be run while a `.git` entry is visible from the scanned path (Review round
+  4, #568): "git could not be run on the scanning host, so Cejel read none of the commit history",
+  and re-scan on a host where git is installed. Not a git failure, so no scan limitation.
 
 The operator decided how Cejel's own limits count on 2026-10-22, in reply to "What should v27 do when
 an A2 history read hits one of Cejel's own size or time limits on a complete clone?". The reply was
@@ -83,8 +93,10 @@ option, treating a limit hit as a coverage limit, was not chosen because it woul
 composite, which can raise a score (#526,
 [comment 6337508926](https://github.com/BargLabs/cejel/issues/526#issuecomment-6337508926)).
 
-A credential-shaped path skipped for control characters is not counted: it is a fixed rule applied
-to every clone alike, and it can hide a value in such a path. The separate 500-file budget for
+A path skipped for control characters in its name is counted only when A2 would otherwise have read
+it (credential- or `.env`-shaped); the rule that skips it is unchanged, and so is its scan
+limitation. Until Review round 4 such a path was not counted, which let a value kept under such a
+name stay out of the scan with A2 marked not applicable. The separate 500-file budget for
 PEM-widened candidates applies only under `witan-rubric-v23-prospective-2026-09-06`, not v27, and is
 unchanged. On a complete clone whose history reads
 all completed, and in a directory that is not a git repository, nothing changes under any rubric.
@@ -103,6 +115,43 @@ would otherwise be marked not applicable". Its composite sentence is now exact: 
 abstention counts as 0, and a content-read abstention whose every skip was one of Cejel's own size,
 type or file-kind limits is left out of the composite, as before. This can only lower a score: a
 criterion that was out of the composite, or scored above 0, now counts at 0.
+
+**Review round 4 (#560 review pass 1 on `ae236c9f3`, an AI reviewer).** Three code changes:
+- **Classification of a failed git read.** Cejel classified a failed git command from stderr plus
+  Node's error message, and Node's message repeats the whole command line, which for A2's history
+  reads carries repository paths (`git show <commit>:<path>`, `git log -- <path>`). On a blobless
+  clone, a deleted secret in `secrets/not a git repository.txt` made its failed blob read look like
+  "no repository here", an expected absence Cejel does not report: no scan limitation, no
+  abstention, and A2 not applicable under v17 and v27, scoring above the complete clone's critical
+  finding (reviewer's repro: overall 1.9 to 2.1, code_trust 2.3 to 2.7). `secrets/timeout.txt` or
+  `secrets/maxBuffer.txt` made the same failure read as one of Cejel's own limits, with the advice
+  that a re-scan would not lift it. Classification now reads only the spawn error code (ENOENT,
+  ENOBUFS or ERR_CHILD_PROCESS_STDIO_MAXBUFFER, ETIMEDOUT) and git's own diagnostic lines, each
+  starting "fatal: " or "error: ", with every quoted span removed before matching; a bare SIGTERM
+  is no longer called a timeout. This applies to every git call Cejel makes, under every rubric.
+  It can change a v17 report only where a git read already failed: such a failure, dropped before
+  because a path on the command line named a git message, now appears in `scanLimitations`, which
+  leaves the v17 badge unrated and makes `--min-score` refuse; and a limitation that named a
+  timeout or output limit only because of a path now says the read failed.
+- **git itself unavailable (#568).** When git cannot be run (ENOENT), every read reports an
+  expected absence, so a repository whose only A2 surface was a deleted secret became A2 not
+  applicable with nothing said. Where a `.git` entry is visible from the scanned path (the scanned
+  directory or a parent, within the discovery bounds Cejel already uses), A2 now counts its history
+  read as incomplete; with no `.git` entry, nothing changes. No scan limitation is added.
+- **Control characters.** As described under "The rule".
+
+Under v27 A2 abstains at 0 in each new case unless a confirmed critical finding stands; under every
+other rubric A2's scoring is unchanged and, where it is not applicable, its disclosure names the
+cause. Failed-read abstentions start with "A2 abstained after an incomplete read of this
+repository's commit history"; the control-character cause adds "unread because its name contains
+control characters" to the note, and the git-unavailable cause adds "git could not be run on the
+scanning host". Tests: `git-failure-classification-560.test.ts`, `a2-history-path-names-560.test.ts`,
+`a2-history-read-failures-560.test.ts`, `a2-history-control-characters-560.test.ts`,
+`a2-history-git-unavailable-560.test.ts`, and the classification cases in `git-exec.test.ts`.
+The user directed these fixes on 2026-10-22. The operator's ADR-0001 rulings name a shallow clone,
+a failed history read, Cejel's own output and time limits and the 5,000-file cap; whether they also
+cover the two new causes (a control-character path, git unavailable) is for the operator to
+confirm, and this entry does not claim it.
 
 **B2 checked for the same class.** B2's history read (`readRecentCommits`, `git log` of commit
 subjects) needs commits only, which shallow and partial clones both hold, so a partial clone reads
@@ -129,14 +178,25 @@ incomplete read of the commit history:", naming only the causes Cejel detected:
 - own limit: "some of Cejel's reads of earlier commits stopped at Cejel's own 8 MiB output limit"
   (or whichever limit fired);
 - other failed read: "Cejel could not read part of the commit history";
+- the cap: "Cejel's scan of earlier commits for credential-shaped values stopped at its own cap of
+  5,000 historical files";
+- a control-character path: "Cejel left a credential-shaped path in the commit history unread
+  because its name contains control characters (the scan limitations say so)";
+- git unavailable: "git could not be run on the scanning host, so Cejel read none of the commit
+  history";
 
 with "(the scan limitations name each failed read)" after a failed read, then "Marking A2 not
 applicable rests in part on Cejel's scans of earlier commits for .env files and credential-shaped
 values, so a complete read of the history may make A2 applicable and give it a score." It ends with
 the advice for each cause: "Re-scan a full clone (for actions/checkout, set fetch-depth: 0)." for a
-shallow clone, "Re-scan a full, unfiltered clone (for actions/checkout, set fetch-depth: 0 and no
-filter)." for any other failed read, and "A re-scan of the same repository will not lift Cejel's
-own limit." for a limit. The certificate lists it under "What was not established" while A2 is not applicable. A
+shallow clone; "Re-scan a full, unfiltered clone (for actions/checkout, set fetch-depth: 0 and no
+filter)." for any other failed read; "Re-scan on a host where git is installed." where git could
+not be run; "A re-scan of the same repository will not lift Cejel's own limit." for an output limit
+or the cap; "A re-scan of the same repository may not lift Cejel's own timeout, which depends on
+the machine and its load." for the timeout alone (with an output limit or the cap as well: "…will
+not lift Cejel's own limit on size, and may not lift its timeout, which depends on the machine and
+its load."); and "A re-scan of the same repository will not lift Cejel's own rule on control
+characters in paths." for a control-character path. The certificate lists it under "What was not established" while A2 is not applicable. A
 content-read abstention that replaces the not-applicable result drops it. Where A2 scores on a
 failed history read (the blobless case), v17 already lists the failed read in `scanLimitations`,
 which makes the badge unrated and `--min-score` refuse; that is unchanged. The v17 shallow-history
@@ -257,6 +317,15 @@ abstention on any row": on the same clones this candidate adds one A2 abstention
 histories it exceeds 8 MiB. The operator's ADR-0001 ruling of 2026-10-22 names an output limit as a
 failed read, so v27 abstains as designed; the real fix is streaming those reads (#567). The v17
 board is unchanged; there is no published v27 board.
+
+Review round 4 was measured the same way, informally: the 23 rows were scanned with the CLI's
+defaults under v17 and v27, once at `ae236c9f3` (before round 4) and once with round 4's code, on
+the same full-history clones, verified clean and at their pinned commits before and after. All 46
+pairs of `report.json` are byte-identical, so round 4 moves no row under either rubric (biomejs's
+v27 abstention above is unchanged: overall 2.5, code_trust 1.8). No row has a failed history read
+whose path names a git message, a credential- or `.env`-shaped history path with control
+characters (axios's one control-character path, `\bMIGRATION_GUIDE.md`, is neither, so it stays
+uncounted), or a scan without git.
 
 **Classification.** Under v27 this changes scoring, so it makes a new v27 candidate (dated
 addition to `docs/reviews/v27-false-assurance-closure-2026-10-19.md`). Under every other rubric it
