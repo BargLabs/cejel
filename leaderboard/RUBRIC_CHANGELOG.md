@@ -199,6 +199,33 @@ break is a control character); the ignore-rule check takes the scan target's own
 take no path. A history path holding a line break and a git message is tested: it is counted under
 the control-character rule and never read.
 
+Pass 1 on `5aaa0d314` (a fresh AI reviewer) found the same failure as R5-1 on a copied `git worktree`
+checkout whose worktree had been removed (F5; `main` completes the scan, `5aaa0d314` failed), and
+three more:
+- **A `.git` git cannot open (F5, related).** With git present and a `.git` entry visible, git can
+  still report "no repository" (a dangling gitdir, as in that copied worktree). That was an expected
+  absence, so A2 was marked not applicable without reading any history, while git being absent with
+  `.git` visible abstains (#568). A2 now counts it as unread history too, when `git rev-parse
+  --git-dir` also fails (a repository whose branch has no commits yet opens and is not counted).
+  Under v27 A2 abstains at 0: "a .git entry is present but git could not open it as a repository,
+  so Cejel read none of the commit history", advising "Re-scan a checkout that git can open (a full
+  clone, not a copied worktree or submodule)." Other rubrics disclose it where A2 is not applicable.
+  No scan limitation is added, and no other criterion's handling of "no repository" changes. **This
+  cause is not named in the operator's ADR-0001 rulings**; it is of the same kind as git being
+  unavailable (history present but unread for a reason outside it), and it is flagged for the
+  operator to confirm.
+- **Case (F6).** git's message text is matched case-insensitively again.
+- **Pathspec magic (F7, before #560).** The per-path history log passed a deleted path as a
+  pathspec, so a deleted file named `:(exclude)secrets` matched other paths' commits and their reads
+  failed: a false failed read (and, since #560, a false abstention or disclosure). The path is now
+  passed as `:(literal)`, as the gitlink check already was. **v17 report change:** for such a
+  repository the false "historical blob read failed" limitation disappears. The ignore-rule check
+  (`check-ignore -- <target>/`) takes the scan target the user named, not a history path, and is
+  unchanged.
+
+Tests: `a2-history-round5-560.test.ts` (dangling gitdir, copied worktree, a repository with no
+commits, a newline path, a pathspec-magic name), `git-exec.test.ts`.
+
 Round 5 was measured like round 4 (below): the 23 public rows under v17 and v27 with round 5's code,
 against round 4's (`cf7fde7ac`), on the same clean, pinned clones. All 46 `report.json` pairs are
 byte-identical; no row has a gitlink at a credential-shaped path in its history, or a failed read

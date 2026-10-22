@@ -85,7 +85,15 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   A2 abstain and the other rubrics disclose an incomplete read, on a complete clone. A gitlink is
   now recognised and skipped. **This can change a v17 report:** for such a repository the
   "historical blob read failed" scan limitation disappears, and if it was the only one, the v17
-  badge becomes rated and `--min-score` applies.
+  badge becomes rated and `--min-score` applies. The same holds for a deleted file whose name looks
+  like pathspec magic (for example `:(exclude)secrets`): its history is now looked up literally,
+  so it no longer matches other paths' commits and fails their reads.
+- **A `.git` entry git cannot open left A2's history unread without saying so (#560 review).** A
+  copied worktree or submodule whose gitdir is gone makes git report "not a git repository" even
+  though a `.git` entry is present. The scan completes as before, as a directory with no repository
+  (an intermediate version of this change failed it). A2 now counts its history as unread there:
+  under v27 it abstains at 0, and under every other rubric it says so where it is not applicable.
+  A repository git can open whose branch has no commits yet is unchanged.
 
 ## [0.6.8] — 2026-10-22
 

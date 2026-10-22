@@ -100,8 +100,9 @@ Stable in report format v1:
   limitations name each; a read that stopped at one of Cejel's own limits is named as such), the
   history secret scan stopped at its 5,000-file cap (named in the sentence, not in the scan
   limitations), a credential- or `.env`-shaped history path was left unread because its name
-  contains control characters (its existing scan limitation says so), or git itself could not be
-  run while a `.git` entry is visible (named in the sentence, not in the scan limitations).
+  contains control characters (its existing scan limitation says so), git itself could not be run
+  while a `.git` entry is visible, or a visible `.git` entry could not be opened as a repository
+  (both named in the sentence, not in the scan limitations).
   That decision rests in part on those reads. The certificate lists them under "What was not established". They are kept
   apart from `notes` so that an abstention or a merge that rewrites the notes cannot drop them. They
   move no score, status or metric under any rubric. Absent when there is nothing to disclose; the
