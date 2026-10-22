@@ -28,7 +28,9 @@ import { READ_FAILURE_CLASSES, checkNoRise, lostFindings } from './v27-no-rise.j
 // (abstention.ts, the source of truth) says the note names. Each is checked twice: the note
 // v27A2FailedHistoryNote writes is recognised, and a real scan producing that cause passes the full
 // no-rise property against v17 with A2 counted as a failed-history abstention held in the
-// denominator. The unopenable-.git cause (a dangling .git symlink, an unreadable .git directory)
+// denominator. The 5,000-file cap runs in v27-no-rise-failed-history-cap.test.ts (slow, so in a
+// file of its own). git not runnable and the 30-second timeout are injected through the execGit
+// mock below, so git actually timing out is not exercised (later: #583). The unopenable-.git cause (a dangling .git symlink, an unreadable .git directory)
 // still awaits the operator's confirmation: this class recognises what v27 does today, records no
 // ruling on it, and changes if the operator rules otherwise.
 

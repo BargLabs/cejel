@@ -1547,18 +1547,31 @@ rather than listed by hand:
 - **From the code.** It reads the fields of `A2HistoryIncompleteness` from its declaration. For
   each cause field, alone and beside a shallow clone, the note `v27A2FailedHistoryNote` writes on
   both paths must be recognised as failed-history. It also reads the comment's cause bullets, and
-  every note marker they quote must appear in one of those notes.
+  every note marker they quote must appear in one of those notes. A table matches every cause field
+  to exactly one bullet and every bullet to a field. The comment groups `limitHits` and
+  `otherFailure` under one bullet, so the two are matched through the table rather than by count,
+  and a new field or bullet on either side fails.
 - **On real scans.** For each cause, the full no-rise property (with `lostFindings`) must pass
-  against v17, with A2 counted as a failed-history abstention. The causes are: a clone missing
-  history blobs (a failed git read), the 5,000-file cap, a control-character credential path, git
-  not runnable (mocked, as in #560's own test), a dangling `.git` symlink, and an unreadable `.git`
-  directory. The unopenable-`.git` cause (the last two) still awaits the operator's
-  confirmation. The class recognises what v27 does today, records no ruling on it, and changes if
-  the operator rules otherwise.
+  against v17, with A2 counted as a failed-history abstention held in the denominator. The causes:
+  - a failed git read: a clone missing history blobs, and a history blob read over a real output
+    limit (real git, with execGit's own `maxBufferBytes` option lowered);
+  - the 5,000-file cap, in its own file, `v27-no-rise-failed-history-cap.test.ts`. It takes about
+    115 s alone and up to about 185 s beside the suite or under load, and its 600 s timeouts leave
+    over 3x headroom;
+  - a control-character credential path;
+  - a dangling `.git` symlink and an unreadable `.git` directory.
+
+  Two causes are injected through the execGit mock rather than produced, as in #560's own tests:
+  git not runnable, and the 30-second timeout, which has no seam. So git actually timing out is
+  not covered on a real scan (later: #583).
+
+  The unopenable-`.git` cause (the dangling symlink and the unreadable directory) still awaits the
+  operator's confirmation. The class recognises what v27 does today, records no ruling on it, and
+  changes if the operator rules otherwise.
 
 Results at `bdd06c0d7`:
 - the six shards, the curated test and the guard: 8 files, 2,288 tests, all passed;
-- the failed-history test: 15 passed.
+- the failed-history tests: 15 passed (now 17 plus 1 in the cap file, after round 7).
 
 The rule triggers moved, so the "nothing else moved" claims were re-checked by measurement (one
 run of the generated shapes, not asserted by a test). The 1,563 shapes still show no problem and
