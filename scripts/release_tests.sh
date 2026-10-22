@@ -130,6 +130,13 @@ case "$1 $2" in
     if [ -s "$S/runlist_empty" ] && [ "$(cat "$S/runlist_empty")" -gt 0 ] && [[ " $* " == *" publish-npm.yml "* ]]; then
       echo $(( $(cat "$S/runlist_empty") - 1 )) >"$S/runlist_empty"; echo '[]' >"$S/rl.empty"; emit "$S/rl.empty"; exit 0
     fi
+    # The same for one other named workflow: $S/runlist_empty_<workflow file> holds its count.
+    for wfe in "$S"/runlist_empty_*; do
+      [ -s "$wfe" ] || continue; wfn="${wfe##*/runlist_empty_}"
+      if [ "$(cat "$wfe")" -gt 0 ] && [[ " $* " == *" $wfn "* ]]; then
+        echo $(( $(cat "$wfe") - 1 )) >"$wfe"; echo '[]' >"$S/rl.empty"; emit "$S/rl.empty"; exit 0
+      fi
+    done
     # Like real gh: --event narrows the list to runs of that trigger.
     ev=""; for ((i=0; i<${#args[@]}; i++)); do [ "${args[$i]}" = "--event" ] && ev="${args[$((i+1))]}"; done
     if [ -n "$ev" ]; then jq --arg e "$ev" '[.[]|select(.event==$e)]' "$S/runlist.json" >"$S/rl.filtered"; emit "$S/rl.filtered"
@@ -319,7 +326,7 @@ check "unreadable log in finish_npm: refuses with its cause and gh's stderr" $? 
 # prints a retry line per retry, and lists exactly RELEASE_RUN_LIST_TRIES times (default 5).
 S="$TEST_TMP/s6e"; new_state "$S"; echo 999 >"$S/runlist_empty"
 run_release "$S" "" --dry-run
-[ "$RC" != 0 ] && has "REFUSE" && has "after 5 tries" && has "run listing stayed empty or gh failed"
+[ "$RC" != 0 ] && has "REFUSE" && has "the publish-npm.yml run listing on v$V stayed empty or gh failed after 5 tries"
 check "permanent absence: stage 7 refuses naming the tries and the cause" $? "rc=$RC: $OUT"
 [ "$(grep -c '^gh run list --workflow publish-npm.yml' "$S/calls.log")" = 5 ]
 check "permanent absence: exactly 5 publish-npm listings" $? "$(grep '^gh run list' "$S/calls.log")"
@@ -333,6 +340,51 @@ for bad in 0 abc; do
   [ "$RC" != 0 ] && has "RELEASE_RUN_LIST_TRIES must be a whole number of at least 1 (got '$bad')"
   check "RELEASE_RUN_LIST_TRIES=$bad is refused" $? "rc=$RC: $OUT"
 done
+
+# 6g. #581: the publish run is listed but its log never carries the '+' line: the refusal names that
+# cause, not an empty listing.
+S="$TEST_TMP/s6g"; new_state "$S"; sed -i.bak '1d' "$S/runlog.txt"
+run_release "$S" "" --dry-run
+[ "$RC" != 0 ] && has "of the 1 successful publish-npm.yml run(s) on v$V, 0 had a log that could not be read after 5 tries and 1 had a log without the line"
+check "#581: a listed run without the '+' line is named as the cause" $? "rc=$RC: $OUT"
+
+# 6h. #581: every read of the listed publish run's log fails: the refusal names unreadable logs.
+S="$TEST_TMP/s6h"; new_state "$S"; printf 'fail\nfail\nfail\nfail\nfail\n' >"$S/runlog_plan_12345678901"
+run_release "$S" "" --dry-run
+[ "$RC" != 0 ] && has "1 had a log that could not be read after 5 tries and 0 had a log without the line" && has "simulated log read failure"
+check "#581: unreadable logs are named as the cause, with gh's stderr" $? "rc=$RC: $OUT"
+
+# 6i. #581: stage 4's release-binaries.yml listing answers [] twice; the run is still recorded.
+S="$TEST_TMP/s6i"; new_state "$S"; echo 2 >"$S/runlist_empty_release-binaries.yml"
+run_release "$S" "" --dry-run
+[ "$RC" = 0 ] && has "latest successful run on tag: 12345678901"
+check "#581: stage 4's empty listing is retried and the binaries run recorded" $? "rc=$RC: $OUT"
+
+# 6j. #581: stage 9's publish-distribution.yml listing answers [] twice; the run is still recorded.
+S="$TEST_TMP/s6j"; new_state "$S"; echo 2 >"$S/runlist_empty_publish-distribution.yml"
+run_release "$S" "" --dry-run
+[ "$RC" = 0 ] && grep -qE 'distribution: +12345678901' <<<"$OUT"
+check "#581: stage 9's empty listing is retried and the distribution run recorded" $? "rc=$RC: $OUT"
+
+# 6k. #581: every read of the currency run's log fails: stage 11 refuses naming the unreadable log
+# (before, stage 11 refused with the wrong cause, "reported 0 surfaces": its `currency_read || return 0`
+# disabled set -e inside currency_read, so the failed read went on to be counted).
+S="$TEST_TMP/s6k"; new_state "$S"
+echo '[{"databaseId":36579259365,"createdAt":"2099-09-29T00:00:00Z","event":"workflow_dispatch","status":"completed"}]' >"$S/runlist.json"
+# The fake run list serves this one run for every workflow: stage 7 reads its log twice (lookup and
+# finish_npm), then stage 11's currency read fails five times.
+mklog >"$S/runlog_36579259365.txt"; printf 'ok\nok\nfail\nfail\nfail\nfail\nfail\n' >"$S/runlog_plan_36579259365"
+run_release "$S" "" --dry-run
+[ "$RC" != 0 ] && has "REFUSE" && has "could not read currency run 36579259365's log after 5 tries"
+check "#581: an unreadable currency log refuses by name" $? "rc=$RC: $OUT"
+
+# 6l. #581: the currency run's log read fails twice, then succeeds: stage 11 retries and reads it.
+S="$TEST_TMP/s6l"; new_state "$S"
+echo '[{"databaseId":36579259365,"createdAt":"2099-09-29T00:00:00Z","event":"workflow_dispatch","status":"completed"}]' >"$S/runlist.json"
+mklog >"$S/runlog_36579259365.txt"; printf 'ok\nok\nfail\nfail\nok\n' >"$S/runlog_plan_36579259365"
+run_release "$S" "" --dry-run
+[ "$RC" = 0 ] && has "14 of 14" && has "run 36579259365 log empty or gh failed; retry 2/5"
+check "#581: a currency log read that fails twice is retried and read" $? "rc=$RC: $OUT"
 
 # 7. confirmation: anything but the literal yes stops before the irreversible action.
 S="$TEST_TMP/s7"; new_state "$S"; echo "$NPM_NONE" >"$S/npm.json"; rm -f "$S/oci_digest"
@@ -399,6 +451,16 @@ mklog "${PREV1_FAILS[@]}" >"$S/runlog_36579259365.txt"
 mklog >"$S/dispatch_runlog.txt"
 run_release "$S" ""
 [ "$RC" = 0 ] && has "stage 13" && has "14 of 14" && has "HANDBACK" && has "99999999999"; check "stage 13: 14 of 14 from the fresh run completes the release" $? "rc=$RC: $OUT"
+
+# 15b. #581: stage 13's fresh currency run has a log that cannot be read: a REFUSE naming it (before,
+# the driver exited with no REFUSE line).
+S="$TEST_TMP/s15b"; new_state "$S"
+echo '[{"databaseId":36579259365,"createdAt":"2026-09-29T00:00:00Z","event":"workflow_dispatch","status":"completed"}]' >"$S/runlist.json"
+mklog "${PREV1_FAILS[@]}" >"$S/runlog_36579259365.txt"
+mklog >"$S/dispatch_runlog.txt"; printf 'fail\nfail\nfail\nfail\nfail\n' >"$S/runlog_plan_99999999999"
+run_release "$S" ""
+[ "$RC" != 0 ] && has "REFUSE" && has "could not read currency run 99999999999's log after 5 tries"
+check "#581: an unreadable stage-13 currency log refuses by name" $? "rc=$RC: $OUT"
 
 # 16. a dry run against a world with no release shows all five irreversible prompts, in order.
 S="$TEST_TMP/s16"; new_state "$S"; rm -f "$S/tag_sha" "$S/v1_sha" "$S/release.json" "$S/oci_digest" "$S/mcp.json"; echo "$NPM_NONE" >"$S/npm.json"

@@ -425,17 +425,30 @@ stage7() {
   finish_npm
 }
 
+# find_npm_publish_run: the newest successful publish-npm run on $TAG whose log carries the '+' line.
+# It runs in a command substitution, so when it finds none it writes the actual cause to
+# $NPM_LOOKUP_CAUSE for finish_npm's refusal (#581): the listing stayed empty, or some runs' logs
+# could not be read, or every log read lacks the line.
+NPM_LOOKUP_CAUSE="$WORK/npm-lookup.cause"
 find_npm_publish_run() {
-  local id
-  for id in $(success_run_ids publish-npm.yml 5); do
-    if [ -n "$(npm_log_plus_line "$id")" ]; then echo "$id"; return 0; fi
+  local id ids log unreadable=0 noline=0
+  ids="$(success_run_ids publish-npm.yml 5)"
+  if [ -z "$ids" ]; then
+    echo "the publish-npm.yml run listing on $TAG stayed empty or gh failed after $RUN_LIST_TRIES tries" >"$NPM_LOOKUP_CAUSE"
+    return 0
+  fi
+  for id in $ids; do
+    if ! log="$(read_run_log "$id")"; then unreadable=$((unreadable + 1)); continue; fi
+    if grep -qF "+ $NPM_PKG@$VERSION" <<<"$log"; then echo "$id"; return 0; fi
+    noline=$((noline + 1))
   done
+  echo "of the $((unreadable + noline)) successful publish-npm.yml run(s) on $TAG, $unreadable had a log that could not be read after $RUN_LIST_TRIES tries and $noline had a log without the line" >"$NPM_LOOKUP_CAUSE"
   return 0
 }
 
 finish_npm() {
   GIT_HEAD="$(registry_gitHead)"
-  if [ -z "$RUN_NPM" ]; then die "registry entry is clean but no successful publish-npm run on $TAG was found with a '+ $NPM_PKG@$VERSION' log line after $RUN_LIST_TRIES tries (the run listing stayed empty or gh failed, or no run's log carries the line; gh's stderr, if any, is above)"; fi
+  if [ -z "$RUN_NPM" ]; then die "registry entry is clean but no successful publish-npm run on $TAG has a '+ $NPM_PKG@$VERSION' log line: $(cat "$NPM_LOOKUP_CAUSE" 2>/dev/null || echo 'cause not recorded') (gh's stderr, if any, is above)"; fi
   local log; log="$(read_run_log "$RUN_NPM")" || die "could not read run $RUN_NPM's log after $RUN_LIST_TRIES tries (gh failed or returned nothing; gh's stderr, if any, is above)"
   grep -qF "+ $NPM_PKG@$VERSION" <<<"$log" || die "run $RUN_NPM log has no '+ $NPM_PKG@$VERSION' line"
   TLOG_URL="$(grep -Eo 'https://search\.sigstore\.dev/[^ ]+' <<<"$log" | head -1 || true)"
@@ -554,7 +567,9 @@ currency_read() {
     [ "$DRY_RUN" = 1 ] && { say "  currency run $id is $status (in flight, not a failure)"; return 1; }
     gh_r run watch "$id" >/dev/null 2>&1 || true
   fi
-  log="$(gh_r run view "$id" --log 2>/dev/null)"
+  # #581: through read_run_log, so a failed or empty read is retried and then refused by name, not a
+  # silent exit or a "0 surfaces" count.
+  log="$(read_run_log "$id")" || die "could not read currency run $id's log after $RUN_LIST_TRIES tries (gh failed or returned nothing; gh's stderr, if any, is above)"
   CUR_PASS="$(grep -c '\[PASS\]' <<<"$log" || true)"; CUR_FAIL="$(grep -c '\[FAIL\]' <<<"$log" || true)"
   [ $((CUR_PASS + CUR_FAIL)) -eq "$CURRENCY_SURFACES" ] || die "currency run $id reported $((CUR_PASS + CUR_FAIL)) surfaces, expected $CURRENCY_SURFACES"
   CUR_FAIL_LINES="$(grep '\[FAIL\]' <<<"$log" || true)"
