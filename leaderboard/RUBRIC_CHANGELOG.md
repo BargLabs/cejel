@@ -22,7 +22,7 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
-## 2026-10-22 — #567: A2's whole-history reads are paged when they hit Cejel's own output limit; v17 badges of biomejs and react become rated; no v17 score moved (informal measurement, preregistered delta pending)
+## 2026-10-22 — #567: A2's whole-history reads are paged when they hit Cejel's own output limit; v17 badges of biomejs and react become rated; no v17 score moved (preregistered paired delta: E0-E3 held)
 
 **Defect.** A2's whole-history reads buffered their output under the git exec limit of 8 MiB (and
 the 30-second timeout): `rev-list HEAD`, the `diff-tree` enumeration of credential-shaped paths,
@@ -53,9 +53,24 @@ confirmation's full-history clones, clean and at their pinned commits before and
 
 Under v17 no score, status, metric value or verdict moves; react's A2 info-finding count moves by
 one, and two badges change from unrated to rated. These are changes to the calibrated default's
-reports on public rows, so this change needs the paired public-delta discipline (a preregistered
-before-and-after on the corpus) before it ships; this entry is not that run and makes no precision
-or recall claim.
+reports on public rows, so the change needed the paired public-delta discipline (a preregistered
+before-and-after on the corpus) before shipping.
+
+**Preregistered paired delta.** `docs/experiments/public-delta-567-paging-successor-2026-10-22/`:
+successor preregistration `5450b687f` (baseline `75c951e40`, candidate `5b154064a`), result
+`6adf3a398`. Every expected value held:
+- E0: 23 of 23 rows in each of the four runs, with no errors.
+- E1 (v17): one scoring row moved, react's A2 info finding. Placements and fingerprints did not
+  move. The only other change is `scanLimitations` on biomejs and react.
+- E2 (v27): biomejs A2 went from abstaining to verified 3.2, and react moved as under v17. There
+  were 10 recorded placement moves.
+- E3: no row scores higher under v27 than under v17.
+
+The original preregistration (`09f017229`, at the old pins) was scored once before `main` moved.
+The successor discloses that run as a pre-plan deviation; its outputs are not used. The merged tree
+differs from the candidate only outside the scan path: the experiment records, this entry, its
+`CHANGELOG.md` entry, and two fixtures added to the paging test after review. The run makes no
+precision or recall claim.
 
 Tests: `src/witan/__tests__/a2-history-paging-567.test.ts`.
 

@@ -75,8 +75,13 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `--min-score` applies; react's A2 gains an info finding (a non-template `.env` file tracked in
   history, no secret-shaped value), with no score change. Under
   `witan-rubric-v27-prospective-2026-10-19`, biomejs's A2 no longer abstains (overall 2.5 to 3.0).
-  Measured informally on the 23 public rows; a preregistered paired public delta is needed before
-  release (see `leaderboard/RUBRIC_CHANGELOG.md`, 2026-10-22, #567).
+  A preregistered paired public delta on the 23 public rows confirmed this: successor
+  preregistration `5450b687f`, result `6adf3a398`, E0-E3 held
+  (`docs/experiments/public-delta-567-paging-successor-2026-10-22/`). An earlier scoring at the
+  original plan's pins was set aside when `main` moved; it is disclosed there and not used. The
+  merged tree differs from that run's candidate, `5b154064a`, only outside the scan path: in the
+  experiment records, in this entry and its `leaderboard/RUBRIC_CHANGELOG.md` entry (2026-10-22,
+  #567), and in two fixtures added to the paging test after review.
 - **Incomplete history could take A2 out of the score, or score it higher (#556).** A2 reads
   earlier commits for `.env` files and credential-shaped values, and is marked not applicable only
   when that finds nothing and the tree holds no secrets or data surface. On a shallow clone those
