@@ -1,0 +1,27 @@
+[
+  {
+    "statement": "To verify that files were delivered into a large directory, look up each delivered path directly, or read the delivering commit's own file list. Do not rely only on a directory listing: GitHub's contents API returns at most 1,000 entries for a directory, so a delivery check built on the listing stops seeing files once the directory grows past the cap, and fails silently rather than loudly. Found in review pass 2 of cejel #575 (the cross-repository lesson delivery into Alfred's holding directory, 373 entries at the time, so the cap was not yet hit); recorded as cejel #578. Rule: any check that a set of paths arrived names each path, by a per-path lookup or by the commit's diff, and treats a listing as a hint only.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "delivery-verification",
+      "github-api",
+      "silent-failure"
+    ],
+    "tags": [
+      "contents-api",
+      "listing-cap",
+      "per-path-lookup",
+      "commit-file-list",
+      "maeve-delivery"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-10-22T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 558
+    }
+  }
+]

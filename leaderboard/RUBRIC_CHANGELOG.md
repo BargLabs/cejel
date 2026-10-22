@@ -1531,7 +1531,48 @@ from one run of the generated shapes at `03226caba`, before the round-2 changes:
 abstentions, all read failures (2,615 content reads and 777 shallow-clone abstentions), and for
 every one the composite arithmetic shows it held in the denominator.
 
-**Runtime.** About 0.38 s of CPU per shape, almost all of it the two scans. The six shard files
+**Rerun on the synced candidate (#560 integration).** #560 merged to `main` as `44cb9ee80` (then
+#575), and the branch was synced by a merge commit of `origin/main` `c9d341d5f` (`39e3b0be5`). This
+changes the candidate under test. It now carries #527/#535 (B2 and B3 stop crediting workflows that
+run no check) and #560 (A2's history-read abstentions), and v27's behaviour fingerprint on it is
+`sha256:6e03aa1bf63a31c5ec58a68cb49fb8ef571ba233cf79059a311ec55aecea5bb3`. The tests changed in one
+way: `READ_FAILURE_CLASSES` gained **failed-history**, A2's abstention whose note starts with
+`WITAN_V27_A2_FAILED_HISTORY_NOTE_PREFIX`. It is recognised by that prefix and not by any one
+cause, per the comment on the prefix in `src/witan/abstention.ts`, which is the source of truth.
+`v27-no-rise-failed-history.test.ts` checks this two ways, with the causes derived from the code
+rather than listed by hand:
+- **From the code.** It reads the fields of `A2HistoryIncompleteness` from its declaration. For
+  each cause field, alone and beside a shallow clone, the note `v27A2FailedHistoryNote` writes on
+  both paths must be recognised as failed-history. It also reads the comment's cause bullets, and
+  every note marker they quote must appear in one of those notes.
+- **On real scans.** For each cause, the full no-rise property (with `lostFindings`) must pass
+  against v17, with A2 counted as a failed-history abstention. The causes are: a clone missing
+  history blobs (a failed git read), the 5,000-file cap, a control-character credential path, git
+  not runnable (mocked, as in #560's own test), a dangling `.git` symlink, and an unreadable `.git`
+  directory.
+
+Results at `bdd06c0d7`:
+- the six shards, the curated test and the guard: 8 files, 2,288 tests, all passed;
+- the failed-history test: 15 passed.
+
+The rule triggers moved, so the "nothing else moved" claims were re-checked by measurement (one
+run of the generated shapes, not asserted by a test). The 1,563 shapes still show no problem and
+no lost finding.
+
+| Count (one-off) | At `03226caba` | Synced |
+|---|---|---|
+| Introduced abstentions | 3,392 | 3,544 |
+| Shallow A2 | 172 | 324 |
+| Shallow B2 | 605 | 605 |
+| Content reads | 2,615 | 2,615 |
+| Shapes where B2 fell | 882 | 1,089 |
+| Shapes where B3 fell | 298 | 460 |
+
+Every introduced abstention is still held in the denominator. The new shallow A2 abstentions are
+#560's (A2 abstains on a shallow clone where v17 marks it not applicable). The extra B2 and B3 falls
+are #527/#535's removals of credit.
+
+, almost all of it the two scans. The six shard files
 take about 175 s each and run in parallel. On the same machine the full suite went from 4 min 29 s
 (139 files, before #558) to between 6 min 12 s and 8 min 44 s (146 files) across the runs measured
 for #558. In some full runs, wall-clock timing guards missed their budgets and passed when run
