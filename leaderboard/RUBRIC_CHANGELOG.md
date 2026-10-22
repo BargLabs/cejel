@@ -67,8 +67,35 @@ A reader admits a workflow only when all of the following hold. Anything else ke
   guarantees the label, not who operates the machine.
 - Every step is on the reader's allowlist, which admits only commands that run no
   repository-configured code. Print arguments and publish command words are drawn from a character
-  allowlist inert in every shell (#564). The publish words also admit `=` and `*`: a leading
-  assignment and, on bash, a filename glob.
+  allowlist inert in every shell (#564).
+- For publish-only (review round 3 of #562), every flag must be on the publisher's own allowlist,
+  for example `--provenance`, `--no-git-checks`, `--access <word>`, `--tag <word>`,
+  `--skip-existing`, `--repository-url <word>`, `--clobber` and `--no-verify`. An unknown flag
+  keeps the credit. npm-family publishes take no operand.
+- A `*` is admitted only in a file operand after a directory (`dist/*`), where every expansion
+  still starts with that directory. A glob in a flag can expand to a committed file name: `--d*`
+  becomes `--dir=evil`, and pnpm then publishes `evil/` and runs its lifecycle scripts.
+- Environment names set on a command line or in a step's `env:` must be on a credential allowlist:
+  `TWINE_USERNAME`, `TWINE_PASSWORD`, `TWINE_REPOSITORY_URL`, `TWINE_NON_INTERACTIVE`,
+  `NODE_AUTH_TOKEN`, `NPM_TOKEN`, `CARGO_REGISTRY_TOKEN`, `UV_PUBLISH_TOKEN`,
+  `UV_PUBLISH_USERNAME`, `UV_PUBLISH_PASSWORD`, `UV_PUBLISH_URL`, `POETRY_PYPI_TOKEN_*`,
+  `GH_TOKEN` and `GITHUB_TOKEN`. Step `env:` values must be a secret, the job token or an inert
+  literal. This replaces a blocklist of code-loading variables, which missed
+  `CARGO_REGISTRY_CREDENTIAL_PROVIDER` (cargo executes it), `PYTHONUSERBASE` (a committed `.pth`
+  runs), `CARGO_HOME` and `XDG_CONFIG_HOME`.
+- `cargo publish --no-verify` is refused when the inventory holds any `.cargo/config` or
+  `.cargo/config.toml`, which can name a credential provider cargo executes.
+- Audit of the other publishers' repository configuration:
+  - npm-family: the existing guards refuse `.npmrc`, Yarn and pnpm configuration, workspaces and
+    lifecycle scripts.
+  - twine: reads `.pypirc` from the home directory, and `--config-file` is not an admitted flag.
+  - uv and poetry: `publish` reads only endpoints and credentials from the project's configuration.
+  - gh: reads only the user's configuration, and `XDG_CONFIG_HOME` and `GH_CONFIG_DIR` are not
+    admitted.
+
+**The `*`, environment and Cargo gaps already existed in 0.6.8's v27 B3** (#553's publish-only rule).
+They are fixed here for both criteria. Fixtures `review12-*` pin each shape. Each keeps its credit,
+and in each v27 had scored B3 below v17 on a false "only publishes".
 
 Under v27:
 - **B2 (#527).** `pr_trace_primitives`' CI component counts credited workflows only. When any
@@ -149,7 +176,7 @@ the same commit scores the same under v17 and v27 whatever refs the checkout hol
 or deletes a `master` branch, renames `main`, points `origin/HEAD` at `main` or `master`, and
 detaches HEAD. It fails when a rule that reads `refs/heads/master` is injected.
 
-**Measured, release/0.6.8 (`8deafad9f`) against this change (`9862f842c`).** Fixtures were built once
+**Measured, release/0.6.8 (`8deafad9f`) against this change (`5b0ba925b`; `cb4837e80` changes only glossary wording).** Fixtures were built once
 from this change's definitions and scored by both scanners. The public rows are the 0.6.8
 confirmation's full-history clones (copy-on-write copies, with identity checked before and after
 each scan). This is not a preregistered run.
@@ -159,14 +186,18 @@ each scan). This is not a preregistered run.
 | Behaviour corpus (30) | 0 | 30 | 1 (`workspace-package-scripts`) | 0 violations |
 | Calibration anchors (5) | 0 | 5 | 0 | 0 violations |
 | Disclosure-gap fixtures (24) | 0 | 24 | 2 (the two print-only fixtures) | 0 violations |
-| False-assurance fixtures (172, 21 new) | 0 | 166 (6 `review10/11-print-only-*` lose the false #540 disclosure) | 15 (6 new down, 6 existing upload-only down, 3 back up to v17's value: 2 `review10-upload-only-*` and `review11-twine-upload-pwsh-hashtable-argument`) | 0 violations |
+| False-assurance fixtures (182, 31 new) | 0 | 176 (6 `review10/11-print-only-*` lose the false #540 disclosure) | 25 (6 new down, 6 existing upload-only down, 13 back up to exactly v17's value: 2 `review10-upload-only-*`, `review11-twine-upload-pwsh-hashtable-argument` and 10 `review12-*`) | 0 violations |
 | Public corpus (23, full history) | 0 | 23 | 0 | 0 violations |
 
-v27, before to after, for every row that moved. No other row moved. Three rows rise to exactly
-v17's value: the two `review10-upload-only-*` rows and `review11-twine-upload-pwsh-hashtable-argument`.
-Before #564, v27's publish-only reader claimed them (on a Windows or self-hosted runner, or with a
-pwsh hashtable argument), so v27 scored them below v17 on a false assertion. Against v17 nothing
-rises.
+**This change moves 28 fixture rows: 15 to below v17's value and 13 back to exactly v17's value.
+No fixture is above v17.** Across all 241 fixtures, 54 have a v27 overall score below v17's. Most of
+those come from earlier v27 changes. The 13 rows that rise are the two `review10-upload-only-*` rows,
+`review11-twine-upload-pwsh-hashtable-argument` and the ten `review12-*` rows. v27's publish-only
+reader used to claim each of them, on a Windows or self-hosted runner, with a pwsh hashtable
+argument, or with a glob, unlisted variable or Cargo configuration that runs repository code. So v27
+scored them below v17 on a false assertion.
+
+v27, before to after, for every row this change moves:
 
 | Set | Row | Verdict | Overall | Process | Criteria | B2 CI credit | B3 PR-gate count | B3 CI depth |
 |---|---|---|---|---|---|---|---|---|
@@ -182,6 +213,16 @@ rises.
 | false-assurance | review10-upload-only-self-hosted-runner | at_risk | 1.8 → 2 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
 | false-assurance | review10-upload-only-windows-runner | at_risk | 1.8 → 2 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
 | false-assurance | review11-twine-upload-pwsh-hashtable-argument | at_risk | 1.8 → 2 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
+| false-assurance | review12-cargo-committed-config-credential-provider | at_risk | 2.1 → 2.3 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
+| false-assurance | review12-cargo-credential-provider-variable | at_risk | 2.1 → 2.3 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
+| false-assurance | review12-cargo-home-step-env | at_risk | 2.1 → 2.3 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
+| false-assurance | review12-cargo-publish-glob-flag | at_risk | 2.1 → 2.3 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
+| false-assurance | review12-gh-release-xdg-config-step-env | at_risk → conditional | 2.3 → 2.5 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
+| false-assurance | review12-npm-publish-unknown-flag | at_risk → conditional | 2.3 → 2.5 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
+| false-assurance | review12-pnpm-publish-glob-flag | at_risk → conditional | 2.3 → 2.5 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
+| false-assurance | review12-twine-pythonuserbase-variable | at_risk | 1.8 → 2 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
+| false-assurance | review12-twine-upload-flag-glob | at_risk | 1.8 → 2 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
+| false-assurance | review12-yarn-publish-glob-flag | at_risk → conditional | 2.3 → 2.5 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
 | false-assurance | review7-b3-cargo-publish-no-verify | at_risk | 2.1 → 1.7 | 2.1 → 1.3 | B2 warning 3.2 → warning 1.6 | 2 → 1 | 1 | 1 |
 | false-assurance | review8-b3-gh-release-upload | at_risk | 2.3 → 1.9 | 2.1 → 1.3 | B2 warning 3.2 → warning 1.6 | 2 → 1 | 1 | 1 |
 | false-assurance | review8-b3-npm-publish-without-install | at_risk | 2.3 → 1.9 | 2.1 → 1.3 | B2 warning 3.2 → warning 1.6 | 2 → 1 | 1 | 1 |
@@ -189,7 +230,7 @@ rises.
 | false-assurance | review8-b3-pypi-upload-only-ungated | at_risk → unverified | 1.8 → 1.4 | 2.1 → 1.3 | B2 warning 3.2 → warning 1.6 | 2 → 1 | 1 | 1 |
 | false-assurance | review8-b3-twine-upload-only | at_risk → unverified | 1.8 → 1.4 | 2.1 → 1.3 | B2 warning 3.2 → warning 1.6 | 2 → 1 | 1 | 1 |
 
-v17 to v27 at this change, for every row where they differ (the property part 2 of the rule asks for):
+v17 to v27 at this change, for every row this change moves to below v17 (the other 13 now equal v17):
 
 | Set | Row | Verdict | Overall | Code | Process | Criteria that moved, v17 → v27 |
 |---|---|---|---|---|---|---|

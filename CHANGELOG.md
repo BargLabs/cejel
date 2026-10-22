@@ -34,8 +34,11 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   - The certificate lists the uncredited workflows under "What was not established". B2's component
     reads "credited CI workflow", so a zero never reads as "missing: CI workflow". No sentence says
     a workflow runs no check.
-  - Against v17, scores only fall. On the fixtures, 15 rows are below v17 and none above. No public
-    row moves (informal, not a preregistered run).
+  - The publish-only reader also admits only each publisher's known flags, globs only in file
+    operands after a directory, credential environment variables from an allowlist, and no
+    committed Cargo configuration. Each of these gaps already existed in 0.6.8's v27 B3 (#553).
+  - This change moves 28 fixture rows: 15 to below v17's value and 13 back to exactly v17's value.
+    No fixture is above v17. No public row moves (informal, not a preregistered run).
   - v17's scores, statuses, metrics and fingerprint do not move. v17 `report.json` is byte-identical
     apart from the #564 fix below. v17 certificates (Markdown, HTML, terminal) change on every
     repository, because the "PR trace basic checks" and "PR-gate CI workflow count" glossary entries
@@ -56,7 +59,7 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Even so, the #540 disclosure called the workflow "only prints text" under the default rubric. Now
   both the print-only and the publish-only readers claim only when every job's `runs-on` is a
   documented GitHub-hosted Ubuntu or macOS label, and arguments come from a character allowlist inert
-  in every shell. Outside v27 the only effect is in `report.json`: a repository whose workflow the
+  in every shell. Outside v27 the only effect is in `report.json` and on its certificate: a repository whose workflow the
   old reader alone called print-only loses that false disclosure. No score, status, metric or
   fingerprint moves. Fixtures `review10-*` and `review11-*` pin it.
 
