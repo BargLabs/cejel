@@ -14399,6 +14399,10 @@ function readGitBlob(
   });
   if (!blobResult.ok) {
     if (isExpectedHistoryAbsence(scanLimitations, blobResult)) return null;
+    // #560: a submodule entry (a gitlink, mode 160000) at a credential-shaped path names a commit
+    // in another repository, not a file; it has no content here to read, so it is not a failed
+    // read. Checked only after the read fails, so every other read is unchanged.
+    if (isGitlinkInCommit(repoPath, commit, path)) return null;
     declareHistoryFailure(
       scanLimitations,
       blobResult.reason,
@@ -14408,6 +14412,17 @@ function readGitBlob(
     return null;
   }
   return blobResult.stdout;
+}
+
+/** True when `commit` added or changed `path` as a gitlink (a submodule entry, mode 160000). */
+function isGitlinkInCommit(repoPath: string, commit: string, path: string): boolean {
+  const result = execGit(
+    ['diff-tree', '--root', '-r', '--raw', '-z', '--no-commit-id', commit, '--', `:(literal)${path}`],
+    { cwd: repoPath },
+  );
+  if (!result.ok) return false;
+  const [status, entryPath] = result.stdout.split('\0');
+  return entryPath === path && /^:\d{6} 160000 /.test(status ?? '');
 }
 
 // A human-readable ALL-CAPS snake_case label (YOUR_API_KEY_HERE, CHANGE_THIS_VALUE,
