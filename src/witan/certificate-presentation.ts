@@ -196,7 +196,7 @@ export const CERTIFICATE_GLOSSARY: readonly CertificateGlossaryEntry[] = [
     key: 'pr-trace-basic-checks',
     term: 'PR trace basic checks',
     definition:
-      'A capped scoring input that counts detected CI workflow files, a pull-request template, and a review-gate record such as CODEOWNERS or branch-protection documentation. The raw count is capped at two for scoring. Under the prospective witan-rubric-v27, a CI workflow file is not counted when Cejel reads every step as only checking out, printing text or doing nothing, or, for a workflow with no pull-request trigger, as only uploading an already-built artifact. Cejel makes either reading only when every job runs on a documented GitHub-hosted Ubuntu or macOS runner. Such a file was not shown to run a check, which is not a finding that it runs none.',
+      'A capped scoring input that counts detected CI workflow files, a pull-request template, and a review-gate record such as CODEOWNERS or branch-protection documentation. The raw count is capped at two for scoring. Under the prospective witan-rubric-v27, a CI workflow file is not counted when Cejel reads every step as only checking out, printing text or doing nothing, or, for a workflow with no pull-request trigger, as only uploading an already-built artifact. Cejel makes either reading only when every job's runs-on names a documented GitHub-hosted Ubuntu or macOS runner label. Such a file was not shown to run a check, which is not a finding that it runs none.',
     metricNames: ['pr_trace_primitives'],
   },
   {
@@ -294,7 +294,7 @@ export const CERTIFICATE_GLOSSARY: readonly CertificateGlossaryEntry[] = [
     key: 'pr-gate-ci-workflow-count',
     term: 'PR-gate CI workflow count (automated build/test pipeline)',
     definition:
-      'The number of detected CI workflow files configured for pull requests or the main or master branch, including a covering monorepo-root workflow, capped at four for scoring. Under the prospective witan-rubric-v27, a workflow file is not counted when Cejel reads every step as only checking out, printing text or doing nothing, or, for a workflow with no pull-request trigger, as only uploading an already-built artifact. Cejel makes either reading only when every job runs on a documented GitHub-hosted Ubuntu or macOS runner. Such a file was not shown to run a check, which is not a finding that it runs none.',
+      'The number of detected CI workflow files configured for pull requests or the main or master branch, including a covering monorepo-root workflow, capped at four for scoring. Under the prospective witan-rubric-v27, a workflow file is not counted when Cejel reads every step as only checking out, printing text or doing nothing, or, for a workflow with no pull-request trigger, as only uploading an already-built artifact. Cejel makes either reading only when every job's runs-on names a documented GitHub-hosted Ubuntu or macOS runner label. Such a file was not shown to run a check, which is not a finding that it runs none.',
     metricNames: ['default_branch_ci_depth'],
   },
   {

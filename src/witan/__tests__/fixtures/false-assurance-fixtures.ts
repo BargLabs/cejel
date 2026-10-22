@@ -1636,6 +1636,65 @@ for (const [name, purpose, runsOn] of [
   });
 }
 
+// Round 3 of the review of #562: the publish-only reader admitted globs in flag position, any
+// flag, any environment name not on a code-loading blocklist, and cargo with a committed Cargo
+// configuration. Each shape runs repository code; each must keep its credit.
+const EVIL_PACKAGE = `${JSON.stringify({ name: 'evil', version: '1.0.0', scripts: { prepublishOnly: 'node ../check.js' } }, null, 2)}\n`;
+for (const [name, purpose, files] of [
+  [
+    'review12-pnpm-publish-glob-flag',
+    '`pnpm publish --no-git-checks --d*` beside a committed file named `--dir=evil`: bash expands the glob to `--dir=evil` and pnpm publishes `evil/`, running its prepublishOnly.',
+    { ...JS_LIBRARY, '--dir=evil': '\n', 'evil/package.json': EVIL_PACKAGE, 'check.js': 'process.exit(0);\n', '.github/workflows/release.yml': PUSH_WORKFLOW('      - run: pnpm publish --no-git-checks --d*\n') },
+  ],
+  [
+    'review12-yarn-publish-glob-flag',
+    '`yarn publish --c*` beside a committed `--cwd=evil`.',
+    { ...JS_LIBRARY, '--cwd=evil': '\n', 'evil/package.json': EVIL_PACKAGE, '.github/workflows/release.yml': PUSH_WORKFLOW('      - run: yarn publish --c*\n') },
+  ],
+  [
+    'review12-npm-publish-unknown-flag',
+    '`npm publish --userconfig=evil.npmrc`: an unknown flag (it points npm at another configuration).',
+    { ...JS_LIBRARY, 'evil.npmrc': 'script-shell=./check.sh\n', '.github/workflows/release.yml': PUSH_WORKFLOW('      - run: npm publish --userconfig=evil.npmrc\n') },
+  ],
+  [
+    'review12-cargo-publish-glob-flag',
+    '`cargo publish --no-verify --c*` beside a committed `--config=x.toml`.',
+    { ...RUST_LIBRARY, '--config=x.toml': '[registry]\ncredential-provider = ["./run-tests.sh"]\n', '.github/workflows/release.yml': PUSH_WORKFLOW('      - run: cargo publish --no-verify --c*\n') },
+  ],
+  [
+    'review12-cargo-credential-provider-variable',
+    '`CARGO_REGISTRY_CREDENTIAL_PROVIDER=./run-tests.sh cargo publish --no-verify`: cargo executes the provider.',
+    { ...RUST_LIBRARY, 'run-tests.sh': 'cargo test\n', '.github/workflows/release.yml': PUSH_WORKFLOW('      - run: CARGO_REGISTRY_CREDENTIAL_PROVIDER=./run-tests.sh cargo publish --no-verify\n') },
+  ],
+  [
+    'review12-twine-pythonuserbase-variable',
+    '`PYTHONUSERBASE=./ub twine upload dist/x.whl`: a committed `.pth` under the user site runs.',
+    { ...PY_LIBRARY, 'ub/lib/python3.12/site-packages/check.pth': 'import subprocess\n', '.github/workflows/publish.yml': PUSH_WORKFLOW('      - run: PYTHONUSERBASE=./ub twine upload dist/x.whl\n') },
+  ],
+  [
+    'review12-cargo-home-step-env',
+    'A step `env:` setting `CARGO_HOME` for `cargo publish --no-verify`.',
+    { ...RUST_LIBRARY, '.github/workflows/release.yml': PUSH_WORKFLOW('      - run: cargo publish --no-verify\n        env:\n          CARGO_HOME: ./ch\n') },
+  ],
+  [
+    'review12-gh-release-xdg-config-step-env',
+    'A step `env:` setting `XDG_CONFIG_HOME` for `gh release upload`.',
+    { ...JS_LIBRARY, '.github/workflows/release.yml': PUSH_WORKFLOW('      - run: gh release upload v1.0.0 dist/app.tgz\n        env:\n          XDG_CONFIG_HOME: ./x\n') },
+  ],
+  [
+    'review12-cargo-committed-config-credential-provider',
+    'A committed `.cargo/config.toml` naming a credential provider, with `cargo publish --no-verify`.',
+    { ...RUST_LIBRARY, '.cargo/config.toml': '[registry]\ncredential-provider = ["./run-tests.sh"]\n', 'run-tests.sh': 'cargo test\n', '.github/workflows/release.yml': PUSH_WORKFLOW('      - run: cargo publish --no-verify\n') },
+  ],
+  [
+    'review12-twine-upload-flag-glob',
+    '`twine upload --c* dist/x.whl` beside a committed `--config-file=evil.pypirc`.',
+    { ...PY_LIBRARY, '--config-file=evil.pypirc': '[distutils]\n', '.github/workflows/publish.yml': PUSH_WORKFLOW('      - run: twine upload --c* dist/x.whl\n') },
+  ],
+] as const) {
+  FALSE_ASSURANCE_FIXTURES_REVIEW.push({ name, issue: '#527', foundInReview: true, purpose, commits: [files] });
+}
+
 export const FALSE_ASSURANCE_FIXTURES: readonly FalseAssuranceFixture[] = [
   ...FALSE_ASSURANCE_FIXTURES_ISSUES,
   ...FALSE_ASSURANCE_FIXTURES_REVIEW,

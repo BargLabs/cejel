@@ -5688,6 +5688,7 @@ function ownPublishOnlyInventory(repoFiles: readonly string[]): PublishOnlyInven
     scanned: new Set(repoFiles),
     known: new Set(knownPaths),
     hasYarnPlugins: knownPaths.some((path) => path.startsWith('.yarn/plugins/')),
+    hasCargoConfiguration: knownPaths.some((path) => CARGO_CONFIGURATION_PATH_PATTERN.test(path)),
   };
 }
 
@@ -5832,11 +5833,18 @@ function isPublishOnlyWorkflow(
   // An npm-family publish runs the root package's scripts (`prepack`, `prepublishOnly`, `publish`,
   // ...), so it is admitted only when that manifest is read and holds none.
   if (needs.size > 0 && inventory === null) return false;
+  if (needs.has('cargo') && (inventory as PublishOnlyInventory).hasCargoConfiguration) return false;
   if (needs.has('package') && !packageManifestRunsNoRepositoryCode(repoPath, inventory as PublishOnlyInventory)) {
     return false;
   }
   return true;
 }
+
+// Cargo configuration files, which can name a credential provider cargo executes, or change the
+// registry, target or build settings (review of #562). Cargo reads them from the working directory
+// and every parent; a workflow here runs at the root, so any committed one is doubt.
+const CARGO_CONFIGURATION_PATH_PATTERN = /(?:^|\/)\.cargo\/config(?:\.toml)?$/;
+
 
 /** What a publish-only reading may consult: scanned paths, and every path known to exist. */
 interface PublishOnlyInventory {
@@ -5844,10 +5852,12 @@ interface PublishOnlyInventory {
   readonly known: ReadonlySet<string>;
   /** Decided once per scan, so each workflow's check stays constant-time in the inventory. */
   readonly hasYarnPlugins: boolean;
+  /** Any committed `.cargo/config` or `.cargo/config.toml` (CARGO_CONFIGURATION_PATH_PATTERN). */
+  readonly hasCargoConfiguration: boolean;
 }
 
 /** The repository configuration an admitted command runs code from. */
-type PublishOnlyRepositoryCheck = 'package';
+type PublishOnlyRepositoryCheck = 'package' | 'cargo';
 
 interface PublishOnlyClassification {
   readonly kind: 'publish' | 'setup' | 'other';
@@ -5945,7 +5955,8 @@ function isPlainOneLineValue(value: string): boolean {
  * are read as bash reads them (#564).
  * A step holds only PUBLISH_ONLY_STEP_KEYS and exactly one of `uses` and `run`; `with` and `env`
  * are one-level mappings of plain entries, a `with` value may be a `|`/`>` block, and an `env`
- * key never loads code (CODE_LOADING_ENV_KEYS). A flow item, a quoted, capitalised or explicit
+ * key is a credential the publishers read as data (PUBLISH_ONLY_CREDENTIAL_ENV_KEYS) with a
+ * secret, the job token or an inert literal as its value. A flow item, a quoted, capitalised or explicit
  * key, a lone CR or other YAML line break, a plain value continued onto a deeper line, and a quoted
  * `run:` value are not placed. Linear in the file.
  */
@@ -6010,7 +6021,9 @@ function placedPublishWorkflowSteps(contents: string): PlacedWorkflowStep[] | nu
         if (!entry) return null;
         const name = entry[1] ?? '';
         const value = (entry[2] ?? '').trim();
-        if (body.owner === 'env' && isCodeLoadingEnvKey(name)) return null;
+        if (body.owner === 'env' && (!isPublishOnlyCredentialEnvKey(name) || !PUBLISH_ONLY_ENV_VALUE_PATTERN.test(value))) {
+          return null;
+        }
         if (body.owner === 'with') {
           openStep()?.inputs.add(name);
           if (BLOCK_SCALAR_INDICATOR_PATTERN.test(value)) {
@@ -6125,27 +6138,28 @@ function joinShellContinuationLines(lines: readonly string[]): string[] {
   return joined;
 }
 
-// Environment variables that make a shell, runtime or loader run code other than the step's own
-// command, or find another program in place of the one named (`PATH`). An assignment to one, on
-// a command line, after `export`, or under a step's `env:`, is doubt.
-const CODE_LOADING_ENV_KEYS = new Set([
-  'BASH_ENV', 'ENV', 'NODE_OPTIONS', 'LD_PRELOAD', 'LD_AUDIT', 'LD_LIBRARY_PATH', 'PYTHONPATH', 'PYTHONSTARTUP',
-  'PERL5OPT', 'PERL5LIB', 'RUBYOPT', 'PATH', 'NPM_CONFIG_NODE_OPTIONS', 'NPM_CONFIG_SCRIPT_SHELL',
+// The environment variables a publish-only workflow may set, on a command line or under a step's
+// `env:`: credentials and registry endpoints the admitted publishers read as data (review of #562).
+// An allowlist, because a blocklist of code-loading variables never converged: CARGO_HOME,
+// CARGO_REGISTRY_CREDENTIAL_PROVIDER, PYTHONUSERBASE, PYTHONHOME, XDG_CONFIG_HOME and
+// GIT_CONFIG_GLOBAL each make a publisher run repository code. Any other name is doubt.
+const PUBLISH_ONLY_CREDENTIAL_ENV_KEYS: ReadonlySet<string> = new Set([
+  'TWINE_USERNAME', 'TWINE_PASSWORD', 'TWINE_REPOSITORY_URL', 'TWINE_NON_INTERACTIVE',
+  'NODE_AUTH_TOKEN', 'NPM_TOKEN', 'CARGO_REGISTRY_TOKEN',
+  'UV_PUBLISH_TOKEN', 'UV_PUBLISH_USERNAME', 'UV_PUBLISH_PASSWORD', 'UV_PUBLISH_URL',
+  'GH_TOKEN', 'GITHUB_TOKEN',
 ]);
+const POETRY_TOKEN_ENV_KEY_PATTERN = /^POETRY_PYPI_TOKEN_[A-Z0-9_]+$/;
 
 // Both callers pass an unquoted identifier (a plain mapping key, or the name before `=` in an
-// assignment word), so no quote stripping is needed; the regex that did it was quadratic on quote
-// runs (review of #553).
-function isCodeLoadingEnvKey(name: string): boolean {
-  return CODE_LOADING_ENV_KEYS.has(name) || CODE_LOADING_ENV_KEYS.has(name.toUpperCase());
+// assignment word). Matched exactly: environment names are case-sensitive on the bash runners.
+function isPublishOnlyCredentialEnvKey(name: string): boolean {
+  return PUBLISH_ONLY_CREDENTIAL_ENV_KEYS.has(name) || POETRY_TOKEN_ENV_KEY_PATTERN.test(name);
 }
 
-// npm-family flags that point a publish at another package or directory, whose manifest Cejel did
-// not read.
-const PACKAGE_TARGET_FLAGS = new Set([
-  '--prefix', '-C', '--dir', '--cwd', '--workspace', '-w', '--workspaces', '-ws', '--filter', '-F',
-  '-r', '--recursive', '--global', '-g',
-]);
+// A step `env:` value: a secret or the job token by expression, or an inert literal.
+const PUBLISH_ONLY_ENV_VALUE_PATTERN =
+  /^(?:\$\{\{[ \t]*(?:secrets\.[A-Za-z_][A-Za-z0-9_]*|github\.token)[ \t]*\}\}|[A-Za-z0-9_.,:/+=-]+)$/;
 
 /** A flag's name without `=value`. */
 function flagName(word: string): string {
@@ -6153,29 +6167,79 @@ function flagName(word: string): string {
   return equals === -1 ? word : word.slice(0, equals);
 }
 
-/** npm-family publish arguments that stay on the root package: flags only, none redirecting it. */
-function targetsRootPackageOnly(args: readonly string[]): boolean {
-  return args.every((word) => word.startsWith('-') && !PACKAGE_TARGET_FLAGS.has(flagName(word)));
-}
-
 // `npm config set <key>` keys that only point at a registry or hold its token.
 function isRegistryConfigKey(key: string): boolean {
   return key.startsWith('//') || key === 'registry' || key.endsWith(':registry');
 }
+
+// A word with no glob character, from the inert allowlist.
+const PUBLISH_ONLY_PLAIN_WORD_PATTERN = /^[A-Za-z0-9_.,:/+=-]+$/;
+// A file operand: not a flag, and any `*` comes after a `/`, so every expansion still starts with
+// the directory written before it and can never become a flag (review of #562: `--d*` expanded to a
+// committed `--dir=evil`).
+function isFileOperand(word: string): boolean {
+  if (word.startsWith('-')) return false;
+  const star = word.indexOf('*');
+  if (star === -1) return PUBLISH_ONLY_PLAIN_WORD_PATTERN.test(word);
+  const slash = word.indexOf('/');
+  return slash !== -1 && slash < star && /^[A-Za-z0-9_.,:/+=*-]+$/.test(word);
+}
+
+/**
+ * A publisher's arguments, each a known flag (`switches`, or `valued` followed by one plain word
+ * or written `--flag=word`) or, where the tool takes files, a file operand. Anything else is
+ * doubt: an unknown flag may point the tool at another directory, configuration or program.
+ */
+function publishArgumentsAreKnown(
+  args: readonly string[],
+  switches: ReadonlySet<string>,
+  valued: ReadonlySet<string>,
+  operands: 'files' | 'none',
+): boolean {
+  for (let index = 0; index < args.length; index += 1) {
+    const word = args[index] ?? '';
+    if (word.startsWith('-')) {
+      if (!PUBLISH_ONLY_PLAIN_WORD_PATTERN.test(word)) return false;
+      const name = flagName(word);
+      if (word.includes('=')) {
+        if (!valued.has(name)) return false;
+        continue;
+      }
+      if (switches.has(word)) continue;
+      if (!valued.has(word)) return false;
+      const value = args[index + 1];
+      if (value === undefined || value.startsWith('-') || !PUBLISH_ONLY_PLAIN_WORD_PATTERN.test(value)) return false;
+      index += 1;
+      continue;
+    }
+    if (operands === 'none' || !isFileOperand(word)) return false;
+  }
+  return true;
+}
+
+const NO_FLAGS: ReadonlySet<string> = new Set();
+const NPM_PUBLISH_SWITCHES: ReadonlySet<string> = new Set(['--provenance', '--no-git-checks', '--non-interactive']);
+const NPM_PUBLISH_VALUED: ReadonlySet<string> = new Set(['--access', '--tag']);
+const TWINE_UPLOAD_SWITCHES: ReadonlySet<string> = new Set(['--skip-existing', '--non-interactive', '--verbose', '--disable-progress-bar']);
+const TWINE_UPLOAD_VALUED: ReadonlySet<string> = new Set(['--repository-url']);
+const UV_PUBLISH_VALUED: ReadonlySet<string> = new Set(['--publish-url', '--trusted-publishing']);
+const POETRY_PUBLISH_SWITCHES: ReadonlySet<string> = new Set(['--skip-existing', '--no-interaction', '-n']);
+const GH_RELEASE_SWITCHES: ReadonlySet<string> = new Set(['--clobber', '--draft', '--prerelease', '--generate-notes', '--verify-tag']);
+const CARGO_PUBLISH_SWITCHES: ReadonlySet<string> = new Set(['--no-verify', '--allow-dirty', '--locked']);
 
 /**
  * One shell command of a run step, in a workflow being tested as publish-only. A publish-only
  * workflow only checks out, configures credentials and uploads an already-built artifact, so the
  * admitted commands are exactly:
  *   - credential or registry configuration: `npm`/`pnpm`/`yarn config set` of a registry or token
- *     key ('setup'), and leading `NAME=value` credentials on an admitted command;
- *   - uploads of an artifact already built ('publish'): `twine upload`, `uv publish` with no build
- *     flag, `poetry publish` without `--build`, `gh release create`/`upload`,
- *     `cargo publish --no-verify`, and npm/pnpm/yarn `publish` with no positional target or
- *     package-redirecting flag, which runs the root package's scripts and so needs 'package'.
+ *     key ('setup'), and leading `NAME=value` assignments of PUBLISH_ONLY_CREDENTIAL_ENV_KEYS;
+ *   - uploads of an artifact already built ('publish'): `twine upload`, `uv publish`, `poetry
+ *     publish`, `gh release create`/`upload`, `cargo publish --no-verify` (needs 'cargo': no
+ *     committed Cargo configuration), and npm/pnpm/yarn `publish` with no operand (needs 'package':
+ *     it runs the root package's scripts), each with only the flags its allowlist names.
  * Everything else is 'other' and keeps the workflow counted: any install, sync, build or package
- * command, semantic-release, goreleaser, deploy CLIs, shell builtins, `--dry-run`, a code-loading
- * variable assignment, and any separator, substitution or redirect glued inside a word.
+ * command, semantic-release, goreleaser, deploy CLIs, shell builtins, `--dry-run`, an unknown flag,
+ * an unlisted variable, and any glob a shell could turn into a flag.
  */
 const PUBLISH_ONLY_INERT_WORD_PATTERN = /^[A-Za-z0-9_.,:/+=*-]+$/;
 
@@ -6183,43 +6247,64 @@ function classifyPublishOnlyRunCommand(input: readonly string[]): PublishOnlyCla
   const other = { kind: 'other' } as const;
   // Every word from a character allowlist inert in every shell (#564, review of #562): no
   // expansion, substitution, redirect, separator, splat or hashtable (`$`, `@`, `{`, `(`, `%`, `!`,
-  // `~`, `;`, `|`, `&`, `<`, `>`, `\`, quotes). `*` is admitted: on the bash runners the job gate
-  // requires it is a filename glob, which runs nothing.
+  // `~`, `;`, `|`, `&`, `<`, `>`, `\`, quotes). `*` passes this first test but is admitted only in a
+  // file operand (isFileOperand); a glob is expanded by the shell from the repository's own file
+  // names, so anywhere else it can become a flag.
   if (input.some((word) => !PUBLISH_ONLY_INERT_WORD_PATTERN.test(word))) return other;
   // Leading `NAME=value` assignments set the command's environment. Indexes, not repeated slices,
   // so a long run of them stays linear.
   let start = 0;
   while (start < input.length && /^[A-Za-z_][A-Za-z0-9_]*=/.test(input[start] ?? '')) {
-    if (isCodeLoadingEnvKey(flagName(input[start] ?? ''))) return other;
+    const word = input[start] ?? '';
+    if (!isPublishOnlyCredentialEnvKey(flagName(word)) || !PUBLISH_ONLY_PLAIN_WORD_PATTERN.test(word)) return other;
     start += 1;
   }
   if (start === input.length) return other;
   const words = input.slice(start);
   const [first = '', second = '', third = ''] = words;
-  if (words.some((word) => word.startsWith('--dry-run'))) return other;
   switch (first) {
     case 'npm':
     case 'pnpm':
     case 'yarn': {
       if (second === 'config') {
-        return third === 'set' && isRegistryConfigKey(words[3] ?? '') && words.length <= 5 ? { kind: 'setup' } : other;
+        return third === 'set' &&
+          isRegistryConfigKey(words[3] ?? '') &&
+          words.length <= 5 &&
+          words.every((word) => PUBLISH_ONLY_PLAIN_WORD_PATTERN.test(word))
+          ? { kind: 'setup' }
+          : other;
       }
       const publishFrom = second === 'publish' ? 2 : first === 'yarn' && second === 'npm' && third === 'publish' ? 3 : -1;
       if (publishFrom === -1) return other;
-      return targetsRootPackageOnly(words.slice(publishFrom)) ? { kind: 'publish', needs: ['package'] } : other;
+      return publishArgumentsAreKnown(words.slice(publishFrom), NPM_PUBLISH_SWITCHES, NPM_PUBLISH_VALUED, 'none')
+        ? { kind: 'publish', needs: ['package'] }
+        : other;
     }
     case 'twine':
-      return second === 'upload' ? { kind: 'publish' } : other;
-    case 'uv':
-      return second === 'publish' && !words.some((word) => word.includes('build')) ? { kind: 'publish' } : other;
-    case 'poetry':
-      return second === 'publish' && !words.some((word) => word.startsWith('--build')) ? { kind: 'publish' } : other;
-    case 'gh':
-      return second === 'release' && (third === 'create' || third === 'upload') ? { kind: 'publish' } : other;
-    case 'cargo':
-      // `cargo publish` builds the crate, running its build script, unless told not to verify.
-      return second === 'publish' && words.includes('--no-verify') && !words.includes('-n')
+      return second === 'upload' && publishArgumentsAreKnown(words.slice(2), TWINE_UPLOAD_SWITCHES, TWINE_UPLOAD_VALUED, 'files')
         ? { kind: 'publish' }
+        : other;
+    case 'uv':
+      return second === 'publish' && publishArgumentsAreKnown(words.slice(2), NO_FLAGS, UV_PUBLISH_VALUED, 'files')
+        ? { kind: 'publish' }
+        : other;
+    case 'poetry':
+      return second === 'publish' && publishArgumentsAreKnown(words.slice(2), POETRY_PUBLISH_SWITCHES, NO_FLAGS, 'none')
+        ? { kind: 'publish' }
+        : other;
+    case 'gh':
+      return second === 'release' &&
+        (third === 'create' || third === 'upload') &&
+        publishArgumentsAreKnown(words.slice(3), GH_RELEASE_SWITCHES, NO_FLAGS, 'files')
+        ? { kind: 'publish' }
+        : other;
+    case 'cargo':
+      // `cargo publish` builds the crate, running its build script, unless told not to verify; and
+      // a committed `.cargo/config.toml` can name a credential provider that cargo executes.
+      return second === 'publish' &&
+        words.includes('--no-verify') &&
+        publishArgumentsAreKnown(words.slice(2), CARGO_PUBLISH_SWITCHES, NO_FLAGS, 'none')
+        ? { kind: 'publish', needs: ['cargo'] }
         : other;
     default:
       return other;

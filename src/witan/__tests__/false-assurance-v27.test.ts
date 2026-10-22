@@ -1035,6 +1035,33 @@ describe('#564 — the print-only and publish-only readers claim nothing outside
 
 // Review of #562: the glossary states the readers' conditions, so a PR-triggered upload-only
 // workflow, which the publish-only reader never claims, is counted and the glossary says why.
+// Round 3 of the review of #562: each shape makes an admitted publisher run repository code, so
+// the publish-only reader must not claim it, and B2 and B3 keep v17's credit.
+describe('publish-only admits no glob in flag position, no unknown flag, no unlisted variable, no Cargo configuration', () => {
+  it.each([
+    'review12-pnpm-publish-glob-flag',
+    'review12-yarn-publish-glob-flag',
+    'review12-npm-publish-unknown-flag',
+    'review12-cargo-publish-glob-flag',
+    'review12-cargo-credential-provider-variable',
+    'review12-twine-pythonuserbase-variable',
+    'review12-cargo-home-step-env',
+    'review12-gh-release-xdg-config-step-env',
+    'review12-cargo-committed-config-credential-provider',
+    'review12-twine-upload-flag-glob',
+  ])('%s keeps its credit under v27', (name) => {
+    for (const id of ['B2', 'B3']) {
+      expect(criterion(name, V27, id), `${name} ${id}`).toEqual(criterion(name, V17, id));
+    }
+  });
+
+  it('controls: upload-only shapes with known flags, a file glob after a directory and credential variables stay publish-only', () => {
+    for (const name of ['review8-b3-twine-upload-only', 'review8-b3-npm-publish-without-install', 'review7-b3-cargo-publish-no-verify', 'review8-b3-gh-release-upload']) {
+      expect(criterion(name, V27, 'B3').notes, name).toContain('only publishes, releases or deploys');
+    }
+  });
+});
+
 describe('the v27 glossary sentences state the conditions the readers apply', () => {
   it('a pull-request-triggered upload-only workflow is counted, and the glossary names that condition', () => {
     const name = 'review11-upload-only-with-pull-request-trigger';
@@ -1042,7 +1069,7 @@ describe('the v27 glossary sentences state the conditions the readers apply', ()
     for (const term of ['PR trace basic checks', 'PR-gate CI workflow count (automated build/test pipeline)']) {
       const entry = CERTIFICATE_GLOSSARY.find((candidate) => candidate.term === term);
       expect(entry?.definition, term).toContain('for a workflow with no pull-request trigger, as only uploading an already-built artifact');
-      expect(entry?.definition, term).toContain('only when every job runs on a documented GitHub-hosted Ubuntu or macOS runner');
+      expect(entry?.definition, term).toContain('only when every job's runs-on names a documented GitHub-hosted Ubuntu or macOS runner label');
     }
   });
 });
