@@ -5311,6 +5311,10 @@ const V27_A2_SHALLOW_APPLICABILITY_NOTE =
  * - `gitUnavailable`: git itself could not be run while a `.git` entry is visible from the scanned
  *   path, so none of the history was read (#560, #568). Not a git failure, so not in the scan
  *   limitations.
+ * - `repositoryUnopenable`: git runs, a `.git` entry is visible, and git still reports no repository
+ *   there (a `.git` file whose gitdir is gone, as in a copied worktree or submodule), so none of the
+ *   history was read (#560 review). Not in the scan limitations, as before. A repository git can
+ *   open whose branch has no commits yet is not this: it has no history to read.
  */
 export interface A2HistoryIncompleteness {
   readonly shallow: boolean;
@@ -5319,6 +5323,7 @@ export interface A2HistoryIncompleteness {
   readonly blobCapHit?: boolean;
   readonly controlCharacterSkip?: boolean;
   readonly gitUnavailable?: boolean;
+  readonly repositoryUnopenable?: boolean;
 }
 
 function a2HistoryIncompleteness(
@@ -5331,7 +5336,20 @@ function a2HistoryIncompleteness(
   const controlCharacterSkip = reads.controlCharacterCandidate;
   // Checked only when git was found absent, so an ordinary scan does no extra filesystem work.
   const gitUnavailable = reads.gitAbsent && hasVisibleGitMetadata(repoPath);
-  return shallow || limitHits.length > 0 || reads.otherFailure || blobCapHit || controlCharacterSkip || gitUnavailable
+  // Checked only when git reported no repository: a visible `.git` entry that git cannot open as a
+  // repository. `rev-parse --git-dir` succeeds for a repository whose branch has no commits yet.
+  const repositoryUnopenable =
+    !gitUnavailable &&
+    reads.notARepository &&
+    hasVisibleGitMetadata(repoPath) &&
+    !execGit(['rev-parse', '--git-dir'], { cwd: repoPath }).ok;
+  return shallow ||
+    limitHits.length > 0 ||
+    reads.otherFailure ||
+    blobCapHit ||
+    controlCharacterSkip ||
+    gitUnavailable ||
+    repositoryUnopenable
     ? {
         shallow,
         limitHits,
@@ -5339,6 +5357,7 @@ function a2HistoryIncompleteness(
         ...(blobCapHit ? { blobCapHit } : {}),
         ...(controlCharacterSkip ? { controlCharacterSkip } : {}),
         ...(gitUnavailable ? { gitUnavailable } : {}),
+        ...(repositoryUnopenable ? { repositoryUnopenable } : {}),
       }
     : null;
 }
@@ -5348,7 +5367,8 @@ const historyReadFailed = (incompleteness: A2HistoryIncompleteness) =>
   incompleteness.otherFailure ||
   incompleteness.blobCapHit === true ||
   incompleteness.controlCharacterSkip === true ||
-  incompleteness.gitUnavailable === true;
+  incompleteness.gitUnavailable === true ||
+  incompleteness.repositoryUnopenable === true;
 
 // The timeout is the one limit whose hit depends on the scanning host rather than on the
 // repository alone, so a re-scan may lift it; the output limits and the file cap will not lift.
@@ -5386,7 +5406,10 @@ function a2HistoryIncompletenessCauses(incompleteness: A2HistoryIncompleteness):
   const gitUnavailable = incompleteness.gitUnavailable
     ? ['git could not be run on the scanning host, so Cejel read none of the commit history']
     : [];
-  return [`${causes.join(', and ')}${named}`, ...cap, ...controlCharacters, ...gitUnavailable]
+  const unopenable = incompleteness.repositoryUnopenable
+    ? ['a .git entry is present but git could not open it as a repository, so Cejel read none of the commit history']
+    : [];
+  return [`${causes.join(', and ')}${named}`, ...cap, ...controlCharacters, ...gitUnavailable, ...unopenable]
     .filter((part) => part !== '')
     .join(', and ');
 }
@@ -5401,6 +5424,9 @@ function a2HistoryIncompletenessAdvice(incompleteness: A2HistoryIncompleteness):
   }
   if (incompleteness.gitUnavailable) {
     advice.push('Re-scan on a host where git is installed.');
+  }
+  if (incompleteness.repositoryUnopenable) {
+    advice.push('Re-scan a checkout that git can open (a full clone, not a copied worktree or submodule).');
   }
   // The output limits and the file cap are deterministic for a given repository; the timeout
   // depends on the machine and its load, so a re-scan may lift it (#560 review).
@@ -13931,8 +13957,9 @@ function isExpectedHistoryAbsence(
   result: Exclude<GitExecResult, { readonly ok: true }>,
 ): boolean {
   if (!isExpectedGitAbsence(result)) return false;
-  if (result.reason === 'git_absent' && scanLimitations instanceof HistoryReadRecorder) {
-    scanLimitations.gitAbsent = true;
+  if (scanLimitations instanceof HistoryReadRecorder) {
+    if (result.reason === 'git_absent') scanLimitations.gitAbsent = true;
+    if (result.reason === 'not_a_repo') scanLimitations.notARepository = true;
   }
   return true;
 }
@@ -13978,6 +14005,8 @@ class HistoryReadRecorder extends Set<string> {
   otherFailure = false;
   /** git itself could not be run (ENOENT), which every read reports as an expected absence. */
   gitAbsent = false;
+  /** git reported "no repository" (or no revision) for a history read: also an expected absence. */
+  notARepository = false;
   /** A credential- or .env-shaped history path was skipped for control characters in its name. */
   controlCharacterCandidate = false;
   private readonly target: Set<string>;
@@ -14308,7 +14337,9 @@ function readHistoryCommitsForPath(
   scanLimitations: Set<string>,
 ): string[] {
   const historyResult = execGit(
-    ['log', '--no-show-signature', 'HEAD', '--diff-filter=AM', '--format=%H', '--', path],
+    // A literal pathspec: a deleted file named, say, `:(exclude)secrets` must name that file, not
+    // every other path (#560 review, F7).
+    ['log', '--no-show-signature', 'HEAD', '--diff-filter=AM', '--format=%H', '--', `:(literal)${path}`],
     { cwd: repoPath },
   );
   if (!historyResult.ok) {

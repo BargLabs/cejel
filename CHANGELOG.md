@@ -71,9 +71,9 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Cejel does not report: no scan limitation, no abstention, and A2 not applicable above the
   complete clone's critical finding. A name containing "timeout" or "maxBuffer" made the same
   failure read as one of Cejel's own limits. Classification now uses only Node's error code and
-  git's own "no repository" messages, each matched as git's exact text from the start of a line,
-  so a path git prints after a message (quoted, or unquoted as in "fatal: bad object
-  <commit>:<path>") cannot match; a bare SIGTERM is no longer called a timeout. **This can change a
+  git's own "no repository" messages, each matched from the start of a line (every form of
+  git's "not a git repository" message, and the others exactly), so a path git prints after
+  another message (quoted, or unquoted as in "fatal: bad object <commit>:<path>") cannot match; a bare SIGTERM is no longer called a timeout. **This can change a
   v17 report:** where such a read failed, the failure now appears in `scanLimitations`, which leaves
   the v17 badge unrated and makes `--min-score` refuse, and a limitation that named a timeout or
   output limit because of a path now says the read failed. On the 23 public rows nothing changes
@@ -85,7 +85,15 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   A2 abstain and the other rubrics disclose an incomplete read, on a complete clone. A gitlink is
   now recognised and skipped. **This can change a v17 report:** for such a repository the
   "historical blob read failed" scan limitation disappears, and if it was the only one, the v17
-  badge becomes rated and `--min-score` applies.
+  badge becomes rated and `--min-score` applies. The same holds for a deleted file whose name looks
+  like pathspec magic (for example `:(exclude)secrets`): its history is now looked up literally,
+  so it no longer matches other paths' commits and fails their reads.
+- **A `.git` entry git cannot open left A2's history unread without saying so (#560 review).** A
+  copied worktree or submodule whose gitdir is gone makes git report "not a git repository" even
+  though a `.git` entry is present. The scan completes as before, as a directory with no repository
+  (an intermediate version of this change failed it). A2 now counts its history as unread there:
+  under v27 it abstains at 0, and under every other rubric it says so where it is not applicable.
+  A repository git can open whose branch has no commits yet is unchanged.
 
 ## [0.6.8] — 2026-10-22
 

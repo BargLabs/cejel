@@ -66,7 +66,10 @@ export const WITAN_A2_HISTORY_APPLICABILITY_PREFIX =
 //   limitation "Git history contained a credential-shaped pathname with control characters. ...";
 //   the note contains "unread because its name contains control characters";
 // - git itself could not be run in a repository (#560, #568): no scan limitation; the note
-//   contains "git could not be run on the scanning host".
+//   contains "git could not be run on the scanning host";
+// - a `.git` entry is visible but git cannot open it as a repository (#560 review): no scan
+//   limitation; the note contains "a .git entry is present but git could not open it as a
+//   repository".
 export const WITAN_V27_A2_FAILED_HISTORY_NOTE_PREFIX =
   "A2 abstained after an incomplete read of this repository's commit history";
 

@@ -56,9 +56,10 @@ Stable in report format v1:
   also abstains when one of its history reads failed (on a partial clone, for example) or its
   history secret scan stopped at its 5,000-file cap, or it left a credential- or `.env`-shaped
   history path unread for control characters in its name, or git itself could not be run in a
-  repository (#560); that is stated in A2's note, a failed git read also in `scanLimitations`, and
-  a control-character path in its existing scan limitation (the cap and git being unavailable are
-  named in the note and A2's disclosure, not in the scan limitations), not in this field.
+  repository, or git could not open a visible `.git` entry as a repository (#560); that is stated
+  in A2's note, a failed git read also in `scanLimitations`, and a control-character path in its
+  existing scan limitation (the cap, git being unavailable and an unopenable `.git` are named in
+  the note and A2's disclosure, not in the scan limitations), not in this field.
 - Git LFS pointers: `contentReadSummary.byReason.lfsPointer` (report format 1.6), present only
   when the checkout held at least one Git LFS pointer in place of a file's content, and summed
   into `skipped`. Under every rubric it is a count: it names content Cejel did not read. Under
@@ -100,8 +101,9 @@ Stable in report format v1:
   limitations name each; a read that stopped at one of Cejel's own limits is named as such), the
   history secret scan stopped at its 5,000-file cap (named in the sentence, not in the scan
   limitations), a credential- or `.env`-shaped history path was left unread because its name
-  contains control characters (its existing scan limitation says so), or git itself could not be
-  run while a `.git` entry is visible (named in the sentence, not in the scan limitations).
+  contains control characters (its existing scan limitation says so), git itself could not be run
+  while a `.git` entry is visible, or a visible `.git` entry could not be opened as a repository
+  (both named in the sentence, not in the scan limitations).
   That decision rests in part on those reads. The certificate lists them under "What was not established". They are kept
   apart from `notes` so that an abstention or a merge that rewrites the notes cannot drop them. They
   move no score, status or metric under any rubric. Absent when there is nothing to disclose; the
