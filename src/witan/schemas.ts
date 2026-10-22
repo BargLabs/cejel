@@ -227,8 +227,16 @@ export const WitanContentReadSkipReasonSchema = z.enum([
   'excluded_by_extension',
   'denied_path',
   'non_regular_file',
+  // Additive, report format 1.6 (#519): the checkout held a Git LFS pointer in place of content.
+  'lfs_pointer',
 ]);
 export type WitanContentReadSkipReason = z.infer<typeof WitanContentReadSkipReasonSchema>;
+
+// Additive-optional (report format 1.8): sentences naming what a criterion's collector read and
+// set aside or counted without seeing it do what it is counted for. Carried apart from `notes`, so
+// an abstention or merge that rewrites the notes cannot drop them; the certificate lists them under
+// "What was not established". Presentation only: no score, status or metric reads them.
+export const WitanCriterionDisclosuresSchema = z.array(z.string().min(1).max(1000)).min(1).max(4);
 
 export const WitanCriterionSignalSchema = z
   .object({
@@ -237,6 +245,7 @@ export const WitanCriterionSignalSchema = z
     findings: z.array(WitanFindingSchema).default([]),
     metrics: z.array(WitanCriterionMetricSchema).default([]),
     notes: z.string().min(1).max(1000).optional(),
+    disclosures: WitanCriterionDisclosuresSchema.optional(),
     notApplicable: z.literal(true).optional(),
     // A collector reached relevant files but could not read their contents. This is a
     // measurement gap, never negative evidence: scoreCriterion maps it to insufficient_data.
@@ -268,6 +277,9 @@ export const WitanContentReadSummarySchema = z
         excludedByExtension: z.number().int().nonnegative(),
         deniedPath: z.number().int().nonnegative(),
         nonRegularFile: z.number().int().nonnegative(),
+        // Additive-optional, report format 1.6 (#519): files whose checkout held a Git LFS pointer
+        // in place of their content. Present only when non-zero.
+        lfsPointer: z.number().int().positive().optional(),
       })
       .strict(),
     unreadableByErrno: z.record(z.string().min(1).max(32), z.number().int().positive()),
@@ -275,7 +287,10 @@ export const WitanContentReadSummarySchema = z
   })
   .strict()
   .superRefine((summary, context) => {
-    const reasonTotal = Object.values(summary.byReason).reduce((sum, count) => sum + count, 0);
+    const reasonTotal = Object.values(summary.byReason).reduce(
+      (sum: number, count) => sum + (count ?? 0),
+      0,
+    );
     if (reasonTotal !== summary.skipped) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
@@ -350,11 +365,17 @@ export const WitanCriterionScoreSchema = z
     category: WitanCriterionCategorySchema,
     score: z.number().min(0).max(4),
     nativeScore: z.number().min(0).max(4).optional(),
+    // Additive-optional (report format 1.7): the status the native evidence alone produced, set
+    // beside nativeScore whenever ingested signals adjusted this criterion. When it differs from
+    // `status`, imported evidence moved the status; a reader must not take the moved status as a
+    // native Cejel finding. Absent when no ingested signal adjusted the criterion.
+    nativeStatus: WitanCriterionStatusSchema.optional(),
     status: WitanCriterionStatusSchema,
     evidence: z.array(WitanEvidencePointerSchema),
     findings: z.array(WitanFindingSchema),
     metrics: z.array(WitanCriterionMetricSchema).default([]),
     notes: z.string().min(1).max(1000).optional(),
+    disclosures: WitanCriterionDisclosuresSchema.optional(),
   })
   .strict();
 
@@ -410,6 +431,87 @@ export const WitanConsumedSignalSummarySchema = z
   })
   .strict();
 
+// Input binding (report format 1.7). One record per ingested document: what subject and
+// producer the document's own format declared, whether that subject is the scanned revision, and
+// whether the document was observed before the scanned commit existed. Recorded after scoring under
+// the default `record-only` policy, so it cannot move a score; `--strict-ingest` refuses
+// mismatched, stale and duplicate inputs before scoring. See docs/input-binding.md.
+export const WitanInputBindingStatusSchema = z.enum([
+  'matched',
+  'mismatched-repository',
+  'mismatched-commit',
+  'stale',
+  'unbound',
+  'unverifiable',
+]);
+
+const WitanInputBindingCheckSchema = z.enum(['matched', 'mismatched', 'absent', 'unverifiable']);
+
+export const WitanInputBindingRecordSchema = z
+  .object({
+    sha256: z.string().regex(/^[a-f0-9]{64}$/),
+    format: z.enum(['sarif', 'scorecard', 'generic']),
+    provenance: WitanIngestProvenanceSchema,
+    producers: z
+      .array(
+        z
+          .object({
+            name: z.string().min(1).max(120),
+            version: z.string().min(1).max(80).optional(),
+            commit: z.string().min(1).max(80).optional(),
+          })
+          .strict(),
+      )
+      .max(8),
+    subjects: z
+      .array(
+        z
+          .object({
+            repository: z.string().min(1).max(300).optional(),
+            // Additive-optional (1.7, #525 follow-up): the input declared a repository Cejel could
+            // not normalize to host/path. The declared text is withheld, never recorded, because
+            // it may carry URL credentials. Never treated as the named subject repository.
+            repositoryWithheld: z.literal(true).optional(),
+            commit: z.string().min(1).max(80).optional(),
+          })
+          .strict(),
+      )
+      .max(8),
+    // Additive-optional (1.7, #525 follow-up): distinct declared subjects beyond the 8 recorded.
+    // Every declared subject is checked; only the record is capped. Absent when none were omitted.
+    // Bounded by the 8 MiB ingest document budget: each distinct subject takes at least one byte.
+    subjectsOmitted: z.number().int().min(1).max(8 * 1024 * 1024).optional(),
+    observedAt: z.string().datetime().optional(),
+    status: WitanInputBindingStatusSchema,
+    checks: z
+      .object({
+        repository: WitanInputBindingCheckSchema,
+        commit: WitanInputBindingCheckSchema,
+        freshness: z.enum(['within-window', 'stale', 'absent', 'unverifiable']),
+      })
+      .strict(),
+    duplicate: z.enum(['same-path', 'same-content']).optional(),
+    // False only for a same-path duplicate, which the ingest funnel has always skipped. A
+    // same-content duplicate at a different path is scored, exactly as before binding existed.
+    scored: z.boolean(),
+  })
+  .strict();
+
+export const WitanInputBindingSchema = z
+  .object({
+    policy: z.enum(['record-only', 'strict']),
+    freshnessWindowSeconds: z.number().int().min(0),
+    scannedSubject: z
+      .object({
+        repository: z.string().min(1).max(300).optional(),
+        commit: z.string().min(7).max(64).optional(),
+        commitTime: z.string().datetime().optional(),
+      })
+      .strict(),
+    inputs: z.array(WitanInputBindingRecordSchema).max(256),
+  })
+  .strict();
+
 export const WitanScoredVerdictSchema = z.enum([
   'verified',
   'conditional',
@@ -446,6 +548,9 @@ const WitanReportCommonSchema = z.object({
   // Rubric-driven: length matches whatever rubric produced this report, not a fixed enum.
   criteria: z.array(WitanCriterionScoreSchema).min(1),
   consumedSignals: z.array(WitanConsumedSignalSummarySchema).optional(),
+  // Additive-optional (report format 1.7): present only when at least one document was ingested,
+  // so a no-ingest report stays byte-identical. See WitanInputBindingSchema.
+  inputBinding: WitanInputBindingSchema.optional(),
   archetype: WitanRepoArchetypeSchema.optional(),
   scanLimitations: z.array(z.string().min(1).max(1000)).max(16).optional(),
   // Additive-optional (report format 1.5, issue #428): disclosures about the commit history the
@@ -539,7 +644,16 @@ export const WITAN_ATTESTATION_PREDICATE_TYPE = 'https://cejel.dev/attestations/
 // reports produced before this version do not carry it.
 // 1.5 (issue #428): report.json gained optional historyLimitations, present when the scanned
 // repository is a shallow clone. Display-only; reports from before this version do not carry it.
-export const WITAN_REPORT_FORMAT_VERSION = '1.5' as const;
+// 1.6 (issue #519): contentReadSummary.byReason gained optional lfsPointer, present only when the
+// checkout held at least one Git LFS pointer in place of a file's content, and the skip-reason
+// enum gained 'lfs_pointer'. Reports without an LFS pointer are byte-identical to 1.5 reports.
+// 1.7 (#525): report.json gained optional inputBinding (per ingested document: digest, producer, declared
+// subject, binding status) and optional criteria[].nativeStatus beside nativeScore. Both are
+// present only on reports that ingested external documents; a no-ingest report is byte-identical.
+// 1.8 (#540): criteria[].disclosures, present only when a collector read and set aside a
+// credential-shaped placeholder (A2) or counted a workflow it did not see run a check (B3). A
+// report with neither is byte-identical to a 1.7 report.
+export const WITAN_REPORT_FORMAT_VERSION = '1.8' as const;
 
 export const WitanAttestationOutcomeSchema = z.discriminatedUnion('status', [
   z
@@ -661,5 +775,8 @@ export type WitanInputSignalFinding = z.infer<typeof WitanInputSignalFindingSche
 export type WitanIngestProvenance = z.infer<typeof WitanIngestProvenanceSchema>;
 export type WitanInputSignal = z.infer<typeof WitanInputSignalSchema>;
 export type WitanConsumedSignalSummary = z.infer<typeof WitanConsumedSignalSummarySchema>;
+export type WitanInputBinding = z.infer<typeof WitanInputBindingSchema>;
+export type WitanInputBindingRecord = z.infer<typeof WitanInputBindingRecordSchema>;
+export type WitanInputBindingStatus = z.infer<typeof WitanInputBindingStatusSchema>;
 export type WitanAttestationOutcome = z.infer<typeof WitanAttestationOutcomeSchema>;
 export type WitanAttestationStatement = z.infer<typeof WitanAttestationStatementSchema>;

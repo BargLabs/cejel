@@ -1,0 +1,64 @@
+{
+  "schema": "cejel-public-delta-v2",
+  "corpusSha256": "dc723f53a201542e0febb98964093ba4a3e7173221e746ba56aab6f726400d00",
+  "publicRows": 23,
+  "scope": "public entries only; private implementation and reports excluded",
+  "generatedAt": "2026-10-21T00:00:00.000Z",
+  "runs": [
+    {
+      "name": "v067-v17",
+      "commit": "c5d05c7e6febd2e52ec007d15869c6fbf74ab2fa",
+      "rubric": "witan-rubric-v17-2026-07-24"
+    },
+    {
+      "name": "cand-v17",
+      "commit": "224f605aec3e0a938c192e066d3c7bd6d256a36c",
+      "rubric": "witan-rubric-v17-2026-07-24"
+    },
+    {
+      "name": "cand-v27",
+      "commit": "224f605aec3e0a938c192e066d3c7bd6d256a36c",
+      "rubric": "witan-rubric-v27-prospective-2026-10-19"
+    }
+  ],
+  "pairs": [
+    {
+      "name": "release-v17",
+      "before": "v067-v17",
+      "after": "cand-v17",
+      "allowedCriteria": [],
+      "presentationOnly": [
+        "rubricBehaviourFingerprint",
+        "contentReadSummary"
+      ]
+    },
+    {
+      "name": "v27-shadow",
+      "before": "cand-v17",
+      "after": "cand-v27",
+      "allowedCriteria": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5",
+        "B1",
+        "B2",
+        "B3",
+        "B4",
+        "B5",
+        "B6"
+      ],
+      "presentationOnly": [
+        "rubricVersion",
+        "rubricBehaviourFingerprint",
+        "contentReadSummary"
+      ]
+    }
+  ],
+  "expected": {
+    "E0": "23 of 23 public rows complete in each of the three runs, with zero errors; target identity unchanged across runs; each source checkout at its run's commit; an existing run output refused.",
+    "E1": "release-v17: scoringRowsMoved 0, placementsMoved 0, fingerprintsChanged 0, unexpectedCriteria empty, undeclaredFieldChanges empty. The number of byte-different reports is not forecast.",
+    "E2": "v27-shadow, by norise.mjs: no row has a composite (overall, code, process) or a criterion score higher under v27 than under v17, and no composite or criterion is scored under v27 where v17 left it null or absent. The number of rows that differ, the placement moves, and the A2 and B2 insufficient_data counts under v27 are recorded, not forecast."
+  }
+}

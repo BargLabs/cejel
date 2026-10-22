@@ -1,7 +1,9 @@
 import {
+  WITAN_A2_PLACEHOLDER_SET_ASIDE_PREFIX,
   WITAN_A2_TENANT_ISOLATION_UNSETTLED_DISCLOSURE,
   WITAN_A3_BUILD_STEP_UNSETTLED_DISCLOSURE,
   WITAN_A5_RECONCILIATION_UNSETTLED_DISCLOSURE,
+  WITAN_B3_UNSHOWN_CHECK_PREFIX,
 } from './abstention.js';
 import {
   LOW_CONFIDENCE_COVERAGE_THRESHOLD,
@@ -687,6 +689,14 @@ function buildNextSteps(
       `Resolve the ${actionableSkips.count} content entr${actionableSkips.count === 1 ? 'y' : 'ies'} skipped as ${joinWithOr(actionableSkips.reasons)} (see the itemized reasons in the certificate), then reproduce the scan.`,
     );
   }
+  // #519. Not "skipped": under most rubrics the pointer's text was read and scored. Report format
+  // 1.6+ only; absent otherwise.
+  const lfsPointers = report.contentReadSummary?.byReason.lfsPointer ?? 0;
+  if (lfsPointers > 0) {
+    steps.push(
+      `Fetch the Git LFS content for the ${lfsPointers} file${lfsPointers === 1 ? '' : 's'} whose checkout holds a pointer (git lfs pull), then reproduce the scan.`,
+    );
+  }
 
   if (steps.length === 0) {
     steps.push(
@@ -713,7 +723,7 @@ function joinWithAnd(items: readonly string[]): string {
 // Skip reasons a repository owner can act on, in the order the certificate itemizes them.
 // excluded_by_extension is absent on purpose: Cejel does not read those file types at all.
 const ACTIONABLE_SKIP_REASONS: ReadonlyArray<{
-  key: Exclude<keyof WitanContentReadSummary['byReason'], 'excludedByExtension'>;
+  key: Exclude<keyof WitanContentReadSummary['byReason'], 'excludedByExtension' | 'lfsPointer'>;
   label: string;
 }> = [
   { key: 'unreadable', label: 'unreadable' },
@@ -840,6 +850,8 @@ const WITHHELD_PATH_REASON_LABELS: Record<WitanWithheldPath['reason'], string> =
   unreadable: 'unreadable',
   denied_path: 'denied path',
   excluded_by_extension: 'excluded by extension',
+  // Never a withheld-path reason today (an LFS pointer is read, not withheld); the map is total.
+  lfs_pointer: 'a Git LFS pointer',
 };
 
 function describeWithheldReasons(entries: readonly WitanWithheldPath[]): string {
@@ -906,6 +918,26 @@ function settlingEvidenceDisclosures(report: WitanReport): string[] {
         criterion.notes?.includes(sentence) === true,
     ),
   ).map(({ sentence }) => sentence);
+}
+
+// Every rubric: the A2 disclosure naming credential-shaped values set aside as documentation
+// placeholders. Listed whatever A2's status: whether it scored, abstained or was marked not
+// applicable, the reader would otherwise see no trace of a value Cejel read and set aside.
+function placeholderSetAsideDisclosures(report: WitanReport): string[] {
+  return criterionDisclosures(report, 'A2', WITAN_A2_PLACEHOLDER_SET_ASIDE_PREFIX);
+}
+
+// Every rubric: the B3 disclosure naming counted PR-gate workflows Cejel did not see run a check.
+// Listed only while B3 is scored, since only then does the count show.
+function unshownCheckWorkflowDisclosures(report: WitanReport): string[] {
+  const b3 = report.criteria.find((criterion) => criterion.id === 'B3');
+  if (!b3 || b3.status === 'not_applicable' || b3.status === 'insufficient_data') return [];
+  return criterionDisclosures(report, 'B3', WITAN_B3_UNSHOWN_CHECK_PREFIX);
+}
+
+function criterionDisclosures(report: WitanReport, criterionId: string, prefix: string): string[] {
+  const criterion = report.criteria.find((entry) => entry.id === criterionId);
+  return (criterion?.disclosures ?? []).filter((sentence) => sentence.startsWith(prefix));
 }
 
 // Uses the same all-criterion denominators as the summary box (formatDimensionsMeasuredSentence),
@@ -975,6 +1007,12 @@ export function buildRelyingPartySummary(report: WitanReport): RelyingPartySumma
       `${contentEntries(actionableSkips, 'was', 'were')} skipped for the reasons itemized in the certificate.`,
     );
   }
+  const lfsPointerCount = report.contentReadSummary?.byReason.lfsPointer ?? 0;
+  if (lfsPointerCount > 0) {
+    gaps.push(
+      `${lfsPointerCount} file${lfsPointerCount === 1 ? ' is a Git LFS pointer' : 's are Git LFS pointers'} in this checkout, so ${lfsPointerCount === 1 ? 'its' : 'their'} content was not read. A criterion that read one either abstained (it is listed among the affected criteria) or scored the pointer's text.`,
+    );
+  }
   const excludedByExtension = report.contentReadSummary?.byReason.excludedByExtension ?? 0;
   if (excludedByExtension > 0) {
     gaps.push(
@@ -982,6 +1020,8 @@ export function buildRelyingPartySummary(report: WitanReport): RelyingPartySumma
     );
   }
   gaps.push(...settlingEvidenceDisclosures(report));
+  gaps.push(...placeholderSetAsideDisclosures(report));
+  gaps.push(...unshownCheckWorkflowDisclosures(report));
   const withheldPathsSentence = buildWithheldPathsGapSentence(report);
   if (withheldPathsSentence !== undefined) {
     gaps.push(withheldPathsSentence);

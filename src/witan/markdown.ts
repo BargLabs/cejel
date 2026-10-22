@@ -18,6 +18,13 @@ import {
 } from './external-findings.js';
 import { renderFindingSummary } from './finding-presentation.js';
 import {
+  describeInputBindingRecord,
+  describeScannedSubject,
+  importedAdjustmentSentence,
+  inheritedFindingNote,
+  inputBindingHeadline,
+} from './input-binding-presentation.js';
+import {
   buildRelyingPartySummary,
   buildVerdictExplanation,
   CALLER_CONTEXT_PRODUCT_IDENTITY_NOTICE,
@@ -156,6 +163,11 @@ export function renderWitanMarkdownReport(
           `- Excluded by extension: ${report.contentReadSummary.byReason.excludedByExtension}`,
           `- Denied path: ${report.contentReadSummary.byReason.deniedPath}`,
           `- Non-regular file: ${report.contentReadSummary.byReason.nonRegularFile}`,
+          ...(report.contentReadSummary.byReason.lfsPointer
+            ? [
+                `- Git LFS pointer (content not in this checkout): ${report.contentReadSummary.byReason.lfsPointer}`,
+              ]
+            : []),
           `- Affected criteria: ${report.contentReadSummary.affectedCriteria.length > 0 ? `${report.contentReadSummary.affectedCriteria.join(', ')} (insufficient_data)` : 'none'}`,
           '',
           '_Counts only; skipped repository paths are intentionally omitted._',
@@ -211,8 +223,10 @@ export function renderWitanMarkdownReport(
           '',
           ...renderExternalFindings(externalFindings),
           '',
+          ...renderImportedAdjustments(report.criteria),
         ]
       : []),
+    ...renderInputBinding(report),
     '## Plain-language glossary',
     '',
     ...glossaryEntriesForReport(report).map(
@@ -341,13 +355,35 @@ function renderExternalFindings(findings: readonly WitanExternalFinding[]): stri
     (f) =>
       `- [${f.severity}] ${escapeMarkdownInline(f.label)} → ${f.dimension}: ${f.ruleId} — ${f.message}${
         f.location ? ` (${f.location})` : ''
-      }`,
+      }${inheritedFindingNote(f.ruleId) ? ` _Note: ${inheritedFindingNote(f.ruleId)}_` : ''}`,
   );
   const remaining = findings.length - shown.length;
   if (remaining > 0) {
     lines.push(`- ...and ${remaining} more — see report.json for the full list.`);
   }
   return lines;
+}
+
+function renderImportedAdjustments(criteria: readonly WitanCriterionScore[]): string[] {
+  const lines = criteria.flatMap((criterion) => {
+    const sentence = importedAdjustmentSentence(criterion);
+    return sentence ? [`- ${criterion.id}: ${sentence}`] : [];
+  });
+  return lines.length > 0 ? ['## Imported adjustments', '', ...lines, ''] : [];
+}
+
+// Present only when report.json carries inputBinding, so a no-ingest report is byte-identical.
+function renderInputBinding(report: WitanReport): string[] {
+  const binding = report.inputBinding;
+  if (!binding) return [];
+  return [
+    '## Ingested inputs',
+    '',
+    `${escapeMarkdownInline(inputBindingHeadline(binding))} ${escapeMarkdownInline(describeScannedSubject(binding))}`,
+    '',
+    ...binding.inputs.map((input) => `- ${escapeMarkdownInline(describeInputBindingRecord(input))}`),
+    '',
+  ];
 }
 
 function renderCriterionMetrics(criterion: WitanCriterionScore): string {

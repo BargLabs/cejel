@@ -22,6 +22,647 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
+## 2026-10-21 — post-merge review of #521: v27 corrected before first shipping, and A4 stops quoting CI command arguments; no published score moved
+
+**Status.** #521 merged without a recorded review pass. Two post-merge review passes, both AI
+(fresh-context subagents, not human), found five defects
+(https://github.com/BargLabs/cejel/pull/521#issuecomment-6323551442). This entry corrects all five,
+and what the two review passes of the fix itself (#553) then found in its first version.
+Two ship under every rubric and move no v17 score, status, metric value, finding count or
+fingerprint. Three ship only under `witan-rubric-v27-prospective-2026-10-19`.
+
+**v27 changed under its unchanged identifier.** v27 has not shipped: it is prospective, opt-in, and
+first ships in 0.6.8. Its identifier is kept because no released certificate carries it. Each
+change removes a place where v27 itself asserted more than it read, so v27 rises only toward v17,
+never above it. Its pinned fingerprint does not move: no behaviour-corpus fixture has any of these
+shapes. The default stays v17. **No holdout or calibration ran, and this entry makes no precision
+or recall claim.** Fixtures: `review5-*` in `src/witan/__tests__/fixtures/false-assurance-fixtures.ts`.
+
+**Every rubric (presentation under v17).**
+- **A4 printed a credential from a CI command (security).** The lockfile-requiring command quoted in
+  A4's note and evidence label was every word from the tool to the flag. A credential between them
+  appeared verbatim, for example `uv sync --extra-index-url https://user:<token>@host --locked`:
+  3 times in `report.json` and 4 times in `certificate.html`. A2 redacts the same kind of value in
+  the same report. The quoted command is now built from the rule's own words only: tool,
+  subcommand and the flag's name, with `…` where words were omitted (`uv sync … --locked`). A
+  flag's `=value` is never quoted. The `npm ci` path (no flag) already quoted only `npm ci`. No
+  other A4 or B3 label or note quotes repository command text: B2 and B3 labels name trigger names
+  (`[a-z_]+`), file paths and counts.
+- **A Git LFS pointer with CRLF line endings was not detected.** A pointer committed without
+  `.gitattributes` and checked out with `core.autocrlf=true` ends every line in CRLF. It is now
+  read as the LF pointer it was committed as, so the same commit is classified the same way on
+  every checkout. Text with any other mix of CR and LF is judged exactly as before. Under v17 this
+  adds the pointer to `contentReadSummary.byReason.lfsPointer` and A1's evidence label; no score,
+  status or metric moves. Under v27, A1 abstains on it as on an LF pointer.
+
+**v27 only.**
+- **A collection hook was read as skipping every test when a loop and a skip merely co-occurred.**
+  A hook that added a timeout to every item and skipped one known-broken test made A1 critical
+  (2.3 to 1.7), `non_hollow_test_share` 0, with the finding "marks every collected test skipped".
+  The `skip` kind is now claimed only when the hook body holds, at its own first indent,
+  `for <name> in items:` whose own first-level body calls `<name>.add_marker(pytest.mark.skip...)`,
+  with nothing in the loop rebinding `<name>` and nothing in the hook rebinding `items`. The
+  module's hook is whatever `pytest_collection_modifyitems` is bound to when the module finishes
+  executing: of top-level `def` statements that is the last one, which is the one read, but any
+  other binding (an indented or conditional `def`, an assignment, `del`, an import) can replace
+  it. So nothing is claimed when the name appears on any other line outside a whole-line comment.
+  `items[0].add_marker(...)`, a skip on another variable, a skip in a loop nested in another loop
+  (`for _ in range(0):`), and a loop inside a nested function are not claimed. The genuine
+  every-item skip, in block or one-line form, is still claimed. The `clear` kind (a hook that
+  empties `items`) follows the same rules: the clearing statement must sit at the hook body's own
+  first indent, so a clear in a nested function or in any loop is not claimed.
+- **`pytestmark` was judged from its first line only.** A module-level skip is now unconditional
+  only when the module names `pytestmark` exactly once, counted per occurrence so two statements
+  on one line count twice (a later reassignment, one inside an `if`, an `append`, or
+  `pytestmark = pytest.mark.skip(...); pytestmark = []`), no line of the statement holds an `if`
+  (including a line an open bracket carries it onto), and no line ends in a `\` continuation. The
+  skip must be named in code on the statement's first line, not only inside a string (an `xfail`
+  whose reason mentions `pytest.mark.skip`), so this only ever claims less than before.
+- **The publish-only rule fired beyond its stated evidence.** It excluded any workflow with a
+  publish word and no recognised verification word, contrary to its own rule that any doubt keeps
+  a workflow counted. **The rule is now: a publish-only workflow is one that only checks out,
+  configures credentials and uploads an already-built artifact; any install, build or package step
+  keeps it counted.** This replaces two earlier attempts in this change to admit setup and build
+  commands by reading the configuration they run (lifecycle scripts, build backends), which three
+  review passes showed cannot be made complete: `binding.gyp`, pnpm workspaces, uv and poetry path
+  sources, and native build backends each ran repository code past the reads.
+
+  In detail, every condition must hold, in addition to the earlier ones:
+  - every line of the jobs section is placed by `isPrintOnlyWorkflow`'s grammar, widened to a
+    publish workflow: the same top-level allowlist (no top-level `env` or `defaults`); job keys
+    `runs-on`, `name`, `timeout-minutes`, `needs` (a scalar or a flow list of plain names),
+    `permissions` and `environment` (a scalar or a one-level mapping), and `steps`; step keys
+    `name`, `id`, `uses`, `run`, and `with` and `env` as one-level mappings. A flow-mapping step,
+    a quoted, capitalised or explicit key, any other key, a lone CR, a plain value continued onto
+    a deeper line, and a quoted `run:` value are not placed;
+  - every `run:` command (comments dropped, `\` continuations joined, split at separators written
+    as separate words) is one of: `npm`/`pnpm`/`yarn config set` of a registry or token key;
+    `twine upload`; `uv publish` with no build flag; `poetry publish` without `--build`;
+    `gh release create` or `upload`; `cargo publish --no-verify`; or `npm`/`pnpm`/`yarn publish`
+    with no positional target or package-redirecting flag. Leading `NAME=value` credentials are
+    allowed; a code-loading variable is not;
+  - an npm-family publish also needs the root `package.json` to be scanned and parse, with no
+    lifecycle script (`preinstall`, `install`, `postinstall`, `pre`/`post`/`prepare`, `prepack`,
+    `postpack`, `prepublish`, `prepublishOnly`, `publish`, `postpublish`, `dependencies`), no
+    `workspaces`, no `gypfile` and no local dependency, and no `.npmrc`, `.yarnrc(.yml)`,
+    `.yarn/plugins/`, pnpmfile, `bunfig.toml`, `pnpm-workspace.yaml`, `lerna.json` or
+    `binding.gyp`, because publishing runs the package's scripts. Which files exist is read from
+    the scanned inventory and its withheld paths; a monorepo root's workflows get no such read,
+    so an npm-family publish there stays counted;
+  - every `uses:` step is `actions/checkout` (inputs `fetch-depth`, `token`,
+    `persist-credentials`, `fetch-tags` and `show-progress` only), `actions/cache`,
+    `actions/upload-artifact`, `actions/download-artifact` (inputs `name`, `path`, `pattern`,
+    `merge-multiple`, `run-id` and `github-token` only), `actions/setup-node`, `-python`, `-go`,
+    `-java` or `-dotnet`, `astral-sh/setup-uv`, `oven-sh/setup-bun`, `pnpm/action-setup` (without
+    `run_install`), `docker/login-action`, `pypa/gh-action-pypi-publish`, or
+    `softprops/action-gh-release` with a `files` input;
+  - at least one step uploads.
+
+  So every install, sync, build or package command keeps a workflow counted (`npm ci`/`install`,
+  `pnpm install`, `yarn`, `bun install`, `pip install`, `uv sync`/`build`, `python -m build`,
+  `poetry install`/`build`, `cargo build`, `npm pack`, `gem build`, ...), as do semantic-release,
+  goreleaser, the deploy CLIs, `docker push`, shell builtins (`echo`, `export`, `cd`, ...),
+  `--dry-run`, any redirect, substitution or separator glued inside a word, `changesets/action`,
+  and every action not named above. Code-loading variables, refused on a command line and in a
+  step `env:`, are `BASH_ENV`, `ENV`, `NODE_OPTIONS`, `LD_PRELOAD`, `LD_AUDIT`, `LD_LIBRARY_PATH`,
+  `PYTHONPATH`, `PYTHONSTARTUP`, `PERL5OPT`, `PERL5LIB`, `RUBYOPT`, `PATH`,
+  `NPM_CONFIG_NODE_OPTIONS` and `NPM_CONFIG_SCRIPT_SHELL`, case-insensitive. A quoted name is not
+  placed, so it keeps the workflow counted too.
+
+  **A deliberate recall reduction.** #517's own repros (`b3-pypi-publish-ungated`, which runs
+  `pip install build` and `python -m build` before the upload, and `b3-npm-publish-ungated`, which
+  runs `npm install`) are now counted under v27, as under v17, and so are a changesets workflow
+  (`review6-b3-changesets-without-command-inputs`) and a semantic-release workflow
+  (`review5-b3-semantic-release-after-setup`). v27 now removes CI credit only from upload-only
+  workflows: `review8-b3-pypi-upload-only-ungated` (download a built artifact, upload with the
+  PyPI action) is not counted, and dropping its environment gate and running it on every push no
+  longer raises B3; nor do a `twine upload`, an `npm publish` with no install, a `gh release
+  upload`, or `cargo publish --no-verify`. `gh release upload`, added to the publish vocabulary
+  here, is a new v27 exclusion against the first v27 (`review8-b3-gh-release-upload`: B3 1.6 to
+  1.0, below v17's 1.6).
+
+  Each reviewer case is still counted: `bun test` then `bun publish`; `pnpm run lint`,
+  `typecheck` and `build` then `pnpm publish`; `cargo build --release` with a GitHub release,
+  which also regains B3's build category; a publish word only in a YAML comment; and
+  `npm publish --dry-run`. The B3 note now reads "no pull-request trigger, and every step Cejel
+  reads only checks out, sets up a toolchain, configures credentials or uploads an already-built
+  artifact". It never names a counted workflow.
+
+**Measured, release/0.6.8 (`fe4524773`) against this change.** Fixtures were built once from this
+change's definitions and scored by both scanners. Reports were compared byte for byte, with the
+repository path normalised.
+
+| Set | v17: scoring-surface moves | v17: reports byte-identical | v27: scoring-surface moves | v27 no-rise against v17 |
+|---|---|---|---|---|
+| Behaviour corpus (30) | 0 | 30 | 0 | 0 violations |
+| Calibration anchors (5) | 0 | 5 | 0 | 0 violations |
+| Disclosure-gap fixtures (24) | 0 | 24 | 0 | 0 violations |
+| False-assurance fixtures, existing (87) | 0 | 87 | 2 (`b3-pypi-publish-ungated` and `b3-npm-publish-ungated` are now counted: the recorded recall reduction; 2 more `b3-*-publish-gated` reports differ in the B3 note's wording only) | 0 violations |
+| False-assurance fixtures, new `review5-*` (20) | 1 (`review5-a1-js-suite-as-crlf-lfs-pointers`: `contentReadSummary` gains 2 LFS pointers; no criterion moves) | 17 (3 differ: 2 `review5-a4-*` with the shortened command, and the CRLF pointers) | 14 (see below) | 0 violations |
+| False-assurance fixtures, new `review6-*` (12, from the review of #553) | 0 | 12 | 11 (see below) | 0 violations |
+| False-assurance fixtures, new `review7-*` (19, from the re-run of that review) | 0 | 19 | 18 (see below) | 0 violations |
+| False-assurance fixtures, new `review8-*` (12, from the second re-run and the narrower rule) | 0 | 12 | 8 (see below) | 0 violations |
+
+v27 moves on the new fixtures, before to after:
+- 1 CRLF pointer fixture: A1 critical 1.5 to insufficient_data 0; overall 1.8 to 1.4.
+- 3 `review5-a1-hook-*`: A1 critical 1.7 to verified 2.3, the v17 value; the hook finding is gone.
+- 4 `review5-a1-pytestmark-*`: A1 critical 1.7 to verified 2.3, the v17 value.
+- 6 `review5-b3-*`: B3 1.0 to 1.6 (5 fixtures, `default_branch_ci_depth` 1 to 2) or 1.0 to 1.5
+  (`cargo build`, `ci_script_depth` 1 to 2), each the v17 value.
+- 6 `review6-b3-*` (a flow-mapping `run` step, a flow-mapping `uses` step, a quoted `"run":` key,
+  `rustup run stable cargo build`, `changesets/action` with a `publish` input, `echo ok&&node
+  check.js`): B3 1.0 to 1.6, or 1.0 to 2.0 for `rustup run`, each the v17 value.
+- 3 `review6-a1-hook-*` (a loop in a nested function, a loop in `for _ in range(0):`, a hook
+  redefined later) and 2 `review6-a1-pytestmark-*` (reassigned on the same line, skip named only
+  in an `xfail` reason): A1 critical 1.7 to verified 2.3, the v17 value.
+- 13 `review7-b3-*` (`prepublishOnly` and `prepare` scripts, a committed `.npmrc`, semantic-release
+  with a config, the goreleaser CLI with hooks, `cargo publish` without `--no-verify`, a leading and
+  an exported `NODE_OPTIONS`, `echo ... >> $GITHUB_ENV`, step `env` with `LD_PRELOAD` or
+  `PYTHONPATH`, `python -m build` beside a `setup.py`, another owner's `setup-*` action): B3 1.0 to
+  1.6, the v17 value. `review7-b3-cargo-publish-no-verify` stays publish-only.
+- 5 `review7-a1-hook-*` (a clear in a nested function, in `for _ in range(0):` and in a loop over
+  another iterable; a conditional redefinition; a rebinding assignment): A1 critical 1.7 to
+  verified 2.3, the v17 value.
+- `review5-b3-semantic-release-after-setup` and `review6-b3-changesets-without-command-inputs`:
+  B3 1.0 to 1.6, the v17 value; now counted (the recorded recall reduction). The 13 `review7-b3-*`
+  above stay counted under the narrower rule; `review7-b3-cargo-publish-no-verify` stays
+  publish-only.
+- 7 `review8-b3-*` (a root `binding.gyp`, `"gypfile": true`, `pnpm-workspace.yaml`, `uv sync` with
+  a path source, a maturin build, a quoted `export "NODE_OPTIONS=..."`, softprops with no
+  `files`): B3 1.0 to 1.6, the v17 value.
+- `review8-b3-gh-release-upload`: B3 1.6 to 1.0, a new exclusion (see above); v17 stays 1.6.
+- `b3-pypi-publish-ungated` and `b3-npm-publish-ungated`: B3 1.0 to 1.6, the v17 value (the
+  recorded recall reduction).
+
+The other corners stay as they were: the one-line every-item skip, the unconditional skip whose
+reason holds `#`, and the genuine clear (`items.clear()` at the hook's own indent) are still
+claimed; and the upload-only positives (`review8-b3-pypi-upload-only-*`,
+`review8-b3-twine-upload-only`, `review8-b3-npm-publish-without-install`,
+`review8-b3-gh-release-upload`, `review7-b3-cargo-publish-no-verify`) are publish-only.
+
+Timing, scan only, one run each on the author's machine, on 18 hostile files just under the
+content size limit aimed at the new readers: sibling and 900-deep nested hook loops; long `for`/`as`
+lines and closed quoted lines; an unclosed run of escaped quotes in a hook loop (the second review's
+fixture); a 200,000-line bracketed `pytestmark`; many `pytestmark` lines; 24,000 publish-workflow
+steps; 9,000 jobs; a 30,000-line `run:` block and a 30,000-line `with:` block; a 24,000-line `\`
+chain; a long `uses:` value; long argument and assignment runs. Each took 0.09 s to 0.32 s under
+both rubrics. The root `package.json` read the publish-only check makes, and a 28,000-line clearing
+hook, are in the same child-process timing guard, which passes in 0.6 s. Two defects in the first version of this change were quadratic:
+- the step classifier dropped each leading `NAME=value` with a fresh array slice; 120,000
+  assignments before `npm publish` took 23.5 s under v27;
+- the hook loop's rebinding check blanked string literals with
+  `/'(?:[^'\\\n]|\\.)*'|"(?:[^"\\\n]|\\.)*"/g`, which retried from every quote of an unclosed
+  run of escaped quotes. 510 KB inside a `for item in items:` loop took 42.8 s under v27, and
+  three such files took 117 s; found by the second review of #553.
+
+The first now walks an index and the second uses the one-pass quote scanner already written for
+`pytestmark` (0.12 s on the reviewer's fixture). A child-process timing guard in
+`scan-path-regex-bounds.test.ts` kills both earlier versions at 20 s, and two unclosed escaped-quote
+families in `regex-redos-guard.test.ts` time the old expression out at 50 ms.
+
+The public board was not re-scored. Under v17 these changes reach only A4's quoted command and the
+LFS pointer count. The preregistered 0.6.8 public confirmation
+(`docs/experiments/public-delta-0-6-8-2026-10-21/`) ran at `224f605ae`, before this change.
+
+**Fingerprints.** Unchanged. v17 stays
+`sha256:5cd48f8c642300ae8736a09d4a24ce3a4f8885f6e099b5f27f99d950e0c944b4`, v27 stays
+`sha256:fb4edfa0bdf0d8153af3f84a4b72d4eab6da3fd6e0b2e3e494cea9542ded45a0`.
+
+**Not fixed.** A lockfile flag given an explicit false value (`pnpm install
+--frozen-lockfile=false`) is still read as requiring the lockfile. This predates #521 and is
+recorded on #546 with the other pre-existing shapes.
+
+## 2026-10-21 — post-merge review of #533: the CI lockfile reader's own fixes corrected; no published score moved
+
+**Status.** #533 merged the third-review corrections without a review of its own. Two post-merge
+review passes then found four defects in its CI lockfile reader, one test gap and one nit. This
+entry corrects all six, and a seventh defect found while fixing them. The A4 note and citation corrections ship under every rubric and move no v17
+score, status, metric, finding count or fingerprint. The `lockfile_coverage` and A1 corrections
+ship only under `witan-rubric-v27-prospective-2026-10-19`, which keeps its identifier: it is
+unreleased and opt-in, and its pinned fingerprint does not move. The default stays v17. **No
+holdout or calibration ran, and this entry makes no precision or recall claim.** Fixtures:
+`review4-*` in `src/witan/__tests__/fixtures/false-assurance-fixtures.ts`.
+
+**Two corrections to the 2026-10-20 entry.**
+- It called the workflow step reader "linear". That held for the number of steps in a flat
+  workflow only. Each nested list item rescanned its own extent for a guard key, and each nested
+  `steps:` key rescanned its job's extent, so the cost was nesting depth times file size. The
+  timing guard used flat steps only, so it could not see this.
+- #533 introduced a false claim. It began reading a conditional word in command position only,
+  so a guard behind `(`, `{` or `!` was lost: `( [ -n "$FULL" ] && npm ci )` made v17's note claim
+  that CI requires a lockfile, and scored v27's `lockfile_coverage` 0. The parent of #533 made no
+  claim there. The same change newly claimed `cargo test --locked --manifest-path
+  generated/Cargo.toml` and a `set +e` step that also runs `npm test`.
+
+**Every rubric (presentation under v17).** The CI lockfile note is withheld for:
+- a guard behind `(`, `{` or `!`, in any combination, and an arithmetic `((` guard. A command
+  after a `!` is never claimed: its failure passes the step.
+- `set +e` and `set +o errexit`.
+- a `cd` inside a subshell (`( cd generated && npm ci )`).
+- a directory or manifest passed as a flag that the scanned inventory does not hold. This covers
+  `npm ci --prefix`, `pnpm --dir` and `-C`, `uv --directory` and `--project`, and
+  `cargo --manifest-path` and `-C`, in the `--flag value`, `--flag=value` and glued short forms.
+  Where the inventory does hold the directory, the claim stands. The inventory then holds no file
+  of the lockfile's name anywhere, so it holds none in that directory either.
+- a `run:` or `steps:` line inside a `|` or `>` block scalar, such as a heredoc or a script passed
+  to an action. That line is text, not a workflow key. Before, a `steps:` line in an earlier
+  step's heredoc could detach a later step from its job's `if: false`.
+
+Reading block scalars as text also makes the note fire in two true shapes it missed. One is a
+`run: |` whose indicator carries a comment. The other is a step where a block scalar before
+`run:` holds a line starting with `- `, which was read as a step boundary.
+
+Which directories the checkout holds is decided from the scanned inventory: the scanned and
+withheld paths, exact-case. It is never decided from `lstat` on the working tree. Before, three
+things on the scanning host changed the certificate: a tracked symlink to a host directory, a
+case-insensitive volume (`cd SRC` with tracked `src/`), and an untracked empty directory. They no
+longer do. This also removes one uncached `lstat` per `cd` or `working-directory` occurrence.
+
+Guard keys are now evaluated once per line. Step and job guard extents come from one stack pass.
+
+**v27 only.**
+- `lockfile_coverage` follows the note above.
+- A pytest hook that empties `items` and puts back only an empty literal (`items.extend([])`) is
+  read as removing the suite, not as a reorder.
+- `items.clear(); items.extend(ordered)` written on one line is read as a reorder, as it already
+  was on two lines. Before, it was read as removing the suite.
+
+**Measured, main (`1d0d4388d`) against this change.** Reports are compared byte for byte, with
+the repository path normalised.
+
+| Set | v17: scoring-surface moves | v17: reports byte-identical | v27: scoring-surface moves | v27 no-rise against v17 |
+|---|---|---|---|---|
+| Behaviour corpus (30) | 0 | 30 | 0 | 0 violations |
+| Calibration anchors (5) | 0 | 5 | 0 | 0 violations |
+| False-assurance fixtures, existing (52) | 0 | 52 | 0 | 0 violations |
+| False-assurance fixtures, new `review4-*` (35) | 0 | 13 (of the 22 that differ, 20 have the false note and citation withheld and 2 gain a true one) | 24 (20 `review4-a4-*`: `lockfile_coverage` 0 to absent; 2 `review4-a4-claims-*`: absent to 0; 2 `review4-a1-*`: the hook finding) | 0 violations |
+
+The public board was not re-scored. Under v17 the reader feeds only A4's note and citation, so no
+v17 board score, status or rank can move. v27 board rows were not measured.
+
+Timing, scan only, one run each on the author's machine. Eight workflows, each just under the
+content size limit, held 990 nested `- run:` items or 490 nested `steps:` keys. They took 7.2 s to
+8.3 s on main and take 0.30 s (v17) and 0.35 s (v27) now. Sixteen took 15.0 s and take 0.5 s. A
+child-process timing guard with a 2 s budget fails against main's reader.
+
+A third timing defect turned up while fixing these, and neither review reported it. #533 trimmed
+a `cd` target and a `working-directory` value with `.replace(/\/+$/, '')`. A 480,000-slash value
+followed by one letter took about 80 s per workflow on main, because the trim is quadratic in a
+slash run that does not end the value. Paths are now trimmed by a loop: 0.3 s. A timing guard kills
+main's reader at 20 s.
+
+**Fingerprints.** Unchanged. v17 stays
+`sha256:5cd48f8c642300ae8736a09d4a24ce3a4f8885f6e099b5f27f99d950e0c944b4`, v27 stays
+`sha256:fb4edfa0bdf0d8153af3f84a4b72d4eab6da3fd6e0b2e3e494cea9542ded45a0`. No corpus fixture has
+any of these shapes.
+
+**Not fixed.** Other false-claim shapes that predate #533 are tracked in #546. They are: `needs:`
+on a skipped job, an `if: false` job whose `steps:` line carries a comment, `shell: bash {0}`, a
+generator that is not the first word, and a checkout of another ref. This change also withholds
+the claim for `set +e`, one of the shapes #546 lists. Not reviewed here: a step whose
+`npm ci` is piped (`| tee`) or backgrounded (`&`). Under the default shell, neither fails the step.
+
+## 2026-10-21 — A2, B2 and B3 say what they set aside or did not check (every rubric, presentation only); no published score moved
+
+**Status.** Presentation only, under `witan-rubric-v17-2026-07-24` and every selectable rubric. No
+score, status, metric value, finding count, abstention or fingerprint moves, and no rubric
+identifier changes. Found on a constructed demo repository scanned by 0.6.7 under v17. Two of its
+certificates asserted more than Cejel had checked: "Secret cleanliness: clean" beside a committed
+env file holding credential-shaped values Cejel had read and silently discarded, and
+"Pull-request CI workflow" on a workflow that only runs by hand. **No holdout or calibration ran, and
+this entry makes no precision or recall claim.** Changing which values or workflows count is
+scoring, left to a prospective rubric: #535 (B3 count), #536 (B3 lint and type-check categories),
+#537 (A2 surface and the placeholder rule).
+
+**Every rubric (presentation).**
+- A2: a value that is credential-shaped (`looksLikeSecretValue`) but that `isPlaceholderSecretValue`
+  sets aside is counted by file, using the same assignment grammar and the same file set as the
+  current-tree scan. The AWS documentation pair is an example: it contains "EXAMPLE". Count and
+  paths, never the value, appear on the secret-cleanliness metric line (`presentation.condition`),
+  in A2's `criteria[].disclosures` (report format 1.8) whether A2 scored, abstained or was not
+  applicable, and under "What was not established". The count is taken inside the detection pass
+  (`observeValue`), not by a second scan. Under v24 a value its classifier reports is never also
+  described as set aside. A scan that stopped at a confirmed secret names nothing, because it did
+  not read the rest. The placeholder rule itself is unchanged.
+- A2: the evidence label ".env files are gitignored" is replaced, when the scanned tree includes a
+  non-template env-format file (`.env`, `.env.<name>`, `<name>.env`), by one naming that file. A
+  `.gitignore` rule does not untrack a committed file. The pointer and the `env_handling_depth`
+  component it supports stay.
+- B2: each cited workflow is labelled by its own top-level `on:` triggers. One with a
+  `pull_request`, `pull_request_target` or `merge_group` trigger keeps "Pull-request CI workflow".
+  One without reads "CI workflow with no pull-request trigger (on: ...)". A non-GitHub CI file, or
+  a workflow whose triggers the reader cannot place, reads "CI workflow (trigger not read)". The
+  label names three triggers, then two, one or none, whichever first fits the 180-character
+  evidence label limit with its count suffix. Which files are cited and every count are unchanged. The re-read is attributed to no criterion
+  (`withoutContentReadAttribution`), so it cannot make B2 abstain.
+- B3: workflows that `default_branch_ci_depth` counted but whose every step only prints text are
+  named on that metric line, in B3's `criteria[].disclosures` and under "What was not
+  established", including a monorepo root's counted workflows ("at the monorepo root"). The claim is
+  about every step, so it is made only when every line of the workflow's `jobs:` section fits a small
+  grammar: each job holds only `runs-on`, `name`, `timeout-minutes` and `steps`; each step holds only
+  `name` and either `uses: actions/checkout@<ref>` or `run:`; every run line, one-line or in a
+  `|`/`>` block, only prints (`echo`, `printf`, `true`, `:`, `exit 0`, with no pipe, `&&`, `;`,
+  substitution or redirect), with its quotes balanced on the line. Any other key (`env`, `shell`,
+  `services`, `with`, `if`, a quoted or capitalised key), a workflow-level `env` or `defaults`, a
+  flow collection, or any line the grammar does not place claims nothing.
+  When B3 abstains wholesale, its disclosure goes with the count it names. The count is unchanged.
+- B3 does **not** name a workflow confined by its branch filters to a `master` (or `main`) branch
+  that does not exist (#535). Whether a branch exists is checkout state, outside the scanned
+  revision: a report must reproduce byte for byte from the revision alone (`cejel issue`).
+- Repository paths reaching the terminal through "What was not established" and metric values go
+  through `stripTerminalControls`, as other repository text already did.
+
+**Measured, main (`1d0d4388d`) against this change.** Every report was compared by scoring-surface
+projection (`projectWitanScoringSurface`) and by full `report.json` bytes.
+
+| Set | Rubrics | Reports | Scoring-surface moves | Byte differences |
+|---|---|---|---|---|
+| Behaviour corpus (30) | v17-v27 | 330 | 0 | 6 fixtures × 11 rubrics: B2 label on a workflow with no pull-request trigger; `workspace-package-scripts` also gains the B3 note (its CI runs only `echo ok`) |
+| False-assurance fixtures (52) | v17-v27 | 572 | 0 | 5 fixtures × 11 rubrics, B2 label |
+| Calibration anchors (5) | v17-v27 | 55 | 0 | not comparable: the fixtures are not hermetic, so head shas differ between runs |
+| New fixtures (24, `disclosure-gap-fixtures.ts`) | v17-v27 | 264 | 0 | 11 fixtures, the intended disclosures; all 13 controls and corners are byte-identical, including every master-only corner (full clone, extra branch, detached, depth-1, single-branch, CI-style fetch, schedule, dispatch) |
+| Public board, 23 public rows at their pinned commits, depth 1 | v17 | 23 | 0 | 16 rows, B2 labels only (for example react `compiler_prereleases.yml`, "on: workflow_call"; vue `close-cant-reproduce-issues.yml`, "on: schedule"; cejel `publish-distribution.yml`, "on: workflow_dispatch") |
+| The demo repository at its scanned commit | v17 | 1 | 0 | A2 set-aside and citation, B2 manual-dispatch label, B3 names the echo-only workflow; the master-only workflow is not named (see above); the base digest reproduced the digest recorded for 0.6.7 |
+
+No board row has a set-aside value or a committed env file beside a `.gitignore` rule, and no board
+row gets the B3 note. The board rows above were scored on depth-1 checkouts, not the board's
+full-history method (2026-10-11 entry). The release's preregistered public confirmation scores
+full-history clones and is the measurement of this change on the board's own method. The
+private board row was not run. `src/witan/__tests__/disclosure-gaps.test.ts` pins each new
+fixture's scoring surface under every selectable rubric to main's value (fixtures needing a
+read-denied file are skipped when tests run as root, where `chmod 000` denies nothing). Two
+`v17-scoring-surface-golden.test.ts` report hashes moved, because their CI is `on: [push]`.
+Restoring exactly the old B2 label recovers the previous pins byte for byte.
+
+**Found in review of #540.** Three defects added by this change, all fixed before merge:
+- **The new label could crash a scan.** It had no length cap. A workflow whose trigger names made it
+  exceed 180 characters failed `WitanReportSchema` and the whole scan exited 1 (reproduced with a
+  170-character trigger name). The label now drops trigger names to fit.
+- **"Runs only on master" ignored other triggers.** A workflow confined to `master` by its push and
+  pull-request filters but also on `schedule` or `workflow_dispatch` does run on `main`.
+- **"No master branch" was read from incomplete clones.** A `--depth 1` or `--single-branch` clone
+  holds only the default branch even when `master` exists upstream (reproduced). So does a checkout
+  built as `actions/checkout` builds one: a full `refs/heads/*` refspec, then a depth-1 fetch of one
+  branch.
+
+**Found in the second review round of #540** (two recorded passes on `530ea357b`), all fixed:
+- **The branch sentence broke reproduction.** It read branch state outside the scanned revision, so
+  for the same commit a detached checkout, a fresh clone, or one more branch gave different
+  `report.json` bytes, and `cejel issue` refused honest reproductions. Its git calls were also
+  outside the hardened read-only allowlist, so under the calibration no-egress hook the sentence
+  vanished silently. The branch sentence is removed, with both earlier branch fixes above; a test
+  pins that the same commit gives the same report on a branch, with an extra `master` branch, and
+  detached. A slash-named remote also defeated its `master` lookup.
+- **"Only prints text" was asserted about workflows that run checks**, on six step shapes the
+  reader skipped: flow-mapping steps, quoted keys, a plain value continued on the next line, and a
+  double-quoted value with an escaped newline. The reader now claims only steps it places.
+- **Repository paths reached the terminal unstripped** on a directory scan (escape sequences in a
+  file name). They now go through `stripTerminalControls`.
+- **The trigger reader was quadratic** in a branch list (26 s for ten 511 KB workflows). It now
+  reads trigger names only, linearly.
+- **A wholesale-abstained B3 kept a disclosure** naming a count the report no longer showed.
+
+**Found in the third and fourth review rounds** (re-runs on `17317dc3c` and `d0b3056e2`), all fixed:
+- **A quoted `#` in a block body hid a check.** The reader stripped `#…` from shell lines as if it
+  were a YAML comment, so `echo "Running shard #1" && pnpm test` read as print-only. Block bodies
+  are now matched whole.
+- **Step settings that run code were ignored:** a custom `shell:` program, `BASH_ENV`/`ENV`, an
+  explicit `? key`, an escaped quoted key and a capitalised `Run:` now claim nothing.
+- **The stricter reader was quadratic** in a long blank tail (a per-line slice). It is linear, and pinned.
+- **A quote left open into a `#` line hid a command**, a quoted `'shell'` key slipped past, and the
+  regex added to refuse side-execution settings was super-linear on a quote followed by backslashes
+  (one 500 KB workflow: 0.37 s at main, 172 s). Three rounds of refusing shapes had each left one
+  more, so the reader was rewritten as the allowlist above. The super-linear regex is gone, and the
+  ReDoS guard gains quote-and-backslash families.
+- **Fifth round:** a top-level `env`/`defaults` placed after `jobs:` and another key slipped past (the
+  scan now reads every top-level key, and refuses a repeated `jobs:` or a document marker); a lone CR
+  or NEL, which YAML treats as a line break, hid a command and drove the readers' `.*` regexes
+  quadratic (such workflows are now not read, and the regexes use `[^]*`); and a line mixing `"` and
+  `'` could leave a quote open (one quote kind per line now).
+- **Sixth round:** a workflow-level `env`/`defaults` written with a byte-order mark, an anchor, a tag,
+  a merge key or an alias key slipped past the top-level scan. The top level is now an allowlist
+  too (`name`, `run-name`, `on`, `true`, `permissions`, `concurrency`, `jobs`, written plain), and a
+  line starting with any blank other than a space or tab claims nothing.
+
+The review also moved the sentences out of `notes` into `criteria[].disclosures`, which fixes #539
+(a partial or wholesale abstention rewrote the notes and dropped them) and stops a not-applicable
+A2 printing the sentence twice. Report format moves to 1.8; a report with no disclosure is
+byte-identical to 1.7.
+
+**Found while measuring.** The first trigger reader did not read YAML compact sequences: a filter
+list at its key's indent (ripgrep `ci.yml`) and a trigger list at column 0 (cobra `labeler.yml`).
+It cited both as "trigger not read". Both are fixed and pinned by unit tests.
+
+**Mutations.** Dropping the credential-shape requirement fails one test. After the first review, each new guard was removed in turn and
+each removal fails at least one test: the label fit (2: the label test, and the pinned scan that
+no longer completes), keeping disclosures through a wholesale abstention (1: #539), the set-aside
+count inside the detection pass (5), and naming monorepo-root workflows (1). The branch guards
+measured then were removed with the branch sentence. After the second and third reviews: removing the
+placed-step checks fails 15; after the fourth, the round-3 reader fails 6 of the allowlist's new pins
+(a quote left open into a `#` line, twice; a quoted `shell` key, twice; a checkout with inputs; a job
+with `services`); after the fifth, the round-4 reader fails all 8 new pins; the sixth adds 7 pins (one per shape); keeping B3's disclosure through its abstention fails 1, and the
+pre-rework source fails the reproduction, terminal, linear-time and literal-pattern pins (4). Dropping the attribution guard on the B2 and B3 re-reads fails
+nothing. Cejel already attributes a skipped CI-workflow path to B2 and B3 by path, so the guard is
+redundant with existing behaviour. It is kept as the documented pattern for presentation-only
+reads, and the LFS-pointer and unreadable-workflow fixtures pin the scoring surface either way.
+
+**Fingerprints.** Unchanged. v17 stays
+`sha256:5cd48f8c642300ae8736a09d4a24ce3a4f8885f6e099b5f27f99d950e0c944b4`, v27 stays
+`sha256:fb4edfa0bdf0d8153af3f84a4b72d4eab6da3fd6e0b2e3e494cea9542ded45a0`.
+
+**Not fixed.** The unnamed "excluded by extension" entry (#538). A workflow file can still be read
+more than once per scan by B2 and B3 under different read attributions (#534).
+
+## 2026-10-20 — third review of the v27 closure: eight corrections; no published score moved
+
+**Status.** A third adversarial review, of the merged #521, reported ten findings. Eight
+reproduced. The A4 note and citation corrections ship under every rubric and move no v17 score,
+status, metric, finding count or fingerprint. The A1 and `lockfile_coverage` corrections ship only
+under `witan-rubric-v27-prospective-2026-10-19`, which keeps its identifier: it is unreleased,
+opt-in, and its pinned fingerprint does not move. The default stays v17. **No holdout or
+calibration ran, and this entry makes no precision or recall claim.** Details and the fixture for
+each finding: `docs/reviews/v27-false-assurance-closure-2026-10-19.md`, "Third review".
+
+**Every rubric (presentation under v17).**
+- The CI lockfile-requirement note was missed where a step also ran tests (`npm ci` then
+  `npm test`), for `cargo test --locked`, and for any workflow saved with CRLF line endings. It now
+  fires there.
+- It was made where it is not true: a step or job with `continue-on-error`, a workflow that checks
+  out another repository or downloads an artifact, a working directory or `cd` target the checkout
+  does not hold, and a workflow that names the lockfile in a command. It is withheld there.
+- The workflow step reader was quadratic in the number of steps: a 480 KB workflow of 24,000 steps
+  took 12 s to scan under v17. It is linear (about 0.25 s); a timing guard kills the previous
+  implementation.
+- Under library norms, A4 no longer cites a secondary manifest ahead of the primary one when the
+  primary holds an unconstrained dependency itself.
+- The bounded prefix read used by the semantic source gate now counts a Git LFS pointer in
+  `contentReadSummary.byReason.lfsPointer`, as the full read does.
+
+**v27 only.**
+- A1 never credits a `conftest.py` as a live test, so a suite a hook skips credits 0. Where
+  `conftest.py` files are the only test-shaped files, A1 cites them as pytest configuration and
+  scores a test ratio of 0. Before, A1 could lose its only evidence and stop being scored, which
+  could raise the composite. This was not observed as a rise on any recorded set.
+- A pytest hook that empties `items` and refills it is read as a reorder, not as removing the
+  suite.
+- `lockfile_coverage` follows the note above in both directions.
+
+**Measured, main (`7db216363`) against this change.**
+
+| Set | v17: scoring-surface moves | v17: reports byte-identical | v27: scoring-surface moves | v27 no-rise against v17 |
+|---|---|---|---|---|
+| Behaviour corpus (30) | 0 | 30 | 0 | 0 violations |
+| Calibration anchors (5) | 0 | 5 | 0 | 0 violations |
+| Public board, 23 rows | 0 | 23 | 2 (metric only) | 0 violations |
+| False-assurance fixtures (52) | 0 | 43 (the 9 that differ are the new `review3-a4-*` notes and citations) | 11 (the new `review3-*` fixtures) | 0 violations |
+
+On the board under v27, flask and pydantic each had one `conftest.py` credited as a live test:
+`non_hollow_test_share` falls 28 to 27 and 213 to 212, and neither A1 score moves at the reported
+precision. No other v27 board row moves.
+
+**Fingerprints.** Unchanged. v17 stays
+`sha256:5cd48f8c642300ae8736a09d4a24ce3a4f8885f6e099b5f27f99d950e0c944b4`, v27 stays
+`sha256:fb4edfa0bdf0d8153af3f84a4b72d4eab6da3fd6e0b2e3e494cea9542ded45a0`: no corpus fixture has
+any of these shapes.
+
+**Not fixed.** Repeated reads of the same files within one scan (efficiency only), tracked as an
+issue.
+
+## 2026-10-19 — false-assurance closure: presentation fixes under every rubric, prospective v27 for the scoring fixes (#517, #518, #519, #520, #442); no published score moved
+
+**Status.** Two parts. The presentation fixes ship under `witan-rubric-v17-2026-07-24` and every
+selectable rubric, and move no score, status, metric, finding count, abstention or fingerprint.
+The scoring fixes ship only under a new prospective rubric, `witan-rubric-v27-prospective-2026-10-19`,
+which inherits v17 (not v18-v26) and changes only these behaviours. v27 is explicit opt-in. The
+public default stays v17 and the public board is scored under v17, so no published score, verdict
+or rank moves. **No holdout or calibration ran for v27, and this entry makes no precision or recall
+claim.** Classification and the reasons for each design choice:
+`docs/reviews/v27-false-assurance-closure-2026-10-19.md`.
+
+**Presentation, every rubric.**
+- #519: a file whose checkout holds a Git LFS pointer is counted in
+  `contentReadSummary.byReason.lfsPointer` (report format 1.6; present only when non-zero, so no
+  other report's bytes change), itemized on the certificate, and labelled as a pointer in A1's
+  evidence. No criterion abstains on it under these rubrics: the reader is told the content was
+  not read, and the score is unchanged.
+- #520: A4's library note no longer says a lockfile is "not required" when an unconditional
+  GitHub Actions step runs a command documented to fail without its lockfile (`npm ci`, `pnpm
+  install --frozen-lockfile`, `uv run|sync --locked|--frozen`, `cargo
+  build|test|check|clippy|doc|run|bench --locked|--frozen`, `poetry check --lock`) and that
+  lockfile is absent everywhere the scan knows of. Cejel claims nothing when the step or its job has
+  an `if:`, the step's shell is conditional (`if`, `[`, `test`, `||`, ...) or holds a heredoc, the
+  tool is not in command position (echoed text, a step name), or the workflow also runs a command
+  that writes that lockfile (`npm install`, `uv run` without `--locked`, ...). Steps are read as
+  words before any comment, in linear time. The note names the command, file, line and needed
+  lockfile, and that line is cited first, so the metric-derived finding cites it. A lockfile the file walk withheld (for example, over the size
+  limit) counts as present for this purpose. Under library norms the manifest holding a dependency
+  declared with no version constraint is cited first when it is not the primary manifest.
+
+**Scoring, v27 only.**
+- #517 (B3): a workflow with a publish, release or deploy step, no pull-request or merge-queue
+  trigger, no reusable-workflow call, and no test, lint, type-check or other recognised
+  verification command (tox, nox, pre-commit, gradle, maven, make check, ...) counts toward neither
+  `ci_script_depth` nor `default_branch_ci_depth`. Any doubt keeps it counted.
+- #518 (A1): `conftest.py` is not a concrete test file for `test_to_source_ratio` or the
+  evidence; `non_hollow_test_share` stays measured over v17's list, so its denominator cannot
+  shrink. A top-level `pytest_collection_modifyitems` hook in a conftest.py that, with no
+  conditional anywhere in it, skips or removes every item makes the pytest files in its directory
+  hollow, and is named in a warning finding; so does an unconditional one-line module-level
+  `pytestmark = pytest.mark.skip`.
+- #519 (every criterion): reading an LFS pointer is a content-read skip attributed to the reading
+  criterion, which abstains as a read failure (kept in the composite at 0), including one that
+  would otherwise be not applicable, since applicability is decided from content. The exception is
+  a criterion whose collector made a critical finding: it scores as under v17, so a pointer-shaped
+  file cannot erase a confirmed finding.
+- #520 (A4): under library norms, `lockfile_coverage` is 0, not omitted, when the repository's CI
+  requires a lockfile and the inventory holds none.
+- #442 (A2, B2): on a shallow clone A2 abstains unless a confirmed critical finding stands, and B2
+  abstains when fewer than 12 commits are visible. Both are read failures, kept in the composite at
+  0. A2's abstention also withholds its warning and info findings.
+
+**Why nothing can rise.** Every v27 change either lowers a metric value (B3 depths, A1
+`test_to_source_ratio` and `non_hollow_test_share`, A4 `lockfile_coverage` = 0) or is a
+read-failure abstention, which scores 0 and stays in the composite. Withholding a single metric and
+self-imposed abstention were both rejected because each can raise a score; a new `critical` or
+`warning` A4 finding was rejected because the v17 scorer sets a critical-finding criterion to 1.4
+and lets a warning finding pre-empt the critical score band. The no-rise property is a test
+(`src/witan/__tests__/false-assurance-v27.test.ts`) on every new fixture, and was checked on every
+corpus specimen and board row below.
+
+**Measured.** Previous scanner: `origin/main` `1e17e8ce3`. Full `report.json` bytes and the
+fingerprint projection were compared before and after.
+
+| Set | Rubrics | Reports | Scoring-surface moves | Byte-identical | Byte differences |
+|---|---|---|---|---|---|
+| Behaviour corpus (30 specimens) | v17-v26 | 300 | 0 | 290 | 10: `pr-template-directory-form` under every rubric, A4 note and citation (its CI runs `npm ci`, no lockfile) |
+| Calibration anchors (5 fixtures) | v17-v26 | 50 | 0 | not comparable | the fixtures are not hermetic, so every head sha differs between builds |
+| Public board, 23 public rows at their pinned commits, depth 1 as the board fetches them | v17 | 23 | 0 | 20 | 3: biomejs, flask, zod, A4 citation order |
+| New fixtures (38, `false-assurance-fixtures.ts`, 16 of them from review) | v17 | 38 | 4: the four LFS fixtures, `contentReadSummary.byReason.lfsPointer` only | 31 | 7: the LFS fixtures (count, labels), two A4 fixtures and `b3-test-then-publish-workflow` (A4 note and citation; its CI runs `npm ci`) |
+
+The private board row was not run for this entry. `report.json` comparisons are above;
+`attestation.json` changes on every scan, because it records report format 1.6.
+
+**Found in review.** An adversarial review of the first implementation of this change reproduced
+a score rise under v27 (a `conftest.py` that v17 rates hollow left A1's non-hollow denominator),
+false lockfile-requirement notes under v17 (`cargo install --locked`, a committed `bun.lock`, a
+trailing comment), a quadratic regex on the v17 path, and v27 over-reach (an LFS pointer erasing a
+critical finding; conditional hooks and pytestmarks read as unconditional; tox CI read as
+publish-only). Each is fixed and pinned by a fixture or by a timing guard
+(`scan-path-regex-bounds.test.ts`; the previous implementation's scan is killed at 20 s).
+A second review, of those fixes, reproduced six more false lockfile notes (a step guarded by
+`if [ -f package-lock.json ]`, `[ ... ] && npm ci || npm install`, echoed text, a heredoc line, a
+disabled job, a lockfile generated earlier in the job), a not-applicable result kept from an LFS
+pointer, and an evidence-sample shift; those are fixed and pinned the same way.
+
+**Fingerprints.** Every existing pin is unchanged; v17 stays
+`sha256:5cd48f8c642300ae8736a09d4a24ce3a4f8885f6e099b5f27f99d950e0c944b4`. v27 is pinned at
+`sha256:fb4edfa0bdf0d8153af3f84a4b72d4eab6da3fd6e0b2e3e494cea9542ded45a0`. On the corpus it
+differs from v17 only in the A4 component (`pr-template-directory-form`: A4 critical 0.5 to 0.3,
+`lockfile_coverage` 0); no report-level component differs.
+
+**v17 to v27 on the public board** (prospective; nothing published moves). Twenty-two of the 23
+rows are scored; carddemo abstains as `insufficient_source` under both. Every scored row is a
+depth-1 clone, so B2 abstains on all 22 and A2 on the 8 where it is applicable and no confirmed
+critical finding stands. Every composite falls; none rises.
+
+| Row | Verdict | Overall | Code | Process | Criteria that moved, v17 → v27 |
+|---|---|---|---|---|---|
+| automapper | at_risk → unverified | 2.2 → 1.2 | 2 | 2.3 → 0.3 | B2 verified 4 → insufficient_data 0 |
+| axios | conditional → at_risk | 3.3 → 2.4 | 2.6 → 1.8 | 3.9 → 2.9 | A2 verified 3.6 → insufficient_data 0; B2 verified 4 → insufficient_data 0 |
+| biomejs | conditional → at_risk | 3 → 2 | 2.9 → 1.8 | 3.1 → 2.2 | A2 verified 3.2 → insufficient_data 0; B2 verified 4 → insufficient_data 0; B3 metric only (default_branch_ci_depth 13→12; score unchanged) |
+| carddemo | insufficient_source | — | — | — | no move |
+| cejel | conditional → at_risk | 2.8 → 1.5 | 2.3 → 1.7 | 3.2 → 1.2 | A2 verified 3.3 → insufficient_data 0; B2 verified 4 → insufficient_data 0 |
+| cobra | conditional → at_risk | 2.5 → 1.5 | 2.6 | 2.3 → 0.3 | B2 verified 4 → insufficient_data 0 |
+| django | conditional → at_risk | 3.1 → 1.6 | 2.6 → 1.6 | 3.6 → 1.6 | A2 warning 2.8 → insufficient_data 0; B2 verified 4 → insufficient_data 0 |
+| esbuild | conditional → at_risk | 2.5 → 2 | 2.6 | 2.4 → 1.3 | B2 warning 3.2 → insufficient_data 0 |
+| express | conditional → at_risk | 3.1 → 2.4 | 3 | 3.2 → 1.8 | B2 verified 4 → insufficient_data 0 |
+| fastapi | conditional | 3 → 2.5 | 2.8 | 3.2 → 2.1 | A1 metric only (test_to_source_ratio 604→603; score unchanged); B2 warning 3.2 → insufficient_data 0 |
+| flask | conditional → at_risk | 2.9 → 1.9 | 2.7 → 1.9 | 3 → 1.9 | A1 metric only (test_to_source_ratio 59→56; score unchanged); A2 verified 3.2 → insufficient_data 0; B2 warning 3.2 → insufficient_data 0 |
+| fmt | conditional → at_risk | 2.6 → 2.2 | 2 | 3.2 → 2.4 | B2 warning 3.2 → insufficient_data 0 |
+| guava | at_risk → unverified | 1.9 → 1.1 | 1.6 | 2.2 → 0.6 | B2 warning 3.2 → insufficient_data 0 |
+| pydantic | conditional | 3.2 → 2.6 | 2.9 | 3.5 → 2.2 | A1 metric only (test_to_source_ratio 292→290; score unchanged); B2 verified 4 → insufficient_data 0 |
+| react | conditional → at_risk | 3 → 2.4 | 2.1 | 3.9 → 2.6 | B2 verified 4 → insufficient_data 0 |
+| requests | conditional → at_risk | 2.9 → 2.4 | 2.4 | 3.4 → 2.4 | A1 verified 2.5 → verified 2.4; B2 verified 4 → insufficient_data 0 |
+| ripgrep | at_risk | 2.1 → 1.6 | 2.1 | 2 → 1 | B2 warning 3.2 → insufficient_data 0 |
+| scorecard | conditional → at_risk | 2.9 → 2.2 | 2.2 | 3.6 → 2.2 | B2 verified 4 → insufficient_data 0 |
+| sinatra | at_risk | 2.2 → 1.5 | 2 | 2.4 → 1 | B2 verified 4 → insufficient_data 0 |
+| svelte | conditional → at_risk | 3.1 → 2 | 2.9 → 2 | 3.3 → 2 | A2 verified 3.6 → insufficient_data 0; B2 verified 4 → insufficient_data 0; B3 metric only (default_branch_ci_depth 5→4; score unchanged) |
+| vite | conditional | 3.4 → 2.5 | 2.8 → 2.2 | 4 → 2.7 | A2 verified 3.2 → insufficient_data 0; B2 verified 4 → insufficient_data 0 |
+| vue | conditional → at_risk | 2.9 → 2.3 | 2.4 | 3.4 → 2.3 | B2 warning 3.2 → insufficient_data 0 |
+| zod | conditional → at_risk | 3.2 → 2 | 3.1 → 1.9 | 3.2 → 2.1 | A2 verified 3.6 → insufficient_data 0; B2 warning 3.2 → insufficient_data 0 |
+
+Fixture-level movements are in `docs/reviews/v27-false-assurance-closure-2026-10-19.md`.
+
+### Correction — 2026-10-21: these board rows are depth-1 checkouts, not the board's method
+
+The board table near the top of this entry says "depth 1 as the board fetches them". The v17 to v27 table above
+was measured on the same depth-1 checkouts, as was the "Public board, 23 rows" row of the 2026-10-20
+entry above (#533). The board does not fetch them that way: it has been scored on
+full-history clones since the 0.6.3 regeneration (the 2026-10-11 entry below; #431, #452, #455). Both
+tables are left as measured. They compare two scanners on the same depth-1 inputs. They do not show what
+v27 would publish: on full-history clones, A2 and B2 do not abstain for shallow history. How v27
+compares with v17 there has not been measured. Found by a review pass on #542.
+
 ## 2026-10-15 — v26 item 8: A3's build or type-check finding fires on settling evidence only (v26 alone); no repository moved
 
 **Status.** The second change `witan-rubric-v26-prospective-2026-10-14` makes of its own,
@@ -121,6 +762,42 @@ repositories were scored at their pins, under v17 and under v26. **All four prer
 last run of that check under v26 started on 2026-10-14, before this change existed, and none ran
 between this change's merge and the 0.6.7 release. The change shipped in 0.6.7 on 2026-10-18
 without it. v26 remains prospective and explicit opt-in; the public default stays v17.
+
+## 2026-10-15 (entry added 2026-10-21) — #502: a `pnpm run /<regex>/` selector is no longer evaluated (every rubric, no identifier bump); no public repository moved
+
+*Entry added 2026-10-21 (#516). #502 shipped in 0.6.6 and was recorded only in `CHANGELOG.md`
+`[0.6.6]`. Neither control forced an entry: the rubric identifier did not change, and the
+behaviour-fingerprint corpus has no regex selector, so no pin moved. The facts below are all from
+that release's records.*
+
+**Status.** A security fix that is also a scoring change under every selectable rubric, with no
+identifier bump and with weights and thresholds unchanged. Merged as `3baf55aae`, shipped in 0.6.6.
+This entry makes no statement about calibration, precision or recall.
+
+**The change, every rubric.**
+- **A `pnpm run /<regex>/` selector in a package script is no longer compiled or run.** Before #502
+  (present since 0.4.7, #276), Cejel compiled the selector and ran it against the repository's own
+  script names, so a crafted pattern could backtrack for minutes. The selector is now treated as an
+  unresolved reference. That withholds both A1's coverage-command credit and the "no coverage
+  configuration" finding, and A1's notes say the reachability was unresolved. A repository whose
+  only route to its coverage script is a regex selector loses that credit. This is the scoring
+  change.
+- **Declared workspace globs (#479) are matched without a regex**, in time linear in the path, with a
+  cap of 256 characters and 32 segments. A longer pattern is treated like any pattern Cejel cannot
+  parse: an include pattern is skipped, and an exclusion pattern makes Cejel read only the root
+  `package.json`. Matching is otherwise unchanged, so this half moves nothing below the caps.
+
+**Fingerprint.** #502 changed no behaviour-fingerprint pin: the synthetic corpus has no regex
+selector. One recognition test changed its expectation:
+`coverage-command-recognition-v23.test.ts` ("withholds both credit and absence for a
+`pnpm run /regex/` test-family selector"), which had credited the coverage command before #502.
+
+**Public corpus: measured, no repository moved.** The preregistered 0.6.6 confirmation
+(`docs/experiments/public-delta-0-6-6-2026-10-15/`; preregistration `31909f02b`, a strict ancestor
+of the result, #505) scored the 23 public rows under v17 and v26 at v0.6.5 (`a8e582a0`) and at the
+fix commit (`82cba330`). All 23 reports were byte-identical under both rubrics, so none of these
+rows reaches the changed behaviour in a way that alters `report.json` (the result's own wording). The run tests where public scores would move. It does
+not test the fix itself, which #502's tests cover.
 
 ## 2026-10-14 — A2 HMAC digest compare by keyed computation (every rubric, no identifier bump); public paired rescore not run
 

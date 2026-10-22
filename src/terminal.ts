@@ -1,5 +1,14 @@
 import { formatExternalSourceLine } from './witan/index.js';
+import { EXTERNAL_FINDINGS_DISPLAY_LIMIT } from './witan/external-findings.js';
+import {
+  describeInputBindingRecord,
+  describeScannedSubject,
+  importedAdjustmentSentence,
+  inheritedFindingNote,
+  inputBindingHeadline,
+} from './witan/input-binding-presentation.js';
 import type { WitanReport } from './witan/index.js';
+import { stripTerminalControls } from './presentation-safety.js';
 import {
   buildRelyingPartySummary,
   buildVerdictExplanation,
@@ -46,14 +55,9 @@ export function renderMinScoreCoverageFailure(
   return `Cejel: cannot evaluate the required minimum ${minScore.toFixed(1)}/4.0 because fewer than half of the applicable dimensions were measured in at least one score (${formatCoverageSummary(coverage)}). Resolve the reported evidence gaps and re-scan.\n`;
 }
 
-/**
- * Removes C0 controls, DEL and C1 controls (U+0080-U+009F) from a repository- or ingest-derived
- * string before it reaches the terminal; a newline or tab inside the field becomes a space. The
- * visible text around a removed control is kept. Cejel's own text never passes through here.
- */
-export function stripTerminalControls(text: string): string {
-  return text.replace(/[\t\n]/g, ' ').replace(/[\u0000-\u001f\u007f-\u009f]/g, '');
-}
+// Defined in the leaf presentation-safety module so the scan path (src/witan) can use the same
+// function without importing the terminal renderer; re-exported here for existing callers.
+export { stripTerminalControls } from './presentation-safety.js';
 
 /** Concise, human-readable terminal certificate for `npx @cejel/cejel .` — the full report lives
  * in the written HTML/JSON files; this is the at-a-glance summary. */
@@ -102,7 +106,7 @@ export function renderTerminalCertificate(summary: WitanCliSummary, report?: Wit
       `Scope: ${relyingPartySummary.scope}`,
       `What was examined: ${stripTerminalControls(relyingPartySummary.examined)}`,
       `What was established: ${relyingPartySummary.established}`,
-      `What was not established: ${relyingPartySummary.notEstablished}`,
+      `What was not established: ${stripTerminalControls(relyingPartySummary.notEstablished)}`,
       `What to do next: ${relyingPartySummary.next}`,
       '',
     );
@@ -130,7 +134,7 @@ export function renderTerminalCertificate(summary: WitanCliSummary, report?: Wit
       .map(([errno, count]) => `${errno}: ${count}`)
       .join(', ');
     lines.push(
-      `Skipped content entries: ${reads.skipped} (unreadable: ${reads.byReason.unreadable}${errnoCounts ? ` [${errnoCounts}]` : ''}; too large: ${reads.byReason.tooLarge}; excluded by extension: ${reads.byReason.excludedByExtension}; denied path: ${reads.byReason.deniedPath}; non-regular file: ${reads.byReason.nonRegularFile}).`,
+      `Skipped content entries: ${reads.skipped} (unreadable: ${reads.byReason.unreadable}${errnoCounts ? ` [${errnoCounts}]` : ''}; too large: ${reads.byReason.tooLarge}; excluded by extension: ${reads.byReason.excludedByExtension}; denied path: ${reads.byReason.deniedPath}; non-regular file: ${reads.byReason.nonRegularFile}${reads.byReason.lfsPointer ? `; Git LFS pointer: ${reads.byReason.lfsPointer}` : ''}).`,
     );
     if (reads.affectedCriteria.length > 0) {
       lines.push(
@@ -150,6 +154,23 @@ export function renderTerminalCertificate(summary: WitanCliSummary, report?: Wit
     lines.push('');
   }
 
+  // Binding status of each ingested document. Read from report.json because summary.json's shape
+  // is unchanged; absent when nothing was ingested, so a no-ingest summary prints as before.
+  if (report?.inputBinding) {
+    lines.push(stripTerminalControls(inputBindingHeadline(report.inputBinding)));
+    lines.push(`  ${stripTerminalControls(describeScannedSubject(report.inputBinding))}`);
+    for (const input of report.inputBinding.inputs.slice(0, EXTERNAL_FINDINGS_DISPLAY_LIMIT)) {
+      lines.push(`  ${stripTerminalControls(describeInputBindingRecord(input))}`);
+    }
+    const remaining = report.inputBinding.inputs.length - EXTERNAL_FINDINGS_DISPLAY_LIMIT;
+    if (remaining > 0) lines.push(`  ...and ${remaining} more — see report.json inputBinding.`);
+    for (const criterion of report.criteria) {
+      const sentence = importedAdjustmentSentence(criterion);
+      if (sentence) lines.push(`  ${criterion.id}: ${sentence}`);
+    }
+    lines.push('');
+  }
+
   const measurements = report?.criteria.flatMap((criterion) =>
     criterion.metrics.map((metric) => ({
       criterionId: criterion.id,
@@ -162,7 +183,7 @@ export function renderTerminalCertificate(summary: WitanCliSummary, report?: Wit
     lines.push('Measurements:');
     for (const measurement of measurements ?? []) {
       lines.push(
-        `  ${measurement.criterionId} — ${measurement.label}: ${measurement.value} (weight ${measurement.weightPercent}% of ${measurement.criterionId})`,
+        `  ${measurement.criterionId} — ${measurement.label}: ${stripTerminalControls(measurement.value)} (weight ${measurement.weightPercent}% of ${measurement.criterionId})`,
       );
     }
     lines.push('');
@@ -208,6 +229,8 @@ export function renderTerminalCertificate(summary: WitanCliSummary, report?: Wit
           finding.location ? ` (${stripTerminalControls(finding.location)})` : ''
         }`,
       );
+      const note = inheritedFindingNote(finding.ruleId);
+      if (note) lines.push(`    Note: ${note}`);
     }
     const remaining = summary.externalFindingCount - summary.topExternalFindings.length;
     if (remaining > 0) {

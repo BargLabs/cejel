@@ -8,8 +8,8 @@ never be converted into a default pass or fail.
 
 | Artifact | Version identifier | Consumer rule |
 | --- | --- | --- |
-| Generic ingest JSON | root `version`, currently `1.0` | Read major first; reject unknown majors. |
-| `report.json` | paired `attestation.json` field `predicate.reportFormatVersion`, currently `1.5` | Verify the digest binding, then route by report-format major. Legacy scan/v1 attestations without this additive field are report format 1.0. |
+| Generic ingest JSON | root `version`, currently `1.1` | Read major first; reject unknown majors. |
+| `report.json` | paired `attestation.json` field `predicate.reportFormatVersion`, currently `1.8` | Verify the digest binding, then route by report-format major. Legacy scan/v1 attestations without this additive field are report format 1.0. |
 | `attestation.json` | `_type` and `predicateType`; Cejel currently emits `https://in-toto.io/Statement/v1` and `https://cejel.dev/attestations/scan/v1` | Require exact supported identifiers. An unknown predicate major is unsupported. |
 | `issuance.json` | `predicate.issuanceFormatVersion`, currently `1.0` | Optional artifact. Verify the signature and the subject digests, then route by issuance-format major. Absent for every certificate that has no issuance, which is most of them. |
 | `certificate.html` | `<meta name="cejel-certificate-format" content="1.0">` | The meta value identifies the human format. Gates should consume the bound JSON pair, not scrape HTML. |
@@ -48,7 +48,52 @@ Stable in report format v1:
 - history disclosures: `historyLimitations` (report format 1.5) when the scanned repository is a
   shallow clone. It names the criteria that read commit history. It is display-only: unlike
   `scanLimitations` it does not make the badge unrated or `--min-score` refuse, and a gate must not
-  treat its absence as proof of complete history on reports older than 1.5.
+  treat its absence as proof of complete history on reports older than 1.5. The field stays
+  display-only under every rubric. Under `witan-rubric-v27-prospective-2026-10-19` the A2 and B2
+  collectors themselves abstain on a shallow clone, and the sentence says so; under v17 and v18-v26
+  the sentence and the scoring are unchanged.
+- Git LFS pointers: `contentReadSummary.byReason.lfsPointer` (report format 1.6), present only
+  when the checkout held at least one Git LFS pointer in place of a file's content, and summed
+  into `skipped`. Under every rubric it is a count: it names content Cejel did not read. Under
+  `witan-rubric-v17-2026-07-24` and the other rubrics before v27 it records no abstention, so the
+  criterion that read the pointer scored the pointer's text. The report does not say which
+  criterion read it (`affectedCriteria` stays empty), so a gate that needs to know should treat any
+  criterion as possibly affected, or require a scan with the LFS content present. Under `witan-rubric-v27-prospective-2026-10-19` the read is
+  attributed, the criterion abstains as a read failure, and it appears in `affectedCriteria`,
+  except where its collector made a critical finding: then it scores as under v17 and is not
+  listed.
+  Absent on reports older than 1.6, and absent (not 0) when no pointer was read.
+
+- input binding: `inputBinding` (report format 1.7), present only when at least one document was
+  ingested. Per document it records the sha256 of the exact input bytes, the format, the producer
+  and declared subject the format carries, the observation time, a binding `status` (`matched`,
+  `mismatched-repository`, `mismatched-commit`, `stale`, `unbound`, or `unverifiable`), the three
+  checks behind it, and whether it duplicates another input. Under the default `record-only`
+  policy it is attached after scoring and moves no score, status, abstention, badge or
+  `--min-score` outcome; under `strict` the scan refused every mismatched, stale or duplicate input
+  before scoring. A verifier holding the inputs can compare their digests with these
+  (`cejel verify --input`). See [input binding](input-binding.md). Its absence on a 1.7 report means
+  nothing was ingested; on an older report it means the field did not exist.
+  Two optional fields within a record, added before 1.7 was released: `subjects[].repositoryWithheld`
+  (`true` when the input declared a repository Cejel could not normalize to `host/path`; the
+  declared text is never recorded, because it may carry URL credentials, and the input is never
+  treated as the named subject repository) and `subjectsOmitted` (the number of distinct declared
+  subjects beyond the eight recorded, at most 8,388,608, the ingest byte budget; every declared
+  subject is checked, only the record is capped). Each is absent when it does not apply. `inputs` holds at most 256 records: one per
+  document (at most 128) and at most one same-path repeat per document.
+- imported status moves: `criteria[].nativeStatus` (report format 1.7), set beside `nativeScore`
+  whenever ingested signals adjusted a criterion. When it differs from `status`, imported evidence
+  moved the status; consumers must not present that status as a native finding.
+- criterion disclosures: `criteria[].disclosures` (report format 1.8), up to four sentences, each
+  naming something the criterion's collector read and set aside, or counted without seeing it do
+  what it is counted for. A2 names credential-shaped values it set aside as documentation
+  placeholders (by count and path, never the value); B3 names counted PR-gate workflows it did not
+  see run a check. The certificate lists them under "What was not established". They are kept
+  apart from `notes` so that an abstention or a merge that rewrites the notes cannot drop them. They
+  move no score, status or metric under any rubric. Absent when there is nothing to disclose; the
+  `report.json` of a scan with no disclosure is byte-identical to a 1.7 one (its paired
+  `attestation.json` records `1.8`). On an older report, A2 and B3 may
+  have set values aside or counted such workflows without saying so.
 
 Experimental within report format v1: metric presentation hints under
 `criteria[].metrics[].presentation`, optional multi-category `categoryScores`, and the exact ordering

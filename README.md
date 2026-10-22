@@ -92,7 +92,7 @@ if (-not $expected -or $actual -ne $expected.ToLowerInvariant()) {
 ```
 
 > **Windows signing status:** `cejel-Windows-x86_64.exe` is intentionally unsigned in
-> 0.6.7 and may trigger Microsoft SmartScreen. The release build removes Node's inherited
+> 0.6.8 and may trigger Microsoft SmartScreen. The release build removes Node's inherited
 > signature before SEA injection and fails unless Windows reports the result as `NotSigned`;
 > it does not ship an invalid signature. Before running it, verify `SHA256SUMS` and the
 > GitHub build-provenance attestation. Each binary also has an attached SPDX SBOM (the packages
@@ -116,7 +116,7 @@ docker run --rm --network=none -v "$PWD:/w" -w /w -v "$PWD/cejel:/cejel:ro" debi
 npx @cejel/cejel@latest .
 ```
 
-> **Distribution note:** Cejel `0.6.7` is the coordinated release version for npm,
+> **Distribution note:** Cejel `0.6.8` is the coordinated release version for npm,
 > standalone binaries, Docker/OCI, GitHub Action, Homebrew, and MCP Registry. A GitLab CI
 > template and Code Quality export live in [`docs/gitlab-ci.md`](./docs/gitlab-ci.md).
 
@@ -159,6 +159,10 @@ The npm package is scoped as `@cejel/cejel`; its executable remains the short co
 
 `actions/checkout` fetches one commit by default. On a shallow clone, A2 and B2 see only that
 commit, and the certificate says so under "History limitations".
+Under the prospective v27 rubric (`--rubric-pin witan-rubric-v27-prospective-2026-10-19`), a
+shallow clone goes further. A2 abstains unless a confirmed critical secret finding stands or A2
+does not apply. B2 abstains, where it would be scored, when fewer than 12 commits are visible. Each
+abstention counts as 0 in the composite, so a shallow checkout can lower the v27 score.
 
 For an executed public example that binds a release artifact to the same commit named by its
 Cejel certificate, see [Certified releases with GitHub build provenance](./docs/certified-release-example.md).
@@ -187,16 +191,16 @@ gh attestation verify ./cejel-Windows-x86_64.exe -R BargLabs/cejel
 This is cryptographically signed provenance. It is distinct from Apple Developer ID or
 Microsoft Authenticode code-signing.
 
-**Docker / OCI.** The current container release is `0.6.7`:
+**Docker / OCI.** The current container release is `0.6.8`:
 
 ```bash
-docker run --rm -i -v "$PWD:/workspace:ro" ghcr.io/barglabs/cejel:0.6.7
+docker run --rm -i -v "$PWD:/workspace:ro" ghcr.io/barglabs/cejel:0.6.8
 ```
 
 The image defaults to `cejel-mcp` over stdio. To use the CLI instead:
 
 ```bash
-docker run --rm -v "$PWD:/workspace:ro" --entrypoint cejel ghcr.io/barglabs/cejel:0.6.7 .
+docker run --rm -v "$PWD:/workspace:ro" --entrypoint cejel ghcr.io/barglabs/cejel:0.6.8 .
 ```
 
 The OCI image carries an SBOM of its base-image packages, maximum-mode build provenance, and a
@@ -296,6 +300,12 @@ prints that boundary on every successful verification.
 - `--ingest <file|glob>` — fold another scanner's output into the score (repeatable). Accepts
   SARIF, OpenSSF Scorecard JSON, or the generic Cejel external-signal shape — format is
   auto-detected. See "Aggregate your scanners" below.
+- `--subject-repository <repo>` — name the scanned repository (`github.com/owner/repo` or a clone
+  URL) so an ingested input that declares another repository is recorded as mismatched. Cejel
+  never infers it from clone state.
+- `--strict-ingest` — refuse, before scoring, an ingested input that declares another repository or
+  commit, was observed before the scanned commit existed, or duplicates another input. Without it,
+  the binding status is recorded and scoring is unchanged. See [input binding](docs/input-binding.md).
 - `--rubric-pin <version>` — Explicit opt-in only: pin an alternate rubric instead of the
   calibrated public default. It
   accepts the calibrated version or any published prospective rubric
@@ -414,7 +424,17 @@ Three ways a scanner's output gets ingested:
    versions rather than guessing. See the [generic ingest contract](docs/ingest-contract.md), its
    [published JSON Schema](docs/schemas/cejel-ingest-v1.schema.json), and the
    [synthetic CI heal-log mapping](docs/heal-log-mapping.md). Output-field stability and version
-   routing are documented in [format stability](docs/format-stability.md).
+   routing are documented in [format stability](docs/format-stability.md). Contract `1.1` adds
+   optional `subject`, `producer` and `observedAt` fields so the input can be bound to a revision.
+
+Every ingested document is also recorded in `report.json` under `inputBinding`: the sha256 of its
+bytes, the producer and subject its own format declares (Scorecard `repo.name`/`repo.commit`/`date`,
+SARIF `versionControlProvenance` and `invocations`, generic `subject`/`observedAt`), and whether that
+subject is the scanned HEAD (`matched`, `mismatched-repository`, `mismatched-commit`, `stale`,
+`unbound`, `unverifiable`). By default this is a record, not a gate: it changes no score.
+`--strict-ingest` refuses mismatched, stale and duplicate inputs instead. `cejel verify ... --input
+<file>` checks a set of input files against the recorded digests, so a swapped input is detected.
+See [input binding](docs/input-binding.md), which carries the conformance table the tests run.
 
 ## Displaying the trust badge
 
@@ -571,7 +591,7 @@ The OCI image is an alternative when Docker is the preferred execution boundary.
 the host path with the repository OpenClaw should allow Cejel to read:
 
 ```bash
-npx -y openclaw@latest mcp set cejel-oci '{"command":"docker","args":["run","--rm","-i","-v","/absolute/path/to/repo:/workspace:ro","ghcr.io/barglabs/cejel:0.6.7"]}'
+npx -y openclaw@latest mcp set cejel-oci '{"command":"docker","args":["run","--rm","-i","-v","/absolute/path/to/repo:/workspace:ro","ghcr.io/barglabs/cejel:0.6.8"]}'
 npx -y openclaw@latest mcp doctor cejel-oci --probe
 ```
 

@@ -19,7 +19,16 @@ export type ContentReadSkipReason = WitanContentReadSkipReason;
 // too_large, excluded_by_extension, or non_regular_file is self-imposed by Cejel's own declared
 // limits — it is a disclosed coverage boundary, not a failure to read something Cejel expected to
 // see, and must never move a score.
-const READ_FAILURE_REASONS: ReadonlySet<ContentReadSkipReason> = new Set(['unreadable', 'denied_path']);
+//
+// A Git LFS pointer (lfs_pointer) is a read failure too: the checkout holds a pointer in place of
+// the file's content, so the content Cejel expected to read is not there. It is counted under
+// every rubric; only a rubric that opts in (witan-rubric-v27) attributes it to the criterion that
+// read the pointer, which then abstains like any other read failure (#519).
+const READ_FAILURE_REASONS: ReadonlySet<ContentReadSkipReason> = new Set([
+  'unreadable',
+  'denied_path',
+  'lfs_pointer',
+]);
 
 export function isReadFailureReason(reason: ContentReadSkipReason): boolean {
   return READ_FAILURE_REASONS.has(reason);
@@ -61,6 +70,9 @@ interface ContentReadSession {
     string,
     { readonly signalsAdmitting: Set<string>; actedOn: boolean }
   >;
+  // Whether a Git LFS pointer read is attributed to the criterion reading it (witan-rubric-v27).
+  // Off, the pointer is still counted in contentReadSummary, and the criterion scores what it read.
+  readonly lfsPointerAbstention: boolean;
   criterion?: WitanCriterionId;
   // A single read can legitimately feed more than one named signal (e.g. A4 parses one
   // dependency manifest into three separate ratio metrics). Attributing that read to every
@@ -187,6 +199,9 @@ function summaryFor(session: ContentReadSession): WitanContentReadSummary {
     excludedByExtension: session.counts.excluded_by_extension,
     deniedPath: session.counts.denied_path,
     nonRegularFile: session.counts.non_regular_file,
+    // Present only when non-zero, so every report without an LFS pointer is byte-identical to one
+    // produced before this reason existed (report format 1.6).
+    ...(session.counts.lfs_pointer > 0 ? { lfsPointer: session.counts.lfs_pointer } : {}),
   };
   const sortedErrnos = Object.fromEntries(
     [...session.unreadableByErrno.entries()].sort(([left], [right]) => left.localeCompare(right)),
@@ -199,7 +214,16 @@ function summaryFor(session: ContentReadSession): WitanContentReadSummary {
   };
 }
 
-export function trackContentReads<T>(_repoPath: string, collect: () => T): TrackedContentReads<T> {
+export interface ContentReadTrackingOptions {
+  /** Attribute Git LFS pointer reads to the reading criterion, which then abstains (v27). */
+  readonly lfsPointerAbstention?: boolean;
+}
+
+export function trackContentReads<T>(
+  _repoPath: string,
+  collect: () => T,
+  options: ContentReadTrackingOptions = {},
+): TrackedContentReads<T> {
   const existing = activeSession;
   if (existing) {
     return {
@@ -219,7 +243,9 @@ export function trackContentReads<T>(_repoPath: string, collect: () => T): Track
       excluded_by_extension: 0,
       denied_path: 0,
       non_regular_file: 0,
+      lfs_pointer: 0,
     },
+    lfsPointerAbstention: options.lfsPointerAbstention === true,
     unreadableByErrno: new Map(),
     deduplicatedSkips: new Set(),
     affectedCriteria: new Set(),
@@ -302,6 +328,27 @@ export function withContentReadSignals<T>(
     return collect();
   } finally {
     session.signals = previous;
+  }
+}
+
+/**
+ * Runs `collect` with no criterion or signal in scope, so a skip inside it is counted in
+ * contentReadSummary but attributed to nothing and abstains nothing. For presentation-only reads
+ * (a note, which evidence a finding cites) that must not change what any rubric scores. Only use it
+ * for files another signal already reads, so the deduplicated counts cannot change either.
+ */
+export function withoutContentReadAttribution<T>(collect: () => T): T {
+  const session = activeSession;
+  if (!session) return collect();
+  const previousCriterion = session.criterion;
+  const previousSignals = session.signals;
+  session.criterion = undefined;
+  session.signals = undefined;
+  try {
+    return collect();
+  } finally {
+    session.criterion = previousCriterion;
+    session.signals = previousSignals;
   }
 }
 
@@ -461,12 +508,56 @@ export function readRepoText(path: string, encoding: BufferEncoding = 'utf8'): s
     recordFilesystemSkip(path, error);
     return '';
   }
+  let contents: string;
   try {
-    return readFileSync(path, encoding);
+    contents = readFileSync(path, encoding);
   } catch (error: unknown) {
     recordFilesystemSkip(path, error);
     return '';
   }
+  // The pointer text is returned unchanged under every rubric. Where the read is attributed
+  // (v27), the reading criterion abstains wholesale, so nothing it derived from the pointer text
+  // reaches the report; elsewhere the criterion scores exactly what it scored before (#519).
+  if (isGitLfsPointerText(contents)) {
+    recordSkip(path, 'lfs_pointer', undefined, activeSession?.lfsPointerAbstention === true, true);
+  }
+  return contents;
+}
+
+// Git LFS pointer files (https://github.com/git-lfs/git-lfs/blob/main/docs/spec.md): smaller than
+// 1024 bytes, a first line naming the spec version, then sorted `key value` lines including an
+// `oid sha256:<64 hex>` and a `size <bytes>`. A file matching this is a pointer whether or not
+// the repository's .gitattributes routes it through LFS — its bytes are the pointer either way.
+const GIT_LFS_POINTER_MAX_BYTES = 1024;
+const GIT_LFS_POINTER_VERSION_LINE =
+  /^version https:\/\/(?:git-lfs\.github\.com\/spec\/v1|hawser\.github\.com\/spec\/v1)\n/;
+const GIT_LFS_POINTER_OID_LINE = /^oid sha256:[0-9a-f]{64}$/m;
+const GIT_LFS_POINTER_SIZE_LINE = /^size [0-9]+$/m;
+const GIT_LFS_POINTER_KEY_LINE = /^[a-z0-9.-]+ \S[^\n]*$/;
+
+/**
+ * True when `contents` is a Git LFS pointer rather than file content. A pointer checked out with
+ * `core.autocrlf=true` and no `.gitattributes` has every line ending in CRLF; it is read as the LF
+ * pointer it was committed as, so the same commit is classified the same way on every checkout.
+ * Text with any other mix of CR and LF is judged exactly as written.
+ */
+export function isGitLfsPointerText(contents: string): boolean {
+  if (isLfGitLfsPointerText(contents)) return true;
+  return (
+    contents.length < 2 * GIT_LFS_POINTER_MAX_BYTES &&
+    contents.includes('\r\n') &&
+    !/\r(?!\n)/.test(contents) &&
+    !/(?:^|[^\r])\n/.test(contents) &&
+    isLfGitLfsPointerText(contents.replaceAll('\r\n', '\n'))
+  );
+}
+
+function isLfGitLfsPointerText(contents: string): boolean {
+  if (contents.length >= GIT_LFS_POINTER_MAX_BYTES || !contents.startsWith('version ')) return false;
+  if (!GIT_LFS_POINTER_VERSION_LINE.test(contents)) return false;
+  const lines = contents.replace(/\n$/, '').split('\n');
+  if (!lines.slice(1).every((line) => GIT_LFS_POINTER_KEY_LINE.test(line))) return false;
+  return GIT_LFS_POINTER_OID_LINE.test(contents) && GIT_LFS_POINTER_SIZE_LINE.test(contents);
 }
 
 /** Bounded prefix read used by the semantic-source gate; failures follow the same contract. */
@@ -487,7 +578,12 @@ export function readRepoTextPrefix(path: string, byteLimit: number): string {
     descriptor = openSync(path, 'r');
     const buffer = Buffer.allocUnsafe(byteLimit);
     const bytesRead = readSync(descriptor, buffer, 0, byteLimit, 0);
-    return buffer.subarray(0, bytesRead).toString('utf8');
+    const contents = buffer.subarray(0, bytesRead).toString('utf8');
+    // The same disclosure readRepoText makes (#519), when this read holds the whole file.
+    if (bytesRead < byteLimit && isGitLfsPointerText(contents)) {
+      recordSkip(path, 'lfs_pointer', undefined, activeSession?.lfsPointerAbstention === true, true);
+    }
+    return contents;
   } catch (error: unknown) {
     recordFilesystemSkip(path, error);
     return '';

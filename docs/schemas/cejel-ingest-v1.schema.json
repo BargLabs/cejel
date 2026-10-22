@@ -19,6 +19,38 @@
     "signals": {
       "type": "array",
       "items": { "$ref": "#/$defs/signal" }
+    },
+    "subject": {
+      "type": "object",
+      "description": "Added in 1.1, optional. What the findings are about. Read only when version declares minor 1 or later.",
+      "properties": {
+        "repository": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048,
+          "description": "Repository identity, e.g. github.com/owner/repo or a clone URL."
+        },
+        "commit": {
+          "type": "string",
+          "pattern": "^[0-9a-fA-F]{7,64}$",
+          "description": "Commit the producer read. A full id is compared exactly; a shorter one as a prefix."
+        }
+      },
+      "additionalProperties": true
+    },
+    "producer": {
+      "type": "object",
+      "description": "Added in 1.1, optional. The tool build that produced the document; name defaults to tool.",
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "version": { "type": "string", "minLength": 1, "maxLength": 200 }
+      },
+      "additionalProperties": true
+    },
+    "observedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Added in 1.1, optional. When the producer observed the subject, RFC 3339 with an offset."
     }
   },
   "additionalProperties": true,

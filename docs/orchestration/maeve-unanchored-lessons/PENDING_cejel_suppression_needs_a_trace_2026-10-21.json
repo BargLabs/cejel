@@ -1,0 +1,38 @@
+[
+  {
+    "statement": "In an assertion product, a rule that discards a matched value must leave a trace on the certificate, and a label may state only what the code read. Cejel 0.6.7 matched the AWS documentation key pair in a committed config/dev.env as credentials, then isPlaceholderSecretValue dropped it because it contains EXAMPLE. The certificate said \"Secret cleanliness: clean\" with nothing about the drop, and cited \".env files are gitignored\" beside that committed file. B2 labelled every CI file \"Pull-request CI workflow\" without reading its trigger, including a manual-dispatch-only one (src/witan/repo-signals.ts at 1d0d4388d). Cejel's own tests never caught this; an agent running the tool on a planted demo did. Fix (presentation only, no score moved): count and name set-aside values by path, label each workflow by its parsed trigger, and name counted workflows not shown to run a check. Rule: a change that adds a suppression or a credit also adds the sentence that discloses it.",
+    "scope": ["repo:BargLabs/cejel", "dev-task", "false-assurance", "claim-hygiene", "reviewer-error"],
+    "tags": ["silent-suppression", "placeholder", "evidence-label", "certificate", "disclosure"],
+    "anchors": [],
+    "lastSeenAt": "2026-10-21T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {"kind": "pr-merged", "repository": "BargLabs/cejel", "number": 540}
+  },
+  {
+    "statement": "On the operator's Mac, cejel's full vitest suite stalled with every worker idle at 0% CPU for over 20 minutes when run under the operator's global git config, which signs commits through an SSH agent. Run with GIT_CONFIG_GLOBAL=/dev/null and GIT_AUTHOR_*/GIT_COMMITTER_* set, the same suite completed. A measurement harness importing calibration-fixtures.ts failed outright on the same config: \"git commit\" without --no-gpg-sign. Cause of the stall not isolated. Run fixture-building tests and harnesses with the global git config masked, as behaviour-corpus.ts's HERMETIC_GIT_ENV already does.",
+    "scope": ["repo:BargLabs/cejel", "dev-task", "environment", "test-harness"],
+    "tags": ["git-signing", "hermetic-git", "vitest", "stall", "fixtures"],
+    "anchors": [],
+    "lastSeenAt": "2026-10-21T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {"kind": "pr-merged", "repository": "BargLabs/cejel", "number": 540}
+  },
+  {
+    "statement": "A fix for false assurance can repeat the false statement it fixes. Review of cejel PR 540, which added sentences naming what a certificate had not checked, found the PR's own: \"runs only on master\" ignored schedule and workflow_dispatch triggers that run the workflow on main; \"no master branch\" was read from a --depth 1 or --single-branch clone that holds only the default branch (reproduced); an uncapped label with a long trigger name broke the 180-character schema limit and crashed the scan (reproduced); and the disclosure, carried inside free-text notes, was lost whenever notes were rewritten (#539). Rules: a sentence asserting absence or exclusivity must first establish that Cejel's view is complete, and say nothing when it cannot; fit every built string to its schema limit where it is built; give text the certificate must show its own field.",
+    "scope": ["repo:BargLabs/cejel", "dev-task", "false-assurance", "claim-hygiene", "reviewer-error"],
+    "tags": ["absence-claim", "shallow-clone", "schema-limit", "structured-field", "self-review"],
+    "anchors": [],
+    "lastSeenAt": "2026-10-21T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {"kind": "pr-merged", "repository": "BargLabs/cejel", "number": 540}
+  },
+  {
+    "statement": "A certificate sentence must be decidable from what the attestation binds. Cejel PR 540's second review found a presentation-only B3 sentence (\"no master branch\") that read branch state outside the scanned revision: the same commit gave different report.json bytes on a branch, detached, in a fresh clone, or with one more branch, so cejel issue refused honest reproductions, and its git calls sat outside the hardened read-only allowlist. It also found a universal claim (\"only prints text\") built on readers written for recall, which skip shapes they cannot place, so six unplaced step shapes running real checks were called print-only. Rules: a claim about every item must refuse on any item the reader cannot place; never derive report text from state the attestation does not bind; route new repository text through the existing output sanitiser.",
+    "scope": ["repo:BargLabs/cejel", "dev-task", "false-assurance", "claim-hygiene", "reviewer-error"],
+    "tags": ["reproducibility", "universal-claim", "unplaced-shape", "issuance", "self-review"],
+    "anchors": [],
+    "lastSeenAt": "2026-10-21T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {"kind": "pr-merged", "repository": "BargLabs/cejel", "number": 540}
+  }
+]

@@ -51,12 +51,14 @@ import {
   WITAN_RUBRIC_VERSION_V24,
   WITAN_RUBRIC_VERSION_V25,
   WITAN_RUBRIC_VERSION_V26,
+  WITAN_RUBRIC_VERSION_V27,
 } from './rubric-version.js';
 import { WITAN_RUBRIC, type WitanRubricCriterion } from './rubric.js';
 
 function usesV17DetectorClosure(rubricVersion: string): boolean {
   return (
     rubricVersion === WITAN_RUBRIC_VERSION_V17 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V27 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V18 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V19 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V20 ||
@@ -150,6 +152,7 @@ export function createWitanReport(
         findings: scored.findings,
         metrics: scored.metrics,
         ...(signal?.notes ? { notes: signal.notes } : {}),
+        ...(signal?.disclosures ? { disclosures: signal.disclosures } : {}),
       } satisfies WitanCriterionScore;
     }
 
@@ -174,11 +177,16 @@ export function createWitanReport(
       category: rubricCriterion.category,
       score: finalScore,
       ...(adjustment !== 0 ? { nativeScore: scored.score } : {}),
+      // Beside nativeScore, so a reader can tell a status that imported evidence moved from one
+      // the native evidence produced (report format 1.7). Presentation-only: finalStatus above is
+      // computed exactly as before.
+      ...(adjustment !== 0 ? { nativeStatus: scored.status } : {}),
       status: finalStatus,
       evidence: scored.evidence,
       findings: scored.findings,
       metrics: scored.metrics,
       ...(signal?.notes ? { notes: signal.notes } : {}),
+      ...(signal?.disclosures ? { disclosures: signal.disclosures } : {}),
     } satisfies WitanCriterionScore;
   });
 
@@ -360,6 +368,7 @@ function statusAfterInputAdjustment(
     rubricVersion !== WITAN_RUBRIC_VERSION_V15 &&
     rubricVersion !== WITAN_RUBRIC_VERSION_V16 &&
     rubricVersion !== WITAN_RUBRIC_VERSION_V17 &&
+    rubricVersion !== WITAN_RUBRIC_VERSION_V27 &&
     rubricVersion !== WITAN_RUBRIC_VERSION_V18 &&
     rubricVersion !== WITAN_RUBRIC_VERSION_V19 &&
     rubricVersion !== WITAN_RUBRIC_VERSION_V20 &&
@@ -449,6 +458,7 @@ function mergeSignalsByCriterion(
       findings: [...existing.findings, ...signal.findings],
       metrics: [...(existing.metrics ?? []), ...(signal.metrics ?? [])],
       notes: signal.notes ?? existing.notes,
+      ...mergedDisclosures(existing.disclosures, signal.disclosures),
       ...(existingAbstains || signalAbstains
         ? {
             insufficientData: true as const,
@@ -461,6 +471,15 @@ function mergeSignalsByCriterion(
   }
 
   return merged;
+}
+
+// Both collectors' disclosures survive a merge, unlike notes; the schema caps the list at four.
+function mergedDisclosures(
+  existing: readonly string[] | undefined,
+  incoming: readonly string[] | undefined,
+): { disclosures?: string[] } {
+  const disclosures = [...new Set([...(existing ?? []), ...(incoming ?? [])])].slice(0, 4);
+  return disclosures.length > 0 ? { disclosures } : {};
 }
 
 // Rubric versions whose criteria carry weighted metrics as the primary signal (rather than
@@ -493,6 +512,7 @@ function usesMetricScoring(rubricVersion: string): boolean {
     rubricVersion === WITAN_RUBRIC_VERSION_V15 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V16 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V17 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V27 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V18 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V19 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V20 ||
@@ -1069,6 +1089,7 @@ function ensureFindingsExplainStatus(
     rubricVersion !== WITAN_RUBRIC_VERSION_V15 &&
     rubricVersion !== WITAN_RUBRIC_VERSION_V16 &&
     rubricVersion !== WITAN_RUBRIC_VERSION_V17 &&
+    rubricVersion !== WITAN_RUBRIC_VERSION_V27 &&
     rubricVersion !== WITAN_RUBRIC_VERSION_V18 &&
     rubricVersion !== WITAN_RUBRIC_VERSION_V19 &&
     rubricVersion !== WITAN_RUBRIC_VERSION_V20 &&

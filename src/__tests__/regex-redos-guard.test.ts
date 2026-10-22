@@ -32,6 +32,13 @@ function literals() {
 }
 
 const families = [
+  // A key, a long blank run, then a non-blank: an unanchored `\s+X` or a lazy group before a
+  // trailing `[ \t]*$` retries the run from every position (found while reviewing #540).
+  { name: 'key-blank-run', input: `a:${' '.repeat(20_000)}x` },
+  // Many candidates, then a line terminator `.` does not match: `[?#].*$` and `(^|\s)#.*$` retry
+  // from each candidate.
+  { name: 'hash-runs-before-cr', input: `${' #'.repeat(10_000)}\r` },
+  { name: 'query-marks-before-ls', input: `${'?#'.repeat(10_000)}\u2028` },
   { name: 'env-dotted-rejection', input: `.env${'.a'.repeat(120)}!` },
   { name: 'repeated-a-dot', input: 'a.'.repeat(120) },
   { name: 'hyphens', input: '-'.repeat(250) },
@@ -40,6 +47,15 @@ const families = [
   { name: 'repeated-a-dot-255', input: `${'a.'.repeat(127)}a` },
   { name: 'hyphens-255', input: '-'.repeat(255) },
   { name: 'path-separators-255', input: `${'a/'.repeat(127)}a` },
+  // A quote then a run of the character two adjacent classes share (review of #540: `"[^"]*\\[^"]*"`).
+  { name: 'quote-backslashes', input: `"${'\\'.repeat(20_000)}` },
+  { name: 'closed-quote-backslashes', input: `"${'\\a'.repeat(10_000)}"` },
+  // A quote run that does not reach the end: an unanchored `["']+$` retries it from every quote.
+  { name: 'quote-run-then-letter', input: `a${"'".repeat(20_000)}x` },
+  // Unclosed quotes, each escaped by the backslash before it (review of #553: a quoted-string
+  // alternation `'(?:[^'\\\n]|\\.)*'|"…"` retried from every quote of the run).
+  { name: 'escaped-double-quotes-unclosed', input: '"\\'.repeat(10_000) },
+  { name: 'escaped-single-quotes-unclosed', input: "'\\".repeat(10_000) },
 ];
 
 test('scan regex literals finish each adversarial family within 50 ms', () => {

@@ -38,6 +38,9 @@ import { serveCejelMcpOverStdio } from './mcp/stdio.js';
 import { npxVersionMismatchWarning } from './npx-version-guard.js';
 import { refuseSymlinkedOutputs, writeOutputFile, writeOutputFiles } from './output-files.js';
 import { runCejelScan } from './scan.js';
+import { stripTerminalControls } from './presentation-safety.js';
+import { resolveIngestFilePath } from './witan/ingest-files.js';
+import { verifyRecordedInputDigests } from './witan/input-binding.js';
 import { computeApplicableMeasuredCoverage } from './witan/coverage.js';
 import {
   renderMinScoreAbstentionFailure,
@@ -57,6 +60,10 @@ export interface WitanCliOptions {
   showVersion: boolean;
   /** Raw --ingest values (file paths or single-level globs), in the order given. */
   ingestPatterns: string[];
+  /** --strict-ingest: refuse mismatched, stale and duplicate ingested inputs before scoring. */
+  strictIngest?: boolean;
+  /** --subject-repository: the scanned repository's identity, compared with each input's. */
+  subjectRepository?: string;
   /**
    * Explicit public opt-in to an alternate rubric (see WITAN_SELECTABLE_RUBRIC_VERSIONS).
    * Omitted by every ordinary invocation, which stays on the calibrated public default.
@@ -97,6 +104,8 @@ export interface CejelVerifyInvocation {
   /** Overrides for the published files, for a relying party holding their own copies. */
   signersPath?: string;
   revocationsPath?: string;
+  /** --input: ingested files to check against report.json's recorded input digests. */
+  inputPaths?: string[];
 }
 
 export interface CejelExportInvocation {
@@ -154,7 +163,9 @@ export type CliFlagKind =
   | 'name'
   | 'productName'
   | 'rubricPin'
-  | 'runAttempt';
+  | 'runAttempt'
+  | 'strictIngest'
+  | 'subjectRepository';
 
 interface CliFlagSpec {
   tokens: readonly string[];
@@ -193,6 +204,19 @@ export const CLI_FLAG_SPECS = [
     value: '<file>',
     description: 'fold in a SARIF/JSON scanner report (repeatable)',
     kind: 'ingest',
+  },
+  {
+    tokens: ['--subject-repository'],
+    value: '<repo>',
+    description:
+      'name this repository (e.g. github.com/owner/repo) so ingested inputs declaring another repository are recorded as mismatched',
+    kind: 'subjectRepository',
+  },
+  {
+    tokens: ['--strict-ingest'],
+    description:
+      'refuse ingested inputs for another repository or commit, observed before this commit, or duplicated (default: record only)',
+    kind: 'strictIngest',
   },
   {
     tokens: ['--rubric-pin'],
@@ -310,6 +334,8 @@ ${usageOptions}
 Verify options:
   --signers <file>       use this allowed-signers file instead of the published one
   --revocations <file>   use this revocations file instead of the published one
+  --input <file>         an ingested input (repeatable); fails unless the supplied set of files
+                         has exactly the sha256 digests report.json records in inputBinding
 
 Issue options:
   --report <file>        the report.json being countersigned (required)
@@ -321,6 +347,7 @@ Issue options:
   --name <display>       pass exactly what the original scan used, or the bytes will not reproduce
   --rubric-pin <version> pass exactly what the original scan used, or the bytes will not reproduce
   --ingest <file>        pass exactly what the original scan used, or the bytes will not reproduce
+                         (--strict-ingest and --subject-repository are read from report.json's inputBinding)
 
 cejel never signs and never reads private key material.
 
@@ -417,6 +444,8 @@ async function runWitanCli(
     ...(effectiveRubricVersion ? { rubricVersion: effectiveRubricVersion } : {}),
     ingestPatterns: options.ingestPatterns,
     warnOnEmptyIngestMatch: !options.quiet,
+    ...(options.strictIngest ? { strictIngest: true } : {}),
+    ...(options.subjectRepository ? { subjectRepository: options.subjectRepository } : {}),
     toolVersion: cliVersion(),
   });
   const attestation = createWitanAttestation(report, {
@@ -579,16 +608,24 @@ function runExport(invocation: CejelExportInvocation): number {
 }
 
 const VERIFY_USAGE = () =>
-  `Usage: npx ${NPX_PACKAGE_NAME} verify <report.json> <attestation.json> [issuance.json issuance.json.sig] [--signers <file>] [--revocations <file>]`;
+  `Usage: npx ${NPX_PACKAGE_NAME} verify <report.json> <attestation.json> [issuance.json issuance.json.sig] [--signers <file>] [--revocations <file>] [--input <file>...]`;
 
 export function parseVerifyArgs(args: readonly string[]): CejelVerifyInvocation {
   const positionals: string[] = [];
   let signersPath: string | undefined;
   let revocationsPath: string | undefined;
+  const inputPaths: string[] = [];
 
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
     if (arg === undefined) continue;
+    if (arg === '--input') {
+      const value = args[index + 1];
+      if (!value) throw new Error(`Missing value for ${arg}`);
+      inputPaths.push(resolve(value));
+      index += 1;
+      continue;
+    }
     if (arg === '--signers' || arg === '--revocations') {
       const value = args[index + 1];
       if (!value) throw new Error(`Missing value for ${arg}`);
@@ -617,6 +654,7 @@ export function parseVerifyArgs(args: readonly string[]): CejelVerifyInvocation 
       : {}),
     ...(signersPath ? { signersPath } : {}),
     ...(revocationsPath ? { revocationsPath } : {}),
+    ...(inputPaths.length > 0 ? { inputPaths } : {}),
   };
 }
 
@@ -747,6 +785,26 @@ function runVerifyBinding(invocation: CejelVerifyInvocation): number {
   }
 
   process.stdout.write('Cejel: report/attestation binding verified.\n');
+
+  if (invocation.inputPaths) {
+    let inputCheck: ReturnType<typeof verifyRecordedInputDigests>;
+    try {
+      // The same checks ingest applies before reading a file: a regular file, not a symlink, in a
+      // directory that is not a symlink, under the ingest byte budget. A FIFO, a device or a
+      // symlink to one is refused before it can hang the verifier or exhaust its memory.
+      inputCheck = verifyRecordedInputDigests(reportResult.data, invocation.inputPaths, (path) =>
+        readFileSync(resolveIngestFilePath(path)),
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      process.stderr.write(
+        `Cejel: input digests not verified — ${stripTerminalControls(message.replace(/^Cejel: /, ''))}\n`,
+      );
+      return 1;
+    }
+    for (const line of inputCheck.lines) process.stdout.write(`${stripTerminalControls(line)}\n`);
+    if (!inputCheck.valid) return 1;
+  }
 
   if (!invocation.issuancePath || !invocation.issuanceSignaturePath) {
     process.stdout.write('Cejel: signature and signer identity were not verified.\n');
@@ -916,6 +974,14 @@ function runIssue(options: CejelIssueOptions): number {
     ...(options.rubricPin ? { rubricVersion: options.rubricPin } : {}),
     ingestPatterns: options.ingestPatterns,
     warnOnEmptyIngestMatch: true,
+    // The binding policy and the named subject repository are part of the invocation the report
+    // records, so the reproduction reads them from the report it is reproducing rather than from
+    // flags an issuer could forget. Anything else a report states differently fails the byte
+    // comparison below, as it always has.
+    ...(suppliedReport.inputBinding?.policy === 'strict' ? { strictIngest: true } : {}),
+    ...(suppliedReport.inputBinding?.scannedSubject.repository
+      ? { subjectRepository: suppliedReport.inputBinding.scannedSubject.repository }
+      : {}),
     toolVersion: cliVersion(),
   });
   const reproducedBytes = serializeWitanReport(reproduction.report);
@@ -1006,6 +1072,8 @@ export function parseArgs(args: readonly string[]): WitanCliOptions {
   let showVersion = false;
   let rubricPin: string | undefined;
   let runAttempt: string | undefined;
+  let strictIngest = false;
+  let subjectRepository: string | undefined;
   const ingestPatterns: string[] = [];
 
   for (let index = 0; index < args.length; index += 1) {
@@ -1093,6 +1161,16 @@ export function parseArgs(args: readonly string[]): WitanCliOptions {
           index += 1;
           break;
         }
+        case 'strictIngest':
+          strictIngest = true;
+          break;
+        case 'subjectRepository': {
+          const value = args[index + 1];
+          if (!value) throw new Error('Missing value for --subject-repository');
+          subjectRepository = value;
+          index += 1;
+          break;
+        }
         case 'runAttempt': {
           const value = args[index + 1];
           if (!value) throw new Error('Missing value for --run-attempt');
@@ -1129,6 +1207,8 @@ export function parseArgs(args: readonly string[]): WitanCliOptions {
     showHelp,
     showVersion,
     ingestPatterns,
+    ...(strictIngest ? { strictIngest } : {}),
+    ...(subjectRepository ? { subjectRepository } : {}),
     ...(rubricPin ? { rubricPin } : {}),
     ...(runAttempt ? { runAttempt } : {}),
   };
