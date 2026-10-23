@@ -71,9 +71,9 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   commit list in pages and batches small enough for the limit and the 30-second timeout, halving a
   batch that still hits one; only a single commit that still does is reported. A read that does
   not hit a limit runs exactly as before. **This changes v17 reports.** A preregistered paired
-  public delta on the 23 public rows recorded these report changes: successor preregistration
-  `5450b687f`, result `6adf3a398`, E0-E3 held
-  (`docs/experiments/public-delta-567-paging-successor-2026-10-22/`).
+  public delta on the 23 public rows, run on the code that will merge, recorded these report
+  changes: third preregistration `db2a09f2a` (baseline `fd64796c7`, candidate `ef08a9770`), result
+  `2df444c35`, E0-E3 held (`docs/experiments/public-delta-567-paging-merged-2026-10-23/`).
   - The history scan limitations of biomejs and react disappear.
   - react's A2 gains an info finding (a non-template `.env` file tracked in history, no
     secret-shaped value). Its score does not change.
@@ -84,14 +84,17 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   rated, and `--min-score` applies to them. The badge text "3.0/4.0 conditional" comes
   from the earlier informal measurement, not from the preregistered run.
 
-  An earlier scoring at the original plan's pins was set aside when `main` moved; it is disclosed
-  there and not used. The merged tree differs from that run's candidate, `5b154064a`, only outside
-  the scan path:
-  - the experiment records;
+  Two earlier runs are disclosed there. The original plan's scoring at its pins was set aside
+  unused. The successor's result (`6adf3a398`, candidate `5b154064a`) also held every expected
+  value, but measured the code before #571 merged; for the merged code it is superseded.
+
+  Against `main` at `fd64796c7`, the code that will merge differs from this run's candidate,
+  `ef08a9770`, only outside the scan path:
+  - the third preregistration and its result;
   - this entry and its `leaderboard/RUBRIC_CHANGELOG.md` entry (2026-10-22, #567);
-  - test changes made after review: new fixtures, the `'whole-only'` and `'tree-only'` mock modes,
-    a batch-order check, and a stdin variant of the shared fixture git helper;
-  - a lesson seed.
+  - one test in `a2-history-paging-567.test.ts`, checking that batched reads word #571's
+    control-character limitation as the one-shot reads do;
+  - two lesson seeds.
 - **A scan limitation called any path with control characters "credential-shaped" (#569).** Under
   every rubric, a path in git history whose name contains control characters is left unread, and
   the scan limitation said "Git history contained a credential-shaped pathname with control

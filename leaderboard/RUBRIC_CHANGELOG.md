@@ -56,9 +56,10 @@ one, and two badges change from unrated to rated. These are changes to the calib
 reports on public rows, so the change needed the paired public-delta discipline (a preregistered
 before-and-after on the corpus) before shipping.
 
-**Preregistered paired delta.** `docs/experiments/public-delta-567-paging-successor-2026-10-22/`:
-successor preregistration `5450b687f` (baseline `75c951e40`, candidate `5b154064a`), result
-`6adf3a398`. Every expected value held:
+**Preregistered paired delta, on the code that will merge.**
+`docs/experiments/public-delta-567-paging-merged-2026-10-23/`: third preregistration `db2a09f2a`
+(baseline `fd64796c7`, `main` with #571; candidate `ef08a9770`, `main` merged into #572), result
+`2df444c35`. Every expected value held:
 - E0: 23 of 23 rows in each of the four runs, with no errors.
 - E1 (v17): one scoring row moved, react's A2 info finding. Placements and fingerprints did not
   move. The only other change is `scanLimitations` on biomejs and react, which became empty. The
@@ -69,15 +70,25 @@ successor preregistration `5450b687f` (baseline `75c951e40`, candidate `5b154064
 - E3: no row scores higher under v27 than under v17, and nothing is scored under v27 that v17
   left null or absent.
 
-The original preregistration (`09f017229`, at the old pins) was scored once before `main` moved.
-The successor discloses that run as a pre-plan deviation; its outputs are not used.
+#571's change to the control-character wording was checked from the code before the run. No
+forecast was changed to recorded on its account. In the run, axios's one control-character line
+was the same on both sides of each pair.
 
-The merged tree differs from the candidate only outside the scan path:
-- the experiment records;
+Earlier runs:
+- The original preregistration (`09f017229`, at the old pins) was scored once before `main` moved.
+  The successor disclosed that run as a pre-plan deviation; its outputs are not used.
+- The successor (`5450b687f`, baseline `75c951e40`, candidate `5b154064a`) gave result
+  `6adf3a398`, where every expected value also held. It measured the code before #571 merged, so
+  for the merged code this third run supersedes it. Apart from commits and digests, the two
+  `paired-result.json` files are identical.
+
+Against `main` at `fd64796c7`, the code that will merge differs from this run's candidate
+(`ef08a9770`) only outside the scan path:
+- the third preregistration and its result;
 - this entry and its `CHANGELOG.md` entry;
-- test changes made after review: new fixtures, the `'whole-only'` and `'tree-only'` mock modes, a
-  batch-order check, and a stdin variant of the shared fixture git helper;
-- a lesson seed.
+- one test in `a2-history-paging-567.test.ts`, checking that batched reads word #571's
+  control-character limitation as the one-shot reads do;
+- two lesson seeds.
 
 The run makes no precision or recall claim.
 
