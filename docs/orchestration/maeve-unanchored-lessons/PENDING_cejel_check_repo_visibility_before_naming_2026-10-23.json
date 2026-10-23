@@ -1,0 +1,25 @@
+[
+  {
+    "statement": "Before naming another repository in a public Cejel comment or record, check its visibility with `gh repo view <owner/name> --json visibility`. Also check that public Cejel already names it, for example with a search of the public repository. A private sibling repository's name went into a public Cejel issue comment (#526). The comment had to be deleted and reposted without the name. Being reachable with the agent's own credentials says nothing about visibility: an authenticated gh call reads a private repository as easily as a public one. Rules: treat every repository name as closed until gh reports PUBLIC and public Cejel already uses it; if either check fails, describe the repository generically (\"a private sibling repository\"); never paste gh output or URLs that carry a private name into a public surface.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "ip-boundary",
+      "disclosure"
+    ],
+    "tags": [
+      "repository-visibility",
+      "public-comment",
+      "private-name-leak",
+      "gh-cli"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-10-23T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 572
+    }
+  }
+]

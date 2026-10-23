@@ -22,6 +22,78 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
+## 2026-10-22 — #567: A2's whole-history reads are paged when they hit Cejel's own output limit; v17 badges of biomejs and react become rated; no v17 score moved (preregistered paired delta: E0-E3 held)
+
+**Defect.** A2's whole-history reads buffered their output under the git exec limit of 8 MiB (and
+the 30-second timeout): `rev-list HEAD`, the `diff-tree` enumeration of credential-shaped paths,
+the `.env`-path `git log`, and the deleted-path `git log`. On a large complete history a read
+stopped at the limit, the rest of that read was lost, and the failure was reported in
+`scanLimitations`. In the 0.6.8 confirmation's full-history clones, biomejs hit the limit on the
+tree enumeration and the `.env`-path log, and react on the tree enumeration. Under v17 A2 still
+scored on what was read; since #560 v27's A2 abstains there.
+
+**Change, every rubric.** When one of those reads stops at Cejel's own output limit or timeout, it
+is re-run over the commit list: `rev-list HEAD` in pages of 50,000 commits, and the enumeration and
+the two logs over batches of 1,000 commits given on stdin (`git log --no-walk=unsorted --stdin`
+for the logs, which prints in the input order, so the result is what one call would have printed).
+A batch that still hits a limit is halved; only a single commit that still does is declared, as
+before, and the rest of the history is read. A read that does not hit a limit runs exactly as
+before, so no other repository changes.
+
+**Measured.** Informally, not a preregistered run: the 23 public rows were scanned with the CLI's
+defaults under v17 and v27, before (`#560` round 5, `5aaa0d314`) and after, on the 0.6.8
+confirmation's full-history clones, clean and at their pinned commits before and after. 42 of 46
+`report.json` pairs are byte-identical; biomejs and react differ under both rubrics:
+
+| Row | Rubric | Before | After |
+|---|---|---|---|
+| biomejs | v17 | A2 verified 3.2; overall 3.0; badge "unrated: limited evidence" (two history limitations) | unchanged scores; no scan limitation; badge "3.0/4.0 conditional" |
+| biomejs | v27 | A2 abstains at 0; overall 2.5, code_trust 1.8 | A2 verified 3.2; overall 3.0, code_trust 2.9 |
+| react | v17 and v27 | A2 critical 1.4; overall 3.0; badge unrated (one history limitation) | unchanged scores; A2 gains an info finding ("A non-template .env file was tracked in git history; no secret-shaped value was detected."); no scan limitation; badge "3.0/4.0 conditional" |
+
+Under v17 no score, status, metric value or verdict moves; react's A2 info-finding count moves by
+one, and two badges change from unrated to rated. These are changes to the calibrated default's
+reports on public rows, so the change needed the paired public-delta discipline (a preregistered
+before-and-after on the corpus) before shipping.
+
+**Preregistered paired delta, on the code that will merge.**
+`docs/experiments/public-delta-567-paging-merged-2026-10-23/`: third preregistration `db2a09f2a`
+(baseline `fd64796c7`, `main` with #571; candidate `ef08a9770`, `main` merged into #572), result
+`2df444c35`. Every expected value held:
+- E0: 23 of 23 rows in each of the four runs, with no errors.
+- E1 (v17): one scoring row moved, react's A2 info finding. Placements and fingerprints did not
+  move. The only other change is `scanLimitations` on biomejs and react, which became empty. The
+  run records the emptied limitations. That the two v17 badges become rated follows from the v17
+  gating rule. The badge text "3.0/4.0 conditional" is from the informal measurement above.
+- E2 (v27): biomejs A2 went from abstaining to verified 3.2, and react moved as under v17. There
+  were 10 recorded placement moves.
+- E3: no row scores higher under v27 than under v17, and nothing is scored under v27 that v17
+  left null or absent.
+
+#571's change to the control-character wording was checked from the code before the run. No
+forecast was changed to recorded on its account. In the run, axios's one control-character line
+was the same on both sides of each pair.
+
+Earlier runs:
+- The original preregistration (`09f017229`, at the old pins) was scored once before `main` moved.
+  The successor disclosed that run as a pre-plan deviation; its outputs are not used.
+- The successor (`5450b687f`, baseline `75c951e40`, candidate `5b154064a`) gave result
+  `6adf3a398`, where every expected value also held. It measured the code before #571 merged, so
+  for the merged code this third run supersedes it. Apart from commits and digests, the two
+  `paired-result.json` files are identical.
+
+Against `main` at `fd64796c7`, the code that will merge differs from this run's candidate
+(`ef08a9770`) only outside the scan path:
+- the third preregistration and its result;
+- this entry and its `CHANGELOG.md` entry;
+- one test in `a2-history-paging-567.test.ts`, checking that batched reads word #571's
+  control-character limitation as the one-shot reads do;
+- two lesson seeds.
+
+The run makes no precision or recall claim.
+
+Tests: `src/witan/__tests__/a2-history-paging-567.test.ts`.
+
 ## 2026-10-22 — #569: the control-character scan limitation calls a path credential-shaped only when the rubric's own history rules do; no score moved; axios's report changes in one line
 
 **Defect.** Three history reads (the `.env`-path `git log`, the `diff-tree` enumeration and the

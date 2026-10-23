@@ -76,12 +76,15 @@ const GIT_ENV: NodeJS.ProcessEnv = {
   GIT_COMMITTER_DATE: '2026-01-01T00:00:00Z',
 };
 
+const GIT_SETTINGS = ['-c', 'commit.gpgsign=false', '-c', 'init.defaultBranch=main', '-c', 'protocol.file.allow=always'];
+
 function git(cwd: string, ...args: string[]): string {
-  return execFileSync(
-    'git',
-    ['-c', 'commit.gpgsign=false', '-c', 'init.defaultBranch=main', '-c', 'protocol.file.allow=always', ...args],
-    { cwd, env: GIT_ENV, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
-  ).trim();
+  return execFileSync('git', [...GIT_SETTINGS, ...args], {
+    cwd,
+    env: GIT_ENV,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  }).trim();
 }
 
 function write(root: string, path: string, contents: string): void {
@@ -229,6 +232,18 @@ export const SHALLOW_A2_SYNTHETIC_SECRET_LINE = `STRIPE_SECRET_KEY=${SYNTHETIC_S
 /** Runs git in a fixture directory with the fixture's fixed identity, dates and settings. */
 export function fixtureGit(cwd: string, ...args: string[]): string {
   return git(cwd, ...args);
+}
+
+/** fixtureGit with `input` on stdin (for `git fast-import`), under the same isolated config. */
+export function fixtureGitWithInput(cwd: string, input: string, ...args: string[]): string {
+  return execFileSync('git', [...GIT_SETTINGS, ...args], {
+    cwd,
+    env: GIT_ENV,
+    encoding: 'utf8',
+    input,
+    stdio: ['pipe', 'pipe', 'pipe'],
+    maxBuffer: 1 << 26,
+  }).trim();
 }
 
 export function removeShallowA2Fixtures(): void {

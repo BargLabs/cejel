@@ -1,0 +1,82 @@
+{
+  "schema": "cejel-public-delta-v2",
+  "corpusSha256": "dc723f53a201542e0febb98964093ba4a3e7173221e746ba56aab6f726400d00",
+  "publicRows": 23,
+  "scope": "public entries only; private implementation and reports excluded",
+  "generatedAt": "2026-10-22T00:00:00.000Z",
+  "runs": [
+    {
+      "name": "base-v17",
+      "commit": "fd64796c702d35f90aa4917b3db2331a87a67f3e",
+      "rubric": "witan-rubric-v17-2026-07-24"
+    },
+    {
+      "name": "cand-v17",
+      "commit": "ef08a9770450c94eb06a72f2290202c4f6a158f4",
+      "rubric": "witan-rubric-v17-2026-07-24"
+    },
+    {
+      "name": "base-v27",
+      "commit": "fd64796c702d35f90aa4917b3db2331a87a67f3e",
+      "rubric": "witan-rubric-v27-prospective-2026-10-19"
+    },
+    {
+      "name": "cand-v27",
+      "commit": "ef08a9770450c94eb06a72f2290202c4f6a158f4",
+      "rubric": "witan-rubric-v27-prospective-2026-10-19"
+    }
+  ],
+  "pairs": [
+    {
+      "name": "paging-v17",
+      "before": "base-v17",
+      "after": "cand-v17",
+      "allowedCriteria": [
+        "A2"
+      ],
+      "presentationOnly": [
+        "contentReadSummary"
+      ]
+    },
+    {
+      "name": "paging-v27",
+      "before": "base-v27",
+      "after": "cand-v27",
+      "allowedCriteria": [
+        "A2"
+      ],
+      "presentationOnly": [
+        "contentReadSummary"
+      ]
+    },
+    {
+      "name": "v27-shadow",
+      "before": "cand-v17",
+      "after": "cand-v27",
+      "allowedCriteria": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5",
+        "B1",
+        "B2",
+        "B3",
+        "B4",
+        "B5",
+        "B6"
+      ],
+      "presentationOnly": [
+        "rubricVersion",
+        "rubricBehaviourFingerprint",
+        "contentReadSummary"
+      ]
+    }
+  ],
+  "expected": {
+    "E0": "23 of 23 public rows complete in each of the four runs, with zero errors; target identity unchanged across runs; each source checkout at its run's commit; an existing run output refused.",
+    "E1": "paging-v17: scoringRowsMoved exactly 1 (react: A2's info-finding count rises by one, a non-template .env tracked in history with no secret-shaped value; react's A2 status and score and every composite unchanged); placementsMoved 0; fingerprintsChanged 0; unexpectedCriteria empty; undeclaredFieldChanges exactly biomejs and react, each only the field scanLimitations (their Git-history output-limit limitations are gone); the other 21 reports byte-identical.",
+    "E2": "paging-v27: scoringRowsMoved exactly 2. biomejs: A2 moves from insufficient_data at 0 to verified 3.2, and its overall and code_trust rise (their values are recorded, not forecast). react: as in paging-v17 (A2 info-finding count +1, no score change). fingerprintsChanged 0; unexpectedCriteria empty; undeclaredFieldChanges exactly biomejs and react, scanLimitations only; the other 21 reports byte-identical. Placement moves are recorded, not forecast.",
+    "E3": "v27-shadow at the candidate, by norise.mjs: no row has a composite (overall, code, process) or a criterion score higher under v27 than under v17, and no composite or criterion is scored under v27 where v17 left it null or absent. The number of rows that differ, the placement moves and the A2 and B2 abstentions v27 adds are recorded, not forecast."
+  }
+}
