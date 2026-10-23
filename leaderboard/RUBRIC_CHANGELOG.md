@@ -261,10 +261,9 @@ three more:
   so Cejel read none of the commit history", advising "Re-scan a checkout that git can open (a full
   clone, not a copied worktree or submodule)." Other rubrics disclose it where A2 is not applicable.
   No scan limitation is added, and no other criterion's handling of "no repository" changes. **The
-  operator confirmed on 2026-10-23 that this cause is a read failure under ADR-0001**, exactly as
-  git being unavailable is (ADR-0001, "Operator ruling (2026-10-23, fourth)"; #526,
+  operator confirmed it on 2026-10-23** (ADR-0001, "Operator ruling (2026-10-23, fourth)"; #526,
   [comment 6354162174](https://github.com/BargLabs/cejel/issues/526#issuecomment-6354162174)).
-  The operator gave no reasons.
+  The operator gave no reasons. It is a read failure under that ruling, as git being unavailable is.
 - **Case (F6).** Only the "not a git repository" forms (including git's capitalised "Not a git
   repository") and "needed a single revision" (git prints "Needed") are matched case-insensitively;
   the other no-repository messages are matched exactly.

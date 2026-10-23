@@ -525,11 +525,11 @@ extended the read-failure ruling to both, in the words "for adr-0001 add them" (
 in ADR-0001's section "Operator ruling (2026-10-22, third)". Review round 6 added one more cause: a
 `.git` entry is visible but git cannot open it as a repository (a copied worktree or submodule whose
 gitdir is gone), counted like git being unavailable. **The operator confirmed that cause on
-2026-10-23** (this replaces, on that date, the note that it awaited confirmation): it is a read
-failure under ADR-0001, exactly as git being unavailable is, in the words "Both yes (Recommended)"
-(#526, [comment 6354162174](https://github.com/BargLabs/cejel/issues/526#issuecomment-6354162174)),
-recorded in ADR-0001's section "Operator ruling (2026-10-23, fourth)". v27 already abstained on it
-at 0, so no scoring changes.
+2026-10-23** (this replaces, on that date, the note that it awaited confirmation), in the words
+"Both yes (Recommended)" (#526,
+[comment 6354162174](https://github.com/BargLabs/cejel/issues/526#issuecomment-6354162174)),
+recorded in ADR-0001's section "Operator ruling (2026-10-23, fourth)". It is a read failure under
+that ruling, as git being unavailable is. v27 already abstained on it at 0, so no scoring changes.
 
 **What it adds to "Why every v27 movement can only lower a score".** That table lists the
 abstention path and not the not-applicable gate, and its #442 row covers shallow clones only. A
