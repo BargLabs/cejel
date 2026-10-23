@@ -1,0 +1,74 @@
+{
+  "schema": "cejel-public-delta-v2",
+  "corpusSha256": "dc723f53a201542e0febb98964093ba4a3e7173221e746ba56aab6f726400d00",
+  "publicRows": 23,
+  "scope": "public entries only; private implementation and reports excluded",
+  "generatedAt": "2026-10-23T00:00:00.000Z",
+  "runs": [
+    {
+      "name": "base-v17",
+      "commit": "d175e210a41081bd41420b8109b9535540f6e01c",
+      "rubric": "witan-rubric-v17-2026-07-24"
+    },
+    {
+      "name": "cand-v17",
+      "commit": "62924091ca05fdf90b4fa2b54928132aa5c3867a",
+      "rubric": "witan-rubric-v17-2026-07-24"
+    },
+    {
+      "name": "base-v27",
+      "commit": "d175e210a41081bd41420b8109b9535540f6e01c",
+      "rubric": "witan-rubric-v27-prospective-2026-10-19"
+    },
+    {
+      "name": "cand-v27",
+      "commit": "62924091ca05fdf90b4fa2b54928132aa5c3867a",
+      "rubric": "witan-rubric-v27-prospective-2026-10-19"
+    }
+  ],
+  "pairs": [
+    {
+      "name": "budget-v17",
+      "before": "base-v17",
+      "after": "cand-v17",
+      "allowedCriteria": [],
+      "presentationOnly": []
+    },
+    {
+      "name": "budget-v27",
+      "before": "base-v27",
+      "after": "cand-v27",
+      "allowedCriteria": [],
+      "presentationOnly": []
+    },
+    {
+      "name": "v27-shadow",
+      "before": "cand-v17",
+      "after": "cand-v27",
+      "allowedCriteria": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5",
+        "B1",
+        "B2",
+        "B3",
+        "B4",
+        "B5",
+        "B6"
+      ],
+      "presentationOnly": [
+        "rubricVersion",
+        "rubricBehaviourFingerprint",
+        "contentReadSummary"
+      ]
+    }
+  ],
+  "expected": {
+    "E0": "23 of 23 public rows complete in each of the four runs, with zero errors; target identity unchanged across runs; each source checkout at its run's commit; an existing run output refused.",
+    "E1": "budget-v17: no public row reaches the re-read time budget, so nothing changes. scoringRowsMoved 0; placementsMoved 0; fingerprintsChanged 0; unexpectedCriteria empty; undeclaredFieldChanges empty; all 23 reports byte-identical (identicalReports 23).",
+    "E2": "budget-v27: as budget-v17. scoringRowsMoved 0; placementsMoved 0; fingerprintsChanged 0; unexpectedCriteria empty; undeclaredFieldChanges empty; all 23 reports byte-identical (identicalReports 23).",
+    "E3": "v27-shadow at the candidate, by norise.mjs: no row has a composite (overall, code, process) or a criterion score higher under v27 than under v17, and no composite or criterion is scored under v27 where v17 left it null or absent. The number of rows that differ, the placement moves and the A2 and B2 abstentions v27 adds are recorded, not forecast."
+  }
+}
