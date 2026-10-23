@@ -1,0 +1,25 @@
+[
+  {
+    "statement": "In a preregistration, write every commit of another repository as owner/repo@sha, never as a bare hash. A preregistration cannot be edited after it is pushed, so a citation the checker misreads can only be corrected by an erratum. Cejel #592's preregistration named the corpus pins of two public rows, the clones the re-read times were measured on, as bare short hashes in a sentence that also said preregistration. The cited-commits check read them as Cejel commits that resolve to nothing, and failed. Two other-repository entries in the citation errata register were needed, though one keystroke at writing time would have avoided them. Rules: before pushing a preregistration, run the cited-commits check in pull-request mode on its commit; qualify each external hash with its owner/repo, taken from the corpus; keep a generated file's existing formatting when adding to it, and confirm that the diff shows additions only.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "experiment-integrity",
+      "claim-hygiene"
+    ],
+    "tags": [
+      "preregistration",
+      "citation",
+      "cited-commits-check",
+      "errata"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-10-23T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 592
+    }
+  }
+]

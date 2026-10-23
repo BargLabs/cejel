@@ -124,6 +124,32 @@
       "ruling": "operator, 2026-10-02: evidence/91-v17-partition-preregistration removed",
       "date": "2026-10-02",
       "reason": "The 200/200 re-bind run commit lives only on closed #91's branch. Its evidence tag (evidence/91-v17-partition-preregistration -> 105d2f0f) was removed by operator ruling because the tagged tree carries a label-class path on a public ref. refs/pull/91/head still reaches 105d2f0f, and this commit through it; no GitHub purge was requested: the frame was retired 2026-08-18, its members are revealed, and the file carries no labels."
+    },
+    {
+      "token": "01bba129a",
+      "locations": [
+        {
+          "file": "docs/experiments/public-delta-586-fallback-budget-2026-10-23/PREREGISTRATION.md",
+          "context": "biomejs at `01bba129a`"
+        }
+      ],
+      "disposition": "other-repository",
+      "repository": "biomejs/biome",
+      "date": "2026-10-23",
+      "reason": "The public row's pinned commit in leaderboard/corpus.json (01bba129afefced1c04aa69592b1b7f337a7b609), on whose verified full-history clone the re-read times were measured; not a cejel commit."
+    },
+    {
+      "token": "c0c39a6b3",
+      "locations": [
+        {
+          "file": "docs/experiments/public-delta-586-fallback-budget-2026-10-23/PREREGISTRATION.md",
+          "context": "react at `c0c39a6b3`"
+        }
+      ],
+      "disposition": "other-repository",
+      "repository": "facebook/react",
+      "date": "2026-10-23",
+      "reason": "The public row's pinned commit in leaderboard/corpus.json (c0c39a6b3907eaab35f43074949e2957a2a734c1), on whose verified full-history clone the re-read times were measured; not a cejel commit."
     }
   ]
 }

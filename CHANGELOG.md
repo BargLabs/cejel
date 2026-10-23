@@ -54,6 +54,31 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- **A2's batched re-read of a large history had no overall time bound (#586).** Under every
+  rubric, a whole-history read that stops at Cejel's own 8 MiB output limit or 30-second timeout is
+  re-read over the commit list in pages and batches (#567). Each git call already stopped at
+  30 seconds, but a batch that timed out was halved and retried, so on a slow host a re-read could
+  take many times longer than the single read it replaced. Each re-read now has a time budget,
+  `HISTORY_FALLBACK_TIME_BUDGET_MS`, 120 seconds by default. When it is spent the re-read stops and
+  the read is declared incomplete through the same path as a read stopped at Cejel's own limit:
+  a scan limitation under every rubric ("... stopped at Cejel's 120-second time budget for
+  re-reading history in batches. Cejel continued with reduced Git history evidence."), so the v17
+  badge is unrated and `--min-score` refuses; under `witan-rubric-v27-prospective-2026-10-19`, A2
+  treats it as a failed read (ADR-0001) and, as for any failed read, abstains unless a critical
+  finding was already confirmed. What was read is kept but never presented as the whole history. The re-scan advice
+  counts the budget, like the timeout, as depending on the machine and its load. A read that hits
+  no limit never starts a re-read and is unchanged.
+  - **Budget value:** 120 s per re-read, a default the operator can change. It is about 50 times the
+    slowest re-read measured on the public rows: about 2.5 s on biomejs and 1.4 s on react, by
+    replaying the re-read's git calls on their verified full-history clones, on one host. It is
+    four times the per-call timeout.
+  - **Public effect:** a preregistered paired public delta on the 23 public rows found every report
+    byte-identical under v17 and under `witan-rubric-v27-prospective-2026-10-19`: preregistration
+    `fa4fc0a7b` (baseline `d175e210a`, candidate `62924091c`), result `1886d9987`, E0-E3 held
+    (`docs/experiments/public-delta-586-fallback-budget-2026-10-23/`). No behaviour fingerprint
+    moves; the fingerprint test passes with its pins.
+  - **Where the budget's behaviour is shown:** in tests, with a test clock
+    (`src/witan/__tests__/a2-history-fallback-budget-586.test.ts`), not on any public row.
 - **The print-only workflow reader assumed bash (#564, every rubric).** It admitted any runner and
   judged `echo`/`printf` arguments by a bash metacharacter blocklist. On a Windows runner, pwsh runs
   `echo @{suite=./run-tests.ps1}` by evaluating the hashtable, which runs the repository's script.

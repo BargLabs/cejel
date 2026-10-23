@@ -5379,6 +5379,12 @@ const historyReadFailed = (incompleteness: A2HistoryIncompleteness) =>
 // repository alone, so a re-scan may lift it; the output limits and the file cap will not lift.
 const HISTORY_READ_TIMEOUT_NAME = `${GIT_EXEC_TIMEOUT_MS / 1000}-second timeout`;
 
+// #586: the time budget for re-reading one history read in pages and batches (#567). Like the
+// timeout, whether a read reaches it depends on the scanning host and its load, not only on the
+// repository. A function, not a constant: HISTORY_FALLBACK_TIME_BUDGET_MS is declared further down.
+const historyFallbackBudgetName = () =>
+  `${HISTORY_FALLBACK_TIME_BUDGET_MS / 1000}-second time budget for re-reading history in batches`;
+
 // A function, not a constant: HISTORY_SECRET_SCAN_CREDENTIAL_BLOB_LIMIT is declared further down.
 const historySecretScanCapName = () =>
   `cap of ${HISTORY_SECRET_SCAN_CREDENTIAL_BLOB_LIMIT.toLocaleString('en-US')} historical files`;
@@ -5447,9 +5453,15 @@ function a2HistoryIncompletenessAdvice(incompleteness: A2HistoryIncompleteness):
     advice.push('Re-scan a full clone (for actions/checkout, set fetch-depth: 0).');
   }
   // The output limits and the file cap are deterministic for a given repository; the timeout
-  // depends on the machine and its load, so a re-scan may lift it (#560 review).
-  const timedOut = incompleteness.limitHits.includes(HISTORY_READ_TIMEOUT_NAME);
-  const sizeLimits = incompleteness.limitHits.filter((limit) => limit !== HISTORY_READ_TIMEOUT_NAME).length;
+  // depends on the machine and its load, so a re-scan may lift it (#560 review). So does #586's
+  // time budget for the batched re-read.
+  const hitTimeout = incompleteness.limitHits.includes(HISTORY_READ_TIMEOUT_NAME);
+  const hitBudget = incompleteness.limitHits.includes(historyFallbackBudgetName());
+  const timedOut = hitTimeout || hitBudget;
+  const timeLimitWords = hitTimeout && hitBudget ? 'timeout and time budget' : hitBudget ? 'time budget' : 'timeout';
+  const sizeLimits = incompleteness.limitHits.filter(
+    (limit) => limit !== HISTORY_READ_TIMEOUT_NAME && limit !== historyFallbackBudgetName(),
+  ).length;
   const fixedLimits = sizeLimits + (incompleteness.blobCapHit ? 1 : 0);
   if (fixedLimits > 0) {
     const kind = !timedOut
@@ -5460,11 +5472,11 @@ function a2HistoryIncompletenessAdvice(incompleteness: A2HistoryIncompleteness):
           : ' on file count'
         : ' on size';
     advice.push(
-      `A re-scan of the same repository will not lift Cejel's own ${fixedLimits === 1 ? 'limit' : 'limits'}${kind}${timedOut ? ', and may not lift its timeout, which depends on the machine and its load' : ''}.`,
+      `A re-scan of the same repository will not lift Cejel's own ${fixedLimits === 1 ? 'limit' : 'limits'}${kind}${timedOut ? `, and may not lift its ${timeLimitWords}, which ${hitTimeout && hitBudget ? 'depend' : 'depends'} on the machine and its load` : ''}.`,
     );
   } else if (timedOut) {
     advice.push(
-      "A re-scan of the same repository may not lift Cejel's own timeout, which depends on the machine and its load.",
+      `A re-scan of the same repository may not lift Cejel's own ${timeLimitWords}, which ${hitTimeout && hitBudget ? 'depend' : 'depends'} on the machine and its load.`,
     );
   }
   if (incompleteness.controlCharacterSkip) {
@@ -14424,6 +14436,11 @@ class HistoryReadRecorder extends Set<string> {
     }
   }
 
+  /** #586: a batched re-read stopped at its time budget, one of Cejel's own limits. */
+  noteBudgetExhausted(): void {
+    this.limitHits.add(historyFallbackBudgetName());
+  }
+
   override add(value: string): this {
     this.target.add(value);
     return super.add(value);
@@ -14586,6 +14603,44 @@ interface GitHistoryEntry {
 const HISTORY_COMMIT_PAGE = 50_000;
 const HISTORY_COMMIT_BATCH = 1_000;
 
+// #586: the time one such re-read may take, its rev-list pages and batches together. Each git call
+// already stops at the 30-second timeout, but a batch that times out is halved and retried, so
+// without this a slow repository could take many times longer than before #567, when the read gave
+// up at the first limit. 120 s is about 50 times the slowest re-read measured on the public rows
+// (biomejs, about 2.4 s; react about 1.4 s) and four times the per-call timeout. A read that hits no
+// limit never starts a re-read, so the budget does not apply to it.
+const HISTORY_FALLBACK_TIME_BUDGET_MS = 120_000;
+
+/**
+ * #586: the time budget of one batched re-read. Checked before each git call of the re-read; once
+ * the time is spent, the re-read stops and the read is declared incomplete, once, exactly as a read
+ * that stops at Cejel's own timeout is: a scan limitation for every rubric, and A2's recorder notes
+ * the limit, so v27's A2 treats it as a failed history read (ADR-0001). What was read is kept but
+ * is never presented as the whole history.
+ */
+class HistoryFallbackBudget {
+  private readonly deadline = performance.now() + HISTORY_FALLBACK_TIME_BUDGET_MS;
+  private declared = false;
+
+  constructor(
+    private readonly scanLimitations: Set<string>,
+    private readonly operation: string,
+  ) {}
+
+  /** True while time remains. Once it is spent, declares the read incomplete (once) and returns false. */
+  allows(): boolean {
+    if (performance.now() < this.deadline) return true;
+    if (!this.declared) {
+      this.declared = true;
+      if (this.scanLimitations instanceof HistoryReadRecorder) this.scanLimitations.noteBudgetExhausted();
+      this.scanLimitations.add(
+        `Cejel: local git ${this.operation} stopped at Cejel's ${historyFallbackBudgetName()}.${HISTORY_READ_FAILURE_SUFFIX}`,
+      );
+    }
+    return false;
+  }
+}
+
 function stoppedAtOwnLimit(result: GitExecResult): boolean {
   return !result.ok && (result.reason === 'buffer_exceeded' || result.reason === 'timeout');
 }
@@ -14598,9 +14653,11 @@ function readHistoryCommitsInPages(
   repoPath: string,
   scanLimitations: Set<string>,
   operation: string,
+  budget: HistoryFallbackBudget,
 ): string[] {
   const commits: string[] = [];
   for (let skip = 0; ; skip += HISTORY_COMMIT_PAGE) {
+    if (!budget.allows()) return commits;
     const page = execGit(['rev-list', `--max-count=${HISTORY_COMMIT_PAGE}`, `--skip=${skip}`, 'HEAD'], {
       cwd: repoPath,
     });
@@ -14629,6 +14686,7 @@ function runHistoryCommandInBatches(
   commits: readonly string[],
   scanLimitations: Set<string>,
   operation: string,
+  budget: HistoryFallbackBudget,
   stop?: (output: string) => boolean,
 ): string[] {
   const outputs: string[] = [];
@@ -14637,6 +14695,7 @@ function runHistoryCommandInBatches(
     queue.push(commits.slice(start, start + HISTORY_COMMIT_BATCH));
   }
   while (queue.length > 0) {
+    if (!budget.allows()) break;
     const batch = queue.shift() as string[];
     const result = execGit(argv, { cwd: repoPath, input: `${batch.join('\n')}\n` });
     if (result.ok) {
@@ -14686,10 +14745,13 @@ function readCredentialHistoryEntries(
   // remote-tracking refs are ambient clone state, not evidence for that revision.
   const commitsResult = execGit(['rev-list', 'HEAD'], { cwd: repoPath });
   let commits: string[] | undefined;
+  // #586: one time budget for this read's whole re-read, started only when a re-read starts.
+  let budget: HistoryFallbackBudget | undefined;
+  const fallbackBudget = () => (budget ??= new HistoryFallbackBudget(scanLimitations, 'history tree enumeration'));
   if (commitsResult.ok) {
     commits = undefined;
   } else if (stoppedAtOwnLimit(commitsResult)) {
-    commits = readHistoryCommitsInPages(repoPath, scanLimitations, 'history revision enumeration');
+    commits = readHistoryCommitsInPages(repoPath, scanLimitations, 'history revision enumeration', fallbackBudget());
   } else if (!isExpectedHistoryAbsence(scanLimitations, commitsResult)) {
     declareHistoryFailure(scanLimitations, commitsResult.reason, 'history revision enumeration');
   }
@@ -14715,6 +14777,7 @@ function readCredentialHistoryEntries(
         commits,
         scanLimitations,
         'history tree enumeration',
+        fallbackBudget(),
       ),
     );
   }
@@ -14793,13 +14856,15 @@ function readDeletedCredentialHistoryPaths(
     output = historyResult.stdout;
   } else if (stoppedAtOwnLimit(historyResult)) {
     // #567: the same log, one batch of commits at a time, in the same order.
-    const commits = readHistoryCommitsInPages(repoPath, scanLimitations, 'deleted-path history scan');
+    const budget = new HistoryFallbackBudget(scanLimitations, 'deleted-path history scan');
+    const commits = readHistoryCommitsInPages(repoPath, scanLimitations, 'deleted-path history scan', budget);
     output = runHistoryCommandInBatches(
       repoPath,
       ['log', '--no-show-signature', '--no-walk=unsorted', '--stdin', ...flags],
       commits,
       scanLimitations,
       'deleted-path history scan',
+      budget,
     ).join('\0');
   } else {
     if (isExpectedHistoryAbsence(scanLimitations, historyResult)) return [];
@@ -15477,7 +15542,8 @@ function hasEnvPathInGitHistory(
   if (!historyResult.ok) {
     if (stoppedAtOwnLimit(historyResult)) {
       // #567: the same log, one batch of commits at a time, stopping at the first .env path.
-      const commits = readHistoryCommitsInPages(repoPath, scanLimitations, 'environment-file history scan');
+      const budget = new HistoryFallbackBudget(scanLimitations, 'environment-file history scan');
+      const commits = readHistoryCommitsInPages(repoPath, scanLimitations, 'environment-file history scan', budget);
       let found = false;
       runHistoryCommandInBatches(
         repoPath,
@@ -15485,6 +15551,7 @@ function hasEnvPathInGitHistory(
         commits,
         scanLimitations,
         'environment-file history scan',
+        budget,
         (output) =>
           (found = envPathInHistoryOutput(output, scanLimitations, useV36Detectors, useV23PemPrivateKeyGrammar)),
       );
