@@ -332,10 +332,10 @@ three more:
   Under v27 A2 abstains at 0: "a .git entry is present but git could not open it as a repository,
   so Cejel read none of the commit history", advising "Re-scan a checkout that git can open (a full
   clone, not a copied worktree or submodule)." Other rubrics disclose it where A2 is not applicable.
-  No scan limitation is added, and no other criterion's handling of "no repository" changes. **This
-  cause is not named in the operator's ADR-0001 rulings**; it is of the same kind as git being
-  unavailable (history present but unread for a reason outside it), and it is flagged for the
-  operator to confirm.
+  No scan limitation is added, and no other criterion's handling of "no repository" changes. **The
+  operator confirmed it on 2026-10-23** (ADR-0001, "Operator ruling (2026-10-23, fourth)"; #526,
+  [comment 6354162174](https://github.com/BargLabs/cejel/issues/526#issuecomment-6354162174)).
+  The operator gave no reasons. It is a read failure under that ruling, as git being unavailable is.
 - **Case (F6).** Only the "not a git repository" forms (including git's capitalised "Not a git
   repository") and "needed a single revision" (git prints "Needed") are matched case-insensitively;
   the other no-repository messages are matched exactly.
@@ -1680,9 +1680,10 @@ rather than listed by hand:
   git not runnable, and the 30-second timeout, which has no seam. So git actually timing out is
   not covered on a real scan (later: #583).
 
-  The unopenable-`.git` cause (the dangling symlink and the unreadable directory) still awaits the
-  operator's confirmation. The class recognises what v27 does today, records no ruling on it, and
-  changes if the operator rules otherwise.
+  The unopenable-`.git` cause (the dangling symlink and the unreadable directory) is a read failure
+  under ADR-0001, as the operator confirmed on 2026-10-23 (ADR-0001, "Operator ruling (2026-10-23,
+  fourth)"; #526, [comment 6354162174](https://github.com/BargLabs/cejel/issues/526#issuecomment-6354162174)).
+  The class recognises what v27 does, which the ruling did not change.
 
 Results at `bdd06c0d7`:
 - the six shards, the curated test and the guard: 8 files, 2,288 tests, all passed;
