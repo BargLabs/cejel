@@ -1,0 +1,801 @@
+{
+  "schema": "cejel-informal-byte-identity-v2",
+  "preregistered": false,
+  "change": "#569 (PR #571): the control-character history scan limitation calls a path credential-shaped only when its name is, under the rubric's own history grammar (or it is .env-shaped)",
+  "baseScannerCommit": "c9d341d5f9dd577b44276e255f8657984fdce2bb",
+  "candidateScannerCommit": "95024420683b025028dc478355a3cbf6496e329f",
+  "rubrics": {
+    "v17": "witan-rubric-v17-2026-07-24 (CLI default)",
+    "v23": "witan-rubric-v23-prospective-2026-09-06",
+    "v27": "witan-rubric-v27-prospective-2026-10-19"
+  },
+  "method": [
+    "Each scan: node_modules/.bin/tsx src/index.ts scan <target> --out <dir> --quiet [--rubric-pin <rubric>], run from a clean tree at its scanner commit (base: a git archive of baseScannerCommit; candidate: the branch worktree at candidateScannerCommit), into a fresh output directory that did not exist before the scan (the script refuses an existing one); its exit code is recorded per row.",
+    "report.json of each side is compared byte for byte, and its sha256 recorded here. Hashes alone do not show that a scan ran correctly: the same code run twice, a stale report or a wrong target would also give identical hashes. The exit codes, the two scanner commits and the target pins are recorded for that reason, and two independent grounds are given below.",
+    "An earlier attempt of this measurement was broken because another agent overwrote a shared scratch script mid-session; it was redone with a private script and a fresh output root. Its results are not used here."
+  ],
+  "targets": "the 23 public rows of leaderboard/corpus.json (sha256 dc723f53a201542e0febb98964093ba4a3e7173221e746ba56aab6f726400d00): the full-history, unfiltered clones the 0.6.8 successor confirmation used, each at its corpus commit (targetCommit equals corpusCommit on every row), clean before and after",
+  "independentGrounds": {
+    "historyControlCharacterPaths": {
+      "method": "git log --no-show-signature HEAD --name-only -z --format= --no-renames on each clone, split on NUL, every path tested for a byte in 0x00-0x1f or 0x7f",
+      "rowsWithSuchPaths": {
+        "axios": [
+          "\bMIGRATION_GUIDE.md"
+        ]
+      },
+      "note": "This walk omits merge diffs (no -m), so a path that appears only in a merge's own diff is not listed; #571 review pass 1 ran the walk with -m and also found such a path only in axios (https://github.com/BargLabs/cejel/pull/571#issuecomment-6348352322)."
+    },
+    "reviewerReproduction": "the #571 review passes reproduced the axios one-line difference and matched report hashes independently (pass 2 round 2: 28 of 28 hashes of the earlier record; pass 1: 24 hashes); see https://github.com/BargLabs/cejel/pull/571 comments 6348090617 and 6348113615"
+  },
+  "summary": {
+    "pairs": 69,
+    "identical": 66,
+    "differing": [
+      "axios v17",
+      "axios v23",
+      "axios v27"
+    ],
+    "nonZeroExitCodes": []
+  },
+  "rows": [
+    {
+      "name": "automapper",
+      "rubric": "v17",
+      "targetCommit": "dfa6dd587c5854b4beee5934beb39ba6e9569b84",
+      "corpusCommit": "dfa6dd587c5854b4beee5934beb39ba6e9569b84",
+      "baseExitCode": 0,
+      "candExitCode": 0,
+      "baseSha256": "8afc6addaecd74a631c52e8bce04d3c5391da6a04e3a113326226092e6e68afd",
+      "candSha256": "8afc6addaecd74a631c52e8bce04d3c5391da6a04e3a113326226092e6e68afd",
+      "identical": true
+    },
+    {
+      "name": "automapper",
+      "rubric": "v23",
+      "targetCommit": "dfa6dd587c5854b4beee5934beb39ba6e9569b84",
+      "corpusCommit": "dfa6dd587c5854b4beee5934beb39ba6e9569b84",
+      "baseExitCode": 0,
+      "candExitCode": 0,
+      "baseSha256": "13cc9ae118f5eb7bbc89adcefe68c35c37edb998658e07baca61a5987f5dafe3",
+      "candSha256": "13cc9ae118f5eb7bbc89adcefe68c35c37edb998658e07baca61a5987f5dafe3",
+      "identical": true
+    },
+    {
+      "name": "automapper",
+      "rubric": "v27",
+      "targetCommit": "dfa6dd587c5854b4beee5934beb39ba6e9569b84",
+      "corpusCommit": "dfa6dd587c5854b4beee5934beb39ba6e9569b84",
+      "baseExitCode": 0,
+      "candExitCode": 0,
+      "baseSha256": "e5df1c5d5434f194c4eb3839b3d05457daaf605ec23ee04718591f4d10a37db8",
+      "candSha256": "e5df1c5d5434f194c4eb3839b3d05457daaf605ec23ee04718591f4d10a37db8",
+      "identical": true
+    },
+    {
+      "name": "axios",
+      "rubric": "v17",
+      "targetCommit": "7a6615e421578081743161eab032d009dc6583a4",
+      "corpusCommit": "7a6615e421578081743161eab032d009dc6583a4",
+      "baseExitCode": 0,
+      "candExitCode": 0,
+      "baseSha256": "80962535c4ce205ec6d7bae5ea7344f58e0945c8324457bb6b2a7fb2f88834ff",
+      "candSha256": "d2df1bb25d4e7ea7b550122e988bb00eeb3e1acede4469c00975078fc5697d41",
+      "identical": false
+    },
+    {
+      "name": "axios",
+      "rubric": "v23",
+      "targetCommit": "7a6615e421578081743161eab032d009dc6583a4",
+      "corpusCommit": "7a6615e421578081743161eab032d009dc6583a4",
+      "baseExitCode": 0,
+      "candExitCode": 0,
+      "baseSha256": "64bcbe44ddae30cc230664ec0aa5fd8f66c18398bcf1d8fbc9541d9ecc7290e6",
+      "candSha256": "2df632566bbe9b3a56c5f42beee244431ccc24880781bb026adabd121c381eae",
+      "identical": false
+    },
+    {
+      "name": "axios",
+      "rubric": "v27",
+      "targetCommit": "7a6615e421578081743161eab032d009dc6583a4",
+      "corpusCommit": "7a6615e421578081743161eab032d009dc6583a4",
+      "baseExitCode": 0,
+      "candExitCode": 0,
+      "baseSha256": "be209424277103388693851448e8ba65e9f61ed315bf2e2ad39f65e376300e36",
+      "candSha256": "75415043c05f95e2cdc00bfd72b7157da904f0d74b440185d494bf8bb17ccc5a",
+      "identical": false
+    },
+    {
+      "name": "biomejs",
+      "rubric": "v17",
+      "targetCommit": "01bba129afefced1c04aa69592b1b7f337a7b609",
+      "corpusCommit": "01bba129afefced1c04aa69592b1b7f337a7b609",
+      "baseExitCode": 0,
+      "candExitCode": 0,
+      "baseSha256": "7f7ccbd3e9d816475f739bad68a8c31cd9cf23cf5c3f8c1c695f83fd8d5588b6",
+      "candSha256": "7f7ccbd3e9d816475f739bad68a8c31cd9cf23cf5c3f8c1c695f83fd8d5588b6",
+      "identical": true
+    },
+    {
+      "name": "biomejs",
+      "rubric": "v23",
+      "targetCommit": "01bba129afefced1c04aa69592b1b7f337a7b609",
+      "corpusCommit": "01bba129afefced1c04aa69592b1b7f337a7b609",
+      "baseExitCode": 0,
+      "candExitCode": 0,
+      "baseSha256": "7da372a154fb76c69b3b8033833a0b55f916bc238629b334c70e0ea7e5a50d09",
+      "candSha256": "7da372a154fb76c69b3b8033833a0b55f916bc238629b334c70e0ea7e5a50d09",
+      "identical": true
+    },
+    {
+      "name": "biomejs",
+      "rubric": "v27",
+      "targetCommit": "01bba129afefced1c04aa69592b1b7f337a7b609",
+      "corpusCommit": "01bba129afefced1c04aa69592b1b7f337a7b609",
+      "baseExitCode": 0,
+      "candExitCode": 0,
+      "baseSha256": "5bbda1803cbca14b2d47a8330b2884cd338c2b29c95d4b2b6e9fc782cf7423b6",
+      "candSha256": "5bbda1803cbca14b2d47a8330b2884cd338c2b29c95d4b2b6e9fc782cf7423b6",
+      "identical": true
+    },
+    {
+      "name": "carddemo",
+      "rubric": "v17",
+      "targetCommit": "59cc6c2fd7ebd7ef7925cad552a01a4b8b6e4d5e",
+      "corpusCommit": "59cc6c2fd7ebd7ef7925cad552a01a4b8b6e4d5e",
+      "baseExitCode": 0,
+      "candExitCode": 0,
+      "baseSha256": "e2dd2c23034fbc9b781aa76a6454e0b20b31cbfa5bb2f62dc2fb2e352dfe9571",
+      "candSha256": "e2dd2c23034fbc9b781aa76a6454e0b20b31cbfa5bb2f62dc2fb2e352dfe9571",
+      "identical": true
+    },
+    {
+      "name": "carddemo",
+      "rubric": "v23",
+      "targetCommit": "59cc6c2fd7ebd7ef7925cad552a01a4b8b6e4d5e",
+      "corpusCommit": "59cc6c2fd7ebd7ef7925cad552a01a4b8b6e4d5e",
+      "baseExitCode": 0,
+      "candExitCode": 0,
+      "baseSha256": "40771ac38a822015bd28345f7c50b993def910069a25de1caa716074b3e633f4",
+      "candSha256": "40771ac38a822015bd28345f7c50b993def910069a25de1caa716074b3e633f4",
+      "identical": true
+    },
+    {
+      "name": "carddemo",
+      "rubric": "v27",
+      "targetCommit": "59cc6c2fd7ebd7ef7925cad552a01a4b8b6e4d5e",
+      "corpusCommit": "59cc6c2fd7ebd7ef7925cad552a01a4b8b6e4d5e",
+      "baseExitCode": 0,
+      "candExitCode": 0,
+      "baseSha256": "ea8920d2396e6fec33387c28c22194b6039fdad2320c0187de440c6c5e984162",
+      "candSha256": "ea8920d2396e6fec33387c28c22194b6039fdad2320c0187de440c6c5e984162",
+      "identical": true
+    },
+    {
+      "name": "cejel",
+      "rubric": "v17",
+      "targetCommit": "0be03171c810023c65806d87f25ee4873a377cea",
+      "corpusCommit": "0be03171c810023c65806d87f25ee4873a377cea",
+      "baseExitCode": 0,
+      "candExitCode": 0,
+      "baseSha256": "c9c6ed3a235d4b8bf12f5345bd88effb43172d240b70c35ec897ca12fe22b691",
+      "candSha256": "c9c6ed3a235d4b8bf12f5345bd88effb43172d240b70c35ec897ca12fe22b691",
+      "identical": true
+    },
+    {
+      "name": "cejel",
+      "rubric": "v23",
+      "targetCommit": "0be03171c810023c65806d87f25ee4873a377cea",
+      "corpusCommit": "0be03171c810023c65806d87f25ee4873a377cea",
+      "baseExitCode": 0,
+      "candExitCode": 0,
+      "baseSha256": "a90cf5527a415fe1ba3a4c24faabd892007f5f27b2038292b648e2d38462d507",
+      "candSha256": "a90cf5527a415fe1ba3a4c24faabd892007f5f27b2038292b648e2d38462d507",
+      "identical": true
+    },
+    {
+      "name": "cejel",
+      "rubric": "v27",
+      "targetCommit": "0be03171c810023c65806d87f25ee4873a377cea",
+      "corpusCommit": "0be03171c810023c65806d87f25ee4873a377cea",
+      "baseExitCode": 0,
+      "candExitCode": 0,
+      "baseSha256": "7066fdef357ec355ac6b1191484ee23f04b53c017ba5f4fde58e7e3d7b3df3b4",
+      "candSha256": "7066fdef357ec355ac6b1191484ee23f04b53c017ba5f4fde58e7e3d7b3df3b4",
+      "identical": true
+    },
+    {
+      "name": "cobra",
+      "rubric": "v17",
+      "targetCommit": "adbc8813901bba65827259daa8e22ff94ec1f30e",
+      "corpusCommit": "adbc8813901bba65827259daa8e22ff94ec1f30e",
+      "baseExitCode": 0,
+      "candExitCode": 0,
+      "baseSha256": "0e29b8dad2eafdd6aaa19acee1ea0dda4312deb67b0d5995c39cdcb84c987a77",
+      "candSha256": "0e29b8dad2eafdd6aaa19acee1ea0dda4312deb67b0d5995c39cdcb84c987a77",
+      "identical": true
+    },
+    {
+      "name": "cobra",
+      "rubric": "v23",
+      "targetCommit": "adbc8813901bba65827259daa8e22ff94ec1f30e",
+      "corpusCommit": "adbc8813901bba65827259daa8e22ff94ec1f30e",
+      "baseExitCode": 0,
+      "candExitCode": 0,
+      "baseSha256": "1f722df645a69ed6083b82bd526f88b413f1e8d3cb08e68920511b3a8e2a62f5",
+      "candSha256": "1f722df645a69ed6083b82bd526f88b413f1e8d3cb08e68920511b3a8e2a62f5",
+      "identical": true
+    },
+    {
+      "name": "cobra",
+      "rubric": "v27",
+      "targetCommit": "adbc8813901bba65827259daa8e22ff94ec1f30e",
+      "corpusCommit": "adbc8813901bba65827259daa8e22ff94ec1f30e",
+      "baseExitCode": 0,
+      "candExitCode": 0,
+      "baseSha256": "3f85d6ea8059eefd73f7e653449b483c3536959c8476294d49a2947007b9785e",
+      "candSha256": "3f85d6ea8059eefd73f7e653449b483c3536959c8476294d49a2947007b9785e",
+      "identical": true
+    },
+    {
+      "name": "django",
+      "rubric": "v17",
+      "targetCommit": "65a9f14196c338d70889bd54753370606b3fb4eb",
+      "corpusCommit": "65a9f14196c338d70889bd54753370606b3fb4eb",
+      "baseExitCode": 0,
+      "candExitCode": 0,
+      "baseSha256": "38119f45ca1129485dafb7383d17dd264f8f15524848a274906c0c4d6c7c2513",
+      "candSha256": "38119f45ca1129485dafb7383d17dd264f8f15524848a274906c0c4d6c7c2513",
+      "identical": true
+    },
+    {
+      "name": "django",
+      "rubric": "v23",
+      "targetCommit": "65a9f14196c338d70889bd54753370606b3fb4eb",
+      "corpusCommit": "65a9f14196c338d70889bd54753370606b3fb4eb",
+      "baseExitCode": 0,
+      "candExitCode": 0,
+      "baseSha256": "04e801efc0a3c7a811ef5aad4fe7445621067796de465e1c4f29017adaf629fd",
+      "candSha256": "04e801efc0a3c7a811ef5aad4fe7445621067796de465e1c4f29017adaf629fd",
+      "identical": true
+    },
+    {
+      "name": "django",
+      "rubric": "v27",
+      "targetCommit": "65a9f14196c338d70889bd54753370606b3fb4eb",
+      "corpusCommit": "65a9f14196c338d70889bd54753370606b3fb4eb",
+      "baseExitCode": 0,
+      "candExitCode": 0,
+      "baseSha256": "0c72366b94b13f81390c6661ed06c8c6bc16004b8a34ed9d500ea4a864add5b6",
+      "candSha256": "0c72366b94b13f81390c6661ed06c8c6bc16004b8a34ed9d500ea4a864add5b6",
+      "identical": true
+    },
+    {
+      "name": "esbuild",
+      "rubric": "v17",
+      "targetCommit": "6ff1d8b0d8c134e867a397eef39702a223ebef9e",
+      "corpusCommit": "6ff1d8b0d8c134e867a397eef39702a223ebef9e",
+      "baseExitCode": 0,
+      "candExitCode": 0,
+      "baseSha256": "e29eae6486f15b29697248dc4628d04ad87201b89b78c2bee7517d67a1b1273c",
+      "candSha256": "e29eae6486f15b29697248dc4628d04ad87201b89b78c2bee7517d67a1b1273c",
+      "identical": true
+    },
+    {
+      "name": "esbuild",
+      "rubric": "v23",
+      "targetCommit": "6ff1d8b0d8c134e867a397eef39702a223ebef9e",
+      "corpusCommit": "6ff1d8b0d8c134e867a397eef39702a223ebef9e",
+      "baseExitCode": 0,
+      "candExitCode": 0,
+      "baseSha256": "9c0bd3d234d642e145ef4c3ed728021451f4d7373614a46c552fd7d2f4593497",
+      "candSha256": "9c0bd3d234d642e145ef4c3ed728021451f4d7373614a46c552fd7d2f4593497",
+      "identical": true
+    },
+    {
+      "name": "esbuild",
+      "rubric": "v27",
+      "targetCommit": "6ff1d8b0d8c134e867a397eef39702a223ebef9e",
+      "corpusCommit": "6ff1d8b0d8c134e867a397eef39702a223ebef9e",
+      "baseExitCode": 0,
+      "candExitCode": 0,
+      "baseSha256": "07a26668116fccdb6034a315b487d728f72e5e4f1acce18803dfad2ec64b66a6",
+      "candSha256": "07a26668116fccdb6034a315b487d728f72e5e4f1acce18803dfad2ec64b66a6",
+      "identical": true
+    },
+    {
+      "name": "express",
+      "rubric": "v17",
+      "targetCommit": "ba006766fb964571723138708eacaba0f55759cd",
+      "corpusCommit": "ba006766fb964571723138708eacaba0f55759cd",
+      "baseExitCode": 0,
+      "candExitCode": 0,
+      "baseSha256": "88d16cae54ac6343ef234b82c8e686a4ad1f3cd213d93557e54cf52d65cc5a0f",
+      "candSha256": "88d16cae54ac6343ef234b82c8e686a4ad1f3cd213d93557e54cf52d65cc5a0f",
+      "identical": true
+    },
+    {
+      "name": "express",
+      "rubric": "v23",
+      "targetCommit": "ba006766fb964571723138708eacaba0f55759cd",
+      "corpusCommit": "ba006766fb964571723138708eacaba0f55759cd",
+      "baseExitCode": 0,
+      "candExitCode": 0,
+      "baseSha256": "d0227f36c00c7c3a7b67bf7b2697181dccadfa622b791ba3668ed04a8821bc6f",
+      "candSha256": "d0227f36c00c7c3a7b67bf7b2697181dccadfa622b791ba3668ed04a8821bc6f",
+      "identical": true
+    },
+    {
+      "name": "express",
+      "rubric": "v27",
+      "targetCommit": "ba006766fb964571723138708eacaba0f55759cd",
+      "corpusCommit": "ba006766fb964571723138708eacaba0f55759cd",
+      "baseExitCode": 0,
+      "candExitCode": 0,
+      "baseSha256": "1240dd6de9fa72f3a3bdefcf03231fb13a0fc8b27f7849047e2a325e89a2f941",
+      "candSha256": "1240dd6de9fa72f3a3bdefcf03231fb13a0fc8b27f7849047e2a325e89a2f941",
+      "identical": true
+    },
+    {
+      "name": "fastapi",
+      "rubric": "v17",
+      "targetCommit": "7cb06f360dd44efac059848df1a9beee7643b018",
+      "corpusCommit": "7cb06f360dd44efac059848df1a9beee7643b018",
+      "baseExitCode": 0,
+      "candExitCode": 0,
+      "baseSha256": "47bfe931da113f02dd9861d0c992e9bf26e061de295efa7715c8a938fa02bcf5",
+      "candSha256": "47bfe931da113f02dd9861d0c992e9bf26e061de295efa7715c8a938fa02bcf5",
+      "identical": true
+    },
+    {
+      "name": "fastapi",
+      "rubric": "v23",
+      "targetCommit": "7cb06f360dd44efac059848df1a9beee7643b018",
+      "corpusCommit": "7cb06f360dd44efac059848df1a9beee7643b018",
+      "baseExitCode": 0,
+      "candExitCode": 0,
+      "baseSha256": "ff01d5efd62000d30a1c813e35df3a41936e2e5ce5f5ad0e0bc12f2970cbce63",
+      "candSha256": "ff01d5efd62000d30a1c813e35df3a41936e2e5ce5f5ad0e0bc12f2970cbce63",
+      "identical": true
+    },
+    {
+      "name": "fastapi",
+      "rubric": "v27",
+      "targetCommit": "7cb06f360dd44efac059848df1a9beee7643b018",
+      "corpusCommit": "7cb06f360dd44efac059848df1a9beee7643b018",
+      "baseExitCode": 0,
+      "candExitCode": 0,
+      "baseSha256": "72ba9356aacf7063fa703c5ca921e6828171db7aaf1ffd21dc47c12417cae210",
+      "candSha256": "72ba9356aacf7063fa703c5ca921e6828171db7aaf1ffd21dc47c12417cae210",
+      "identical": true
+    },
+    {
+      "name": "flask",
+      "rubric": "v17",
+      "targetCommit": "36e4a824f340fdee7ed50937ba8e7f6bc7d17f81",
+      "corpusCommit": "36e4a824f340fdee7ed50937ba8e7f6bc7d17f81",
+      "baseExitCode": 0,
+      "candExitCode": 0,
+      "baseSha256": "5cfe547119632f9786d7b0f424a83a44f5da0ba013fc4c9d18ba71fc0e37417b",
+      "candSha256": "5cfe547119632f9786d7b0f424a83a44f5da0ba013fc4c9d18ba71fc0e37417b",
+      "identical": true
+    },
+    {
+      "name": "flask",
+      "rubric": "v23",
+      "targetCommit": "36e4a824f340fdee7ed50937ba8e7f6bc7d17f81",
+      "corpusCommit": "36e4a824f340fdee7ed50937ba8e7f6bc7d17f81",
+      "baseExitCode": 0,
+      "candExitCode": 0,
+      "baseSha256": "dbcbcbb775433a695a0f795d6b157b342a51349de0695fd5601a3b69d48dac69",
+      "candSha256": "dbcbcbb775433a695a0f795d6b157b342a51349de0695fd5601a3b69d48dac69",
+      "identical": true
+    },
+    {
+      "name": "flask",
+      "rubric": "v27",
+      "targetCommit": "36e4a824f340fdee7ed50937ba8e7f6bc7d17f81",
+      "corpusCommit": "36e4a824f340fdee7ed50937ba8e7f6bc7d17f81",
+      "baseExitCode": 0,
+      "candExitCode": 0,
+      "baseSha256": "277df4edda03400961200c7888a33469addf20c316db12b5771737c596055d62",
+      "candSha256": "277df4edda03400961200c7888a33469addf20c316db12b5771737c596055d62",
+      "identical": true
+    },
+    {
+      "name": "fmt",
+      "rubric": "v17",
+      "targetCommit": "a79df4504cd4e42ed004b1113fb82171e62ed822",
+      "corpusCommit": "a79df4504cd4e42ed004b1113fb82171e62ed822",
+      "baseExitCode": 0,
+      "candExitCode": 0,
+      "baseSha256": "5a181afd4bd8e896a9bc5f7aac09230b2396bcc4ade29c2a086af8e2a8d9511f",
+      "candSha256": "5a181afd4bd8e896a9bc5f7aac09230b2396bcc4ade29c2a086af8e2a8d9511f",
+      "identical": true
+    },
+    {
+      "name": "fmt",
+      "rubric": "v23",
+      "targetCommit": "a79df4504cd4e42ed004b1113fb82171e62ed822",
+      "corpusCommit": "a79df4504cd4e42ed004b1113fb82171e62ed822",
+      "baseExitCode": 0,
+      "candExitCode": 0,
+      "baseSha256": "e591fb92d2c5ff894a85d31b7e6a992251befdc32029b29e6e5dcf1c8055d4a6",
+      "candSha256": "e591fb92d2c5ff894a85d31b7e6a992251befdc32029b29e6e5dcf1c8055d4a6",
+      "identical": true
+    },
+    {
+      "name": "fmt",
+      "rubric": "v27",
+      "targetCommit": "a79df4504cd4e42ed004b1113fb82171e62ed822",
+      "corpusCommit": "a79df4504cd4e42ed004b1113fb82171e62ed822",
+      "baseExitCode": 0,
+      "candExitCode": 0,
+      "baseSha256": "98252ed47d20ce0fe4e242919c6083890b9ee586c6a7f05641d48c2ef3b07e80",
+      "candSha256": "98252ed47d20ce0fe4e242919c6083890b9ee586c6a7f05641d48c2ef3b07e80",
+      "identical": true
+    },
+    {
+      "name": "guava",
+      "rubric": "v17",
+      "targetCommit": "486837d756e6d48864620e91b0761467e2abe744",
+      "corpusCommit": "486837d756e6d48864620e91b0761467e2abe744",
+      "baseExitCode": 0,
+      "candExitCode": 0,
+      "baseSha256": "67e79e1197f4ea9279b2dd337bcb58b062fa1446a9294cfd50a381637c6aa8bf",
+      "candSha256": "67e79e1197f4ea9279b2dd337bcb58b062fa1446a9294cfd50a381637c6aa8bf",
+      "identical": true
+    },
+    {
+      "name": "guava",
+      "rubric": "v23",
+      "targetCommit": "486837d756e6d48864620e91b0761467e2abe744",
+      "corpusCommit": "486837d756e6d48864620e91b0761467e2abe744",
+      "baseExitCode": 0,
+      "candExitCode": 0,
+      "baseSha256": "e9a3b91921bdf090be1450ff7b1817a281979d3f58b300f9101836922c5fdd14",
+      "candSha256": "e9a3b91921bdf090be1450ff7b1817a281979d3f58b300f9101836922c5fdd14",
+      "identical": true
+    },
+    {
+      "name": "guava",
+      "rubric": "v27",
+      "targetCommit": "486837d756e6d48864620e91b0761467e2abe744",
+      "corpusCommit": "486837d756e6d48864620e91b0761467e2abe744",
+      "baseExitCode": 0,
+      "candExitCode": 0,
+      "baseSha256": "53b55edb9b28b90879ccecb29bef89e03ae73e8cc84aea4ccecc563d25915589",
+      "candSha256": "53b55edb9b28b90879ccecb29bef89e03ae73e8cc84aea4ccecc563d25915589",
+      "identical": true
+    },
+    {
+      "name": "pydantic",
+      "rubric": "v17",
+      "targetCommit": "f59e929c999e8b2efc7b12fd0bc1685c1a186be3",
+      "corpusCommit": "f59e929c999e8b2efc7b12fd0bc1685c1a186be3",
+      "baseExitCode": 0,
+      "candExitCode": 0,
+      "baseSha256": "b13eb64affe6d12e3b7fe93471b165b278e1c203fcdbd32c5e83b9e5b8f0d223",
+      "candSha256": "b13eb64affe6d12e3b7fe93471b165b278e1c203fcdbd32c5e83b9e5b8f0d223",
+      "identical": true
+    },
+    {
+      "name": "pydantic",
+      "rubric": "v23",
+      "targetCommit": "f59e929c999e8b2efc7b12fd0bc1685c1a186be3",
+      "corpusCommit": "f59e929c999e8b2efc7b12fd0bc1685c1a186be3",
+      "baseExitCode": 0,
+      "candExitCode": 0,
+      "baseSha256": "f5885039249bb72dd65b0c15408bed479cdac552069dfea2ee2b3452fd255450",
+      "candSha256": "f5885039249bb72dd65b0c15408bed479cdac552069dfea2ee2b3452fd255450",
+      "identical": true
+    },
+    {
+      "name": "pydantic",
+      "rubric": "v27",
+      "targetCommit": "f59e929c999e8b2efc7b12fd0bc1685c1a186be3",
+      "corpusCommit": "f59e929c999e8b2efc7b12fd0bc1685c1a186be3",
+      "baseExitCode": 0,
+      "candExitCode": 0,
+      "baseSha256": "51e518054753fdcf11be5e6e4369a6a056cf0b9f768c438db19c9949a90dae0e",
+      "candSha256": "51e518054753fdcf11be5e6e4369a6a056cf0b9f768c438db19c9949a90dae0e",
+      "identical": true
+    },
+    {
+      "name": "react",
+      "rubric": "v17",
+      "targetCommit": "c0c39a6b3907eaab35f43074949e2957a2a734c1",
+      "corpusCommit": "c0c39a6b3907eaab35f43074949e2957a2a734c1",
+      "baseExitCode": 0,
+      "candExitCode": 0,
+      "baseSha256": "efe0862fa338b068c04017a984bd14cb4258d138031e4453b8510a67c7e0da02",
+      "candSha256": "efe0862fa338b068c04017a984bd14cb4258d138031e4453b8510a67c7e0da02",
+      "identical": true
+    },
+    {
+      "name": "react",
+      "rubric": "v23",
+      "targetCommit": "c0c39a6b3907eaab35f43074949e2957a2a734c1",
+      "corpusCommit": "c0c39a6b3907eaab35f43074949e2957a2a734c1",
+      "baseExitCode": 0,
+      "candExitCode": 0,
+      "baseSha256": "4fd90b22441910120e3bf06b2adb6c6d5009b3a4a740eabd750e0051273a3c37",
+      "candSha256": "4fd90b22441910120e3bf06b2adb6c6d5009b3a4a740eabd750e0051273a3c37",
+      "identical": true
+    },
+    {
+      "name": "react",
+      "rubric": "v27",
+      "targetCommit": "c0c39a6b3907eaab35f43074949e2957a2a734c1",
+      "corpusCommit": "c0c39a6b3907eaab35f43074949e2957a2a734c1",
+      "baseExitCode": 0,
+      "candExitCode": 0,
+      "baseSha256": "5a59427e078d6dd1232617b566834be2f3ee301affe05e3de1b734e2558058d2",
+      "candSha256": "5a59427e078d6dd1232617b566834be2f3ee301affe05e3de1b734e2558058d2",
+      "identical": true
+    },
+    {
+      "name": "requests",
+      "rubric": "v17",
+      "targetCommit": "f361ead047be5cb873174218582f7d8b9fcd9f49",
+      "corpusCommit": "f361ead047be5cb873174218582f7d8b9fcd9f49",
+      "baseExitCode": 0,
+      "candExitCode": 0,
+      "baseSha256": "7ca7af5e1e59288a746b9e27abf7f09cc412b4cc97de9d301ba19b80e40f1461",
+      "candSha256": "7ca7af5e1e59288a746b9e27abf7f09cc412b4cc97de9d301ba19b80e40f1461",
+      "identical": true
+    },
+    {
+      "name": "requests",
+      "rubric": "v23",
+      "targetCommit": "f361ead047be5cb873174218582f7d8b9fcd9f49",
+      "corpusCommit": "f361ead047be5cb873174218582f7d8b9fcd9f49",
+      "baseExitCode": 0,
+      "candExitCode": 0,
+      "baseSha256": "707e5904b1448928829d2c4211219619e72beb1a1beab4fdb05808177782b856",
+      "candSha256": "707e5904b1448928829d2c4211219619e72beb1a1beab4fdb05808177782b856",
+      "identical": true
+    },
+    {
+      "name": "requests",
+      "rubric": "v27",
+      "targetCommit": "f361ead047be5cb873174218582f7d8b9fcd9f49",
+      "corpusCommit": "f361ead047be5cb873174218582f7d8b9fcd9f49",
+      "baseExitCode": 0,
+      "candExitCode": 0,
+      "baseSha256": "5c7f0fded69d89a4f0f8f7ac4fae66619fa5420c66abc6bc63f905d05ef74c08",
+      "candSha256": "5c7f0fded69d89a4f0f8f7ac4fae66619fa5420c66abc6bc63f905d05ef74c08",
+      "identical": true
+    },
+    {
+      "name": "ripgrep",
+      "rubric": "v17",
+      "targetCommit": "d5b85d44057ff729a89be9c6549958c45d95aa99",
+      "corpusCommit": "d5b85d44057ff729a89be9c6549958c45d95aa99",
+      "baseExitCode": 0,
+      "candExitCode": 0,
+      "baseSha256": "8f4bd5a48061f80bd74fda4c3b2b8fe27c97d25d5eb4de583290dbef4cd6c1aa",
+      "candSha256": "8f4bd5a48061f80bd74fda4c3b2b8fe27c97d25d5eb4de583290dbef4cd6c1aa",
+      "identical": true
+    },
+    {
+      "name": "ripgrep",
+      "rubric": "v23",
+      "targetCommit": "d5b85d44057ff729a89be9c6549958c45d95aa99",
+      "corpusCommit": "d5b85d44057ff729a89be9c6549958c45d95aa99",
+      "baseExitCode": 0,
+      "candExitCode": 0,
+      "baseSha256": "0feb3580aaadae38e85523ac60e86f12c46608925d8cebf6db5d247c2041ce43",
+      "candSha256": "0feb3580aaadae38e85523ac60e86f12c46608925d8cebf6db5d247c2041ce43",
+      "identical": true
+    },
+    {
+      "name": "ripgrep",
+      "rubric": "v27",
+      "targetCommit": "d5b85d44057ff729a89be9c6549958c45d95aa99",
+      "corpusCommit": "d5b85d44057ff729a89be9c6549958c45d95aa99",
+      "baseExitCode": 0,
+      "candExitCode": 0,
+      "baseSha256": "9ac6ff0d932a74bcdabb0d02ccd08c77071d9da70f6465a47ed65b45cd1a245a",
+      "candSha256": "9ac6ff0d932a74bcdabb0d02ccd08c77071d9da70f6465a47ed65b45cd1a245a",
+      "identical": true
+    },
+    {
+      "name": "scorecard",
+      "rubric": "v17",
+      "targetCommit": "916bfc57fa7431467a33a5a013cba3f8a0c1ec50",
+      "corpusCommit": "916bfc57fa7431467a33a5a013cba3f8a0c1ec50",
+      "baseExitCode": 0,
+      "candExitCode": 0,
+      "baseSha256": "2005f5f7af1672c7d217ee572db347507a666394b277d7e17a3e6f7ed61e590b",
+      "candSha256": "2005f5f7af1672c7d217ee572db347507a666394b277d7e17a3e6f7ed61e590b",
+      "identical": true
+    },
+    {
+      "name": "scorecard",
+      "rubric": "v23",
+      "targetCommit": "916bfc57fa7431467a33a5a013cba3f8a0c1ec50",
+      "corpusCommit": "916bfc57fa7431467a33a5a013cba3f8a0c1ec50",
+      "baseExitCode": 0,
+      "candExitCode": 0,
+      "baseSha256": "c320ae90225cedb349246b9288d9e3d6045e45388f858d80544e8b021b37f009",
+      "candSha256": "c320ae90225cedb349246b9288d9e3d6045e45388f858d80544e8b021b37f009",
+      "identical": true
+    },
+    {
+      "name": "scorecard",
+      "rubric": "v27",
+      "targetCommit": "916bfc57fa7431467a33a5a013cba3f8a0c1ec50",
+      "corpusCommit": "916bfc57fa7431467a33a5a013cba3f8a0c1ec50",
+      "baseExitCode": 0,
+      "candExitCode": 0,
+      "baseSha256": "c2736302b7742a6beb9647427bca62f6c583c5cbf9fbf645fa13e6a66c2944eb",
+      "candSha256": "c2736302b7742a6beb9647427bca62f6c583c5cbf9fbf645fa13e6a66c2944eb",
+      "identical": true
+    },
+    {
+      "name": "sinatra",
+      "rubric": "v17",
+      "targetCommit": "946812bdec8faf6598fed154a8d611ead612b6fd",
+      "corpusCommit": "946812bdec8faf6598fed154a8d611ead612b6fd",
+      "baseExitCode": 0,
+      "candExitCode": 0,
+      "baseSha256": "adcbc14d136d3e79980d66c74f88a2953e5394bd19dc2872ef5ff219c329aab0",
+      "candSha256": "adcbc14d136d3e79980d66c74f88a2953e5394bd19dc2872ef5ff219c329aab0",
+      "identical": true
+    },
+    {
+      "name": "sinatra",
+      "rubric": "v23",
+      "targetCommit": "946812bdec8faf6598fed154a8d611ead612b6fd",
+      "corpusCommit": "946812bdec8faf6598fed154a8d611ead612b6fd",
+      "baseExitCode": 0,
+      "candExitCode": 0,
+      "baseSha256": "a6815e3832b3d3b58cc2ce9e6acd4d27e754cb3ed012e8f36c6b85dfc27c521d",
+      "candSha256": "a6815e3832b3d3b58cc2ce9e6acd4d27e754cb3ed012e8f36c6b85dfc27c521d",
+      "identical": true
+    },
+    {
+      "name": "sinatra",
+      "rubric": "v27",
+      "targetCommit": "946812bdec8faf6598fed154a8d611ead612b6fd",
+      "corpusCommit": "946812bdec8faf6598fed154a8d611ead612b6fd",
+      "baseExitCode": 0,
+      "candExitCode": 0,
+      "baseSha256": "933cc578f5b4c41e46c77b107d17e2bc0e72fbe6be72582225c29c6aadb391eb",
+      "candSha256": "933cc578f5b4c41e46c77b107d17e2bc0e72fbe6be72582225c29c6aadb391eb",
+      "identical": true
+    },
+    {
+      "name": "svelte",
+      "rubric": "v17",
+      "targetCommit": "b4d1583ae20f3869a88a731d9a265c546c099f66",
+      "corpusCommit": "b4d1583ae20f3869a88a731d9a265c546c099f66",
+      "baseExitCode": 0,
+      "candExitCode": 0,
+      "baseSha256": "865e171e1948eaf6b71388602ee6361b005aecadc9e133e84ff317183dbea9f8",
+      "candSha256": "865e171e1948eaf6b71388602ee6361b005aecadc9e133e84ff317183dbea9f8",
+      "identical": true
+    },
+    {
+      "name": "svelte",
+      "rubric": "v23",
+      "targetCommit": "b4d1583ae20f3869a88a731d9a265c546c099f66",
+      "corpusCommit": "b4d1583ae20f3869a88a731d9a265c546c099f66",
+      "baseExitCode": 0,
+      "candExitCode": 0,
+      "baseSha256": "fe7cb87096fdbb88b7337d941237b1a1a71063088f7e8c8c750714a47ce2ddb6",
+      "candSha256": "fe7cb87096fdbb88b7337d941237b1a1a71063088f7e8c8c750714a47ce2ddb6",
+      "identical": true
+    },
+    {
+      "name": "svelte",
+      "rubric": "v27",
+      "targetCommit": "b4d1583ae20f3869a88a731d9a265c546c099f66",
+      "corpusCommit": "b4d1583ae20f3869a88a731d9a265c546c099f66",
+      "baseExitCode": 0,
+      "candExitCode": 0,
+      "baseSha256": "26d714908179d16fae63b575fb474b7d05687d0604349a51509501e28f296535",
+      "candSha256": "26d714908179d16fae63b575fb474b7d05687d0604349a51509501e28f296535",
+      "identical": true
+    },
+    {
+      "name": "vite",
+      "rubric": "v17",
+      "targetCommit": "5d95f1631bfde08ee2613a53517dd5ea5d388cda",
+      "corpusCommit": "5d95f1631bfde08ee2613a53517dd5ea5d388cda",
+      "baseExitCode": 0,
+      "candExitCode": 0,
+      "baseSha256": "4ab940118bc67264a3a681f85dc43716e50bf1c28d03191a97db62616212f089",
+      "candSha256": "4ab940118bc67264a3a681f85dc43716e50bf1c28d03191a97db62616212f089",
+      "identical": true
+    },
+    {
+      "name": "vite",
+      "rubric": "v23",
+      "targetCommit": "5d95f1631bfde08ee2613a53517dd5ea5d388cda",
+      "corpusCommit": "5d95f1631bfde08ee2613a53517dd5ea5d388cda",
+      "baseExitCode": 0,
+      "candExitCode": 0,
+      "baseSha256": "b81271b866e89381c115e1be5cd1472ce9f46edecfe7ba1920fd8c5493cc0bde",
+      "candSha256": "b81271b866e89381c115e1be5cd1472ce9f46edecfe7ba1920fd8c5493cc0bde",
+      "identical": true
+    },
+    {
+      "name": "vite",
+      "rubric": "v27",
+      "targetCommit": "5d95f1631bfde08ee2613a53517dd5ea5d388cda",
+      "corpusCommit": "5d95f1631bfde08ee2613a53517dd5ea5d388cda",
+      "baseExitCode": 0,
+      "candExitCode": 0,
+      "baseSha256": "b7449cb19791e259dd166c8f943d59694b457d4c292ea0873571f4aa28d1efe9",
+      "candSha256": "b7449cb19791e259dd166c8f943d59694b457d4c292ea0873571f4aa28d1efe9",
+      "identical": true
+    },
+    {
+      "name": "vue",
+      "rubric": "v17",
+      "targetCommit": "c0606e91798c8dca4f33d101e1dd836d672592c1",
+      "corpusCommit": "c0606e91798c8dca4f33d101e1dd836d672592c1",
+      "baseExitCode": 0,
+      "candExitCode": 0,
+      "baseSha256": "94df5b6718be8b73255ce3467bd4c492f75fdfbc4ce164872586713e7c322812",
+      "candSha256": "94df5b6718be8b73255ce3467bd4c492f75fdfbc4ce164872586713e7c322812",
+      "identical": true
+    },
+    {
+      "name": "vue",
+      "rubric": "v23",
+      "targetCommit": "c0606e91798c8dca4f33d101e1dd836d672592c1",
+      "corpusCommit": "c0606e91798c8dca4f33d101e1dd836d672592c1",
+      "baseExitCode": 0,
+      "candExitCode": 0,
+      "baseSha256": "bb956611a7eeb62c3c1f533b58f360b9e64ef8d9d0e5329e0111d6f7c21a8f53",
+      "candSha256": "bb956611a7eeb62c3c1f533b58f360b9e64ef8d9d0e5329e0111d6f7c21a8f53",
+      "identical": true
+    },
+    {
+      "name": "vue",
+      "rubric": "v27",
+      "targetCommit": "c0606e91798c8dca4f33d101e1dd836d672592c1",
+      "corpusCommit": "c0606e91798c8dca4f33d101e1dd836d672592c1",
+      "baseExitCode": 0,
+      "candExitCode": 0,
+      "baseSha256": "b5054acbefa57d213c2b41dfaeedb0d7eec7db9cd6412636e856948652a3df73",
+      "candSha256": "b5054acbefa57d213c2b41dfaeedb0d7eec7db9cd6412636e856948652a3df73",
+      "identical": true
+    },
+    {
+      "name": "zod",
+      "rubric": "v17",
+      "targetCommit": "912f0f51b0ced654d0069741e7160834dca742ee",
+      "corpusCommit": "912f0f51b0ced654d0069741e7160834dca742ee",
+      "baseExitCode": 0,
+      "candExitCode": 0,
+      "baseSha256": "e2d275c54423d1bcdb2880d5fdb9ac99ce2ecf915342878b4395a2175126ea46",
+      "candSha256": "e2d275c54423d1bcdb2880d5fdb9ac99ce2ecf915342878b4395a2175126ea46",
+      "identical": true
+    },
+    {
+      "name": "zod",
+      "rubric": "v23",
+      "targetCommit": "912f0f51b0ced654d0069741e7160834dca742ee",
+      "corpusCommit": "912f0f51b0ced654d0069741e7160834dca742ee",
+      "baseExitCode": 0,
+      "candExitCode": 0,
+      "baseSha256": "38d4932bacac098d78cd7b3484690d064b4f1efc6c084d5c3cf7deedf5ef6e62",
+      "candSha256": "38d4932bacac098d78cd7b3484690d064b4f1efc6c084d5c3cf7deedf5ef6e62",
+      "identical": true
+    },
+    {
+      "name": "zod",
+      "rubric": "v27",
+      "targetCommit": "912f0f51b0ced654d0069741e7160834dca742ee",
+      "corpusCommit": "912f0f51b0ced654d0069741e7160834dca742ee",
+      "baseExitCode": 0,
+      "candExitCode": 0,
+      "baseSha256": "70afebdc9a11653b2785ccecef64dfe606b17af4ce19db344ce5b0c6b8487f43",
+      "candSha256": "70afebdc9a11653b2785ccecef64dfe606b17af4ce19db344ce5b0c6b8487f43",
+      "identical": true
+    }
+  ]
+}

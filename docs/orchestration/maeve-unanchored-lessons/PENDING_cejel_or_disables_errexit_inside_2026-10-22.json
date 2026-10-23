@@ -1,0 +1,26 @@
+[
+  {
+    "statement": "In bash, `f || handler` disables `set -e` for everything inside `f`, so a failing command in `f` no longer stops it. Cejel's release driver called `currency_read \"$id\" || return 0` at stage 11 (the `||` was there for a dry-run in-flight return), and inside currency_read a failed `gh run view --log` therefore did not exit: the empty log went on to be counted, and the driver refused with 'reported 0 surfaces, expected 14', which named the wrong cause. The same read at stage 13, called without `||`, exited silently. Rules: never rely on `set -e` inside a function that any caller invokes with `||`, `&&`, `if` or `!`; check each failing command explicitly (`x=$(cmd) || die \"...\"`) and test the failure at every call site, since one function can fail differently depending on how it is called.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "release",
+      "shell"
+    ],
+    "tags": [
+      "bash",
+      "set-e",
+      "errexit",
+      "wrong-cause",
+      "release-driver"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-10-22T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 582
+    }
+  }
+]

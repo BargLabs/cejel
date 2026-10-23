@@ -1,0 +1,77 @@
+[
+  {
+    "statement": "Whether an abstention stays in a composite's denominator cannot be read from its label, and a composite shows only how many zero-scored abstentions it holds, not which. In cejel #531, v27's no-rise test skipped every criterion that became insufficient_data: two scratch injections, one tagging the shallow-clone abstention self-imposed (excluded from the composite) and one leaving B2 unmeasured, both passed it. A first arithmetic check let any older abstention stand in for the new one, which left it unable to tell kept from excluded on the LFS case it was written for. Rules: recompute the composite and require every introduced abstention on top of the count the baseline composite holds; report cases the arithmetic cannot distinguish instead of counting them as proof; and show the property failing on each injected defect class before trusting a green run.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "false-assurance",
+      "test-strength",
+      "scoring"
+    ],
+    "tags": [
+      "no-rise-property",
+      "abstention",
+      "composite-denominator",
+      "fail-loud-demonstration",
+      "generated-shapes"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-10-22T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 558
+    }
+  },
+  {
+    "statement": "A generated test's coverage must be asserted on what the code under test exercised, not on the shapes' labels. In cejel #558 the v27 no-rise test enumerated every test-directory x conftest x hook combination, but a greedy pairwise fill put an LFS pointer or a depth-1 clone on most rows: v27 abstained on A1 in 182 of 277 shapes, the __tests__ x no-conftest cell never had A1 scored, and an injected A1 rise there escaped. Every B2/B3 LFS abstention also sat in a process category with nothing else scored, so the denominator check could not fail on them. Rules: give each enumerated cell a row free of the masking dimensions; assert per cell that the criterion was actually scored; and for each (abstention kind, criterion) observed, require a case where the check can tell pass from fail.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "false-assurance",
+      "test-strength",
+      "reviewer-found"
+    ],
+    "tags": [
+      "no-rise-property",
+      "coverage-on-exercised-paths",
+      "generated-shapes",
+      "masking-dimension",
+      "fail-loud-demonstration"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-10-22T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 558
+    }
+  },
+  {
+    "statement": "Revert a temporary injection by naming exactly the files it edited, and commit your own work before any revert. In cejel #558 round 2 an agent checked out a parallel branch's scoring files into its worktree to test compatibility, then reverted with git checkout -- src/witan. That also discarded its own uncommitted test edits in src/witan/__tests__. They had to be reapplied from the conversation and re-verified, and only the green rerun showed nothing was lost. Rules: commit (or stash by path) before overlaying or injecting; revert by listing the injected paths, never a directory; and after a revert, check git status shows only the expected paths before trusting a later run.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "git",
+      "process",
+      "agent-error"
+    ],
+    "tags": [
+      "git-checkout",
+      "worktree-hygiene",
+      "injection-revert",
+      "lost-work",
+      "write-through"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-10-22T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 558
+    }
+  }
+]
