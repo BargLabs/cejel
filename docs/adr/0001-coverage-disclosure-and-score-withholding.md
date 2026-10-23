@@ -324,7 +324,7 @@ decides nothing about any other systematic limit.
 
 Recorded by an AI agent (Claude Opus 5.5, Claude Code) on `records/adr0001-unopenable-git-ruling`,
 at the operator's instruction. The operator's decision is recorded on #526
-([comment 6353979958](https://github.com/BargLabs/cejel/issues/526#issuecomment-6353979958)). The
+([comment 6354162174](https://github.com/BargLabs/cejel/issues/526#issuecomment-6354162174)). The
 text above is unchanged apart from the Status line.
 
 **The question.** Review round 6 of #560 added a cause of an incomplete read of the commit history

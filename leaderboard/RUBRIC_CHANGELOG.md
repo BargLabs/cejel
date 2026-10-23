@@ -263,7 +263,7 @@ three more:
   No scan limitation is added, and no other criterion's handling of "no repository" changes. **The
   operator confirmed on 2026-10-23 that this cause is a read failure under ADR-0001**, exactly as
   git being unavailable is (ADR-0001, "Operator ruling (2026-10-23, fourth)"; #526,
-  [comment 6353979958](https://github.com/BargLabs/cejel/issues/526#issuecomment-6353979958)).
+  [comment 6354162174](https://github.com/BargLabs/cejel/issues/526#issuecomment-6354162174)).
   The operator gave no reasons.
 - **Case (F6).** Only the "not a git repository" forms (including git's capitalised "Not a git
   repository") and "needed a single revision" (git prints "Needed") are matched case-insensitively;
@@ -1611,7 +1611,7 @@ rather than listed by hand:
 
   The unopenable-`.git` cause (the dangling symlink and the unreadable directory) is a read failure
   under ADR-0001, as the operator confirmed on 2026-10-23 (ADR-0001, "Operator ruling (2026-10-23,
-  fourth)"; #526, [comment 6353979958](https://github.com/BargLabs/cejel/issues/526#issuecomment-6353979958)).
+  fourth)"; #526, [comment 6354162174](https://github.com/BargLabs/cejel/issues/526#issuecomment-6354162174)).
   The class recognises what v27 does, which the ruling did not change.
 
 Results at `bdd06c0d7`:
