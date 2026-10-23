@@ -426,8 +426,9 @@ describe('#586: a batched read keeps every batch output, in order', () => {
   // read's extra sentence was masked (scanLimitations is a set). With only the key-shaped JSON path,
   // each rubric's one-shot reads give exactly one sentence, so a batched read that worded the path
   // with the wrong flags would add a second.
-  it('a key-shaped JSON control-character path alone: one sentence per rubric, however the reads run', () => {
-    const repo = cloneShallowA2Origin(
+  let keyJsonOnlyRepo = '';
+  const keyJsonOnly = (): string => {
+    keyJsonOnlyRepo ||= cloneShallowA2Origin(
       buildA2HistoryOrigin('paging-586-key-json-only', [
         { write: { ...base, 'config/\bservice-account.json': '{}\n' } },
         { remove: ['config/\bservice-account.json'] },
@@ -435,19 +436,25 @@ describe('#586: a batched read keeps every batch output, in order', () => {
       ]),
       'full',
     );
-    const credentialShaped = /^Git history contained a credential-shaped pathname with control characters\./;
-    const otherPath = /^Git history contained a pathname with control characters that is not credential-shaped\./;
-    for (const rubricVersion of [V17, WITAN_RUBRIC_VERSION_V23, V27]) {
+    return keyJsonOnlyRepo;
+  };
+  it.each([V17, WITAN_RUBRIC_VERSION_V23, V27])(
+    'a key-shaped JSON control-character path alone gives one sentence under %s, however the reads run',
+    (rubricVersion) => {
+      const repo = keyJsonOnly();
+      const credentialShaped = /^Git history contained a credential-shaped pathname with control characters\./;
+      const otherPath = /^Git history contained a pathname with control characters that is not credential-shaped\./;
       mode.current = 'real';
       const unlimited = [...(scoreAt(repo, rubricVersion).scanLimitations ?? [])];
-      expect(unlimited.length, rubricVersion).toBe(1);
-      expect(unlimited[0], rubricVersion).toMatch(rubricVersion === WITAN_RUBRIC_VERSION_V23 ? credentialShaped : otherPath);
+      expect(unlimited.length).toBe(1);
+      expect(unlimited[0]).toMatch(rubricVersion === WITAN_RUBRIC_VERSION_V23 ? credentialShaped : otherPath);
       for (const limitedMode of ['limited', 'tree-only'] as const) {
         mode.current = limitedMode;
-        expect([...(scoreAt(repo, rubricVersion).scanLimitations ?? [])], `${rubricVersion} ${limitedMode}`).toEqual(unlimited);
+        expect([...(scoreAt(repo, rubricVersion).scanLimitations ?? [])], limitedMode).toEqual(unlimited);
       }
-    }
-    mode.current = 'real';
-  }, 120_000);
+      mode.current = 'real';
+    },
+    120_000,
+  );
 });
 
