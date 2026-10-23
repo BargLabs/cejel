@@ -22,6 +22,53 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
+## 2026-10-23 — #586: A2's batched history re-read has a time budget; a spent budget is declared as an incomplete read; no public row moved (preregistered paired delta: E0-E3 held)
+
+**Defect.** Since #567, a whole-history read that stops at Cejel's own output limit or timeout is
+re-read over the commit list in rev-list pages and 1,000-commit batches. Each git call stops at
+the 30-second timeout, but a batch that timed out was halved and retried, and nothing bounded the
+re-read as a whole. On a slow host a re-read could take many times longer than the single read it
+replaced, which before #567 gave up at the first limit (#586, from #572's review).
+
+**Change, every rubric.** Each re-read has a time budget, `HISTORY_FALLBACK_TIME_BUDGET_MS`
+(120,000 ms), checked before each of its git calls. When the budget is spent:
+- the re-read stops; what it read is kept;
+- the read is declared incomplete, once, through the path a read stopped at Cejel's own limit
+  already takes. A scan limitation names it under every rubric, so the v17 badge is unrated and
+  `--min-score` refuses. A2's recorder notes the limit, so under v27 A2 treats it as a failed read
+  (ADR-0001) and, as for any failed read, abstains unless a critical finding is already confirmed;
+- A2's re-scan advice counts the budget, like the timeout, as depending on the machine and its
+  load.
+
+A read that hits no limit never starts a re-read, so the budget does not apply to it.
+
+**Budget value.** 120 s per re-read, as a default the operator can change. Measured before the
+preregistration, on the measured host, by replaying the re-read's git calls through Cejel's
+`execGit` on the verified full-history clones: the slowest re-read of any one read was about 2.5 s
+on biomejs and 1.4 s on react, with no batch halved. 120 s is about 50 times that, and four times
+the per-call timeout.
+
+**Preregistered paired delta.** `docs/experiments/public-delta-586-fallback-budget-2026-10-23/`:
+preregistration `fa4fc0a7b` (baseline `d175e210a`, candidate `62924091c`), result `1886d9987`.
+Every expected value held:
+- E0: 23 of 23 rows in each of the four runs, with no errors.
+- E1 (v17) and E2 (v27): no scoring row, placement or fingerprint moved, and no field changed. All
+  23 reports are byte-identical, including biomejs and react, the two rows that take the re-read.
+- E3: no row scores higher under v27 than under v17, and nothing is scored under v27 that v17
+  left null or absent. The four `v27-shadow` movers (flask, fastapi, pydantic, requests) are those
+  recorded since before #567.
+
+The run shows that the budget changes no public row on the measured host. It does not exercise
+the budget itself. The tests do that, with a test clock that spends a re-read's budget at a chosen
+git call: a spent budget is declared under v17, v23 and v27, v27's A2 abstains when nothing
+critical was found, and a read with no limit is unchanged. Whether a read reaches the budget
+depends on the host, as with the timeout. The run makes no precision or recall claim.
+
+**Fingerprint.** No behaviour fingerprint moves (`rubric-behaviour-fingerprint.test.ts` passes
+with its pins): no fingerprint corpus shape reaches a re-read.
+
+Tests: `src/witan/__tests__/a2-history-fallback-budget-586.test.ts`.
+
 ## 2026-10-22 — #567: A2's whole-history reads are paged when they hit Cejel's own output limit; v17 badges of biomejs and react become rated; no v17 score moved (preregistered paired delta: E0-E3 held)
 
 **Defect.** A2's whole-history reads buffered their output under the git exec limit of 8 MiB (and
