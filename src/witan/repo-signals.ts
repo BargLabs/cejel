@@ -14622,19 +14622,21 @@ class HistoryFallbackBudget {
   private readonly deadline = performance.now() + HISTORY_FALLBACK_TIME_BUDGET_MS;
   private declared = false;
 
-  constructor(
-    private readonly scanLimitations: Set<string>,
-    private readonly operation: string,
-  ) {}
+  constructor(private readonly scanLimitations: Set<string>) {}
 
-  /** True while time remains. Once it is spent, declares the read incomplete (once) and returns false. */
-  allows(): boolean {
+  /**
+   * True while time remains. Once it is spent, declares the read incomplete (once) and returns
+   * false. `operation` names the git read that found the budget spent, in the words the same read
+   * uses when it stops at Cejel's other limits (the tree enumeration's rev-list paging is "history
+   * revision enumeration", its batches "history tree enumeration").
+   */
+  allows(operation: string): boolean {
     if (performance.now() < this.deadline) return true;
     if (!this.declared) {
       this.declared = true;
       if (this.scanLimitations instanceof HistoryReadRecorder) this.scanLimitations.noteBudgetExhausted();
       this.scanLimitations.add(
-        `Cejel: local git ${this.operation} stopped at Cejel's ${historyFallbackBudgetName()}.${HISTORY_READ_FAILURE_SUFFIX}`,
+        `Cejel: local git ${operation} stopped at Cejel's ${historyFallbackBudgetName()}.${HISTORY_READ_FAILURE_SUFFIX}`,
       );
     }
     return false;
@@ -14657,7 +14659,7 @@ function readHistoryCommitsInPages(
 ): string[] {
   const commits: string[] = [];
   for (let skip = 0; ; skip += HISTORY_COMMIT_PAGE) {
-    if (!budget.allows()) return commits;
+    if (!budget.allows(operation)) return commits;
     const page = execGit(['rev-list', `--max-count=${HISTORY_COMMIT_PAGE}`, `--skip=${skip}`, 'HEAD'], {
       cwd: repoPath,
     });
@@ -14695,7 +14697,7 @@ function runHistoryCommandInBatches(
     queue.push(commits.slice(start, start + HISTORY_COMMIT_BATCH));
   }
   while (queue.length > 0) {
-    if (!budget.allows()) break;
+    if (!budget.allows(operation)) break;
     const batch = queue.shift() as string[];
     const result = execGit(argv, { cwd: repoPath, input: `${batch.join('\n')}\n` });
     if (result.ok) {
@@ -14747,7 +14749,7 @@ function readCredentialHistoryEntries(
   let commits: string[] | undefined;
   // #586: one time budget for this read's whole re-read, started only when a re-read starts.
   let budget: HistoryFallbackBudget | undefined;
-  const fallbackBudget = () => (budget ??= new HistoryFallbackBudget(scanLimitations, 'history tree enumeration'));
+  const fallbackBudget = () => (budget ??= new HistoryFallbackBudget(scanLimitations));
   if (commitsResult.ok) {
     commits = undefined;
   } else if (stoppedAtOwnLimit(commitsResult)) {
@@ -14856,7 +14858,7 @@ function readDeletedCredentialHistoryPaths(
     output = historyResult.stdout;
   } else if (stoppedAtOwnLimit(historyResult)) {
     // #567: the same log, one batch of commits at a time, in the same order.
-    const budget = new HistoryFallbackBudget(scanLimitations, 'deleted-path history scan');
+    const budget = new HistoryFallbackBudget(scanLimitations);
     const commits = readHistoryCommitsInPages(repoPath, scanLimitations, 'deleted-path history scan', budget);
     output = runHistoryCommandInBatches(
       repoPath,
@@ -15542,7 +15544,7 @@ function hasEnvPathInGitHistory(
   if (!historyResult.ok) {
     if (stoppedAtOwnLimit(historyResult)) {
       // #567: the same log, one batch of commits at a time, stopping at the first .env path.
-      const budget = new HistoryFallbackBudget(scanLimitations, 'environment-file history scan');
+      const budget = new HistoryFallbackBudget(scanLimitations);
       const commits = readHistoryCommitsInPages(repoPath, scanLimitations, 'environment-file history scan', budget);
       let found = false;
       runHistoryCommandInBatches(
