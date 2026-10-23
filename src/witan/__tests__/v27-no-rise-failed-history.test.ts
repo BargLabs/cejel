@@ -31,8 +31,8 @@ import { READ_FAILURE_CLASSES, checkNoRise, lostFindings } from './v27-no-rise.j
 // denominator. The 5,000-file cap runs in v27-no-rise-failed-history-cap.test.ts (slow, so in a
 // file of its own). git not runnable and the 30-second timeout are injected through the execGit
 // mock below, so git actually timing out is not exercised (later: #583). The unopenable-.git cause (a dangling .git symlink, an unreadable .git directory)
-// still awaits the operator's confirmation: this class recognises what v27 does today, records no
-// ruling on it, and changes if the operator rules otherwise.
+// is a read failure under ADR-0001, as the operator confirmed on 2026-10-23 (ADR-0001, "Operator
+// ruling (2026-10-23, fourth)"; #526 comment 6353979958). The ruling did not change what v27 does.
 
 // The execGit seam, by mode. 'small-blob-buffer' runs the real git for the history blob reads
 // (`git show`) with execGit's own maxBufferBytes option lowered to 16 bytes, so real git output

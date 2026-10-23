@@ -1,6 +1,6 @@
 # ADR-0001: Coverage is disclosed, never discounted — and may later withhold a score
 
-**Status:** Accepted (three operator rulings of 2026-10-22 recorded at the end: v27 shallow-clone abstentions, #556's abstention, and its two further causes from #560's review)
+**Status:** Accepted (four operator rulings recorded at the end: three of 2026-10-22, on v27 shallow-clone abstentions, #556's abstention, and its two further causes from #560's review; and one of 2026-10-23, on a `.git` that git cannot open)
 **Date:** 2026-08-02
 **Deciders:** Houman Azimi
 **Supersedes:** nothing. First ADR in this repository.
@@ -319,3 +319,31 @@ and is scored.
 applicable, a sentence among A2's disclosures names the cause. A control-character path keeps its
 existing scan limitation (whose wording is #569); git being unavailable adds none. The ruling
 decides nothing about any other systematic limit.
+
+## Operator ruling (2026-10-23, fourth): a `.git` that git cannot open is covered
+
+Recorded by an AI agent (Claude Opus 5.5, Claude Code) on `records/adr0001-unopenable-git-ruling`,
+at the operator's instruction. The operator's decision is recorded on #526
+([comment 6353979958](https://github.com/BargLabs/cejel/issues/526#issuecomment-6353979958)). The
+text above is unchanged apart from the Status line.
+
+**The question.** Review round 6 of #560 added a cause of an incomplete read of the commit history
+that the rulings above do not name: a `.git` entry is visible from the scanned path, but git cannot
+open it as a repository (`git rev-parse --git-dir` fails). Examples are a dangling `.git` symbolic
+link, an unreadable `.git`, or a copied worktree or submodule whose gitdir is gone. A2 reads none of
+the history, and no scan limitation is added. A repository git can open whose branch has no commits
+yet is not this cause. The records flagged the cause as awaiting the operator's confirmation. The
+question put to the operator was "ADR-0001: should a .git that git can't open count as a failed
+read?" The operator's reply was "Both yes (Recommended)". That option read: "Add a dated ADR-0001
+line in a PR for dual review, comment on #526, and drop the caveat from #558's records." The other
+half of "both" concerned a separate matter, not this ADR. The operator gave no reasons.
+
+**What is covered.** Under `witan-rubric-v27-prospective-2026-10-19`, A2's abstention for this cause
+is a **read failure** under this ADR, exactly as git being unavailable is (third ruling): A2
+abstains at 0 and keeps its place in the composite, and a confirmed critical finding still stands
+and is scored.
+
+**What it does not change.** No code, rubric, policy text or default changes: v27 already abstained
+for this cause. v17 and v18-v26 do not abstain for it. Where A2 is marked not applicable, a sentence
+among A2's disclosures names the cause. The cause adds no scan limitation. The ruling decides nothing
+about any other systematic limit.
