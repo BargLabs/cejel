@@ -7,10 +7,11 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import { scoreRepoWithPublicCejel } from '../public-scan.js';
 import { probeA2EnvPathHistoryRead } from '../repo-signals.js';
 import { projectWitanScoringSurface } from '../rubric-fingerprint.js';
-import { WITAN_RUBRIC_VERSION_V17, WITAN_RUBRIC_VERSION_V27 } from '../rubric-version.js';
+import { WITAN_RUBRIC_VERSION_V17, WITAN_RUBRIC_VERSION_V23, WITAN_RUBRIC_VERSION_V27 } from '../rubric-version.js';
 import type { WitanCriterionScore, WitanReport } from '../schemas.js';
 import {
   ISSUE_556_SHAPE,
+  buildA2HistoryOrigin,
   buildShallowA2Origin,
   cloneShallowA2Origin,
   fixtureGit,
@@ -301,3 +302,40 @@ describe('#572 review: every batched path is the only source of some finding', (
     expect(projectWitanScoringSurface(batchedReport)).toEqual(projectWitanScoringSurface(unlimited));
   }, 120_000);
 });
+
+// #572 merged with #571: the batched readers word the control-character limitation by #571's shared
+// rule, with the rubric's own flags, exactly as the one-shot reads do. The history holds a path of
+// each kind: not credential-shaped, key-shaped JSON (credential-shaped under v23 only) and
+// `.env`-shaped, the last two deleted so the deleted-path and `.env` reads meet them too.
+describe('#572 with #571: batched reads word the control-character limitation as the one-shot reads do', () => {
+  it('the same limitations under v17, v23 and v27, whichever reads overflow', () => {
+    const repo = cloneShallowA2Origin(
+      buildA2HistoryOrigin('paging-control-characters', [
+        {
+          write: {
+            'package.json': '{"name":"paging-control","version":"1.0.0"}\n',
+            'src/a.js': 'export const a = 1;\n',
+            '\bMIGRATION_GUIDE.md': '# m\n',
+            'config/\bservice-account.json': '{}\n',
+            'config/\t.env': 'X=1\n',
+          },
+        },
+        { remove: ['config/\bservice-account.json', 'config/\t.env'] },
+        ...Array.from({ length: 8 }, (_, index) => ({ write: { 'README.md': `# r${index}\n` } })),
+      ]),
+      'full',
+    );
+    const sorted = (report: WitanReport) => [...(report.scanLimitations ?? [])].sort();
+    for (const rubricVersion of [V17, WITAN_RUBRIC_VERSION_V23, V27]) {
+      mode.current = 'real';
+      const unlimited = sorted(scoreAt(repo, rubricVersion));
+      expect(unlimited.length, rubricVersion).toBeGreaterThan(0);
+      for (const limitedMode of ['limited', 'tree-only'] as const) {
+        mode.current = limitedMode;
+        expect(sorted(scoreAt(repo, rubricVersion)), `${rubricVersion} ${limitedMode}`).toEqual(unlimited);
+      }
+    }
+    mode.current = 'real';
+  }, 120_000);
+});
+
