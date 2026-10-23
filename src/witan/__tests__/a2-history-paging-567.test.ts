@@ -304,9 +304,10 @@ describe('#572 review: every batched path is the only source of some finding', (
 });
 
 // #572 merged with #571: the batched readers word the control-character limitation by #571's shared
-// rule, with the rubric's own flags, exactly as the one-shot reads do. The history holds a path of
-// each kind: not credential-shaped, key-shaped JSON (credential-shaped under v23 only) and
-// `.env`-shaped, the last two deleted so the deleted-path and `.env` reads meet them too.
+// rule, with the rubric's own flags, exactly as the one-shot reads do. The history holds a key-shaped
+// JSON path (credential-shaped under v23 only, so the flags decide its sentence) and an `.env`-shaped
+// path, both later deleted so the deleted-path and `.env` reads meet them too. No other control-
+// character path is present, so a reader that wrote the wrong sentence would add a second one.
 describe('#572 with #571: batched reads word the control-character limitation as the one-shot reads do', () => {
   it('the same limitations under v17, v23 and v27, whichever reads overflow', () => {
     const repo = cloneShallowA2Origin(
@@ -315,7 +316,6 @@ describe('#572 with #571: batched reads word the control-character limitation as
           write: {
             'package.json': '{"name":"paging-control","version":"1.0.0"}\n',
             'src/a.js': 'export const a = 1;\n',
-            '\bMIGRATION_GUIDE.md': '# m\n',
             'config/\bservice-account.json': '{}\n',
             'config/\t.env': 'X=1\n',
           },
@@ -326,10 +326,15 @@ describe('#572 with #571: batched reads word the control-character limitation as
       'full',
     );
     const sorted = (report: WitanReport) => [...(report.scanLimitations ?? [])].sort();
+    const credentialShaped = /^Git history contained a credential-shaped pathname with control characters\./;
+    const otherPath = /^Git history contained a pathname with control characters that is not credential-shaped\./;
     for (const rubricVersion of [V17, WITAN_RUBRIC_VERSION_V23, V27]) {
       mode.current = 'real';
       const unlimited = sorted(scoreAt(repo, rubricVersion));
-      expect(unlimited.length, rubricVersion).toBeGreaterThan(0);
+      // Under v23 the key-shaped JSON is credential-shaped, so both paths get the same sentence.
+      const expected = rubricVersion === WITAN_RUBRIC_VERSION_V23 ? [credentialShaped] : [credentialShaped, otherPath];
+      expect(unlimited.length, rubricVersion).toBe(expected.length);
+      expected.forEach((pattern) => expect(unlimited.some((line) => pattern.test(line)), rubricVersion).toBe(true));
       for (const limitedMode of ['limited', 'tree-only'] as const) {
         mode.current = limitedMode;
         expect(sorted(scoreAt(repo, rubricVersion)), `${rubricVersion} ${limitedMode}`).toEqual(unlimited);
