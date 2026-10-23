@@ -344,3 +344,110 @@ describe('#572 with #571: batched reads word the control-character limitation as
   }, 120_000);
 });
 
+// #586: the output side of the batched reads. The batch-order check above records what each batch
+// was asked for; these fixtures make a dropped or reordered batch OUTPUT change a finding.
+describe('#586: a batched read keeps every batch output, in order', () => {
+  const SECRET_NEWER = 'stripe_secret_key = "sk_live_' + 'FIXTUREonly1111abcdEFGH1234ijklMNOP"\n';
+  const SECRET_OLDER = 'stripe_secret_key = "sk_live_' + 'FIXTUREonly2222abcdEFGH1234ijklMNOP"\n';
+  const base = { 'package.json': '{"name":"paging-586","version":"1.0.0"}\n', 'src/a.js': 'export const a = 1;\n' };
+  const readmeRevisions = (count: number) =>
+    Array.from({ length: count }, (_, index) => ({ write: { 'README.md': `# revision ${index}\n` } }));
+  const historyEvidence = (report: WitanReport) =>
+    a2(report).findings.flatMap(({ summary, evidence }) => (/git history/i.test(summary) ? [evidence] : []));
+
+  // The only secret is in the second-newest commit (the newest is HEAD, which the history scan
+  // skips), so it lies in the first batch the tree enumeration reads. A read that dropped the first
+  // successful batch's output would find nothing.
+  it("the only finding lives in the newest batch, so dropping the first batch's output loses it", () => {
+    const repo = cloneShallowA2Origin(
+      buildA2HistoryOrigin('paging-586-newest-batch', [
+        { write: base },
+        ...readmeRevisions(14),
+        { write: { 'config/app.secret.txt': SECRET_NEWER } },
+        { write: { 'config/app.secret.txt': 'stripe_secret_key = "REPLACE_ME"\n' } },
+      ]),
+      'full',
+    );
+    const secretCommit = fixtureGit(repo, 'rev-list', '--max-count=1', '--skip=1', 'HEAD');
+    mode.current = 'real';
+    const unlimited = scoreAt(repo, V17);
+    expect(a2(unlimited).status).toBe('critical');
+    expect(historyEvidence(unlimited).map((evidence) => evidence?.contentHash)).toEqual([secretCommit]);
+    for (const limitedMode of ['limited', 'tree-only'] as const) {
+      mode.current = limitedMode;
+      stdinReads.length = 0;
+      const batchedReport = scoreAt(repo, V17);
+      const treeBatches = stdinReads.filter(({ argv }) => argv[0] === 'diff-tree');
+      expect(treeBatches.length, limitedMode).toBeGreaterThan(1);
+      expect(treeBatches[0]?.commits, limitedMode).toContain(secretCommit);
+      expect(batchedReport.scanLimitations ?? [], limitedMode).toEqual([]);
+      expect(projectWitanScoringSurface(batchedReport), limitedMode).toEqual(projectWitanScoringSurface(unlimited));
+      expect(a2(batchedReport).findings, limitedMode).toEqual(a2(unlimited).findings);
+    }
+    mode.current = 'real';
+  }, 120_000);
+
+  // Two secrets: one in the newest batch, one in the oldest. The history scan stops at the first
+  // secret in entry order and cites that commit, so the newest-first order decides which commit the
+  // finding names. Outputs collected in any other order would cite the older one.
+  it('the finding cites the newest secret, so batch outputs read out of order change it', () => {
+    const repo = cloneShallowA2Origin(
+      buildA2HistoryOrigin('paging-586-two-secrets', [
+        { write: base },
+        { write: { 'config/app.secret.txt': SECRET_OLDER } },
+        { write: { 'config/app.secret.txt': 'stripe_secret_key = "REPLACE_ME"\n' } },
+        ...readmeRevisions(14),
+        { write: { 'config/app.secret.txt': SECRET_NEWER } },
+        { write: { 'config/app.secret.txt': 'stripe_secret_key = "STILL_REPLACE_ME"\n' } },
+      ]),
+      'full',
+    );
+    const order = fixtureGit(repo, 'rev-list', 'HEAD').split('\n');
+    const newerCommit = order[1];
+    const olderCommit = order[order.length - 2];
+    expect(fixtureGit(repo, 'show', `${olderCommit}:config/app.secret.txt`)).toBe(SECRET_OLDER.trim());
+    mode.current = 'real';
+    const unlimited = scoreAt(repo, V17);
+    expect(historyEvidence(unlimited).map((evidence) => evidence?.contentHash)).toEqual([newerCommit]);
+    for (const limitedMode of ['limited', 'tree-only'] as const) {
+      mode.current = limitedMode;
+      stdinReads.length = 0;
+      const batchedReport = scoreAt(repo, V17);
+      const treeBatches = stdinReads.filter(({ argv }) => argv[0] === 'diff-tree');
+      expect(treeBatches[0]?.commits, limitedMode).toContain(newerCommit);
+      expect(treeBatches.at(-1)?.commits, limitedMode).toContain(olderCommit);
+      expect(projectWitanScoringSurface(batchedReport), limitedMode).toEqual(projectWitanScoringSurface(unlimited));
+      expect(a2(batchedReport).findings, limitedMode).toEqual(a2(unlimited).findings);
+    }
+    mode.current = 'real';
+  }, 120_000);
+
+  // #572 round-4 review: with an `.env`-shaped control-character path present, the batched `.env`
+  // read's extra sentence was masked (scanLimitations is a set). With only the key-shaped JSON path,
+  // each rubric's one-shot reads give exactly one sentence, so a batched read that worded the path
+  // with the wrong flags would add a second.
+  it('a key-shaped JSON control-character path alone: one sentence per rubric, however the reads run', () => {
+    const repo = cloneShallowA2Origin(
+      buildA2HistoryOrigin('paging-586-key-json-only', [
+        { write: { ...base, 'config/\bservice-account.json': '{}\n' } },
+        { remove: ['config/\bservice-account.json'] },
+        ...readmeRevisions(8),
+      ]),
+      'full',
+    );
+    const credentialShaped = /^Git history contained a credential-shaped pathname with control characters\./;
+    const otherPath = /^Git history contained a pathname with control characters that is not credential-shaped\./;
+    for (const rubricVersion of [V17, WITAN_RUBRIC_VERSION_V23, V27]) {
+      mode.current = 'real';
+      const unlimited = [...(scoreAt(repo, rubricVersion).scanLimitations ?? [])];
+      expect(unlimited.length, rubricVersion).toBe(1);
+      expect(unlimited[0], rubricVersion).toMatch(rubricVersion === WITAN_RUBRIC_VERSION_V23 ? credentialShaped : otherPath);
+      for (const limitedMode of ['limited', 'tree-only'] as const) {
+        mode.current = limitedMode;
+        expect([...(scoreAt(repo, rubricVersion).scanLimitations ?? [])], `${rubricVersion} ${limitedMode}`).toEqual(unlimited);
+      }
+    }
+    mode.current = 'real';
+  }, 120_000);
+});
+
