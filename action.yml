@@ -1,7 +1,7 @@
 name: 'Cejel Trust Check'
 # Posts the result to the job summary. Intended for push and pull_request workflows only.
 # GitHub Marketplace requires the description to be under 125 characters.
-description: 'Offline, deterministic trust check for a repository: tests, secrets, isolation, claims vs reality, CI discipline.'
+description: 'Check AI-written code before you trust it: real test assertions, committed secrets, CI gates. Offline, no LLM.'
 author: 'Barg Labs Studios'
 branding:
   icon: 'shield'
