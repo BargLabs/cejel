@@ -24,7 +24,7 @@ import {
 const MAX_BATCH = 4;
 const STEP_PAST_ANY_BUDGET_MS = 1e9;
 const mode = { current: 'real' as 'real' | 'limited' };
-const clock = { offset: 0, step: 0, onEveryCall: false, jumpAtRereadCall: 0 };
+const clock = { offset: 0, step: 0, onEveryCall: false, jumpAtRereadCall: 0, jumpOnWholeHistory: false };
 const overflow = { ok: false as const, reason: 'buffer_exceeded' as const };
 // Every git call of a re-read (paged rev-list or commits on stdin), in order. The one-shot tree
 // enumeration also reads commits on stdin, so it is recorded too ('diff-tree batch').
@@ -37,6 +37,8 @@ vi.mock('../git-exec.js', async (importOriginal) => {
       const wholeHistory =
         (argv[0] === 'rev-list' && argv.length === 2 && argv[1] === 'HEAD') ||
         (argv[0] === 'log' && argv.includes('HEAD') && argv.includes('--name-only'));
+      // #586 follow-up: a one-shot whole-history call that takes far longer than any budget.
+      if (wholeHistory && clock.jumpOnWholeHistory) clock.offset += STEP_PAST_ANY_BUDGET_MS;
       if (wholeHistory) return overflow;
       if (argv.includes('--stdin')) {
         const commits = (options.input ?? '').split('\n').filter((line) => line !== '');
@@ -62,7 +64,7 @@ const V17 = WITAN_RUBRIC_VERSION_V17;
 const V23 = WITAN_RUBRIC_VERSION_V23;
 const V27 = WITAN_RUBRIC_VERSION_V27;
 const BUDGET_LIMITATION =
-  /^Cejel: local git (history tree enumeration|deleted-path history scan|environment-file history scan) stopped at Cejel's \d+-second time budget for re-reading history in batches\. Cejel continued with reduced Git history evidence\.$/;
+  /^Cejel: local git (history tree enumeration|history revision enumeration|deleted-path history scan|environment-file history scan) stopped at Cejel's \d+-second time budget for re-reading history in batches\. Cejel continued with reduced Git history evidence\.$/;
 let clone = '';
 
 beforeAll(() => {
@@ -71,7 +73,7 @@ beforeAll(() => {
 
 beforeEach(() => {
   mode.current = 'real';
-  Object.assign(clock, { offset: 0, step: 0, onEveryCall: false, jumpAtRereadCall: 0 });
+  Object.assign(clock, { offset: 0, step: 0, onEveryCall: false, jumpAtRereadCall: 0, jumpOnWholeHistory: false });
   fallbackCalls.length = 0;
   const realNow = performance.now.bind(performance);
   vi.spyOn(performance, 'now').mockImplementation(() => realNow() + clock.offset);
@@ -151,6 +153,21 @@ describe('#586: a spent re-read budget is declared, never returned as the whole 
     expect(a2(report).status).toBe('critical');
   });
 
+  // #586 follow-up (review pass 2, L2): each budget starts when its re-read starts, not when its
+  // reader begins. Here every one-shot whole-history call takes far longer than any budget, and the
+  // re-reads themselves take no time. A budget that counted the one-shot attempt would already be
+  // spent when its re-read began; started with the re-read, none is spent.
+  it.each([V17, V27])('under %s, time spent in the one-shot attempt does not count against the budget', (rubricVersion) => {
+    mode.current = 'real';
+    const unlimited = scoreAt(clone, rubricVersion);
+    mode.current = 'limited';
+    Object.assign(clock, { jumpOnWholeHistory: true });
+    const batched = scoreAt(clone, rubricVersion);
+    expect(batched.scanLimitations ?? []).toEqual([]);
+    expect(projectWitanScoringSurface(batched)).toEqual(projectWitanScoringSurface(unlimited));
+    expect(a2(batched)).toEqual(a2(unlimited));
+  });
+
   it('a budget that is not spent changes nothing: the re-read gives exactly the unlimited result', () => {
     mode.current = 'real';
     const unlimited = scoreAt(clone, V27);
@@ -199,7 +216,16 @@ describe('#586: the budget also bounds the rev-list pages', () => {
     mode.current = 'limited';
     Object.assign(clock, { step: STEP_PAST_ANY_BUDGET_MS });
     const report = scoreAt(repo, V17);
-    expect((report.scanLimitations ?? []).filter((line) => BUDGET_LIMITATION.test(line))).toHaveLength(3);
+    const budgetLines = (report.scanLimitations ?? []).filter((line) => BUDGET_LIMITATION.test(line));
     expect(fallbackCalls).toEqual(['rev-list page', 'rev-list page', 'rev-list page']);
+    // #586 follow-up (review pass 1): each budget is found spent before a second rev-list page, so
+    // each limitation names the read that was paging. For the tree enumeration's re-read that is
+    // its rev-list read, "history revision enumeration", the name that read already uses when it
+    // stops at Cejel's other limits; the other two readers page under their own names.
+    expect(budgetLines.map((line) => line.replace(/ stopped at.*/, '')).sort()).toEqual([
+      'Cejel: local git deleted-path history scan',
+      'Cejel: local git environment-file history scan',
+      'Cejel: local git history revision enumeration',
+    ]);
   }, 180_000);
 });

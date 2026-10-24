@@ -48,6 +48,21 @@ preregistration, on the measured host, by replaying the re-read's git calls thro
 on biomejs and 1.4 s on react, with no batch halved. 120 s is about 50 times that, and four times
 the per-call timeout.
 
+**Worst case.** The budget is checked before each git call of a re-read, so a re-read can overrun
+it by one in-flight call (at most 30 s): at most about 150 s per re-read. A scan has three
+re-reads (the tree enumeration, the deleted-path log and the `.env`-path log), each after its own
+failed one-shot attempt (at most 30 s, or 60 s for the tree enumeration's `rev-list` and
+`diff-tree`). The tests pin three re-reads per scan.
+
+**Label (review follow-up).** A spent budget is named after the git read that found it spent, in
+the words that read uses when it stops at Cejel's other limits. During the tree enumeration's
+rev-list paging that is "history revision enumeration"; #592 as merged said "history tree
+enumeration" there. This is a scan-path string, but it appears only when a budget is spent.
+#592's preregistered result (`1886d9987`) shows that no public row reaches the budget, so all 23
+reports are unaffected. The label change was not separately measured. A test on a 50,002-commit
+history pins the label, and another pins that each budget starts when its re-read starts, not
+when its reader begins.
+
 **Preregistered paired delta.** `docs/experiments/public-delta-586-fallback-budget-2026-10-23/`:
 preregistration `fa4fc0a7b` (baseline `d175e210a`, candidate `62924091c`), result `1886d9987`.
 Every expected value held:

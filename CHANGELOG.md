@@ -65,9 +65,20 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   re-reading history in batches. Cejel continued with reduced Git history evidence."), so the v17
   badge is unrated and `--min-score` refuses; under `witan-rubric-v27-prospective-2026-10-19`, A2
   treats it as a failed read (ADR-0001) and, as for any failed read, abstains unless a critical
-  finding was already confirmed. What was read is kept but never presented as the whole history. The re-scan advice
-  counts the budget, like the timeout, as depending on the machine and its load. A read that hits
-  no limit never starts a re-read and is unchanged.
+  finding was already confirmed. What was read is kept but never presented as the whole history.
+  The re-scan advice counts the budget, like the timeout, as depending on the machine and its
+  load. A read that hits no limit never starts a re-read and is unchanged.
+  - **Worst case:** the budget is checked before each git call of a re-read, so a re-read can
+    overrun it by one in-flight call (at most 30 s): at most about 150 s per re-read. A scan has
+    three re-reads (the tree enumeration, the deleted-path log and the `.env`-path log), each
+    after its own failed one-shot attempt (at most 30 s, or 60 s for the tree enumeration's
+    `rev-list` and `diff-tree`). The tests pin three re-reads per scan.
+  - **Label (review follow-up):** a spent budget is named after the git read that found it spent,
+    as that read is named when it stops at Cejel's other limits. During the tree enumeration's
+    rev-list paging that is "history revision enumeration", not "history tree enumeration". The
+    wording appears only when a budget is spent, and #592's preregistered result (`1886d9987`)
+    shows no public row reaches the budget, so all 23 reports are unaffected. This label change
+    was not separately measured.
   - **Budget value:** 120 s per re-read, a default the operator can change. It is about 50 times the
     slowest re-read measured on the public rows: about 2.5 s on biomejs and 1.4 s on react, by
     replaying the re-read's git calls on their verified full-history clones, on one host. It is
