@@ -1,0 +1,25 @@
+[
+  {
+    "statement": "A review comment about a disclosure-boundary leak can itself be the leak. A reviewer drafting a public verdict on a public PR spelled out exactly what the flagged text revealed, and another public review quoted the flagged phrase as harmless. Explaining or quoting the problem republished it. Rules: on a public surface, state only which rule was broken and what to change, at the level of the rule; send the specifics privately to the operator; never quote the flagged text in a public review.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "review-process",
+      "disclosure-boundary"
+    ],
+    "tags": [
+      "ip-boundary",
+      "public-review",
+      "quoting",
+      "leak"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-10-26T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 596
+    }
+  }
+]

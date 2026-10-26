@@ -1,6 +1,6 @@
 [
   {
-    "statement": "When a runbook lists one set in two places, the copies drift. A runbook defined the files whose PRs need re-judging twice: in a freeze check (section 7) and in a close-and-reopen loop (section 8). The two lists diverged. The loop drew its files from a narrower configuration than the freeze check, so it missed logs whose content is also gated on a signature, and the PRs touching them would not have been re-judged. Neither list was wrong on its own terms; the defect was that nothing tied them together. Rules: when one set is listed in two places, derive both from one definition, or check mechanically that both name the same files.",
+    "statement": "When a procedure lists one set of files in two steps, the copies drift. A procedure named the files whose changes needed re-checking in two separate steps. The two lists came from different sources and diverged, so one step would have skipped files the other covered. Neither list was wrong on its own terms; the defect was that nothing tied them together. Rules: when one set is listed in two places, derive both from one definition, or check mechanically that both name the same files.",
     "scope": [
       "repo:BargLabs/cejel",
       "dev-task",
@@ -10,8 +10,6 @@
     "tags": [
       "duplicated-definition",
       "list-drift",
-      "re-judge",
-      "signature-gated",
       "single-source"
     ],
     "anchors": [],
