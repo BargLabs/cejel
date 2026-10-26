@@ -24,7 +24,7 @@ jobs:
       - uses: BargLabs/cejel/action@v1
 ```
 
-Or run it once from a shell: `npx @cejel/cejel .` More on the Action under
+Or run it once from a shell: `npx @cejel/cejel@latest .` More on the Action under
 [GitHub Action](#github-action).
 
 Cejel (*"SEH-jel"*) — a trust certificate for your codebase.
