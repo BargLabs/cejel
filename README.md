@@ -5,9 +5,10 @@
 
 <p align="left"><img src="brand/cejel-icon.png" alt="Cejel logo" width="96"></p>
 
-**Check AI-written code before you trust it.** Cejel reads a repository's own evidence (tests
-that really assert something, committed secrets, CI and release gating) and writes a certificate
-pinned to one commit. Offline, deterministic, no LLM, no signup.
+**Evidence about a repository that anyone can rerun.** Cejel reads a repository's own evidence
+(tests that really assert something, committed secrets, CI and release gating) and writes a
+certificate pinned to one commit. Whoever receives it, a customer, a buyer or an acquirer, can run
+Cejel on the same commit themselves, offline, and get the same result. No LLM, no signup.
 
 Add it to a workflow; the result is posted to the job summary:
 
