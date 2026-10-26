@@ -1,0 +1,26 @@
+[
+  {
+    "statement": "A reviewed patch handed to the operator to sign can stop applying before they sign it. Main moved after review, and the operator's git apply then failed with nothing on their side showing it: the tree stayed clean, no PR was opened, and the step was reported done. A review approves a patch against one base; it says nothing about whether the patch still applies at the tip the signer will use. Rules: when handing over a patch to sign, run git apply --check against the live origin/main tip and state that sha in the hand-over; after any rebase, treat the change as material and repeat the full review.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "operator-handover",
+      "review-process"
+    ],
+    "tags": [
+      "git-apply",
+      "rebase",
+      "signed-commit",
+      "stale-base",
+      "silent-failure"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-10-26T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 596
+    }
+  }
+]
