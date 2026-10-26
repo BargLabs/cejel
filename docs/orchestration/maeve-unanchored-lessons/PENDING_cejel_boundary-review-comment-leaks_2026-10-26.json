@@ -1,6 +1,6 @@
 [
   {
-    "statement": "A review comment about a disclosure-boundary leak can itself be the leak. A reviewer drafting a public verdict on a public PR spelled out exactly what the flagged text revealed, and another public review quoted the flagged phrase as harmless. Explaining or quoting the problem republished it. Rules: on a public surface, state only which rule was broken and what to change, at the level of the rule; send the specifics privately to the operator; never quote the flagged text in a public review.",
+    "statement": "A review comment about a disclosure-boundary leak can itself be the leak. Explaining what flagged text reveals, or quoting it as harmless, republishes it; so does leaving the earlier commit that carried it in a merged history. Rules: on a public surface, state only which rule was broken and what to change; send the specifics privately to the operator; never quote the flagged text in a public review; merge a branch that once carried leaked text only by squash or from a fresh single-commit branch.",
     "scope": [
       "repo:BargLabs/cejel",
       "dev-task",
