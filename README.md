@@ -3,6 +3,30 @@
 [![release](https://img.shields.io/github/v/release/BargLabs/cejel)](https://github.com/BargLabs/cejel/releases/latest)
 [![license: AGPL-3.0-only](https://img.shields.io/badge/license-AGPL--3.0--only-blue.svg)](./LICENSE)
 
+<p align="left"><img src="brand/cejel-icon.png" alt="Cejel logo" width="96"></p>
+
+**Evidence about a repository that anyone can rerun.** Cejel reads a repository's own evidence
+(tests that really assert something, committed secrets, CI gating) and writes a certificate
+pinned to one commit. Whoever receives it, a customer, a buyer or an acquirer, can run the same
+Cejel version on the same commit themselves, offline, and get the same result. No LLM, no signup.
+
+Add it to a workflow; the result is posted to the job summary:
+
+```yaml
+on: [pull_request]
+jobs:
+  cejel:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history: A2 and B2 read commit history
+      - uses: BargLabs/cejel/action@v1
+```
+
+Or run it once from a shell: `npx @cejel/cejel@latest .` More on the Action under
+[GitHub Action](#github-action).
+
 Cejel (*"SEH-jel"*) — a trust certificate for your codebase.
 
 Free, offline, no-signup CLI that scores the engineering signals that tell you whether to
