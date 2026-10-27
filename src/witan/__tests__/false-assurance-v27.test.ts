@@ -36,7 +36,9 @@ import { checkNoRise, evidenceIdentity, lostFindings } from './v27-no-rise.js';
 //
 // Two halves. Under v17, the public default, scoring must not move (the presentation fixes change
 // notes, labels, citation order and an LFS pointer count, nothing else), so the v17 assertions
-// below pin the v17 result, defect included. Under witan-rubric-v27-prospective-2026-10-19 the
+// below pin the v17 result, defect included. The one exception is #442's B2 on a shallow clone,
+// which under v17 too withholds its pull-request merge ratio and is scored on the checked-out files,
+// by the operator's decision of 2026-10-27. Under witan-rubric-v27-prospective-2026-10-19 the
 // defect is gone, and the last block checks the property that admits v27 at all: no score, status
 // or composite rises against v17 on any fixture.
 
@@ -430,9 +432,19 @@ describe('#520 — A4 says what the repository itself requires, and cites what d
 describe('#442 — history Cejel did not read is not scored', () => {
   const shallow = 'history-shallow-clone';
 
-  it('v17 is unchanged: A2 and B2 score the truncated history behind a display-only disclosure', () => {
+  // Operator decision 2026-10-26, revised 2026-10-27: a shallow clone must not lower the history
+  // score, and B2 keeps the evidence it reads from the checked-out files. v17 scored B2 warning on the
+  // one visible commit where the full clone scores it verified; #603 made it abstain out of the
+  // composite; it now withholds only pr_merge_ratio and scores pr_trace_primitives, 2 as on the full
+  // clone. Its status is warning from the score bands, since v17's calibrated verified reads the
+  // withheld ratio (shallow-history-ratio-withheld-442.test.ts). A2 still scores what it read.
+  it('v17: A2 scores the truncated history, B2 withholds only its ratio, behind a display-only disclosure', () => {
     expect(criterion(shallow, V17, 'A2').status).toBe('verified');
+    expect(criterion('history-full-clone', V17, 'B2').status).toBe('verified');
     expect(criterion(shallow, V17, 'B2').status).toBe('warning');
+    expect(criterion(shallow, V17, 'B2').score).toBe(criterion('history-full-clone', V17, 'B2').score);
+    expect(criterion(shallow, V17, 'B2').metrics.map(({ name }) => name)).toEqual(['pr_trace_primitives']);
+    expect(criterion(shallow, V17, 'B2').notes).toMatch(/^B2 abstained from the pull-request merge ratio only: /);
     expect(report(shallow, V17).historyLimitations).toEqual([SHALLOW_HISTORY_LIMITATION]);
   });
 
@@ -1371,12 +1383,16 @@ describe('no score, status or composite rises from v17 to v27 on any fixture', (
     });
   }
 
+  // Under v17 B2 on this depth-1 clone withholds only its ratio and is scored (#442, operator
+  // decision 2026-10-27), so both abstentions are ones v27 introduces again, as before #603.
   it('#442: the shallow-clone abstentions are read failures kept in the denominator at 0', () => {
     const result = checkNoRise(report('history-shallow-clone', V17), report('history-shallow-clone', V27));
     expect(result.introducedAbstentions).toEqual([
       { id: 'A2', kind: 'shallow-history', denominator: 'kept' },
       { id: 'B2', kind: 'shallow-history', denominator: 'kept' },
     ]);
+    expect(criterion('history-shallow-clone', V17, 'B2').status).toBe('warning');
+    expect(criterion('history-shallow-clone', V27, 'B2').status).toBe('insufficient_data');
   });
 
   it('#519: the LFS pointer abstention is a read failure kept in the denominator at 0', () => {

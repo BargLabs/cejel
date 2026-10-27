@@ -22,6 +22,194 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
+## 2026-10-27 (revised) — on a shallow clone B2 keeps its file evidence and withholds only the pull-request merge ratio under v17 and every rubric but v27 (#442); no published score moved
+
+**Status.** Revises the entry below before release; the two land together, so the behaviour the
+entry below describes never ships. A scoring change under `witan-rubric-v17-2026-07-24`, the
+calibrated public default, and under v18-v26, with no identifier change. It reaches only shallow
+clones with fewer than twelve commits visible. v27 is unchanged. No holdout or calibration ran, and
+this entry makes no precision or recall claim. The operator decision of 2026-10-27 governs it: on
+such a clone B2 keeps scoring the evidence it reads from the checked-out files and withholds only
+`pr_merge_ratio`, the part that needs history.
+
+**Why the entry below was revised.** Withholding all of B2 took its file evidence
+(`pr_trace_primitives`: CI workflows, the pull-request template, a review-gate record) out of the
+composite with the ratio. The overall is the unweighted mean of the code_trust and process_trust
+means (`createWitanReport` in `src/witan/scoring.ts`, category parity since 2026-07-06), and each
+category mean leaves out every `not_applicable` criterion and every `insufficient_data` one that is
+not a read failure (`averageScore`). On the small Python library measured below, B1, B4, B5 and B6
+are not applicable, so process_trust is the mean of B2 and B3 alone. Leaving B2 out makes B3 the whole of process_trust and
+half of the overall. On a synthetic forty-commit fixture (every commit a pull-request merge, CI
+workflow and template, depth 5, v17): B2 4, B3 1, process_trust 2.5, code_trust 2, overall 2.3 on
+the full clone; with B2 left out, process_trust 1, overall 1.5. No minimum-criteria rule, no band
+rule and no other criterion reading B2's evidence is involved: every criterion other than B2 scores
+the same on the shallow clone and its full clone. The same arithmetic applies to every abstention
+that leaves the composite (`too_large`, `excluded_by_extension`, `non_regular_file`, ordinary
+`insufficient_data`) and to `not_applicable`; it is unchanged here.
+
+**Change.** With fewer than twelve commits visible on a shallow clone, B2 scores
+`pr_trace_primitives` alone (its weight share becomes 1) and carries no `pr_merge_ratio` metric. Its
+note starts "B2 abstained from the pull-request merge ratio only: this repository is a shallow clone
+with fewer than 12 commits visible, so the pull-request merge ratio cannot be read over its window."
+and says B2 was scored on the checked-out files. Where B2 has no PR-trace evidence to score without
+the ratio it abstains out of the composite as in the entry below; under v17-v26 the collector
+returns no B2 signal before that point when there is no PR-trace file, on full and shallow clones
+alike, so no fixture reaches that branch. The display-only `historyLimitations` sentence now says
+B2 "leaves that ratio out when fewer commits are visible than it reads, and is scored on the CI
+workflows, pull-request template and review-gate record in the checked-out files"; the A2 clause and
+v27's sentence are unchanged, and it stays display-only (#428).
+
+**Status as well as score.** v17's calibrated B2 status reads the ratio itself: verified when it is
+positive, warning when it is 0. With the ratio withheld the calibrated rule does not apply and the
+status comes from the score bands (3.5 verified, 2.5 info, 1.5 warning). So a shallow B2 whose
+score equals the full clone's can still be warning where the full clone is verified, when the full
+clone's ratio is positive and its file evidence is one of two primitives (score 2).
+
+**Measured against the full clone.** Synthetic, built in
+`src/witan/__tests__/shallow-history-ratio-withheld-442.test.ts`: forty commits whose subjects are
+all pull-request merges, none, or alternating; checked-out files with a CI workflow and a
+pull-request template, a CI workflow alone, or no PR-trace file; depths full, 1, 5, 11 and 12. Under
+v17, every criterion but B2 is identical on each shallow clone and its full clone. Depths 1, 5 and
+11 give the same results; depth 12 matches the full clone exactly.
+
+| History | Files | Full clone (v17) | Depth 1/5/11, before (main) | Depth 1/5/11, after | B2 score, status vs full | Overall vs full |
+|---|---|---|---|---|---|---|
+| all PR merges | CI + template | B2 verified 4; 2.3 at_risk | B2 verified 4; 2.3 | B2 verified 4; 2.3 | equal, equal | equal |
+| all PR merges | CI only | B2 verified 2.4; 1.9 at_risk | B2 verified 2.4; 1.9 | B2 warning 2; 1.8 | below, below: the full clone's 2.4 and verified rest on its ratio (12 of 12) | below, band equal |
+| no PR merges | CI + template | B2 warning 3.2; 2.1 at_risk | B2 warning 3.2; 2.1 | B2 verified 4; 2.3 | above, above: the full clone's ratio (0 of 12) is worse than its file evidence | above, band equal |
+| no PR merges | CI only | B2 warning 1.6; 1.7 at_risk | B2 warning 1.6; 1.7 | B2 warning 2; 1.8 | above, equal: ratio 0 of 12 | above, band equal |
+| alternating | CI + template | B2 verified 3.6; 2.2 at_risk | depth 1: 4, 2.3; depth 5: 3.7, 2.2; depth 11: 3.6, 2.2 | B2 verified 4; 2.3 | above, equal: ratio 6 of 12, below the file evidence's 2 of 2 | above, band equal |
+| alternating | CI only | B2 verified 2; 1.8 at_risk | depth 1: 2.4, 1.9; depth 5: 2.1, 1.8; depth 11: 2, 1.8 | B2 warning 2; 1.8 | equal, below: the full clone's verified rests on its positive ratio | equal |
+| any | none | B2 insufficient_data; 1 unverified | same | same | equal | equal |
+
+No v17 verdict band differs from the full clone on any row. v18-v26 were measured on the same
+fixtures by report bytes (below). v27 is unchanged and differs from the full clone as on main: on
+every shallow clone A2 abstains at 0, and under the window B2 does too (both as read failures kept
+in the composite, as the #531 no-rise property requires), so the depth 1, 5 and 11 rows with
+PR-trace files fall from at_risk to unverified (0.8) and the depth-12 rows by 0.5 (CI-only rows from
+at_risk to unverified).
+
+**Bytes against main.** The scanner before is `origin/main` `5d47da175`; full report JSON,
+same fixture paths, all eleven selectable rubrics.
+
+| Set | Reports | Byte-identical | Moved |
+|---|---|---|---|
+| Matrix: full clones, non-git copies of the same files, and every v27 report | 234 | 234 | 0 |
+| Matrix: shallow at depth 12, or with no PR-trace file, v17-v26 | 180 | 0 | 180, the reworded `historyLimitations` sentence only: identical with it removed |
+| Matrix: shallow at depth 1, 5 or 11 with PR-trace files, v17-v26 | 180 | 0 | 180: B2 as in the table above, and the sentence |
+
+Committed fixtures: the behaviour corpus has no shallow specimen and every fingerprint pin is
+unchanged (v17 stays `sha256:5cd48f8c642300ae8736a09d4a24ce3a4f8885f6e099b5f27f99d950e0c944b4`).
+The two depth-1 disclosure-gap fixtures (`b3-master-target-depth-1-clone`,
+`b3-master-target-ci-fetch`) under v17-v26 move from main's B2 warning 1.6, process_trust 2, overall
+2.2 to B2 warning 2, process_trust 2.2, overall 2.3, at_risk throughout; their full clone reads its
+one commit as 0 of 1, so B2 is above it there. `history-shallow-clone` under v17-v26 moves from main's
+B2 warning 1.6, overall 1.7 to B2 warning 2, overall 1.8 at_risk, which is its full clone's overall
+(`history-full-clone`: B2 verified 2, 1.8 at_risk). `history-shallow-clone-with-committed-secret`
+moves from B2 warning 1.6 to warning 2 and overall 1.3 to 1.4 unverified (v17-v25), and under v26
+from 1.4 unverified to 1.5 at_risk. Its full clone, built from the same commits for this measurement
+only, scores B2 verified 1.9 and overall 1.4 unverified (v17-v25) and 1.5 at_risk (v26), so the v26
+band change brings the shallow clone to its full clone's band. A2 does not move on any of them.
+
+**Limitation.** The condition is the one the entry below introduced: the clone is shallow and fewer
+than twelve commits are visible. A shallow clone of a repository whose whole history is shorter than
+twelve commits also withholds the ratio, though its full clone would read the same commits; a
+truncated history cannot tell the two apart.
+
+**Public board.** No board input is shallow, as the entry below records; no published score, verdict
+or rank moves. The board was not re-run.
+
+**Tests.** `src/witan/__tests__/shallow-history-ratio-withheld-442.test.ts` (red first at
+`2cea93347` and `d4cac763e`); `shallow-history-not-lower-442.test.ts`, `false-assurance-v27.test.ts`
+and `disclosure-gaps.test.ts` updated where they asserted the whole-B2 abstention, and
+`v27-no-rise-generated-suite.ts` restored to main's text.
+
+## 2026-10-27 — on a shallow clone B2 abstains out of the composite under v17 and every rubric but v27, instead of scoring a truncated commit window lower (#442); no published score moved
+
+**Superseded before release** by the revised entry above: B2 now withholds only the merge ratio.
+This entry records what #603 measured; its behaviour never shipped.
+
+**Status.** A scoring change under `witan-rubric-v17-2026-07-24`, the calibrated public default,
+and under v18-v26, with no identifier change. It reaches only shallow clones whose visible history
+is shorter than B2's twelve-commit window. v27 is unchanged. No holdout or calibration ran, and this
+entry makes no precision or recall claim. The operator decision of 2026-10-26 governs it: a shallow
+clone must not lower the history score; on a shallow clone A2 and B2 either abstain with
+`insufficient_data` and a stated reason, or keep the score they would have had with full history and
+state the limitation; they never score the truncated history lower.
+
+**Defect.** B2's `pr_merge_ratio` reads the twelve most recent commits. On a depth-1 clone (the
+default `actions/checkout`) it read one, so the ratio was 0 of 1 or 1 of 1 from the subject of HEAD
+alone. On the issue's repro rebuilt synthetically (a Python library with a pull-request CI workflow
+and a PR template, twenty commits, every other one a pull-request merge), the full clone scores B2
+verified 3.6 and the depth-1 clone scored it warning 3.2 under v17 and v18-v26.
+
+**Change.** When the clone is shallow and fewer than twelve commits are visible, B2 abstains:
+`insufficient_data`, score 0, a note starting "B2 abstained: this repository is a shallow clone with
+fewer than 12 commits visible", and a new signal reason, `shallow_history`, which leaves the
+composite like ordinary `insufficient_data` (it is not a read failure held at 0). It abstains
+whichever way the one visible commit points, so the abstention cannot be selective. The v17
+`historyLimitations` sentence no longer says "Scores are computed exactly as for any other scan"; it
+says B2 abstains and is left out of the composite. It stays display-only (#428).
+
+**Chosen: abstain, for B2 only.** Keeping the full-history score is not computable from a truncated
+history. Withholding only `pr_merge_ratio` was rejected: B2 would then score `pr_trace_primitives`
+alone, which is lower than the full-history score whenever the merge ratio exceeds it. A2 is
+unchanged: its history reads can only miss evidence on a truncated history, never add it, so its
+score there is never lower than on a full clone (it can be higher; v27's #442 and #556 abstentions
+address that direction, and this decision does not). Measured: A2 did not move on any shallow
+fixture below.
+
+**v27 unchanged.** v27 already abstains on both criteria on a shallow clone, as read failures kept in
+the composite at 0, which its no-rise property against v17 (#531) requires. With v17's B2 now out of
+the composite and v27's held at 0, v27 still cannot rise against v17. Whether v27's shallow-clone
+abstentions should also leave the composite is an operator decision: doing so would break the #531
+property and #556's guarantee that an incomplete history never scores above the complete clone.
+
+**What the composite does.** Leaving B2 out moves the process composite to the mean of the other
+process criteria, up or down. On the repro it falls: B2 was above that mean.
+
+| Repro (v17) | B2 | process_trust | overall | verdict |
+|---|---|---|---|---|
+| full clone | verified 3.6 | 2.3 | 2.2 | at_risk |
+| depth 12 (window fully visible) | verified 3.6, unchanged | 2.3 | 2.2 | at_risk |
+| depth 1, HEAD not a PR merge, before | warning 3.2 | 2.1 | 2.1 | at_risk |
+| depth 1, HEAD not a PR merge, after | insufficient_data | 1.0 | 1.5 | at_risk |
+| depth 1, HEAD a PR merge, before | verified 4 | 2.5 | 2.3 | at_risk |
+| depth 1, HEAD a PR merge, after | insufficient_data | 1.0 | 1.5 | at_risk |
+
+v18-v25 give the same numbers; v26's overall is 1.6 after (its code_trust is 2.1). v27 on depth 1:
+A2 and B2 `insufficient_data` at 0, process_trust 0.5, overall 0.8, unchanged by this entry.
+
+**Measured.** The scanner before is `origin/main` `5d47da175`. Full `report.json` bytes (scan
+directory replaced by a placeholder) and the fingerprint projection were compared, under all eleven
+selectable rubrics.
+
+| Set | Reports | Shallow | Scoring-surface moves | Byte-identical | Byte differences |
+|---|---|---|---|---|---|
+| Behaviour corpus (30 specimens) | 330 | 0 | 0 | 330 | 0 |
+| Disclosure-gap fixtures (22 readable) | 242 | 22 | 20 | 222 | 20: `b3-master-target-depth-1-clone` and `b3-master-target-ci-fetch` under v17-v26, B2 warning 1.6 to `insufficient_data`, process_trust 2 to 2.4, overall 2.2 to 2.3 |
+| False-assurance fixtures (208) | 2,288 | 22 | 20 | 2,257 | 31: `history-shallow-clone` and `history-shallow-clone-with-committed-secret` under v17-v26 (below); `review4-a4-working-directory-through-tracked-symlink` under all eleven, bytes only, because its symlink points at a fresh temporary host directory on every build (it moves under v27 too, which this change does not reach) |
+| #442 repro (2 HEAD shapes x full, depth 1, depth 12) | 66 | 44 | 20 | 26 | 40: the 20 depth-1 reports under v17-v26 (table above), and the 20 depth-12 reports under v17-v26, bytes only: the reworded shallow sentence |
+
+`history-shallow-clone` under v17-v25: B2 warning 1.6 to `insufficient_data`, process_trust 1.3 to
+1.0, overall 1.7 to 1.5 (v26 1.7 to 1.6). `history-shallow-clone-with-committed-secret`: B2 warning 1.6
+to `insufficient_data`, process_trust 1.3 to 1.0, overall 1.3 to 1.2 (v26 1.4 to 1.2); A2 stays
+critical 1.4. No verdict moved.
+
+**Fingerprints.** Every pin is unchanged: no behaviour-corpus specimen is a shallow clone, so the
+fingerprint does not see this change, as with every shallow-clone change before it. v17 stays
+`sha256:5cd48f8c642300ae8736a09d4a24ce3a4f8885f6e099b5f27f99d950e0c944b4`.
+
+**Public board.** No board input is shallow. The board has been scored on full-history clones under
+v17 since the 0.6.3 regeneration (2026-10-11 entry), and the public-delta harness refuses a shallow
+target (`docs/experiments/public-delta-harness/common.mjs`). The depth-1 v17 to v27 board table in
+the 2026-10-19 entry was measured on depth-1 checkouts, not the board's inputs (2026-10-21
+correction). No published score, verdict or rank moves. The board was not re-run.
+
+**Tests.** `src/witan/__tests__/shallow-history-not-lower-442.test.ts` (red first at `9e4710bb9`: B2
+3.6 to 3.2, verified to warning, under v17-v26); `false-assurance-v27.test.ts`,
+`disclosure-gaps.test.ts` (20 pins re-captured) and `v27-no-rise-generated-suite.ts` updated.
+
 ## 2026-10-27 — v27 A1: a pytest hook that adds a skip marker held in a name, or the marker named "skip", to every item disables the suite (#518); #519 needs no further change under v27; no published score moved
 
 **Defect (#518).** v27's run-wide hook reader (2026-10-19 entry below) read a skip only when it was
