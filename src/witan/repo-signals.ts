@@ -6653,7 +6653,8 @@ const REPOSITORY_CONDITION_REVERSED_PATTERN = /^'[A-Za-z0-9._-]+\/[A-Za-z0-9._-]
 const ALWAYS_TRUE_STATUS_CHECK_PATTERN = /^(?:always\(\)|success\(\)|![ \t]*cancelled\(\))$/i;
 // The status-check calls, with a `!` before any of them, removed before the expression's
 // characters are checked; isAlwaysTrueConditionAtom then decides each one (`!always()` is not read).
-const STATUS_CHECK_CALL_PATTERN = /!?[ \t]*\b(?:always|success|cancelled|failure)\(\)/gi;
+// The blank run is read only after a `!`, so a long run of blanks is not rescanned from each blank.
+const STATUS_CHECK_CALL_PATTERN = /(?:![ \t]*)?\b(?:always|success|cancelled|failure)\(\)/gi;
 
 /** True for one comparison isAlwaysTrueCondition reads that holds on every run the triggers start. */
 function isAlwaysTrueConditionAtom(atom: string, context: WorkflowTriggerContext): boolean {
