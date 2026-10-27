@@ -45,7 +45,12 @@ of its own: it refused the whole publishing file when any job's matrix read `fro
 ungated push-to-main publish beside an unrelated job with `matrix: py: ${{ fromJSON('["3.12"]') }}`
 scored v27 B3 2.1 there against 1.6 on main. The no-rise check compared v27 only with v17, which is
 2.1 too, so it could not see this. It also left the separate-step shape printing "not required" on a
-Windows runner, on `runs-on: ${{ matrix.os }}` and with `shell: bash`.
+Windows runner, on `runs-on: ${{ matrix.os }}` and with `shell: bash`. A review of the second
+candidate (#599, not merged) found that narrowing that refusal to the publishing job's own matrix
+kept the same rise: an ungated push-to-main publish whose own job has
+`matrix: py: ${{ fromJSON('["3.12"]') }}` and a literal `runs-on: ubuntu-latest`, or a matrix from
+`fromJSON(needs.plan.outputs.targets)`, scored v27 B3 2.1 there against 1.6 on main
+(`default_branch_ci_depth` 3 against 2). The refusal is removed: a job's matrix is not read.
 
 **Change, A4, every rubric (note and citation; v27 also scored and a finding, as before).** A
 command that may write the lockfile excuses a requiring command only when it is in another job or
@@ -96,13 +101,13 @@ command in a `run:` line is read where every job runs on a hosted Ubuntu or macO
 as a one-element list (`[ubuntu-latest]`), with no `shell:` other than `bash` (`defaults: run:
 shell: bash` included). A job calling a reusable workflow in this repository
 (`uses: ./.github/workflows/<file>`) is followed with the caller's triggers, three levels deep.
-Nothing is claimed from a job whose `strategy:` holds a `fromJSON(` call outside comments (its
-matrix may be empty, and then the job does not run); the file's other jobs are still read.
+A job's `strategy:` and matrix are not read, as on main: a publishing job is publishing whatever
+its matrix, `fromJSON(...)` included.
 
 **No rise.** Against v17: each B3 change only removes a workflow from a count, and each A4 change
-adds a zero-valued metric or a finding where a requirement was missed, or adds a disclosure. With
-the matrix refusal read per job, no change adds a workflow back to a count. Against the previous
-v27 (main `7fa044f0f`): the same holds, with one exception the item asks for. Where main's v27
+adds a zero-valued metric or a finding where a requirement was missed, or adds a disclosure.
+Against the previous v27 (main `7fa044f0f`), the B3 publishing rule reads no job's matrix, as main
+does not, and the only rises measured on the fixtures below are the item's own instruction. Where main's v27
 claimed a requirement and scored `lockfile_coverage` 0 although an earlier step uses an action Cejel
 does not read, which may write the lockfile, the requirement is now not determined and the 0 is
 withdrawn: A4 rises from 0.3 to 0.5 on the two fixtures of that shape, with no composite moving.

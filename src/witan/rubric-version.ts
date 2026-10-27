@@ -175,8 +175,8 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     (#517, 2026-10-26) is one with no pull-request trigger that runs an unconditional publish,
 //     release or deploy step, whatever else it runs (from 2026-10-27: the trigger read from `on:`
 //     alone, a publishing action read on any runner, a condition that cannot be false under the
-//     triggers or is a fork guard no gate, a local reusable workflow followed, and a fromJSON
-//     matrix refusing only its own job);
+//     triggers or is a fork guard no gate, and a local reusable workflow followed; a job's
+//     matrix is not read, so a publishing job is publishing whatever its matrix, as before);
 //   - A1: conftest.py is not a concrete test file, and an unconditional run-wide pytest skip
 //     (a collection hook that skips or clears every item, or a module-level pytestmark skip)
 //     marks the test files in its scope hollow;

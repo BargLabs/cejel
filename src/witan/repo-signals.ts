@@ -6717,9 +6717,6 @@ const LOCAL_REUSABLE_WORKFLOW_PATTERN = /^\.\/(\.github\/workflows\/[A-Za-z0-9._
 // Reusable workflows followed from a caller, at most this deep (GitHub allows four levels).
 const REUSABLE_WORKFLOW_MAX_DEPTH = 3;
 
-const STRATEGY_KEY_PATTERN = /^[ \t]*strategy:/;
-const FROMJSON_CALL_PATTERN = /fromjson[ \t]*\(/i;
-
 interface WorkflowJob {
   /** The line index of the job's key, and of the first line after the job. */
   readonly start: number;
@@ -6728,11 +6725,6 @@ interface WorkflowJob {
   readonly target?: string;
   /** A job-level key `isGuardLine` counts as a guard sits on it. */
   readonly conditional: boolean;
-  /**
-   * Its `strategy:` holds a `fromJSON(` call outside comments: the matrix is read from an
-   * expression, may be empty, and then the job does not run.
-   */
-  readonly dynamicMatrix: boolean;
 }
 
 /**
@@ -6752,8 +6744,7 @@ function workflowJobs(contents: string, isGuardLine: (line: string) => boolean):
   if (jobsAt === -1) return jobs;
   let jobIndent = -1;
   let keyIndent = -1;
-  let inStrategy = false;
-  let job: { start: number; target?: string; conditional: boolean; dynamicMatrix: boolean } | null = null;
+  let job: { start: number; target?: string; conditional: boolean } | null = null;
   const close = (end: number) => {
     if (job) jobs.push({ ...job, end });
     job = null;
@@ -6767,22 +6758,15 @@ function workflowJobs(contents: string, isGuardLine: (line: string) => boolean):
     if (indent < jobIndent) break;
     if (indent === jobIndent) {
       close(index);
-      job = { start: index, conditional: false, dynamicMatrix: false };
+      job = { start: index, conditional: false };
       keyIndent = -1;
-      inStrategy = false;
       continue;
     }
     if (!job) continue;
-    const current: { start: number; target?: string; conditional: boolean; dynamicMatrix: boolean } = job;
+    const current: { start: number; target?: string; conditional: boolean } = job;
     if (keyIndent === -1) keyIndent = indent;
-    const raw = lines[index] ?? '';
-    if (indent > keyIndent) {
-      if (inStrategy && FROMJSON_CALL_PATTERN.test(stripYamlComment(raw))) current.dynamicMatrix = true;
-      continue;
-    }
     if (indent !== keyIndent) continue;
-    inStrategy = STRATEGY_KEY_PATTERN.test(raw);
-    if (inStrategy && FROMJSON_CALL_PATTERN.test(stripYamlComment(raw))) current.dynamicMatrix = true;
+    const raw = lines[index] ?? '';
     if (isGuardLine(raw)) current.conditional = true;
     const uses = JOB_USES_KEY_PATTERN.exec(raw);
     if (uses) current.target = unquoteYamlScalar(stripYamlComment(uses[1] ?? ''));
@@ -6801,21 +6785,15 @@ function workflowJobs(contents: string, isGuardLine: (line: string) => boolean):
  * A job that calls a reusable workflow in this repository (`uses: ./.github/workflows/...`) is
  * followed, with the same context, to REUSABLE_WORKFLOW_MAX_DEPTH. A step or job counts only when
  * no `continue-on-error:` and no `if:` that can be false under the triggers (isAlwaysTrueIfLine)
- * sits on it or its job. A job whose matrix is read with `fromJSON` may not run, so nothing is
- * claimed from that job; the file's other jobs are still read (#517: a whole-file refusal let an
- * unrelated job's matrix keep a publishing job counted).
+ * sits on it or its job. A job's matrix is not read: a publishing job is publishing whatever its
+ * matrix, as before #517's follow-ups (#517 v3: refusing a job whose matrix reads `fromJSON`, in
+ * the whole file or only in the publishing job, raised B3 above the previous v27).
  */
 function publishesOnEveryRun(root: string, contents: string, context: WorkflowTriggerContext, depth: number): boolean {
   if (YAML_LINE_BREAK_NOT_SPLIT_PATTERN.test(contents)) return false;
   const isGuardLine = (line: string) => isStepOrJobGuard(line) && !isAlwaysTrueIfLine(line, context);
   const jobs = workflowJobs(contents, isGuardLine);
-  // For each line, whether it lies in a job with a dynamic matrix; a step is placed by the line of
-  // its job's `steps:` key.
-  const inDynamicMatrixJob = new Array<boolean>(contents.split(/\r?\n/).length).fill(false);
-  for (const { start, end, dynamicMatrix } of jobs) {
-    if (dynamicMatrix) inDynamicMatrixJob.fill(true, start, end);
-  }
-  const mayRun = (step: WorkflowRunStep) => !step.conditional && step.job !== -1 && !inDynamicMatrixJob[step.job];
+  const mayRun = (step: WorkflowRunStep) => !step.conditional && step.job !== -1;
   for (const step of githubActionsUsesSteps(contents, isGuardLine)) {
     if (!mayRun(step)) continue;
     const value = unquoteYamlScalar(beforeShellComment(step.lines[0]?.text ?? ''));
@@ -6833,8 +6811,8 @@ function publishesOnEveryRun(root: string, contents: string, context: WorkflowTr
     }
   }
   if (depth >= REUSABLE_WORKFLOW_MAX_DEPTH) return false;
-  for (const { target, conditional, dynamicMatrix } of jobs) {
-    if (target === undefined || conditional || dynamicMatrix) continue;
+  for (const { target, conditional } of jobs) {
+    if (target === undefined || conditional) continue;
     const local = LOCAL_REUSABLE_WORKFLOW_PATTERN.exec(target);
     if (!local) continue;
     const calledPath = join(root, local[1] ?? '');
