@@ -6,6 +6,7 @@ import {
   WITAN_A5_RECONCILIATION_UNSETTLED_DISCLOSURE,
   WITAN_B2_UNCREDITED_CI_WORKFLOW_PREFIX,
   WITAN_B3_UNCREDITED_CI_WORKFLOW_PREFIX,
+  WITAN_B3_PUBLISHING_CI_WORKFLOW_PREFIX,
   WITAN_B3_UNSHOWN_CHECK_PREFIX,
 } from './abstention.js';
 import {
@@ -295,7 +296,7 @@ export const CERTIFICATE_GLOSSARY: readonly CertificateGlossaryEntry[] = [
     key: 'pr-gate-ci-workflow-count',
     term: 'PR-gate CI workflow count (automated build/test pipeline)',
     definition:
-      'The number of detected CI workflow files configured for pull requests or the main or master branch, including a covering monorepo-root workflow, capped at four for scoring. Under the prospective witan-rubric-v27, a workflow file is not counted when Cejel reads every step as only checking out, printing text or doing nothing, or, for a workflow with no pull-request trigger, as only uploading an already-built artifact. Cejel makes either reading only when the runs-on value of every job names a documented GitHub-hosted Ubuntu or macOS runner label. Such a file was not shown to run a check, which is not a finding that it runs none.',
+      'The number of detected CI workflow files configured for pull requests or the main or master branch, including a covering monorepo-root workflow, capped at four for scoring. Under the prospective witan-rubric-v27, a workflow file is not counted when Cejel reads every step as only checking out, printing text or doing nothing, or, for a workflow with no pull-request trigger, as only uploading an already-built artifact. Cejel makes either reading only when the runs-on value of every job names a documented GitHub-hosted Ubuntu or macOS runner label. Such a file was not shown to run a check, which is not a finding that it runs none. Under the same rubric, a workflow file with no pull-request trigger is also not counted, by this metric or by CI verification depth, when a step with no if or continue-on-error condition publishes, releases or deploys (a registry publish or upload, a release, an image push or a deploy command or action), whatever else it runs.',
     metricNames: ['default_branch_ci_depth'],
   },
   {
@@ -948,12 +949,14 @@ function historyApplicabilityDisclosures(report: WitanReport): string[] {
 }
 
 // Prospective v27 (#527, #535): the B2 and B3 disclosures naming CI workflows not counted because
-// Cejel did not see them run a check. Listed only while that criterion is scored.
+// Cejel did not see them run a check, and (#517) B3's naming workflows not counted because they
+// publish, release or deploy with no pull-request trigger. Listed only while that criterion is scored.
 function uncreditedCiWorkflowDisclosures(report: WitanReport): string[] {
   return (
     [
       ['B2', WITAN_B2_UNCREDITED_CI_WORKFLOW_PREFIX],
       ['B3', WITAN_B3_UNCREDITED_CI_WORKFLOW_PREFIX],
+      ['B3', WITAN_B3_PUBLISHING_CI_WORKFLOW_PREFIX],
     ] as const
   ).flatMap(([criterionId, prefix]) => {
     const criterion = report.criteria.find((entry) => entry.id === criterionId);
