@@ -4608,20 +4608,52 @@ function beforeShellComment(line: string): string {
   return cut.length > 0 ? trimmed.slice(0, Math.min(...cut)) : trimmed;
 }
 
-/** One line's words, split into commands at shell separators. */
-function shellCommands(line: string): string[][] {
-  const commands: string[][] = [[]];
+/**
+ * One line's words, split into commands at shell separators, each with the separators that follow
+ * it before the next command (none after the last).
+ */
+function shellCommandList(line: string): { words: string[]; after: string[] }[] {
+  const commands: { words: string[]; after: string[] }[] = [];
+  let current: { words: string[]; after: string[] } = { words: [], after: [] };
+  const separate = (separator: string) => {
+    if (current.words.length > 0) {
+      commands.push(current);
+      current = { words: [], after: [] };
+    }
+    commands[commands.length - 1]?.after.push(separator);
+  };
   for (const raw of beforeShellComment(line).split(/[ \t]+/)) {
     const word = raw.endsWith(';') && raw.length > 1 ? raw.slice(0, -1) : raw;
     if (word === '') continue;
     if (SHELL_COMMAND_SEPARATORS.has(word)) {
-      commands.push([]);
+      separate(word);
       continue;
     }
-    commands[commands.length - 1]?.push(word);
-    if (raw.endsWith(';') && raw.length > 1) commands.push([]);
+    current.words.push(word);
+    if (raw.endsWith(';') && raw.length > 1) separate(';');
   }
-  return commands.filter((command) => command.length > 0);
+  if (current.words.length > 0) commands.push(current);
+  const last = commands[commands.length - 1];
+  if (last) last.after = [];
+  return commands;
+}
+
+/** One line's words, split into commands at shell separators. */
+function shellCommands(line: string): string[][] {
+  return shellCommandList(line).map(({ words }) => words);
+}
+
+/**
+ * For each command of a line, the last command reached from it only through `&&` (itself when it
+ * is not followed by exactly one `&&`). One backward pass.
+ */
+function andChainEnds(commands: readonly { readonly after: readonly string[] }[]): number[] {
+  const ends = new Array<number>(commands.length);
+  for (let index = commands.length - 1; index >= 0; index -= 1) {
+    const after = commands[index]?.after ?? [];
+    ends[index] = after.length === 1 && after[0] === '&&' ? (ends[index + 1] ?? index) : index;
+  }
+  return ends;
 }
 
 // Stands in for the words between a matched subcommand and its flag, which are never quoted.
@@ -5185,26 +5217,32 @@ const STEP_MAY_CONTINUE_PAST_FAILURE_WORDS: ReadonlySet<string> = new Set([
 ]);
 
 /**
- * True when a failure of the single command on `line` ends its step, and so its job, before any
- * later command or step runs. Required only when the lockfile may be written after that line
- * (#520). The workflow names no BASH_ENV; the line holds that command alone and does not continue
- * a line or continue onto the next; and no line of the step holds a pipeline, list, subshell, group
- * status, substitution or any of STEP_MAY_CONTINUE_PAST_FAILURE_WORDS. Then either:
- *   - that line is the step's whole script, and every `shell:` in the workflow is one GitHub
- *     provides (setsOnlyGitHubProvidedShells): each exits with the one command's status, on any
- *     runner, so the failing step fails the job; or
- *   - every job runs on a GitHub-hosted Ubuntu or macOS label under bash
- *     (runsOnlyOnHostedBashRunners), so each step runs under `bash -e`, which stops at the line.
+ * True when a failure of a command on `line` ends its step, and so its job, before any later
+ * command or step runs. Required only when the lockfile may be written after that command
+ * (#520). The workflow names no BASH_ENV; the line does not continue a line or continue onto the
+ * next; and no line of the step holds a pipeline, list, subshell, group status, substitution or any
+ * of STEP_MAY_CONTINUE_PAST_FAILURE_WORDS. Then either:
+ *   - that line is the step's whole script, it holds that command alone or one chain of commands
+ *     joined only by `&&` (v3 item B), and every `shell:` in the workflow is one GitHub provides
+ *     (setsOnlyGitHubProvidedShells): each exits with the one command's status, or the chain's,
+ *     which is the failing command's, on any runner (`&&` stops at a failing command in bash, sh,
+ *     pwsh 7 and cmd, and is a parse error in Windows PowerShell 5.1), so the failing step fails the
+ *     job; or
+ *   - the line holds that command alone, and every job runs on a GitHub-hosted Ubuntu or macOS
+ *     label under bash (runsOnlyOnHostedBashRunners), so each step runs under `bash -e`, which
+ *     stops at the line. A failing command in a `&&` list does not stop `bash -e`.
  */
 function failureStopsJobAt(contents: string, step: WorkflowRunStep, line: number): boolean {
   if (/\bBASH_ENV\b/.test(contents)) return false;
   const at = step.lines.findIndex((entry) => entry.line === line);
   if (at === -1) return false;
   const text = step.lines[at]?.text ?? '';
-  if (shellCommands(text).length !== 1 || /\\[ \t]*$/.test(text)) return false;
+  const list = shellCommandList(text);
+  const andChain = list.length > 1 && step.lines.length === 1 && (andChainEnds(list)[0] ?? 0) === list.length - 1;
+  if ((list.length !== 1 && !andChain) || /\\[ \t]*$/.test(text)) return false;
   if (at > 0 && /\\[ \t]*$/.test(step.lines[at - 1]?.text ?? '')) return false;
   const stops = step.lines.every(({ text: body }) => {
-    const code = beforeShellComment(body);
+    const code = andChain ? beforeShellComment(body).replace(/(?<=^|[ \t])&&(?=[ \t]|$)/g, ' ') : beforeShellComment(body);
     return (
       !STEP_MAY_CONTINUE_PAST_FAILURE_PATTERN.test(code) &&
       !code.split(/[ \t;]+/).some((word) => STEP_MAY_CONTINUE_PAST_FAILURE_WORDS.has(word))
@@ -5251,7 +5289,11 @@ function findLockfileRequirement(
     if (!workflowReadsOnlyThisTree(inventory, contents)) continue;
     const steps = githubActionsRunSteps(contents);
     const commandsOf = (step: WorkflowRunStep) =>
-      step.lines.flatMap(({ line, text }) => shellCommands(text).map((words) => ({ line, words })));
+      step.lines.flatMap(({ line, text }) => {
+        const list = shellCommandList(text);
+        const ends = andChainEnds(list);
+        return list.map(({ words }, index) => ({ line, index, andEnd: ends[index] ?? index, words, list }));
+      });
     const stepCommands = steps.map(commandsOf);
     // Each placed `uses:` step: a local composite action's commands join the writers at its line;
     // any other action Cejel did not read is noted at the first line in its job that uses one.
@@ -5292,6 +5334,23 @@ function findLockfileRequirement(
       writers.set(match.key, byJob);
       return byJob;
     };
+    // For each key and line, the first and last command on the line that may write the lockfile.
+    const lineWriters = new Map<string, { readonly first: number; readonly last: number }>();
+    const writersOnLine = (match: RequiringCommandMatch, line: number, list: readonly { readonly words: readonly string[] }[]) => {
+      const cacheKey = `${match.key}\n${line}`;
+      const known = lineWriters.get(cacheKey);
+      if (known) return known;
+      let first = Number.POSITIVE_INFINITY;
+      let last = -1;
+      for (const [at, command] of list.entries()) {
+        if (!match.mayWrite(command.words)) continue;
+        first = Math.min(first, at);
+        last = at;
+      }
+      const found = { first, last };
+      lineWriters.set(cacheKey, found);
+      return found;
+    };
     for (const [stepIndex, step] of steps.entries()) {
       if (step.conditional) continue;
       const commands = stepCommands[stepIndex] ?? [];
@@ -5304,14 +5363,22 @@ function findLockfileRequirement(
         );
       });
       if (leavesCheckout) continue;
-      for (const { line, words } of commands) {
+      for (const { line, index, andEnd, words, list } of commands) {
         for (const match of requiringCommandMatches(words, inventory, isSatisfied)) {
           const byJob = firstWriterLines(match);
           if (byJob === undefined) continue;
           if (byJob.size > 0) {
             const first = byJob.get(step.job);
             const elsewhere = step.job === -1 || [...byJob.keys()].some((job) => job !== step.job);
-            if (elsewhere || first === undefined || first <= line || !failureStopsJobAt(contents, step, line)) continue;
+            if (elsewhere || first === undefined || first < line) continue;
+            // A writer on the requiring command's own line excuses it when it comes before it or is
+            // itself, or comes after it other than through `&&` alone, which stops at the failing
+            // command in every shell (v3 item B).
+            if (first === line) {
+              const onLine = writersOnLine(match, line, list);
+              if (onLine.first <= index || onLine.last > andEnd) continue;
+            }
+            if (!failureStopsJobAt(contents, step, line)) continue;
           }
           const requirement: LockfileRequirement = { source: 'workflow', file, line, command: match.command, lockfiles: match.lockfiles };
           const unreadAt = firstUnreadAction.get(step.job);
