@@ -9,7 +9,6 @@ import {
   WITAN_RUBRIC_VERSION_V8,
   WITAN_TRADING_RUBRIC_VERSION_V0,
   type WitanConsumedSignalSummary,
-  type WitanContentReadSkipReason,
   type WitanCriterionId,
   type WitanCriterionMetric,
   type WitanCriterionScore,
@@ -18,6 +17,7 @@ import {
   type WitanEvidencePointer,
   type WitanFinding,
   type WitanInputSignal,
+  type WitanInsufficientDataReason,
   type WitanReport,
   type WitanReportInputPayload,
   WitanReportInputSchema,
@@ -117,7 +117,7 @@ export function createWitanReport(
   // score; goal_cejel_0_4_8_abstention_scoring_fix_2026-09-08).
   const readFailureAbstentions = new Set(
     [...signalsByCriterion.values()]
-      .filter((signal) => signal.insufficientData === true && !isSelfImposedAbstention(signal))
+      .filter((signal) => signal.insufficientData === true && !isCompositeExcludedAbstention(signal))
       .map((signal) => signal.criterionId),
   );
   const hasInputSignals = inputSignals != null && inputSignals.length > 0;
@@ -406,21 +406,24 @@ function statusAfterInputAdjustment(
     : nativeStatus;
 }
 
-// Reasons insufficientData can carry that are self-imposed coverage limits Cejel chose itself
-// (never a read failure): see the WitanCriterionSignalSchema.insufficientDataReason comment.
-const SELF_IMPOSED_ABSTENTION_REASONS: ReadonlySet<WitanContentReadSkipReason> = new Set([
+// Reasons insufficientData can carry that are never a read failure, so the criterion leaves the
+// composite like ordinary insufficient_data: the self-imposed coverage limits Cejel chose itself,
+// and (#442, operator decision 2026-10-26) B2's commit window truncated by a shallow clone. See the
+// WitanCriterionSignalSchema.insufficientDataReason comment.
+const COMPOSITE_EXCLUDED_ABSTENTION_REASONS: ReadonlySet<WitanInsufficientDataReason> = new Set([
   'too_large',
   'excluded_by_extension',
   'non_regular_file',
+  'shallow_history',
 ]);
 
-// True only when the signal's insufficientData is explicitly and exclusively attributable to a
-// self-imposed coverage limit. A missing reason keeps the historical conservative default (treat
-// as a read failure) so any signal producer that predates this field is unaffected.
-function isSelfImposedAbstention(signal: WitanCriterionSignal): boolean {
+// True only when the signal's insufficientData is explicitly and exclusively attributable to one
+// of the reasons above. A missing reason keeps the historical conservative default (treat as a
+// read failure) so any signal producer that predates this field is unaffected.
+function isCompositeExcludedAbstention(signal: WitanCriterionSignal): boolean {
   return (
     signal.insufficientDataReason !== undefined &&
-    SELF_IMPOSED_ABSTENTION_REASONS.has(signal.insufficientDataReason)
+    COMPOSITE_EXCLUDED_ABSTENTION_REASONS.has(signal.insufficientDataReason)
   );
 }
 
@@ -448,7 +451,7 @@ function mergeSignalsByCriterion(
       ? undefined
       : [existing, signal]
           .filter((candidate) => candidate.insufficientData === true)
-          .some((candidate) => !isSelfImposedAbstention(candidate))
+          .some((candidate) => !isCompositeExcludedAbstention(candidate))
         ? undefined
         : (signal.insufficientDataReason ?? existing.insufficientDataReason);
 

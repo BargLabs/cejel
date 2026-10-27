@@ -6040,11 +6040,19 @@ const V27_B2_SHALLOW_HISTORY_NOTE =
   `B2 abstained: this repository is a shallow clone with fewer than ${RECENT_COMMIT_WINDOW} commits ` +
   'visible, so the pull-request merge ratio cannot be read over its window. Re-scan a full clone ' +
   '(for actions/checkout, set fetch-depth: 0).';
+// #442, every rubric but v27: the same abstention, left out of the composite. It starts with the
+// same words as the v27 note, so a reader of either knows it is the shallow-clone one.
+const B2_SHALLOW_HISTORY_NOTE =
+  `B2 abstained: this repository is a shallow clone with fewer than ${RECENT_COMMIT_WINDOW} commits ` +
+  'visible, so the pull-request merge ratio cannot be read over its window. B2 is left out of the ' +
+  'composite rather than scored on the commits present. Re-scan a full clone (for actions/checkout, ' +
+  'set fetch-depth: 0).';
 
 /**
  * A criterion that reads commit history, abstaining because the clone is shallow (v27, #442). No
  * insufficientDataReason: it is a read failure, so it stays in the composite at 0 and a shallow
- * clone can never score higher than the full clone would have on that account.
+ * clone can never score higher than the full clone would have on that account. B2's abstention
+ * under every other rubric adds the 'shallow_history' reason, which leaves the composite.
  */
 function shallowHistoryAbstention(
   criterionId: 'A2' | 'B2',
@@ -6121,16 +6129,17 @@ function collectB2PrTraceEvidence(
       : []),
   ];
   if (evidence.length === 0) return null;
-  // v27 (#442): pr_merge_ratio reads the most recent RECENT_COMMIT_WINDOW commits. A shallow clone
-  // with fewer visible has truncated that window; B2 abstains rather than score the remainder.
-  // Withholding only pr_merge_ratio is not done: B2 would then score on pr_trace_primitives alone,
-  // which can be higher.
-  if (
-    useV27FalseAssuranceClosure &&
-    isShallowRepository(repoPath) &&
-    readRecentCommits(repoPath).length < RECENT_COMMIT_WINDOW
-  ) {
-    return shallowHistoryAbstention('B2', V27_B2_SHALLOW_HISTORY_NOTE);
+  // #442: pr_merge_ratio reads the most recent RECENT_COMMIT_WINDOW commits. A shallow clone with
+  // fewer visible has truncated that window, and the ratio over what remains can score lower than
+  // the full window would (at depth 1 it is 0 or 1, from HEAD's subject alone), so B2 abstains
+  // rather than score the remainder. Withholding only pr_merge_ratio is not done: B2 would then
+  // score on pr_trace_primitives alone, which can be lower or higher. Every rubric but v27 leaves the
+  // abstention out of the composite (operator decision 2026-10-26: a shallow clone must not lower
+  // the history score). v27 keeps it as a read failure at 0, as its no-rise property requires.
+  if (isShallowRepository(repoPath) && readRecentCommits(repoPath).length < RECENT_COMMIT_WINDOW) {
+    return useV27FalseAssuranceClosure
+      ? shallowHistoryAbstention('B2', V27_B2_SHALLOW_HISTORY_NOTE)
+      : { ...shallowHistoryAbstention('B2', B2_SHALLOW_HISTORY_NOTE), insufficientDataReason: 'shallow_history' };
   }
   return {
     criterionId: 'B2',

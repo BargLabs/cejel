@@ -232,6 +232,17 @@ export const WitanContentReadSkipReasonSchema = z.enum([
 ]);
 export type WitanContentReadSkipReason = z.infer<typeof WitanContentReadSkipReasonSchema>;
 
+// Why a collector abstained (WitanCriterionSignalSchema.insufficientDataReason): a content-read
+// skip reason, or one reason that is not about content. Additive (#442, operator decision
+// 2026-10-26): 'shallow_history' is B2's abstention when a shallow clone holds fewer commits than
+// its pull-request merge window reads, under every rubric but witan-rubric-v27-prospective-2026-10-19.
+// It is never a content-read skip, so contentReadSummary does not count it.
+export const WitanInsufficientDataReasonSchema = z.enum([
+  ...WitanContentReadSkipReasonSchema.options,
+  'shallow_history',
+]);
+export type WitanInsufficientDataReason = z.infer<typeof WitanInsufficientDataReasonSchema>;
+
 // Additive-optional (report format 1.8): sentences naming what a criterion's collector read and
 // set aside or counted without seeing it do what it is counted for. Carried apart from `notes`, so
 // an abstention or merge that rewrites the notes cannot drop them; the certificate lists them under
@@ -257,7 +268,9 @@ export const WitanCriterionSignalSchema = z
     // 'excluded_by_extension', and 'non_regular_file' are self-imposed coverage limits Cejel
     // chose itself: those are excluded from the composite exactly like ordinary
     // insufficient_data (ADR-0001: coverage is disclosed, never discounts a score).
-    insufficientDataReason: WitanContentReadSkipReasonSchema.optional(),
+    // 'shallow_history' (#442) is excluded the same way: a shallow clone must not lower the
+    // history score, so B2 states the window it did not read instead of scoring what it did.
+    insufficientDataReason: WitanInsufficientDataReasonSchema.optional(),
   })
   .strict()
   .refine((signal) => !(signal.notApplicable && signal.insufficientData), {
