@@ -5224,7 +5224,7 @@ const STEP_MAY_CONTINUE_PAST_FAILURE_WORDS: ReadonlySet<string> = new Set([
  * of STEP_MAY_CONTINUE_PAST_FAILURE_WORDS. Then either:
  *   - that line is the step's whole script, it holds that command alone or one chain of commands
  *     joined only by `&&` (v3 item B), and every `shell:` in the workflow is one GitHub provides
- *     (setsOnlyGitHubProvidedShells): each exits with the one command's status, or the chain's,
+ *     or a bash-family custom shell (setsOnlyGitHubProvidedShells, v3 item C): each exits with the one command's status, or the chain's,
  *     which is the failing command's, on any runner (`&&` stops at a failing command in bash, sh,
  *     pwsh 7 and cmd, and is a parse error in Windows PowerShell 5.1), so the failing step fails the
  *     job; or
@@ -6613,14 +6613,49 @@ function runsOnlyOnHostedBashRunners(contents: string): boolean {
 
 // Every shell GitHub provides for `run:`. A step whose script is one command exits with that
 // command's status in each: bash and sh run with -e, pwsh and powershell end with the last exit
-// code, and cmd returns the last command's status (#520). A custom shell (`perl {0}`) is not read.
+// code, and cmd returns the last command's status (#520). A custom shell (`perl {0}`) is not read,
+// except the bash family (isBashFamilyShell).
 const GITHUB_PROVIDED_SHELLS: ReadonlySet<string> = new Set(['bash', 'sh', 'pwsh', 'powershell', 'cmd']);
 
-/** True when every `shell:` line in the workflow sets one of GITHUB_PROVIDED_SHELLS. Linear in the file. */
+// v3 item C. The options a bash-family custom shell may set: login, errexit, nounset, xtrace and
+// verbose as short flags (`-el`), `-o` with one of BASH_FAMILY_SHELL_O_OPTIONS (also as the last
+// letter of a cluster, `-eo pipefail`), and `--login`, `--noprofile` and `--norc`. None lets a
+// failing script's last command pass.
+const BASH_FAMILY_SHELL_FLAGS_PATTERN = /^-[eluvx]*o?$/;
+const BASH_FAMILY_SHELL_O_OPTIONS: ReadonlySet<string> = new Set(['errexit', 'pipefail', 'nounset']);
+const BASH_FAMILY_SHELL_LONG_FLAGS: ReadonlySet<string> = new Set(['--login', '--noprofile', '--norc']);
+
+/**
+ * True for a custom shell that runs bash on the step's script file (`bash -l {0}`,
+ * `bash --noprofile --norc -eo pipefail {0}`): `bash`, then only the flags above, then `{0}` alone
+ * and last. Bash then exits with the script's last command's status, so a step whose script is one
+ * command fails with it, as under the shells GitHub provides. Linear in the value.
+ */
+function isBashFamilyShell(value: string): boolean {
+  const words = value.trim().split(/[ \t]+/);
+  if (words[0] !== 'bash' || words.length < 3 || words[words.length - 1] !== '{0}') return false;
+  for (let index = 1; index < words.length - 1; index += 1) {
+    const word = words[index] ?? '';
+    if (BASH_FAMILY_SHELL_LONG_FLAGS.has(word)) continue;
+    if (word === '-' || !BASH_FAMILY_SHELL_FLAGS_PATTERN.test(word)) return false;
+    if (word.endsWith('o')) {
+      index += 1;
+      if (index >= words.length - 1 || !BASH_FAMILY_SHELL_O_OPTIONS.has(words[index] ?? '')) return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * True when every `shell:` line in the workflow sets one of GITHUB_PROVIDED_SHELLS or a bash-family
+ * custom shell (isBashFamilyShell). Linear in the file.
+ */
 function setsOnlyGitHubProvidedShells(contents: string): boolean {
   for (const raw of contents.split(/\r?\n/)) {
     const shell = SHELL_KEY_PATTERN.exec(raw);
-    if (shell && !GITHUB_PROVIDED_SHELLS.has(shellKeyValue(shell))) return false;
+    if (!shell) continue;
+    const value = shellKeyValue(shell);
+    if (!GITHUB_PROVIDED_SHELLS.has(value) && !isBashFamilyShell(value)) return false;
   }
   return true;
 }
@@ -6715,6 +6750,9 @@ const REF_CONDITION_REVERSED_PATTERN = /^'([A-Za-z0-9._/-]+)'[ \t]*==[ \t]*githu
 // repository runs it, which is the repository Cejel scans, so it is no gate there.
 const REPOSITORY_CONDITION_PATTERN = /^github\.repository[ \t]*==[ \t]*'[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+'$/i;
 const REPOSITORY_CONDITION_REVERSED_PATTERN = /^'[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+'[ \t]*==[ \t]*github\.repository$/i;
+// `github.repository_owner == 'owner'` guards forks the same way (v3 item C).
+const REPOSITORY_OWNER_CONDITION_PATTERN = /^github\.repository_owner[ \t]*==[ \t]*'[A-Za-z0-9._-]+'$/i;
+const REPOSITORY_OWNER_CONDITION_REVERSED_PATTERN = /^'[A-Za-z0-9._-]+'[ \t]*==[ \t]*github\.repository_owner$/i;
 // Status checks that hold on every run that reaches the job or step: `success()` is the default
 // condition, and `always()` and `!cancelled()` are weaker than it.
 const ALWAYS_TRUE_STATUS_CHECK_PATTERN = /^(?:always\(\)|success\(\)|![ \t]*cancelled\(\))$/i;
@@ -6727,6 +6765,7 @@ const STATUS_CHECK_CALL_PATTERN = /(?:![ \t]*)?\b(?:always|success|cancelled|fai
 function isAlwaysTrueConditionAtom(atom: string, context: WorkflowTriggerContext): boolean {
   if (atom === 'true' || ALWAYS_TRUE_STATUS_CHECK_PATTERN.test(atom)) return true;
   if (REPOSITORY_CONDITION_PATTERN.test(atom) || REPOSITORY_CONDITION_REVERSED_PATTERN.test(atom)) return true;
+  if (REPOSITORY_OWNER_CONDITION_PATTERN.test(atom) || REPOSITORY_OWNER_CONDITION_REVERSED_PATTERN.test(atom)) return true;
   const event = EVENT_NAME_CONDITION_PATTERN.exec(atom);
   const eventReversed = event ? null : EVENT_NAME_CONDITION_REVERSED_PATTERN.exec(atom);
   if (event || eventReversed) {
@@ -6749,9 +6788,10 @@ function isAlwaysTrueConditionAtom(atom: string, context: WorkflowTriggerContext
  * triggers can start, so it is no gate. Read are `${{ }}`-wrapped or bare expressions made of
  * `true`, `always()`, `success()`, `!cancelled()`, `github.event_name` compared with an event name,
  * `github.ref` or `github.ref_name` compared with the one branch a branch-filtered push runs for,
- * and `github.repository` compared with a name (a fork guard), joined by `&&` and `||` with no
- * other parentheses or `!`, and quoted strings of plain name characters only; names and strings are
- * compared ignoring case, as GitHub compares them. Anything else may be false, so it is a gate.
+ * and `github.repository` or `github.repository_owner` compared with a name (a fork guard), joined
+ * by `&&` and `||` with no other parentheses or `!`, and quoted strings of plain name characters
+ * only; names and strings are compared ignoring case, as GitHub compares them. Anything else may be
+ * false, so it is a gate.
  * Linear in the expression.
  */
 function isAlwaysTrueCondition(expression: string, context: WorkflowTriggerContext): boolean {
