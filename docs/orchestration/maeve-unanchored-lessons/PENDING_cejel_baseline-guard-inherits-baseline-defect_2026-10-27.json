@@ -1,0 +1,23 @@
+[
+  {
+    "statement": "A no-rise guard compared the prospective rubric with the calibrated one on the same input, so on a depth-1 clone it accepted any result no higher than the calibrated score, and that score was itself read from one commit where the window holds twelve: the full clone scored B2 verified 3.6, the depth-1 clone warning 3.2. A guard anchored to a baseline on a degraded input inherits the baseline's defect and passes it. Rules: when a guard compares two scorers on a degraded input (shallow, partial, truncated), also compare the baseline's degraded result with its own result on the complete input; and before narrowing any guard, state which of the two comparisons each change moves.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "false-assurance"
+    ],
+    "tags": [
+      "baseline-anchored-guard",
+      "degraded-input",
+      "shallow-clone"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-10-27T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 603
+    }
+  }
+]

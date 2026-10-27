@@ -36,7 +36,8 @@ import { checkNoRise, evidenceIdentity, lostFindings } from './v27-no-rise.js';
 //
 // Two halves. Under v17, the public default, scoring must not move (the presentation fixes change
 // notes, labels, citation order and an LFS pointer count, nothing else), so the v17 assertions
-// below pin the v17 result, defect included. Under witan-rubric-v27-prospective-2026-10-19 the
+// below pin the v17 result, defect included. The one exception is #442's B2 on a shallow clone,
+// which abstains under v17 too by the operator's decision of 2026-10-26. Under witan-rubric-v27-prospective-2026-10-19 the
 // defect is gone, and the last block checks the property that admits v27 at all: no score, status
 // or composite rises against v17 on any fixture.
 
@@ -430,9 +431,14 @@ describe('#520 — A4 says what the repository itself requires, and cites what d
 describe('#442 — history Cejel did not read is not scored', () => {
   const shallow = 'history-shallow-clone';
 
-  it('v17 is unchanged: A2 and B2 score the truncated history behind a display-only disclosure', () => {
+  // Operator decision 2026-10-26: a shallow clone must not lower the history score. v17 scored B2
+  // warning on the one visible commit where the full clone scores it verified; it now abstains,
+  // left out of the composite (shallow-history-not-lower-442.test.ts). A2 still scores what it read.
+  it('v17: A2 scores the truncated history, B2 abstains out of the composite, behind a display-only disclosure', () => {
     expect(criterion(shallow, V17, 'A2').status).toBe('verified');
-    expect(criterion(shallow, V17, 'B2').status).toBe('warning');
+    expect(criterion('history-full-clone', V17, 'B2').status).toBe('verified');
+    expect(criterion(shallow, V17, 'B2').status).toBe('insufficient_data');
+    expect(criterion(shallow, V17, 'B2').notes).toContain('left out of the composite');
     expect(report(shallow, V17).historyLimitations).toEqual([SHALLOW_HISTORY_LIMITATION]);
   });
 
@@ -1371,12 +1377,14 @@ describe('no score, status or composite rises from v17 to v27 on any fixture', (
     });
   }
 
+  // B2 abstains on this depth-1 clone under v17 too (#442, operator decision 2026-10-26), so only
+  // A2's abstention is one v27 introduces. v27 still holds B2 in the denominator at 0, which can
+  // only lower its composite against v17's, where B2 is left out.
   it('#442: the shallow-clone abstentions are read failures kept in the denominator at 0', () => {
     const result = checkNoRise(report('history-shallow-clone', V17), report('history-shallow-clone', V27));
-    expect(result.introducedAbstentions).toEqual([
-      { id: 'A2', kind: 'shallow-history', denominator: 'kept' },
-      { id: 'B2', kind: 'shallow-history', denominator: 'kept' },
-    ]);
+    expect(result.introducedAbstentions).toEqual([{ id: 'A2', kind: 'shallow-history', denominator: 'kept' }]);
+    expect(criterion('history-shallow-clone', V17, 'B2').status).toBe('insufficient_data');
+    expect(criterion('history-shallow-clone', V27, 'B2').status).toBe('insufficient_data');
   });
 
   it('#519: the LFS pointer abstention is a read failure kept in the denominator at 0', () => {

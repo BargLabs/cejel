@@ -126,6 +126,8 @@ export function describeGeneratedNoRiseShard(index: number): void {
     readableWorkflows: new Set<string>(),
     workflowsScored: new Set<string>(),
     shallowShapes: 0,
+    // Depth-1 shapes where v17's B2 carries #442's shallow-clone abstention (B2 had evidence).
+    shallowB2BothRubrics: 0,
     compositesFallen: 0,
     // The names of the shape tests whose bodies ran, checked after the describe against an
     // independent recomputation of the shard, so a filter or skip cannot drop shapes silently.
@@ -151,9 +153,17 @@ export function describeGeneratedNoRiseShard(index: number): void {
           expect(lostCritical, record(name, lostCritical)).toEqual([]);
           if (shape.history === 'shallow') {
             seen.shallowShapes += 1;
-            // The shape is live: v27 abstains on B2 wherever v17 scored it, and on A2 wherever v17
-            // scored it below critical (a confirmed critical finding keeps A2 scored).
-            for (const id of ['A2', 'B2']) {
+            // #442 (operator decision 2026-10-26): B2 abstains on a depth-1 clone under v17 too, out
+            // of the composite there and at 0 under v27, so it is not an abstention v27 introduces.
+            const b2 = (report: WitanReport) => report.criteria.find((criterion) => criterion.id === 'B2')!;
+            expect(b2(before).status, `B2 ${name}`).toBe('insufficient_data');
+            expect(b2(after).status, `B2 ${name}`).toBe('insufficient_data');
+            if ((b2(before).notes ?? '').startsWith('B2 abstained: this repository is a shallow clone')) {
+              seen.shallowB2BothRubrics += 1;
+            }
+            // The shape is live: v27 abstains on A2 wherever v17 scored it below critical (a
+            // confirmed critical finding keeps A2 scored).
+            for (const id of ['A2']) {
               const v17 = before.criteria.find((criterion) => criterion.id === id)!;
               const v27 = after.criteria.find((criterion) => criterion.id === id)!;
               if (v17.status === 'not_applicable' || v17.status === 'insufficient_data') continue;
@@ -193,10 +203,11 @@ export function describeGeneratedNoRiseShard(index: number): void {
       // shows held in the denominator.
       const pairs = [...new Set(seen.abstentions.map((a) => `${a.kind} ${a.id}`))];
       expect(pairs.filter((pair) => !seen.abstentions.some((a) => `${a.kind} ${a.id}` === pair && a.denominator === 'kept'))).toEqual([]);
-      for (const pair of ['shallow-history A2', 'shallow-history B2', 'content-read A1', 'content-read B2', 'content-read B3']) {
+      for (const pair of ['shallow-history A2', 'content-read A1', 'content-read B2', 'content-read B3']) {
         expect(pairs, pair).toContain(pair);
       }
       expect(seen.shallowShapes).toBeGreaterThan(0);
+      expect(seen.shallowB2BothRubrics).toBeGreaterThan(0);
       // A hollow suite (A1) and a publish-only workflow (B3) lose credit somewhere.
       expect(seen.fallen.get('A1') ?? 0).toBeGreaterThan(0);
       expect(seen.fallen.get('B3') ?? 0).toBeGreaterThan(0);
