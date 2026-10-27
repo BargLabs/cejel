@@ -83,6 +83,13 @@ export const WITAN_B3_UNCREDITED_CI_WORKFLOW_PREFIX = 'B3 did not count CI workf
 // under the prefix above. Listed the same way.
 export const WITAN_B3_PUBLISHING_CI_WORKFLOW_PREFIX =
   'B3 did not count CI workflows that publish, release or deploy with no pull-request trigger, whatever else they run: ';
+// Every rubric but the prospective v27, presentation only (#520): when the repository's own CI or
+// tox configuration requires a lockfile that is not committed, and A4 is scored under library norms,
+// A4 says it did not compute lockfile_coverage rather than leave the metric out unremarked. v27
+// scores it 0 instead, so it is never written there. One of A4's criteria[].disclosures, listed
+// under "What was not established" while A4 is scored. It moves no score.
+export const WITAN_A4_LOCKFILE_COVERAGE_NOT_COMPUTED_PREFIX =
+  "A4 did not compute lockfile coverage under this rubric, which scores a library's lockfile only when one is committed: ";
 
 export function isWitanNoMeasurementAbstention(report: WitanReport): boolean {
   return (

@@ -4,6 +4,7 @@ import {
   WITAN_A2_TENANT_ISOLATION_UNSETTLED_DISCLOSURE,
   WITAN_A3_BUILD_STEP_UNSETTLED_DISCLOSURE,
   WITAN_A5_RECONCILIATION_UNSETTLED_DISCLOSURE,
+  WITAN_A4_LOCKFILE_COVERAGE_NOT_COMPUTED_PREFIX,
   WITAN_B2_UNCREDITED_CI_WORKFLOW_PREFIX,
   WITAN_B3_UNCREDITED_CI_WORKFLOW_PREFIX,
   WITAN_B3_PUBLISHING_CI_WORKFLOW_PREFIX,
@@ -965,6 +966,14 @@ function uncreditedCiWorkflowDisclosures(report: WitanReport): string[] {
   });
 }
 
+// Every rubric but v27 (#520): A4 did not compute lockfile coverage although the repository's own
+// CI or tox configuration requires a lockfile that is not committed. Listed only while A4 is scored.
+function lockfileCoverageNotComputedDisclosures(report: WitanReport): string[] {
+  const a4 = report.criteria.find((criterion) => criterion.id === 'A4');
+  if (!a4 || a4.status === 'not_applicable' || a4.status === 'insufficient_data') return [];
+  return criterionDisclosures(report, 'A4', WITAN_A4_LOCKFILE_COVERAGE_NOT_COMPUTED_PREFIX);
+}
+
 function criterionDisclosures(report: WitanReport, criterionId: string, prefix: string): string[] {
   const criterion = report.criteria.find((entry) => entry.id === criterionId);
   return (criterion?.disclosures ?? []).filter((sentence) => sentence.startsWith(prefix));
@@ -1054,6 +1063,7 @@ export function buildRelyingPartySummary(report: WitanReport): RelyingPartySumma
   gaps.push(...historyApplicabilityDisclosures(report));
   gaps.push(...unshownCheckWorkflowDisclosures(report));
   gaps.push(...uncreditedCiWorkflowDisclosures(report));
+  gaps.push(...lockfileCoverageNotComputedDisclosures(report));
   const withheldPathsSentence = buildWithheldPathsGapSentence(report);
   if (withheldPathsSentence !== undefined) {
     gaps.push(withheldPathsSentence);
