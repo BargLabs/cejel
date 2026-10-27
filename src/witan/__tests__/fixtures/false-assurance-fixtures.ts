@@ -147,8 +147,9 @@ const NPM_PUBLISH_UNGATED = NPM_PUBLISH_GATED.replace(
   '  push:\n    branches: [main]',
 ).replace('    environment: npm-publish\n', '');
 
-// A workflow that verifies AND publishes on every push is still CI: its test step runs on the
-// default branch. Excluding it would remove real CI credit.
+// A workflow that verifies AND publishes on every push. Under v27 its first closure counted it as
+// CI (its test step runs on the default branch); since the 2026-10-26 #517 follow-up B3 does not,
+// because it publishes with no pull-request gate, whatever else it runs.
 const NPM_TEST_THEN_PUBLISH = [
   'name: ci-release',
   'on:',
@@ -309,7 +310,8 @@ const FALSE_ASSURANCE_FIXTURES_ISSUES: readonly FalseAssuranceFixture[] = [
   {
     name: 'b3-test-then-publish-workflow',
     issue: '#517',
-    purpose: 'Corner: a workflow that runs the tests and then publishes still counts as CI.',
+    purpose:
+      'Corner: a workflow that runs the tests and then publishes on every push, with no pull-request trigger (counted by v27 until the 2026-10-26 #517 follow-up, not counted by B3 since).',
     commits: [{ ...JS_LIBRARY, '.github/workflows/ci-release.yml': NPM_TEST_THEN_PUBLISH }],
   },
   // #518 ------------------------------------------------------------------------------------
