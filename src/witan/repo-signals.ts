@@ -6190,6 +6190,8 @@ function isPublishingCommand(input: readonly string[]): boolean {
  *   - has an `on:` the trigger reader places, with no pull-request, merge-queue or
  *     `workflow_call` trigger, and no pull-request trigger word anywhere in the file (a mention in
  *     a comment keeps it counted);
+ *   - runs every job on a GitHub-hosted Ubuntu or macOS label and sets no `shell:`
+ *     (runsOnlyOnHostedBashRunners), so its run lines are read as bash reads them (#564);
  *   - has a step, placed in a step item with no `if:` or `continue-on-error:` on it or its job,
  *     that uses an action in PUBLISHING_ACTIONS, or runs a command isPublishingCommand reads as a
  *     publish in a shell with no heredoc, guard or `||` (stepShellIsConditional).
@@ -6209,6 +6211,26 @@ function publishingWorkflowReasons(
   return reasons;
 }
 
+const RUNS_ON_KEY_PATTERN = /^[ \t]*runs-on:[ \t]*(.*)$/;
+const SHELL_KEY_PATTERN = /^[ \t]*(?:-[ \t]+)?shell:/;
+
+/**
+ * True when the workflow has a `runs-on:` line, every one names a GitHub-hosted Ubuntu or macOS label
+ * (isGitHubHostedBashRunner, #564), and no line sets a `shell:`: the run lines are then read as bash
+ * reads them, as the publish-only and print-only readers require. Linear in the file.
+ */
+function runsOnlyOnHostedBashRunners(contents: string): boolean {
+  let runsOn = 0;
+  for (const raw of contents.split(/\r?\n/)) {
+    if (SHELL_KEY_PATTERN.test(raw)) return false;
+    const match = RUNS_ON_KEY_PATTERN.exec(raw);
+    if (!match) continue;
+    if (!isGitHubHostedBashRunner(beforeShellComment(match[1] ?? ''))) return false;
+    runsOn += 1;
+  }
+  return runsOn > 0;
+}
+
 function isPublishingWorkflow(root: string, file: string): boolean {
   if (!isGitHubActionsWorkflow(file)) return false;
   const fullPath = join(root, file);
@@ -6217,6 +6239,7 @@ function isPublishingWorkflow(root: string, file: string): boolean {
   if (YAML_LINE_BREAK_NOT_SPLIT_PATTERN.test(contents) || PULL_REQUEST_TRIGGER_PATTERN.test(contents)) return false;
   const triggers = githubWorkflowTriggers(contents);
   if (triggers === null || triggers.size === 0 || triggers.has('workflow_call')) return false;
+  if (!runsOnlyOnHostedBashRunners(contents)) return false;
   for (const step of githubActionsUsesSteps(contents)) {
     if (step.conditional) continue;
     const value = unquoteYamlScalar(beforeShellComment(step.lines[0]?.text ?? ''));
@@ -6348,14 +6371,15 @@ function uncreditedCiWorkflowNote(
           `${publishOnly.length === 1 ? '1 workflow that only publishes, releases or deploys' : `${publishOnly.length} workflows that only publish, release or deploy`} (no pull-request trigger, and every step Cejel reads only checks out, sets up a toolchain, configures credentials or uploads an already-built artifact) ${publishOnly.length === 1 ? 'is' : 'are'} not counted as ${notCountedAs}${listed(publishOnly, shown)}.`,
         ]
       : []),
-    ...(publishing.length > 0
-      ? [
-          `${publishing.length === 1 ? '1 workflow that publishes, releases or deploys' : `${publishing.length} workflows that publish, release or deploy`} with no pull-request trigger (an unconditional step runs a publish, release or deploy command or action) ${publishing.length === 1 ? 'is' : 'are'} not counted as ${notCountedAs}, whatever else ${publishing.length === 1 ? 'it runs' : 'they run'}${listed(publishing, shown)}.`,
-        ]
-      : []),
     ...(printOnly.length > 0
       ? [
           `${printOnly.length === 1 ? '1 workflow' : `${printOnly.length} workflows`} not shown to run a check (every step Cejel reads only checks out the repository, prints text or does nothing) ${printOnly.length === 1 ? 'is' : 'are'} not counted as ${notCountedAs}${listed(printOnly, shown)}.`,
+        ]
+      : []),
+    // B3 only (#517), and last, so the sentences B2 shares come first and read the same.
+    ...(publishing.length > 0
+      ? [
+          `${publishing.length === 1 ? '1 workflow that publishes, releases or deploys' : `${publishing.length} workflows that publish, release or deploy`} with no pull-request trigger (an unconditional step runs a publish, release or deploy command or action) ${publishing.length === 1 ? 'is' : 'are'} not counted as ${notCountedAs}, whatever else ${publishing.length === 1 ? 'it runs' : 'they run'}${listed(publishing, shown)}.`,
         ]
       : []),
   ].join(' ');

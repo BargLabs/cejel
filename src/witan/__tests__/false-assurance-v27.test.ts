@@ -1125,6 +1125,10 @@ describe('v27 certificates say a CI workflow was not credited, never that it is 
   });
 });
 
+// #517 (2026-10-26): B3 alone also sets aside a workflow that publishes, releases or deploys with no
+// pull-request trigger, whatever else it runs. B2 and B3 still agree on every workflow not shown to
+// run a check; B3's publishing sentence comes last in its note, after the sentences B2 shares, and
+// its count is not part of the "not shown to run a check" condition.
 describe('B2 and B3 never disagree about which workflows are credited (v27)', () => {
   for (const fixture of FALSE_ASSURANCE_FIXTURES) {
     it(fixture.name, () => {
@@ -1132,7 +1136,15 @@ describe('B2 and B3 never disagree about which workflows are credited (v27)', ()
       const b3 = criterion(fixture.name, V27, 'B3');
       // Skipped where either abstains: an abstaining criterion carries no count to compare.
       if (b2.status === 'insufficient_data' || b3.status === 'insufficient_data') return;
-      expect(b2.notes?.replaceAll('a PR-trace CI workflow', 'CI verification')).toBe(b3.notes);
+      const shared = b2.notes?.replaceAll('a PR-trace CI workflow', 'CI verification') ?? '';
+      const b3Notes = b3.notes ?? '';
+      expect(b3Notes.startsWith(shared)).toBe(true);
+      const publishingSentence = b3Notes.slice(shared.length).trim();
+      if (publishingSentence !== '') {
+        expect(publishingSentence).toMatch(
+          /^\d+ workflows? that publish(?:es)?, releases? or deploys? with no pull-request trigger /,
+        );
+      }
       // The counts agree too: B2 credits every CI workflow file B3 does not set aside.
       const files = new Set<string>();
       for (const commit of fixture.commits) {
