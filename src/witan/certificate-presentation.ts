@@ -4,6 +4,8 @@ import {
   WITAN_A2_TENANT_ISOLATION_UNSETTLED_DISCLOSURE,
   WITAN_A3_BUILD_STEP_UNSETTLED_DISCLOSURE,
   WITAN_A5_RECONCILIATION_UNSETTLED_DISCLOSURE,
+  WITAN_A4_LOCKFILE_COVERAGE_NOT_COMPUTED_PREFIX,
+  WITAN_A4_LOCKFILE_REQUIREMENT_NOT_DETERMINED_PREFIX,
   WITAN_B2_UNCREDITED_CI_WORKFLOW_PREFIX,
   WITAN_B3_UNCREDITED_CI_WORKFLOW_PREFIX,
   WITAN_B3_PUBLISHING_CI_WORKFLOW_PREFIX,
@@ -296,7 +298,7 @@ export const CERTIFICATE_GLOSSARY: readonly CertificateGlossaryEntry[] = [
     key: 'pr-gate-ci-workflow-count',
     term: 'PR-gate CI workflow count (automated build/test pipeline)',
     definition:
-      'The number of detected CI workflow files configured for pull requests or the main or master branch, including a covering monorepo-root workflow, capped at four for scoring. Under the prospective witan-rubric-v27, a workflow file is not counted when Cejel reads every step as only checking out, printing text or doing nothing, or, for a workflow with no pull-request trigger, as only uploading an already-built artifact. Cejel makes either reading only when the runs-on value of every job names a documented GitHub-hosted Ubuntu or macOS runner label. Such a file was not shown to run a check, which is not a finding that it runs none. Under the same rubric, a workflow file with no pull-request trigger is also not counted, by this metric or by CI verification depth, when a step with no if or continue-on-error condition publishes, releases or deploys (a registry publish or upload, a release, an image push or a deploy command or action), whatever else it runs. Cejel makes this reading only on the same runner labels, with no shell setting.',
+      'The number of detected CI workflow files configured for pull requests or the main or master branch, including a covering monorepo-root workflow, capped at four for scoring. Under the prospective witan-rubric-v27, a workflow file is not counted when Cejel reads every step as only checking out, printing text or doing nothing, or, for a workflow with no pull-request trigger, as only uploading an already-built artifact. Cejel makes either reading only when the runs-on value of every job names a documented GitHub-hosted Ubuntu or macOS runner label. Such a file was not shown to run a check, which is not a finding that it runs none. Under the same rubric, a workflow file with no pull-request trigger is also not counted, by this metric or by CI verification depth, when a step publishes, releases or deploys (a registry publish or upload, a release, an image push or a deploy command or action) on every run its triggers start, whatever else it runs, including through a job that calls a reusable workflow in the same repository. An if condition is a gate only when it can be false under the workflow\'s own triggers in the repository itself (a check of the repository\'s own name or owner guards forks, not runs), and a continue-on-error setting keeps the file counted. Cejel reads a publishing action on any runner, and a publish command only on the same runner labels, with no shell setting other than bash.',
     metricNames: ['default_branch_ci_depth'],
   },
   {
@@ -965,6 +967,19 @@ function uncreditedCiWorkflowDisclosures(report: WitanReport): string[] {
   });
 }
 
+// Every rubric but v27 (#520): A4 did not compute lockfile coverage although the repository's own
+// CI or tox configuration requires a lockfile that is not committed. Every rubric: A4 did not
+// compute it because whether such a requirement holds was not determined. Listed only while A4 is
+// scored.
+function lockfileCoverageNotComputedDisclosures(report: WitanReport): string[] {
+  const a4 = report.criteria.find((criterion) => criterion.id === 'A4');
+  if (!a4 || a4.status === 'not_applicable' || a4.status === 'insufficient_data') return [];
+  return [
+    ...criterionDisclosures(report, 'A4', WITAN_A4_LOCKFILE_COVERAGE_NOT_COMPUTED_PREFIX),
+    ...criterionDisclosures(report, 'A4', WITAN_A4_LOCKFILE_REQUIREMENT_NOT_DETERMINED_PREFIX),
+  ];
+}
+
 function criterionDisclosures(report: WitanReport, criterionId: string, prefix: string): string[] {
   const criterion = report.criteria.find((entry) => entry.id === criterionId);
   return (criterion?.disclosures ?? []).filter((sentence) => sentence.startsWith(prefix));
@@ -1054,6 +1069,7 @@ export function buildRelyingPartySummary(report: WitanReport): RelyingPartySumma
   gaps.push(...historyApplicabilityDisclosures(report));
   gaps.push(...unshownCheckWorkflowDisclosures(report));
   gaps.push(...uncreditedCiWorkflowDisclosures(report));
+  gaps.push(...lockfileCoverageNotComputedDisclosures(report));
   const withheldPathsSentence = buildWithheldPathsGapSentence(report);
   if (withheldPathsSentence !== undefined) {
     gaps.push(withheldPathsSentence);

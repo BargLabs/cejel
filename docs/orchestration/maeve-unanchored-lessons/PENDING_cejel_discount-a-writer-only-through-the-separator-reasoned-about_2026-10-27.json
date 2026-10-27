@@ -1,0 +1,23 @@
+[
+  {
+    "statement": "A rule worded for the whole line, count a writer on the requiring command's line only if it comes before it, was justified by one separator: && stops at the failing command. Applied literally it claims a lockfile requirement for uv sync --locked; uv run pytest under pwsh, where the command after ; runs anyway, and for a && chain on one of several lines under bash -e, which does not stop there. Rules: discount a later writer only through the separator the reasoning is about, and test the neighbouring separator and line shape as controls.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "false-assurance"
+    ],
+    "tags": [
+      "shell-semantics",
+      "rule-wider-than-its-reason",
+      "false-assurance"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-10-27T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 600
+    }
+  }
+]

@@ -173,7 +173,10 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 // places where a v17 certificate asserts more than Cejel read (#517, #518, #519, #520, #442):
 //   - B3: a workflow that only publishes, releases or deploys is not counted as CI depth, nor
 //     (#517, 2026-10-26) is one with no pull-request trigger that runs an unconditional publish,
-//     release or deploy step, whatever else it runs;
+//     release or deploy step, whatever else it runs (from 2026-10-27: the trigger read from `on:`
+//     alone, a publishing action read on any runner, a condition that cannot be false under the
+//     triggers or is a fork guard no gate, and a local reusable workflow followed; a job's
+//     matrix is not read, so a publishing job is publishing whatever its matrix, as before);
 //   - A1: conftest.py is not a concrete test file, and an unconditional run-wide pytest skip
 //     (a collection hook that skips or clears every item, or a module-level pytestmark skip)
 //     marks the test files in its scope hollow;
@@ -183,13 +186,18 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //   - A4: under library norms, lockfile_coverage is 0 rather than omitted when the repository's
 //     own CI (or, from 2026-10-26, its tox configuration) requires a lockfile and none is
 //     committed, and (#520, 2026-10-26) under any norms that requirement is a warning finding
-//     citing the requiring line;
+//     citing the requiring line (from 2026-10-27 a requiring step stands when every step that may
+//     write the lockfile comes after it in the same job, a writer after it on its own line
+//     joined only by && included, and a pip install with --require-hashes
+//     requires its requirements file; a requirement an earlier action Cejel did not read may meet
+//     is not determined, and scores no zero);
 //   - A2 and B2: on a shallow clone, A2 abstains unless a confirmed critical secret finding
 //     stands, and B2 abstains when fewer commits are visible than its window reads.
 // Each abstention is a read failure, kept in the composite at 0, and each other change only
 // lowers a metric, adds a zero-valued one or adds a finding, which can only cap a score (A1's non-hollow share stays measured over v17's test
 // list, so excluding conftest.py cannot shrink its denominator), so no score or status can rise
-// against v17; the measured before/after is in
+// against v17 (against the earlier v27, A4 rises where that zero is withdrawn); the measured
+// before/after is in
 // leaderboard/RUBRIC_CHANGELOG.md and docs/reviews/v27-false-assurance-closure-2026-10-19.md.
 // The name collides with the unrelated `useV27Detectors` detector-generation flag in
 // repo-signals.ts (free-core detector v27, which every rubric since v8 uses); the rubric gate is

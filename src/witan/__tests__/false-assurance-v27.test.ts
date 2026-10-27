@@ -140,6 +140,12 @@ const SET_ASIDE_AS_PUBLISHING: ReadonlySet<string> = new Set([
   'review14-uv-escaped-key',
   'review14-poetry-quoted-requires-plugins',
   'review15-uv-hex-escaped-key',
+  // Added 2026-10-27 (#517 second follow-up): a publishing action (here pypa/gh-action-pypi-publish)
+  // is read on any runner, since an action does not run through the step shell; only run lines need
+  // a bash runner. These two upload-only workflows, on windows-latest and on a self-hosted runner,
+  // are still refused by the publish-only reader.
+  'review10-upload-only-windows-runner',
+  'review10-upload-only-self-hosted-runner',
 ]);
 
 /**
@@ -1125,6 +1131,8 @@ describe('#564 — the print-only and publish-only readers claim nothing outside
   ])('%s keeps its credit under v27 and gets no print-only disclosure under v17', (name) => {
     // Changed 2026-10-26 (#517 follow-up): review11's twine upload runs on ubuntu-latest, so B3 now
     // sets it aside as a publishing workflow; it is still never read as publish-only or print-only.
+    // Changed 2026-10-27 (#517 second follow-up): review10's two upload-only workflows publish
+    // through an action, which is read on any runner, so B3 sets them aside too.
     const ids = SET_ASIDE_AS_PUBLISHING.has(name) ? ['B2'] : ['B2', 'B3'];
     for (const id of ids) {
       expect(criterion(name, V27, id), `${name} ${id}`).toEqual(criterion(name, V17, id));

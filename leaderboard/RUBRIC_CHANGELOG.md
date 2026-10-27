@@ -22,6 +22,188 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
+## 2026-10-27 — A4 reads the uv sync-then-run shape on any runner, earlier uses: steps, and pip --require-hashes, and says when lockfile coverage was not computed (#520); v27 B3's publishing rule no longer evaded by removing the gate (#517); published corpus not measured
+
+**Defects.** #520: the lockfile-requirement reader decided "the lockfile may be generated" once per
+workflow, without regard to step order. With `uv.lock` deleted, CI running `uv sync --locked` (or
+`--frozen`) and then `uv run pytest` still printed "a committed lockfile is credited but not
+required" under both rubrics, with no finding and `lockfile_coverage` omitted: the later `uv run`
+excused the earlier step, which fails first. A `pip install --require-hashes` was not read, and
+under v17 a requirement the reader did find left `lockfile_coverage` out with no stated reason.
+The writer scan read only `run:` steps, so an earlier `uses:` step that writes the lockfile (a local
+composite action running `uv lock`, or a third-party action) was ignored and the requirement could
+be claimed falsely. #517: v27's publishing rule from the previous entry was evaded, and B3 rose from
+1.6 to 2.1 (`default_branch_ci_depth` 2 to 3) on the rebuilt PyPI shape, by any of: a job condition
+always true under the trigger (`github.ref == 'refs/heads/main'` on a push filtered to `main`,
+`github.event_name != 'pull_request'`, `always()`, `success()`, `${{ !cancelled() }}`, an
+upper-case `'PUSH'`), a `github.repository` fork guard, the word `pull_request` in a comment, a matrix,
+list-form or Windows `runs-on`, a default `shell:`, or publishing through a job that calls a
+reusable workflow.
+
+A review of the first candidate of this entry (#598, not merged) found that it introduced an evasion
+of its own: it refused the whole publishing file when any job's matrix read `fromJSON(`, so an
+ungated push-to-main publish beside an unrelated job with `matrix: py: ${{ fromJSON('["3.12"]') }}`
+scored v27 B3 2.1 there against 1.6 on main. The no-rise check compared v27 only with v17, which is
+2.1 too, so it could not see this. It also left the separate-step shape printing "not required" on a
+Windows runner, on `runs-on: ${{ matrix.os }}` and with `shell: bash`. A review of the second
+candidate (#599, not merged) found that narrowing that refusal to the publishing job's own matrix
+kept the same rise: an ungated push-to-main publish whose own job has
+`matrix: py: ${{ fromJSON('["3.12"]') }}` and a literal `runs-on: ubuntu-latest`, or a matrix from
+`fromJSON(needs.plan.outputs.targets)`, scored v27 B3 2.1 there against 1.6 on main
+(`default_branch_ci_depth` 3 against 2). The refusal is removed: a job's matrix is not read. The
+same review found that `uv sync --locked && uv run pytest` on one line still printed "not
+required", because a writer anywhere on the requiring line excused it; that a bash-family custom
+shell (`bash -l {0}`) kept the separate-step shape unread; and that
+`github.repository_owner == '…'` was read as a gate.
+
+**Change, A4, every rubric (note and citation; v27 also scored and a finding, as before).** A
+command that may write the lockfile excuses a requiring command only when it is in another job, or
+in the same job comes before it: on an earlier line, or on its line before it (or is it). On its
+line after it, a writer excuses it unless the two are joined by `&&` alone: in bash, sh, pwsh 7 and
+cmd `&&` stops at the failing command, and Windows PowerShell 5.1 cannot parse it, so the writer
+never runs; after `;` or `|` it may. One that comes only after it in the same job excuses nothing,
+and that reading is made only when the failure must end the job. The workflow names no `BASH_ENV`,
+the line has no line continuation, and no line of the step holds `|`, `&` (other than a `&&`
+token in the one-line chain below), a backtick, a parenthesis, or `trap`, `exit`, `return`,
+`exec`, `source`, `.`, `eval`, `shopt`, `alias` or `function`. Then either the line is the step's
+whole script, holding the requiring command alone or one chain of commands joined only by `&&`,
+and every `shell:` in the workflow is one GitHub provides (`bash`, `sh`, `pwsh`, `powershell`,
+`cmd`) or a bash-family custom shell (`bash`, then only `-e`, `-l`, `-u`, `-v` or `-x` flags,
+`-o errexit`, `-o pipefail` or `-o nounset`, `--login`, `--noprofile` or `--norc`, then `{0}`),
+on any runner, since each exits with that one command's status or the chain's; or the requiring
+command is alone on its line and every job runs on a documented
+GitHub-hosted Ubuntu or macOS label, plainly or as a one-element list, with no `shell:` other than
+`bash` (so steps run under `bash -e`). Several commands in one pwsh step are not read: pwsh runs
+the next line after a failing native command. A `&&` chain on one of several lines is not read
+either: `bash -e` does not stop at a failing command in a `&&` list. `pip`, `pip3` or `python[3] -m pip`
+`install --require-hashes` with `-r`/`--requirement` files requires each file, read only when every
+one is a plain relative path; a file is satisfied by any scanned path with its base name, and a
+command naming the file other than a pip install may write it.
+
+**Change, A4, every rubric, earlier `uses:` steps.** A `uses:` step may write the lockfile too.
+`actions/checkout`, `actions/setup-node`, `-python`, `-go`, `-java` and `-dotnet`,
+`astral-sh/setup-uv`, `oven-sh/setup-bun` and `dtolnay/rust-toolchain` write none. A local composite
+action (`uses: ./<path>`, its `action.yml` or `action.yaml` scanned) whose every `uses:` step is one
+of those has its `run:` commands read as if inline at its `uses:` line. Any other action used in the
+requiring step's job before it (third-party, a local JavaScript or container action, a composite
+that uses another action, or one Cejel cannot find) leaves the requirement not determined: A4 makes
+no citation and no finding, v27 scores no zero, the note never says a lockfile is not required, and
+under library norms A4 carries a disclosure starting "A4 did not compute lockfile coverage, because
+whether this repository requires a lockfile was not determined: ", naming both lines, listed under
+"What was not established" while A4 is scored. The tox requirement reads CI's actions the same way,
+in any job. A requirement that is determined is stated over one that is not.
+
+**Change, A4, every rubric but v27, presentation only.** When such a requirement holds under library
+norms, A4 carries a disclosure starting "A4 did not compute lockfile coverage under this rubric,
+which scores a library's lockfile only when one is committed: ", naming the requiring file and line,
+listed under "What was not established" while A4 is scored. No score, status or metric moves; v27
+scores the metric 0 instead.
+
+**Change, `witan-rubric-v27-prospective-2026-10-19` only, B3 only.** The trigger is read from the one
+top-level `on:` key (a second one is not placed), never from words elsewhere in the file. A step's
+or job's `if:` is a gate unless it is a one-line expression that holds on every run the workflow's
+own triggers start, joined by `&&` and `||`, of: `true`; `always()`, `success()` or `!cancelled()`
+(each holds on every run that reaches the job or step, and `success()` is the default); a
+`github.repository == 'owner/name'` or `github.repository_owner == 'owner'` fork guard, either
+way round, which holds in the repository itself (`!=` stays a gate);
+`github.event_name` compared with an event name; or `github.ref`/`github.ref_name` compared with
+the single literal branch a `push:` filtered by `branches:` alone (optionally with `paths`) runs
+for. Names and strings compare ignoring case, as GitHub compares them. `continue-on-error:` still
+keeps the file counted. A publishing action is read on any runner and under any shell; a publish
+command in a `run:` line is read where every job runs on a hosted Ubuntu or macOS label, plainly or
+as a one-element list (`[ubuntu-latest]`), with no `shell:` other than `bash` (`defaults: run:
+shell: bash` included). A job calling a reusable workflow in this repository
+(`uses: ./.github/workflows/<file>`) is followed with the caller's triggers, three levels deep.
+A job's `strategy:` and matrix are not read, as on main: a publishing job is publishing whatever
+its matrix, `fromJSON(...)` included.
+
+**No rise.** Against v17: each B3 change only removes a workflow from a count, and each A4 change
+adds a zero-valued metric or a finding where a requirement was missed, or adds a disclosure.
+Against the previous v27 (main `7fa044f0f`), the B3 publishing rule reads no job's matrix, as main
+does not, and the only rises measured on the fixtures below are the item's own instruction. Where main's v27
+claimed a requirement and scored `lockfile_coverage` 0 although an earlier step uses an action Cejel
+does not read, which may write the lockfile, the requirement is now not determined and the 0 is
+withdrawn: A4 rises from 0.3 to 0.5 on the two fixtures of that shape, with no composite moving.
+The tests check the no-rise property against v17 on every new fixture, and against main's v27,
+pinned in `src/witan/__tests__/fixtures/ci-claims-main-v27.json`, on every fixture in
+`ci-claims-followups.test.ts`, permitting exactly those two rises; the false-assurance suite checks
+it against v17 on every existing fixture.
+
+**Measured before and after, fixtures.** On every behaviour-corpus specimen, false-assurance
+fixture and disclosure-gap fixture (251 repositories) plus the 56 fixtures of
+`ci-claims-followups.test.ts` (307 repositories, 614 reports, `repo.headSha` set aside), before =
+main `7fa044f0f` and after = `8489aa069`, each scoring the fixtures committed in `c975ec7a0`; 69
+reports differ:
+- 22 v17 reports gain only the A4 disclosure, with no score, status or metric change: the behaviour
+  corpus specimen `pr-template-directory-form` and 21 false-assurance fixtures whose CI requires a
+  missing lockfile.
+- 2 v27 reports move in B3, 1.6 to 1.0 (`default_branch_ci_depth` 2 to 1):
+  `review10-upload-only-windows-runner` and `review10-upload-only-self-hosted-runner`, upload-only
+  workflows that publish through `pypa/gh-action-pypi-publish` on a runner the run-line readers
+  refuse. The publish-only reader still refuses them.
+- 16 v27 reproduction reports move in B3, 2.1 to 1.6 (`default_branch_ci_depth` 3 to 2), each an
+  evasion: the eight #598 named and `success()`, step `${{ success() }}`, `${{ !cancelled() }}`,
+  `always()`, `'PUSH'`, the fork guard, and a run-line `uv publish` on `[ubuntu-latest]` and under
+  `shell: bash`. The fromJSON matrix in an unrelated job scores 1.6 on main and after (2.1 at the
+  #598 candidate, `b4da33eb2`). v17 stays at 2.1 on each.
+- 9 v27 reproduction reports move in A4, 0.5 to 0.3 (`lockfile_coverage` omitted to 0, a warning
+  finding): the uv sync-then-run shape with `--locked` and `--frozen`, in one step, on Windows, on a
+  matrix of runners and with `shell: bash`; pip `--require-hashes`; a local composite action that
+  writes nothing; and an action in another job.
+- 15 v17 reproduction reports change only A4's note, citation and disclosure.
+- 3 v27 reproduction reports change only A4's note and disclosure (requirement not determined,
+  where main printed "not required"), and 2 move in A4, 0.3 to 0.5 (not determined, where main
+  claimed the requirement): the exception above.
+- Every other report is byte-identical. Against the #598 candidate (`b4da33eb2`), every
+  behaviour-corpus, false-assurance and disclosure-gap report is byte-identical, and 26
+  reproduction reports differ.
+
+**Measured before and after, third candidate.** The same 251 repositories plus the 71 fixtures of
+`ci-claims-followups.test.ts` now (322 repositories, 644 reports, `repo.headSha` set aside), each
+scoring the fixtures committed in `d11e3f529`, under main `7fa044f0f`, the second candidate's head
+(#599, `20b1c8216`) and after = `c9e30ecfe`:
+- Against the second candidate, 17 reports differ, all reproduction fixtures, and every
+  behaviour-corpus, false-assurance and disclosure-gap report is byte-identical. 5 v27 reports move
+  in B3, 2.1 to 1.6 (`default_branch_ci_depth` 3 to 2): the fromJSON matrix on the publishing job,
+  literal and from a plan job's output, and `dynamic-matrix` (the matrix refusal removed), and the
+  `repository_owner` fork guard on the job and reversed on the step. 6 v27 reports move in A4, 0.5
+  to 0.3 (`lockfile_coverage` omitted to 0, a warning finding): the one-line `&&` chain on ubuntu
+  and windows-latest, a one-line `uv sync --locked && echo synced` step before a `uv run` step, and
+  the separate-step shape under `bash -l {0}`, under `bash -el {0}` on windows-latest and under a
+  default `bash --noprofile --norc -eo pipefail {0}`. The same 6 v17 reports change only A4's note,
+  citation and disclosure.
+- Against main, 84 reports differ: 69 that are byte-identical at the second candidate (so differ
+  from main there too, matching the previous measurement's count), and 15 of the 17 above (the
+  two publishing-job fromJSON fixtures are byte-identical to main). No v17 score, status or metric
+  moves; the only v27 rises are the two A4 rises above.
+
+**Behaviour fingerprint.** No rubric's fingerprint moves: the disclosures are wording, which the
+fingerprint excludes, and no specimen has a publishing workflow.
+
+**Glossary.** The PR-gate CI workflow count entry, which renders in every certificate of every
+rubric, now says a condition is a gate only when it can be false under the workflow's triggers or
+checks the repository's own name or owner, that a publishing action is read on any runner, that a publish
+command is read on the listed runner labels with no shell setting other than bash, and that a local
+reusable workflow is followed. `report.json` is unchanged by it.
+
+**Not done.** A job whose `needs:` names a job that is conditional or may fail is skipped with it;
+the publishing reader does not read `needs:`, as before this entry. Jobs are not ordered against
+each other, so a generator in another job still excuses a requirement. A local composite action's
+own requiring commands are not read (a recall gap only). `actions/checkout` with a `ref:` or `path:`
+is read as checking out the scanned tree, as before this entry.
+
+**Published corpus: not measured.** This change was made in a runner without network access to the
+public board's repositories. v17 can change there only by the A4 disclosures and the A4 note and
+citation (on a repository whose CI or tox configuration requires a lockfile it does not commit); no
+v17 score can move. v27 rows can move where a repository has such a requirement or a publishing
+workflow these readers now see, and A4 can rise where main claimed a requirement an earlier action
+may meet. The paired v27 board delta is owed before this candidate is pinned. **No holdout or
+calibration ran, and this entry makes no precision or recall claim.**
+
+Tests: `src/witan/__tests__/ci-claims-followups.test.ts` (fixtures in
+`src/witan/__tests__/fixtures/ci-claims-followups-fixtures.ts`), and the updated expectations in
+`src/witan/__tests__/false-assurance-v27.test.ts`.
+
 ## 2026-10-26 — v27: B3 stops counting workflows that publish, release or deploy with no pull-request trigger (#517); A4 states a lockfile the repository requires as a finding, and reads tox-uv's lock runner (#520); published corpus not measured
 
 **Defects.** #517: v27's first closure removed CI credit only from upload-only workflows, so #517's
@@ -94,8 +276,11 @@ v17 and v18-v26 do not move.
 
 **Published corpus: not measured.** This change was made in a runner without network access to the
 public board's repositories, so the before/after across `leaderboard/corpus.json` has not run. v17
-cannot move there: every scoring change is behind the v27 gate, and v17's only change is the A4 note
-and citation order on a tox lock-runner repository with no `uv.lock`. v27 rows can move where a
+cannot move there: every scoring change is behind the v27 gate. v17 changes in two places, neither
+of them a score: the A4 note and citation order on a tox lock-runner repository with no `uv.lock`,
+and a sentence added to the glossary's entry for the PR-gate CI workflow count, which renders in
+every v17 certificate, in Markdown, HTML and the terminal; `report.json` is unchanged by it. (Corrected 2026-10-27: this entry first said the A4 note was v17's only change.)
+v27 rows can move where a
 repository has a publishing workflow with no pull-request trigger, or a lockfile requirement with no
 lockfile. The paired v27 board delta is owed before this candidate is pinned. **No holdout or
 calibration ran, and this entry makes no precision or recall claim.**

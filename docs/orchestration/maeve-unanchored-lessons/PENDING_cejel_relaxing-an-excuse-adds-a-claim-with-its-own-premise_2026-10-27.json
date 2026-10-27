@@ -1,0 +1,44 @@
+[
+  {
+    "statement": "A reader that let any lockfile-writing command in a workflow excuse a lockfile requirement was order-blind: `uv sync --locked` then `uv run pytest` was excused by a step that never runs once the first fails. Making order count turned a suppressed case into a new claim, and that claim rests on a premise the old rule never needed: the earlier failure ends the job. It does not after `&&` or in a pipeline under `bash -e`, nor between commands of one pwsh step; a step whose script is one command fails with it in every shell GitHub provides, on any runner. Rules: when narrowing an excuse, name the premise the newly made claim depends on, add one negative test for each way that premise fails, and fence only those ways, not every runner.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "false-assurance"
+    ],
+    "tags": [
+      "claim-premise",
+      "order-blind-rule",
+      "false-assurance"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-10-27T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 600
+    }
+  },
+  {
+    "statement": "A publishing-workflow rule read the trigger by searching the whole file for `pull_request` and counted any `if:` as a gate, so a comment or an always-true condition (`github.ref == 'refs/heads/main'` on a push filtered to main) kept an ungated publish credited as CI. Rules: read a structural fact from the key that defines it, never from words anywhere in the file; and treat a condition as a gate only when it can be false under the workflow's own triggers.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "false-assurance"
+    ],
+    "tags": [
+      "text-match-evasion",
+      "always-true-guard",
+      "false-assurance"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-10-27T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 600
+    }
+  }
+]
