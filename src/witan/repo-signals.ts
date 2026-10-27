@@ -6040,19 +6040,31 @@ const V27_B2_SHALLOW_HISTORY_NOTE =
   `B2 abstained: this repository is a shallow clone with fewer than ${RECENT_COMMIT_WINDOW} commits ` +
   'visible, so the pull-request merge ratio cannot be read over its window. Re-scan a full clone ' +
   '(for actions/checkout, set fetch-depth: 0).';
-// #442, every rubric but v27: the same abstention, left out of the composite. It starts with the
-// same words as the v27 note, so a reader of either knows it is the shallow-clone one.
+// #442, every rubric but v27, where B2 has no PR-trace evidence to score without the ratio: the same
+// abstention, left out of the composite. It starts with the same words as the v27 note, so a reader
+// of either knows it is the shallow-clone one.
 const B2_SHALLOW_HISTORY_NOTE =
   `B2 abstained: this repository is a shallow clone with fewer than ${RECENT_COMMIT_WINDOW} commits ` +
   'visible, so the pull-request merge ratio cannot be read over its window. B2 is left out of the ' +
   'composite rather than scored on the commits present. Re-scan a full clone (for actions/checkout, ' +
   'set fetch-depth: 0).';
+// #442, every rubric but v27 (operator decision 2026-10-27): B2 withholds only the ratio and is
+// scored on the checked-out files. It starts with the same words as the notes above, so a reader
+// knows it is the shallow-clone one, and says at once that only the ratio was withheld, since B2
+// itself is scored.
+const B2_SHALLOW_RATIO_WITHHELD_NOTE =
+  'B2 abstained from the pull-request merge ratio only: this repository is a shallow clone with ' +
+  `fewer than ${RECENT_COMMIT_WINDOW} commits visible, so the pull-request merge ratio cannot be ` +
+  'read over its window. B2 is scored on the CI workflows, pull-request template and review-gate ' +
+  'record in the checked-out files, with the ratio left out of its score rather than scored on the ' +
+  'commits present. Re-scan a full clone (for actions/checkout, set fetch-depth: 0).';
 
 /**
  * A criterion that reads commit history, abstaining because the clone is shallow (v27, #442). No
  * insufficientDataReason: it is a read failure, so it stays in the composite at 0 and a shallow
- * clone can never score higher than the full clone would have on that account. B2's abstention
- * under every other rubric adds the 'shallow_history' reason, which leaves the composite.
+ * clone can never score higher than the full clone would have on that account. Under every other
+ * rubric B2 abstains only when it has no PR-trace evidence to score without the ratio, and adds
+ * the 'shallow_history' reason, which leaves the composite.
  */
 function shallowHistoryAbstention(
   criterionId: 'A2' | 'B2',
@@ -6129,17 +6141,23 @@ function collectB2PrTraceEvidence(
       : []),
   ];
   if (evidence.length === 0) return null;
+  const prTracePrimitives =
+    creditedWorkflowCount + (prTemplate ? 1 : 0) + (branchProtectionDoc ? 1 : 0);
   // #442: pr_merge_ratio reads the most recent RECENT_COMMIT_WINDOW commits. A shallow clone with
   // fewer visible has truncated that window, and the ratio over what remains can score lower than
-  // the full window would (at depth 1 it is 0 or 1, from HEAD's subject alone), so B2 abstains
-  // rather than score the remainder. Withholding only pr_merge_ratio is not done: B2 would then
-  // score on pr_trace_primitives alone, which can be lower or higher. Every rubric but v27 leaves the
-  // abstention out of the composite (operator decision 2026-10-26: a shallow clone must not lower
-  // the history score). v27 keeps it as a read failure at 0, as its no-rise property requires.
-  if (isShallowRepository(repoPath) && readRecentCommits(repoPath).length < RECENT_COMMIT_WINDOW) {
-    return useV27FalseAssuranceClosure
-      ? shallowHistoryAbstention('B2', V27_B2_SHALLOW_HISTORY_NOTE)
-      : { ...shallowHistoryAbstention('B2', B2_SHALLOW_HISTORY_NOTE), insufficientDataReason: 'shallow_history' };
+  // the full window would (at depth 1 it is 0 or 1, from HEAD's subject alone). v27 abstains on all
+  // of B2 as a read failure at 0, as its no-rise property requires. Every other rubric withholds
+  // only the ratio and scores pr_trace_primitives, which reads the checked-out files and no history
+  // (operator decision 2026-10-27, revising 2026-10-26's whole-criterion abstention, which took the
+  // file evidence out of the composite with the ratio). Where there is no PR-trace evidence to
+  // score, B2 abstains out of the composite instead.
+  const ratioWithheld =
+    isShallowRepository(repoPath) && readRecentCommits(repoPath).length < RECENT_COMMIT_WINDOW;
+  if (ratioWithheld && useV27FalseAssuranceClosure) {
+    return shallowHistoryAbstention('B2', V27_B2_SHALLOW_HISTORY_NOTE);
+  }
+  if (ratioWithheld && prTracePrimitives === 0) {
+    return { ...shallowHistoryAbstention('B2', B2_SHALLOW_HISTORY_NOTE), insufficientDataReason: 'shallow_history' };
   }
   return {
     criterionId: 'B2',
@@ -6154,7 +6172,7 @@ function collectB2PrTraceEvidence(
       metric(
         'pr_trace_primitives',
         'PR trace basic checks',
-        creditedWorkflowCount + (prTemplate ? 1 : 0) + (branchProtectionDoc ? 1 : 0),
+        prTracePrimitives,
         2,
         0.8,
         'signals',
@@ -6176,17 +6194,24 @@ function collectB2PrTraceEvidence(
       // no "Merge pull request"/"#123" commit-subject convention legitimately score 0/N
       // here despite otherwise healthy PR discipline — this metric is now a minor modifier
       // rather than able to single-handedly drag a well-run repo to critical.
-      metric(
-        'pr_merge_ratio',
-        'Recent PR merge ratio',
-        readRecentCommits(repoPath).filter((commit) => isPrMergeCommit(commit)).length,
-        Math.max(readRecentCommits(repoPath).length, 1),
-        0.2,
-        'ratio',
-        'Uses bounded git history as a deterministic proxy for PR outcome traceability.',
-      ),
+      ...(ratioWithheld
+        ? []
+        : [
+            metric(
+              'pr_merge_ratio',
+              'Recent PR merge ratio',
+              readRecentCommits(repoPath).filter((commit) => isPrMergeCommit(commit)).length,
+              Math.max(readRecentCommits(repoPath).length, 1),
+              0.2,
+              'ratio',
+              'Uses bounded git history as a deterministic proxy for PR outcome traceability.',
+            ),
+          ]),
     ],
-    ...(uncredited.size > 0
+    // v27 never reaches here with the ratio withheld, and only v27 leaves CI workflows uncredited.
+    ...(ratioWithheld
+      ? { notes: B2_SHALLOW_RATIO_WITHHELD_NOTE }
+      : uncredited.size > 0
       ? {
           notes: uncreditedCiWorkflowNote(uncredited, 'a PR-trace CI workflow'),
           disclosures: [

@@ -236,7 +236,9 @@ export type WitanContentReadSkipReason = z.infer<typeof WitanContentReadSkipReas
 // skip reason, or one reason that is not about content. Additive (#442, operator decision
 // 2026-10-26): 'shallow_history' is B2's abstention when a shallow clone holds fewer commits than
 // its pull-request merge window reads, under every rubric but witan-rubric-v27-prospective-2026-10-19.
-// It is never a content-read skip, so contentReadSummary does not count it.
+// Since the operator's decision of 2026-10-27 B2 withholds only that ratio there and abstains with
+// this reason only when it has no PR-trace evidence to score without it. It is never a content-read
+// skip, so contentReadSummary does not count it.
 export const WitanInsufficientDataReasonSchema = z.enum([
   ...WitanContentReadSkipReasonSchema.options,
   'shallow_history',
@@ -269,7 +271,9 @@ export const WitanCriterionSignalSchema = z
     // chose itself: those are excluded from the composite exactly like ordinary
     // insufficient_data (ADR-0001: coverage is disclosed, never discounts a score).
     // 'shallow_history' (#442) is excluded the same way: a shallow clone must not lower the
-    // history score, so B2 states the window it did not read instead of scoring what it did.
+    // history score, so B2 states the window it did not read instead of scoring what it did
+    // (where it has no PR-trace evidence to score without the ratio; otherwise it withholds only
+    // the ratio and is scored).
     insufficientDataReason: WitanInsufficientDataReasonSchema.optional(),
   })
   .strict()
