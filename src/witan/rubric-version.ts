@@ -173,7 +173,9 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 // places where a v17 certificate asserts more than Cejel read (#517, #518, #519, #520, #442):
 //   - B3: a workflow that only publishes, releases or deploys is not counted as CI depth, nor
 //     (#517, 2026-10-26) is one with no pull-request trigger that runs an unconditional publish,
-//     release or deploy step, whatever else it runs;
+//     release or deploy step, whatever else it runs (from 2026-10-27: the trigger read from `on:`
+//     alone, a publishing action read on any runner, a condition that cannot be false under the
+//     triggers no gate, and a local reusable workflow followed);
 //   - A1: conftest.py is not a concrete test file, and an unconditional run-wide pytest skip
 //     (a collection hook that skips or clears every item, or a module-level pytestmark skip)
 //     marks the test files in its scope hollow;
@@ -183,7 +185,9 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //   - A4: under library norms, lockfile_coverage is 0 rather than omitted when the repository's
 //     own CI (or, from 2026-10-26, its tox configuration) requires a lockfile and none is
 //     committed, and (#520, 2026-10-26) under any norms that requirement is a warning finding
-//     citing the requiring line;
+//     citing the requiring line (from 2026-10-27 a requiring step stands when every step that may
+//     write the lockfile comes after it in the same job, and a pip install with --require-hashes
+//     requires its requirements file);
 //   - A2 and B2: on a shallow clone, A2 abstains unless a confirmed critical secret finding
 //     stands, and B2 abstains when fewer commits are visible than its window reads.
 // Each abstention is a read failure, kept in the composite at 0, and each other change only

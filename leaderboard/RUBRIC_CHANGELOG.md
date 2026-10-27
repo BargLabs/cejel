@@ -22,6 +22,91 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
+## 2026-10-27 — A4 reads the uv sync-then-run shape and pip --require-hashes as lockfile requirements, and v17 says when lockfile coverage was not computed (#520); v27 B3's publishing rule no longer evaded by removing the gate (#517); published corpus not measured
+
+**Defects.** #520: the lockfile-requirement reader decided "the lockfile may be generated" once per
+workflow, without regard to step order. With `uv.lock` deleted, CI running `uv sync --locked` (or
+`--frozen`) and then `uv run pytest` still printed "a committed lockfile is credited but not
+required" under both rubrics, with no finding and `lockfile_coverage` omitted: the later `uv run`
+excused the earlier step, which fails first. A `pip install --require-hashes` was not read, and
+under v17 a requirement the reader did find left `lockfile_coverage` out with no stated reason.
+#517: v27's publishing rule from the previous entry was evaded, and B3 rose from 1.6 to 2.1
+(`default_branch_ci_depth` 2 to 3) on the rebuilt PyPI shape, by any of: a job condition always
+true under the trigger (`github.ref == 'refs/heads/main'` on a push filtered to `main`,
+`github.event_name != 'pull_request'`), the word `pull_request` in a comment, a matrix, list-form or
+Windows `runs-on`, a default `shell:`, or publishing through a job that calls a reusable workflow.
+
+**Change, A4, every rubric (note and citation; v27 also scored and a finding, as before).** A
+command that may write the lockfile excuses a requiring command only when it is in another job or
+comes before it, or on its line, in the same job. One that comes only after it in the same job
+excuses nothing, and that reading is made only when the failure must end the job: every job runs on
+a documented GitHub-hosted Ubuntu or macOS label with no `shell:` (so steps run under `bash -e`), the
+workflow names no `BASH_ENV`, the requiring command is alone on its line with no line continuation,
+and no line of the step holds `|`, `&`, a backtick, a parenthesis, or `trap`, `exit`, `return`,
+`exec`, `source`, `.`, `eval`, `shopt`, `alias` or `function`. `pip`, `pip3` or `python[3] -m pip`
+`install --require-hashes` with `-r`/`--requirement` files requires each file, read only when every
+one is a plain relative path; a file is satisfied by any scanned path with its base name, and a
+command naming the file other than a pip install may write it.
+
+**Change, A4, every rubric but v27, presentation only.** When such a requirement holds under library
+norms, A4 carries a disclosure starting "A4 did not compute lockfile coverage under this rubric,
+which scores a library's lockfile only when one is committed: ", naming the requiring file and line,
+listed under "What was not established" while A4 is scored. No score, status or metric moves; v27
+scores the metric 0 instead.
+
+**Change, `witan-rubric-v27-prospective-2026-10-19` only, B3 only.** The trigger is read from the one
+top-level `on:` key (a second one is not placed), never from words elsewhere in the file. A step's
+or job's `if:` is a gate unless it is a one-line expression of `true`, `always()`, `github.event_name`
+compared with an event name, or `github.ref`/`github.ref_name` compared with the single literal
+branch a `push:` filtered by `branches:` alone (optionally with `paths`) runs for, joined by `&&` and
+`||`, that holds on every run the workflow's own triggers start; `continue-on-error:` still keeps
+the file counted. A publishing action is read on any runner and under any shell; a publish command
+in a `run:` line still needs the runner and shell conditions. A job calling a reusable workflow in
+this repository (`uses: ./.github/workflows/<file>`) is followed with the caller's triggers, three
+levels deep. A file with a `matrix:` and a `fromJSON(` is not claimed (the matrix may be empty).
+
+**No rise.** Each change only removes a workflow from a count, adds a zero-valued metric or a
+finding where a requirement was missed, or adds a disclosure. The new tests check the no-rise
+property on every new fixture; the false-assurance suite checks it on every existing one.
+
+**Measured before and after, fixtures.** On every behaviour-corpus specimen, false-assurance
+fixture and disclosure-gap fixture, plus the 13 reproductions of this entry (264 repositories, 528
+reports, `repo.headSha` set aside), before = `8df3a7b34` (main `7fa044f0f` plus the red tests) and
+after = `cb0c6657d` (later commits change comments, the glossary and test expectations only):
+- 22 v17 reports gain only the A4 disclosure, with no score, status or metric change: the behaviour
+  corpus specimen `pr-template-directory-form` and 21 false-assurance fixtures whose CI requires a
+  missing lockfile.
+- 2 v27 reports move in B3, 1.6 to 1.0 (`default_branch_ci_depth` 2 to 1):
+  `review10-upload-only-windows-runner` and `review10-upload-only-self-hosted-runner`, upload-only
+  workflows that publish through `pypa/gh-action-pypi-publish` on a runner the run-line readers
+  refuse. The publish-only reader still refuses them.
+- The reproductions: v27 B3 1.6 (baseline) / 2.1 before / 1.6 after on each of the eight evasions,
+  v17 unchanged at 2.1; v27 A4 0.5 to 0.3 (`lockfile_coverage` omitted to 0) on the uv
+  sync-then-run and pip `--require-hashes` shapes with the lockfile missing, v17 unchanged at 0.5.
+- Every other report is byte-identical.
+
+**Behaviour fingerprint.** No rubric's fingerprint moves: the disclosure is wording, which the
+fingerprint excludes, and no specimen has a publishing workflow.
+
+**Glossary.** The PR-gate CI workflow count entry, which renders in every certificate of every
+rubric, now says a condition is a gate only when it can be false under the workflow's triggers,
+that a publishing action is read on any runner, and that a local reusable workflow is followed.
+`report.json` is unchanged by it.
+
+**Not done.** A job whose `needs:` names a job that is conditional or may fail is skipped with it;
+the publishing reader does not read `needs:`, as before this entry. Jobs are not ordered against
+each other, so a generator in another job still excuses a requirement.
+
+**Published corpus: not measured.** This change was made in a runner without network access to the
+public board's repositories. v17 can change there only by the A4 disclosure and the A4 note and
+citation (on a repository whose CI requires a lockfile it does not commit); no v17 score can move.
+v27 rows can move where a repository has such a requirement or a publishing workflow these readers
+now see. The paired v27 board delta is owed before this candidate is pinned. **No holdout or
+calibration ran, and this entry makes no precision or recall claim.**
+
+Tests: `src/witan/__tests__/ci-claims-followups.test.ts`, and the updated expectations in
+`src/witan/__tests__/false-assurance-v27.test.ts`.
+
 ## 2026-10-26 — v27: B3 stops counting workflows that publish, release or deploy with no pull-request trigger (#517); A4 states a lockfile the repository requires as a finding, and reads tox-uv's lock runner (#520); published corpus not measured
 
 **Defects.** #517: v27's first closure removed CI credit only from upload-only workflows, so #517's
@@ -94,8 +179,11 @@ v17 and v18-v26 do not move.
 
 **Published corpus: not measured.** This change was made in a runner without network access to the
 public board's repositories, so the before/after across `leaderboard/corpus.json` has not run. v17
-cannot move there: every scoring change is behind the v27 gate, and v17's only change is the A4 note
-and citation order on a tox lock-runner repository with no `uv.lock`. v27 rows can move where a
+cannot move there: every scoring change is behind the v27 gate. v17 changes in two places, neither
+of them a score: the A4 note and citation order on a tox lock-runner repository with no `uv.lock`,
+and a sentence added to the glossary's entry for the PR-gate CI workflow count, which renders in
+every v17 certificate, in Markdown, HTML and the terminal; `report.json` is unchanged by it. (Corrected 2026-10-27: this entry first said the A4 note was v17's only change.)
+v27 rows can move where a
 repository has a publishing workflow with no pull-request trigger, or a lockfile requirement with no
 lockfile. The paired v27 board delta is owed before this candidate is pinned. **No holdout or
 calibration ran, and this entry makes no precision or recall claim.**
