@@ -187,7 +187,8 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     own CI (or, from 2026-10-26, its tox configuration) requires a lockfile and none is
 //     committed, and (#520, 2026-10-26) under any norms that requirement is a warning finding
 //     citing the requiring line (from 2026-10-27 a requiring step stands when every step that may
-//     write the lockfile comes after it in the same job, and a pip install with --require-hashes
+//     write the lockfile comes after it in the same job, a writer after it on its own line
+//     joined only by && included, and a pip install with --require-hashes
 //     requires its requirements file; a requirement an earlier action Cejel did not read may meet
 //     is not determined, and scores no zero);
 //   - A2 and B2: on a shallow clone, A2 abstains unless a confirmed critical secret finding

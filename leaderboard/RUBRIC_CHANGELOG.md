@@ -50,20 +50,32 @@ candidate (#599, not merged) found that narrowing that refusal to the publishing
 kept the same rise: an ungated push-to-main publish whose own job has
 `matrix: py: ${{ fromJSON('["3.12"]') }}` and a literal `runs-on: ubuntu-latest`, or a matrix from
 `fromJSON(needs.plan.outputs.targets)`, scored v27 B3 2.1 there against 1.6 on main
-(`default_branch_ci_depth` 3 against 2). The refusal is removed: a job's matrix is not read.
+(`default_branch_ci_depth` 3 against 2). The refusal is removed: a job's matrix is not read. The
+same review found that `uv sync --locked && uv run pytest` on one line still printed "not
+required", because a writer anywhere on the requiring line excused it; that a bash-family custom
+shell (`bash -l {0}`) kept the separate-step shape unread; and that
+`github.repository_owner == '…'` was read as a gate.
 
 **Change, A4, every rubric (note and citation; v27 also scored and a finding, as before).** A
-command that may write the lockfile excuses a requiring command only when it is in another job or
-comes before it, or on its line, in the same job. One that comes only after it in the same job
-excuses nothing, and that reading is made only when the failure must end the job. The workflow names
-no `BASH_ENV`, the requiring command is alone on its line with no line continuation, and no line of
-the step holds `|`, `&`, a backtick, a parenthesis, or `trap`, `exit`, `return`, `exec`, `source`,
-`.`, `eval`, `shopt`, `alias` or `function`. Then either the line is the step's whole script and
-every `shell:` in the workflow is one GitHub provides (`bash`, `sh`, `pwsh`, `powershell`, `cmd`),
-on any runner, since each exits with that one command's status; or every job runs on a documented
+command that may write the lockfile excuses a requiring command only when it is in another job, or
+in the same job comes before it: on an earlier line, or on its line before it (or is it). On its
+line after it, a writer excuses it unless the two are joined by `&&` alone: in bash, sh, pwsh 7 and
+cmd `&&` stops at the failing command, and Windows PowerShell 5.1 cannot parse it, so the writer
+never runs; after `;` or `|` it may. One that comes only after it in the same job excuses nothing,
+and that reading is made only when the failure must end the job. The workflow names no `BASH_ENV`,
+the line has no line continuation, and no line of the step holds `|`, `&` (other than a `&&`
+token in the one-line chain below), a backtick, a parenthesis, or `trap`, `exit`, `return`,
+`exec`, `source`, `.`, `eval`, `shopt`, `alias` or `function`. Then either the line is the step's
+whole script, holding the requiring command alone or one chain of commands joined only by `&&`,
+and every `shell:` in the workflow is one GitHub provides (`bash`, `sh`, `pwsh`, `powershell`,
+`cmd`) or a bash-family custom shell (`bash`, then only `-e`, `-l`, `-u`, `-v` or `-x` flags,
+`-o errexit`, `-o pipefail` or `-o nounset`, `--login`, `--noprofile` or `--norc`, then `{0}`),
+on any runner, since each exits with that one command's status or the chain's; or the requiring
+command is alone on its line and every job runs on a documented
 GitHub-hosted Ubuntu or macOS label, plainly or as a one-element list, with no `shell:` other than
 `bash` (so steps run under `bash -e`). Several commands in one pwsh step are not read: pwsh runs
-the next line after a failing native command. `pip`, `pip3` or `python[3] -m pip`
+the next line after a failing native command. A `&&` chain on one of several lines is not read
+either: `bash -e` does not stop at a failing command in a `&&` list. `pip`, `pip3` or `python[3] -m pip`
 `install --require-hashes` with `-r`/`--requirement` files requires each file, read only when every
 one is a plain relative path; a file is satisfied by any scanned path with its base name, and a
 command naming the file other than a pip install may write it.
@@ -92,7 +104,8 @@ top-level `on:` key (a second one is not placed), never from words elsewhere in 
 or job's `if:` is a gate unless it is a one-line expression that holds on every run the workflow's
 own triggers start, joined by `&&` and `||`, of: `true`; `always()`, `success()` or `!cancelled()`
 (each holds on every run that reaches the job or step, and `success()` is the default); a
-`github.repository == 'owner/name'` fork guard, which holds in the repository itself;
+`github.repository == 'owner/name'` or `github.repository_owner == 'owner'` fork guard, either
+way round, which holds in the repository itself (`!=` stays a gate);
 `github.event_name` compared with an event name; or `github.ref`/`github.ref_name` compared with
 the single literal branch a `push:` filtered by `branches:` alone (optionally with `paths`) runs
 for. Names and strings compare ignoring case, as GitHub compares them. `continue-on-error:` still
@@ -145,12 +158,31 @@ reports differ:
   behaviour-corpus, false-assurance and disclosure-gap report is byte-identical, and 26
   reproduction reports differ.
 
+**Measured before and after, third candidate.** The same 251 repositories plus the 71 fixtures of
+`ci-claims-followups.test.ts` now (322 repositories, 644 reports, `repo.headSha` set aside), each
+scoring the fixtures committed in `d11e3f529`, under main `7fa044f0f`, the second candidate's head
+(#599, `20b1c8216`) and after = `c9e30ecfe`:
+- Against the second candidate, 17 reports differ, all reproduction fixtures, and every
+  behaviour-corpus, false-assurance and disclosure-gap report is byte-identical. 5 v27 reports move
+  in B3, 2.1 to 1.6 (`default_branch_ci_depth` 3 to 2): the fromJSON matrix on the publishing job,
+  literal and from a plan job's output, and `dynamic-matrix` (the matrix refusal removed), and the
+  `repository_owner` fork guard on the job and reversed on the step. 6 v27 reports move in A4, 0.5
+  to 0.3 (`lockfile_coverage` omitted to 0, a warning finding): the one-line `&&` chain on ubuntu
+  and windows-latest, a one-line `uv sync --locked && echo synced` step before a `uv run` step, and
+  the separate-step shape under `bash -l {0}`, under `bash -el {0}` on windows-latest and under a
+  default `bash --noprofile --norc -eo pipefail {0}`. The same 6 v17 reports change only A4's note,
+  citation and disclosure.
+- Against main, 84 reports differ: 69 that are byte-identical at the second candidate (so differ
+  from main there too, matching the previous measurement's count), and 15 of the 17 above (the
+  two publishing-job fromJSON fixtures are byte-identical to main). No v17 score, status or metric
+  moves; the only v27 rises are the two A4 rises above.
+
 **Behaviour fingerprint.** No rubric's fingerprint moves: the disclosures are wording, which the
 fingerprint excludes, and no specimen has a publishing workflow.
 
 **Glossary.** The PR-gate CI workflow count entry, which renders in every certificate of every
 rubric, now says a condition is a gate only when it can be false under the workflow's triggers or
-checks the repository's own name, that a publishing action is read on any runner, that a publish
+checks the repository's own name or owner, that a publishing action is read on any runner, that a publish
 command is read on the listed runner labels with no shell setting other than bash, and that a local
 reusable workflow is followed. `report.json` is unchanged by it.
 
