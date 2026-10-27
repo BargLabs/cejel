@@ -1018,26 +1018,30 @@ const SCORING_SURFACE_PINS: Readonly<Record<string, string>> = {
     '8f4f139c2a93336de130de1e99c26122ed684a05420393b9d3b167514d81d316',
   'b3-master-target-full-clone@witan-rubric-v27-prospective-2026-10-19':
     '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+  // Re-captured 2026-10-27 for #442 (operator decision 2026-10-26), every rubric but v27: this
+  // checkout is shallow with one commit visible, so B2 abstains out of the composite instead of
+  // scoring its truncated window (B2 warning 1.6 to insufficient_data; process_trust 2 to 2.4,
+  // overall 2.2 to 2.3). The previous pins were 5898585a… (v17-v25) and 8f4f139c… (v26).
   'b3-master-target-depth-1-clone@witan-rubric-v17-2026-07-24':
-    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+    'ec5cf4f4509acec579d0ad0da01c8642503e30e385d510abcfac1e08e1f2c3f0',
   'b3-master-target-depth-1-clone@witan-rubric-v18-prospective-2026-07-25':
-    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+    'ec5cf4f4509acec579d0ad0da01c8642503e30e385d510abcfac1e08e1f2c3f0',
   'b3-master-target-depth-1-clone@witan-rubric-v19-prospective-2026-08-09':
-    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+    'ec5cf4f4509acec579d0ad0da01c8642503e30e385d510abcfac1e08e1f2c3f0',
   'b3-master-target-depth-1-clone@witan-rubric-v20-prospective-2026-08-10':
-    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+    'ec5cf4f4509acec579d0ad0da01c8642503e30e385d510abcfac1e08e1f2c3f0',
   'b3-master-target-depth-1-clone@witan-rubric-v21-prospective-2026-08-10':
-    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+    'ec5cf4f4509acec579d0ad0da01c8642503e30e385d510abcfac1e08e1f2c3f0',
   'b3-master-target-depth-1-clone@witan-rubric-v22-prospective-2026-08-10':
-    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+    'ec5cf4f4509acec579d0ad0da01c8642503e30e385d510abcfac1e08e1f2c3f0',
   'b3-master-target-depth-1-clone@witan-rubric-v23-prospective-2026-09-06':
-    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+    'ec5cf4f4509acec579d0ad0da01c8642503e30e385d510abcfac1e08e1f2c3f0',
   'b3-master-target-depth-1-clone@witan-rubric-v24-prospective-2026-09-15':
-    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+    'ec5cf4f4509acec579d0ad0da01c8642503e30e385d510abcfac1e08e1f2c3f0',
   'b3-master-target-depth-1-clone@witan-rubric-v25-prospective-2026-10-12':
-    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+    'ec5cf4f4509acec579d0ad0da01c8642503e30e385d510abcfac1e08e1f2c3f0',
   'b3-master-target-depth-1-clone@witan-rubric-v26-prospective-2026-10-14':
-    '8f4f139c2a93336de130de1e99c26122ed684a05420393b9d3b167514d81d316',
+    'ec3953510e32c3ad129fee3a5d9c8fa8cf2e13ed328bc9bf1844904582ded974',
   // Re-captured 2026-10-22 for #556, v27 only: this checkout is shallow and A2 was not applicable
   // on a decision that rests on history scans, so under v27 A2 abstains as a read failure kept in
   // the composite at 0 (overall 1.8 to 1.5, code_trust 2.3 to 1.7). Every other rubric's pin is
@@ -1066,26 +1070,28 @@ const SCORING_SURFACE_PINS: Readonly<Record<string, string>> = {
     '8f4f139c2a93336de130de1e99c26122ed684a05420393b9d3b167514d81d316',
   'b3-master-target-single-branch-clone@witan-rubric-v27-prospective-2026-10-19':
     '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+  // Re-captured 2026-10-27 for #442, every rubric but v27, exactly as for
+  // b3-master-target-depth-1-clone above (also a depth-1 checkout).
   'b3-master-target-ci-fetch@witan-rubric-v17-2026-07-24':
-    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+    'ec5cf4f4509acec579d0ad0da01c8642503e30e385d510abcfac1e08e1f2c3f0',
   'b3-master-target-ci-fetch@witan-rubric-v18-prospective-2026-07-25':
-    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+    'ec5cf4f4509acec579d0ad0da01c8642503e30e385d510abcfac1e08e1f2c3f0',
   'b3-master-target-ci-fetch@witan-rubric-v19-prospective-2026-08-09':
-    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+    'ec5cf4f4509acec579d0ad0da01c8642503e30e385d510abcfac1e08e1f2c3f0',
   'b3-master-target-ci-fetch@witan-rubric-v20-prospective-2026-08-10':
-    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+    'ec5cf4f4509acec579d0ad0da01c8642503e30e385d510abcfac1e08e1f2c3f0',
   'b3-master-target-ci-fetch@witan-rubric-v21-prospective-2026-08-10':
-    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+    'ec5cf4f4509acec579d0ad0da01c8642503e30e385d510abcfac1e08e1f2c3f0',
   'b3-master-target-ci-fetch@witan-rubric-v22-prospective-2026-08-10':
-    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+    'ec5cf4f4509acec579d0ad0da01c8642503e30e385d510abcfac1e08e1f2c3f0',
   'b3-master-target-ci-fetch@witan-rubric-v23-prospective-2026-09-06':
-    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+    'ec5cf4f4509acec579d0ad0da01c8642503e30e385d510abcfac1e08e1f2c3f0',
   'b3-master-target-ci-fetch@witan-rubric-v24-prospective-2026-09-15':
-    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+    'ec5cf4f4509acec579d0ad0da01c8642503e30e385d510abcfac1e08e1f2c3f0',
   'b3-master-target-ci-fetch@witan-rubric-v25-prospective-2026-10-12':
-    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+    'ec5cf4f4509acec579d0ad0da01c8642503e30e385d510abcfac1e08e1f2c3f0',
   'b3-master-target-ci-fetch@witan-rubric-v26-prospective-2026-10-14':
-    '8f4f139c2a93336de130de1e99c26122ed684a05420393b9d3b167514d81d316',
+    'ec3953510e32c3ad129fee3a5d9c8fa8cf2e13ed328bc9bf1844904582ded974',
   // Re-captured 2026-10-22 for #556, v27 only: this checkout is shallow and A2 was not applicable
   // on a decision that rests on history scans, so under v27 A2 abstains as a read failure kept in
   // the composite at 0 (overall 1.8 to 1.5, code_trust 2.3 to 1.7). Every other rubric's pin is
