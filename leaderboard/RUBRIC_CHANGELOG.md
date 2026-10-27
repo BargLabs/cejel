@@ -22,6 +22,89 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
+## 2026-10-27 — on a shallow clone B2 abstains out of the composite under v17 and every rubric but v27, instead of scoring a truncated commit window lower (#442); no published score moved
+
+**Status.** A scoring change under `witan-rubric-v17-2026-07-24`, the calibrated public default,
+and under v18-v26, with no identifier change. It reaches only shallow clones whose visible history
+is shorter than B2's twelve-commit window. v27 is unchanged. No holdout or calibration ran, and this
+entry makes no precision or recall claim. The operator decision of 2026-10-26 governs it: a shallow
+clone must not lower the history score; on a shallow clone A2 and B2 either abstain with
+`insufficient_data` and a stated reason, or keep the score they would have had with full history and
+state the limitation; they never score the truncated history lower.
+
+**Defect.** B2's `pr_merge_ratio` reads the twelve most recent commits. On a depth-1 clone (the
+default `actions/checkout`) it read one, so the ratio was 0 of 1 or 1 of 1 from the subject of HEAD
+alone. On the issue's repro rebuilt synthetically (a Python library with a pull-request CI workflow
+and a PR template, twenty commits, every other one a pull-request merge), the full clone scores B2
+verified 3.6 and the depth-1 clone scored it warning 3.2 under v17 and v18-v26.
+
+**Change.** When the clone is shallow and fewer than twelve commits are visible, B2 abstains:
+`insufficient_data`, score 0, a note starting "B2 abstained: this repository is a shallow clone with
+fewer than 12 commits visible", and a new signal reason, `shallow_history`, which leaves the
+composite like ordinary `insufficient_data` (it is not a read failure held at 0). It abstains
+whichever way the one visible commit points, so the abstention cannot be selective. The v17
+`historyLimitations` sentence no longer says "Scores are computed exactly as for any other scan"; it
+says B2 abstains and is left out of the composite. It stays display-only (#428).
+
+**Chosen: abstain, for B2 only.** Keeping the full-history score is not computable from a truncated
+history. Withholding only `pr_merge_ratio` was rejected: B2 would then score `pr_trace_primitives`
+alone, which is lower than the full-history score whenever the merge ratio exceeds it. A2 is
+unchanged: its history reads can only miss evidence on a truncated history, never add it, so its
+score there is never lower than on a full clone (it can be higher; v27's #442 and #556 abstentions
+address that direction, and this decision does not). Measured: A2 did not move on any shallow
+fixture below.
+
+**v27 unchanged.** v27 already abstains on both criteria on a shallow clone, as read failures kept in
+the composite at 0, which its no-rise property against v17 (#531) requires. With v17's B2 now out of
+the composite and v27's held at 0, v27 still cannot rise against v17. Whether v27's shallow-clone
+abstentions should also leave the composite is an operator decision: doing so would break the #531
+property and #556's guarantee that an incomplete history never scores above the complete clone.
+
+**What the composite does.** Leaving B2 out moves the process composite to the mean of the other
+process criteria, up or down. On the repro it falls: B2 was above that mean.
+
+| Repro (v17) | B2 | process_trust | overall | verdict |
+|---|---|---|---|---|
+| full clone | verified 3.6 | 2.3 | 2.2 | at_risk |
+| depth 12 (window fully visible) | verified 3.6, unchanged | 2.3 | 2.2 | at_risk |
+| depth 1, HEAD not a PR merge, before | warning 3.2 | 2.1 | 2.1 | at_risk |
+| depth 1, HEAD not a PR merge, after | insufficient_data | 1.0 | 1.5 | at_risk |
+| depth 1, HEAD a PR merge, before | verified 4 | 2.5 | 2.3 | at_risk |
+| depth 1, HEAD a PR merge, after | insufficient_data | 1.0 | 1.5 | at_risk |
+
+v18-v25 give the same numbers; v26's overall is 1.6 after (its code_trust is 2.1). v27 on depth 1:
+A2 and B2 `insufficient_data` at 0, process_trust 0.5, overall 0.8, unchanged by this entry.
+
+**Measured.** The scanner before is `origin/main` `5d47da175`. Full `report.json` bytes (scan
+directory replaced by a placeholder) and the fingerprint projection were compared, under all eleven
+selectable rubrics.
+
+| Set | Reports | Shallow | Scoring-surface moves | Byte-identical | Byte differences |
+|---|---|---|---|---|---|
+| Behaviour corpus (30 specimens) | 330 | 0 | 0 | 330 | 0 |
+| Disclosure-gap fixtures (22 readable) | 242 | 22 | 20 | 222 | 20: `b3-master-target-depth-1-clone` and `b3-master-target-ci-fetch` under v17-v26, B2 warning 1.6 to `insufficient_data`, process_trust 2 to 2.4, overall 2.2 to 2.3 |
+| False-assurance fixtures (208) | 2,288 | 22 | 20 | 2,257 | 31: `history-shallow-clone` and `history-shallow-clone-with-committed-secret` under v17-v26 (below); `review4-a4-working-directory-through-tracked-symlink` under all eleven, bytes only, because its symlink points at a fresh temporary host directory on every build (it moves under v27 too, which this change does not reach) |
+| #442 repro (2 HEAD shapes x full, depth 1, depth 12) | 66 | 44 | 20 | 26 | 40: the 20 depth-1 reports under v17-v26 (table above), and the 20 depth-12 reports under v17-v26, bytes only: the reworded shallow sentence |
+
+`history-shallow-clone` under v17-v25: B2 warning 1.6 to `insufficient_data`, process_trust 1.3 to
+1.0, overall 1.7 to 1.5 (v26 1.7 to 1.6). `history-shallow-clone-with-committed-secret`: B2 warning 1.6
+to `insufficient_data`, process_trust 1.3 to 1.0, overall 1.3 to 1.2 (v26 1.4 to 1.2); A2 stays
+critical 1.4. No verdict moved.
+
+**Fingerprints.** Every pin is unchanged: no behaviour-corpus specimen is a shallow clone, so the
+fingerprint does not see this change, as with every shallow-clone change before it. v17 stays
+`sha256:5cd48f8c642300ae8736a09d4a24ce3a4f8885f6e099b5f27f99d950e0c944b4`.
+
+**Public board.** No board input is shallow. The board has been scored on full-history clones under
+v17 since the 0.6.3 regeneration (2026-10-11 entry), and the public-delta harness refuses a shallow
+target (`docs/experiments/public-delta-harness/common.mjs`). The depth-1 v17 to v27 board table in
+the 2026-10-19 entry was measured on depth-1 checkouts, not the board's inputs (2026-10-21
+correction). No published score, verdict or rank moves. The board was not re-run.
+
+**Tests.** `src/witan/__tests__/shallow-history-not-lower-442.test.ts` (red first at `9e4710bb9`: B2
+3.6 to 3.2, verified to warning, under v17-v26); `false-assurance-v27.test.ts`,
+`disclosure-gaps.test.ts` (20 pins re-captured) and `v27-no-rise-generated-suite.ts` updated.
+
 ## 2026-10-27 — v27 A1: a pytest hook that adds a skip marker held in a name, or the marker named "skip", to every item disables the suite (#518); #519 needs no further change under v27; no published score moved
 
 **Defect (#518).** v27's run-wide hook reader (2026-10-19 entry below) read a skip only when it was
