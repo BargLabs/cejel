@@ -179,7 +179,8 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     matrix is not read, so a publishing job is publishing whatever its matrix, as before);
 //   - A1: conftest.py is not a concrete test file, and an unconditional run-wide pytest skip
 //     (a collection hook that skips or clears every item, or a module-level pytestmark skip)
-//     marks the test files in its scope hollow;
+//     marks the test files in its scope hollow (from 2026-10-27 the hook's skip marker may also be
+//     the name "skip", or a name bound once to pytest.mark.skip before the loop);
 //   - every criterion: a read of a Git LFS pointer is a content-read skip, so the criterion that
 //     read it abstains as a read failure instead of scoring the pointer text, unless its
 //     collector made a critical finding (it then scores as under v17);
