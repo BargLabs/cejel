@@ -10034,6 +10034,18 @@ interface PythonHookStatement {
 // `<name>.add_marker(pytest.mark.skip...)`, with the receiver in group 1.
 const PYTEST_HOOK_SKIP_MARKER_PATTERN =
   /^([A-Za-z_]\w*)[ \t]*\.[ \t]*add_marker[ \t]*\([ \t]*pytest\.mark\.skip\b(?!if)/;
+// `<name>.add_marker("skip")`: pytest reads a marker name as `pytest.mark.<name>`, and a bare
+// `skip` mark skips unconditionally. The receiver is in group 1.
+const PYTEST_HOOK_SKIP_MARKER_BY_NAME_PATTERN =
+  /^([A-Za-z_]\w*)[ \t]*\.[ \t]*add_marker[ \t]*\([ \t]*(["'])skip\2[ \t]*[,)]/;
+// `<name>.add_marker(<marker>)` with the marker a bare name: receiver in group 1, marker in group 2.
+const PYTEST_HOOK_HELD_MARKER_PATTERN =
+  /^([A-Za-z_]\w*)[ \t]*\.[ \t]*add_marker[ \t]*\([ \t]*([A-Za-z_]\w*)[ \t]*[,)]/;
+// A one-line statement binding a name, in group 1, to an unconditional skip marker and nothing
+// else: `<name> = pytest.mark.skip`, or with arguments holding no bracket. Read with string
+// contents blanked, so a bracket in a skip reason does not end the arguments.
+const PYTEST_SKIP_MARKER_BINDING_PATTERN =
+  /^([A-Za-z_]\w*)[ \t]*=[ \t]*pytest\.mark\.skip(?:[ \t]*\([^()[\]{}]*\))?[ \t]*$/;
 // The start of a statement that assigns to the name in group 1 (`x = `, `x += `, `x, y = `, `del x`).
 const PYTHON_ASSIGNMENT_TARGET_PATTERN = /^(?:del[ \t]+)?([A-Za-z_]\w*)[ \t]*(?:[-+*/%&|^@]?=(?!=)|,)/;
 const PYTHON_IDENTIFIER_PATTERN = /[A-Za-z_]\w*/g;
@@ -10058,20 +10070,68 @@ function mayRebindPythonName(text: string, name: string): boolean {
 }
 
 /**
+ * Names that hold an unconditional skip marker when the hook runs, each mapped to the index in the
+ * hook body of the statement binding it, or to -1 for a binding at the module's top level, which is
+ * made before any hook runs. A name qualifies only when its binding is one statement at the module's
+ * top level or at the hook body's own first indent, and the conftest names it exactly twice in code:
+ * that binding and one use. Any other mention (a second binding, a `global`, a use elsewhere) may
+ * change what it holds, so then the name is not read. Linear in the file.
+ */
+function pytestHeldSkipMarkers(
+  lines: readonly string[],
+  body: readonly PythonHookStatement[],
+): Map<string, number> {
+  const bindings = new Map<string, number>();
+  const bind = (code: string, at: number): void => {
+    const name = PYTEST_SKIP_MARKER_BINDING_PATTERN.exec(code.trim())?.[1];
+    if (name !== undefined) bindings.set(name, bindings.has(name) ? Number.NaN : at);
+  };
+  for (const line of lines) {
+    if (/^[A-Za-z_]/.test(line)) bind(pythonCodeOutsideStrings(line.replace(/\r$/, '')), -1);
+  }
+  const hookIndent = body[0]?.indent;
+  body.forEach(({ indent, text }, index) => {
+    if (indent === hookIndent) bind(pythonCodeOutsideStrings(text), index);
+  });
+  if (bindings.size === 0) return bindings;
+  const mentions = new Map<string, number>();
+  for (const line of lines) {
+    for (const match of pythonCodeOutsideStrings(line).matchAll(PYTHON_IDENTIFIER_PATTERN)) {
+      if (bindings.has(match[0])) mentions.set(match[0], (mentions.get(match[0]) ?? 0) + 1);
+    }
+  }
+  for (const [name, at] of bindings) {
+    if (Number.isNaN(at) || mentions.get(name) !== 2) bindings.delete(name);
+  }
+  return bindings;
+}
+
+/**
  * True when the hook body (already free of any conditional) holds, at its own first indent, a
  * `for <name> in items:` loop whose own body, at its first level, adds a skip marker to `<name>`, and nothing in the
- * loop rebinds `<name>` and nothing in the hook rebinds `items`. A skip and a loop that merely
+ * loop rebinds `<name>` and nothing in the hook rebinds `items`. The marker is `pytest.mark.skip`
+ * written in the call, the name "skip", or a name `heldSkipMarkers` holds and that is bound before
+ * the loop. A skip and a loop that merely
  * co-occur (a timeout on every item and a skip on one, `items[0].add_marker(...)`, a skip inside
  * a nested loop or function) are not tied together, so nothing is claimed. Linear in the body
  * for sibling loops; nested loops rescan only their own extent.
  */
-function hookSkipsEveryItem(body: readonly PythonHookStatement[]): boolean {
+function hookSkipsEveryItem(
+  body: readonly PythonHookStatement[],
+  heldSkipMarkers: ReadonlyMap<string, number> = new Map(),
+): boolean {
   if (body.some(({ text }) => PYTEST_HOOK_REBIND_ITEMS_PATTERN.test(text))) return false;
   // The loop must run when the hook does: at the hook body's own first indent, not inside a nested
   // function or another loop.
   const hookIndent = body[0]?.indent;
-  const skips = (text: string, name: string): boolean =>
-    PYTEST_HOOK_SKIP_MARKER_PATTERN.exec(text)?.[1] === name;
+  const skips = (text: string, name: string, loopIndex: number): boolean => {
+    if (PYTEST_HOOK_SKIP_MARKER_PATTERN.exec(text)?.[1] === name) return true;
+    if (PYTEST_HOOK_SKIP_MARKER_BY_NAME_PATTERN.exec(text)?.[1] === name) return true;
+    const held = PYTEST_HOOK_HELD_MARKER_PATTERN.exec(text);
+    if (held?.[1] !== name) return false;
+    const boundAt = heldSkipMarkers.get(held[2] ?? '');
+    return boundAt !== undefined && boundAt < loopIndex;
+  };
   for (let index = 0; index < body.length; index += 1) {
     const statement = body[index] as PythonHookStatement;
     if (statement.indent !== hookIndent) continue;
@@ -10080,7 +10140,7 @@ function hookSkipsEveryItem(body: readonly PythonHookStatement[]): boolean {
     const name = loop[1] ?? '';
     const inline = (loop[2] ?? '').trim();
     if (inline !== '') {
-      if (skips(inline, name)) return true;
+      if (skips(inline, name, index)) return true;
       continue;
     }
     const childIndent = body[index + 1]?.indent;
@@ -10091,7 +10151,7 @@ function hookSkipsEveryItem(body: readonly PythonHookStatement[]): boolean {
       const { indent, text } = body[inner] as PythonHookStatement;
       if (indent <= statement.indent) break;
       if (mayRebindPythonName(text, name)) rebound = true;
-      if (indent === childIndent && skips(text, name)) skipped = true;
+      if (indent === childIndent && skips(text, name, index)) skipped = true;
     }
     if (skipped && !rebound) return true;
   }
@@ -10174,7 +10234,7 @@ function findPytestRunWideSkips(
       );
       const kind = clears && !refills
         ? ('clear' as const)
-        : hookSkipsEveryItem(indented)
+        : hookSkipsEveryItem(indented, pytestHeldSkipMarkers(lines, indented))
           ? ('skip' as const)
           : undefined;
       if (!kind) continue;

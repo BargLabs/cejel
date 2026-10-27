@@ -384,6 +384,18 @@ const FALSE_ASSURANCE_FIXTURES_ISSUES: readonly FalseAssuranceFixture[] = [
       },
     ],
   },
+  {
+    name: 'a1-js-suite-one-test-file-lfs-pointer',
+    issue: '#519',
+    purpose: 'Corner (pin, 2026-10-27): one of the two test files is a Git LFS pointer, the other is readable.',
+    commits: [
+      JS_LIBRARY,
+      {
+        'test/lite.js': lfsPointerFor(JS_TEST_LITE),
+        '.gitattributes': 'test/lite.js filter=lfs diff=lfs merge=lfs -text\n',
+      },
+    ],
+  },
   // #520 ------------------------------------------------------------------------------------
   {
     name: 'a4-uv-locked-with-lockfile',
@@ -1766,6 +1778,98 @@ for (const [name, purpose, pyproject, run, env] of [
     purpose,
     commits: [{ ...PY_LIBRARY, 'pyproject.toml': pyproject, '.github/workflows/publish.yml': PUSH_UPLOAD(run, env) }],
   });
+}
+
+// #518 follow-up (2026-10-27): a hook that skips every item with a marker held in a name, as the
+// pytest documentation's own example does (`skip_slow = pytest.mark.skip(...)`, then
+// `item.add_marker(skip_slow)`), or given by name (`item.add_marker("skip")`). Under v27 before this
+// follow-up, only `item.add_marker(pytest.mark.skip(...))` written inline was read, so these left A1
+// verified at v17's score. The first three are changes; the rest are controls that must make no claim.
+const conftestHook = (preamble: readonly string[], body: readonly string[]): string =>
+  ['import pytest', '', ...preamble, '', 'def pytest_collection_modifyitems(config, items):', ...body, ''].join('\n');
+for (const [name, purpose, conftest] of [
+  [
+    'a1-pytest-hook-skip-marker-held-in-local',
+    'Change: the hook binds a skip marker to a local name, then adds it to every item.',
+    conftestHook([], ['    skip_all = pytest.mark.skip(reason="temporarily disabled")', '    for item in items:', '        item.add_marker(skip_all)']),
+  ],
+  [
+    'a1-pytest-hook-skip-marker-module-constant',
+    'Change: a module-level constant holds the skip marker, and the hook adds it to every item.',
+    conftestHook(['SKIP_ALL = pytest.mark.skip(reason="temporarily disabled")', ''], ['    for item in items:', '        item.add_marker(SKIP_ALL)']),
+  ],
+  [
+    'a1-pytest-hook-skip-marker-by-name',
+    'Change: the hook adds the marker named "skip" to every item, which pytest reads as an unconditional skip.',
+    conftestHook([], ['    for item in items:', '        item.add_marker("skip")']),
+  ],
+  [
+    'a1-pytest-hook-skip-marker-held-conditional',
+    "Control: the pytest documentation's --runslow example, which skips only slow tests and only without the option.",
+    conftestHook(
+      ['', 'def pytest_addoption(parser):', '    parser.addoption("--runslow", action="store_true", default=False)', ''],
+      [
+        '    if config.getoption("--runslow"):',
+        '        return',
+        '    skip_slow = pytest.mark.skip(reason="need --runslow option to run")',
+        '    for item in items:',
+        '        if "slow" in item.keywords:',
+        '            item.add_marker(skip_slow)',
+      ],
+    ),
+  ],
+  [
+    'a1-pytest-hook-skip-marker-rebound-before-loop',
+    'Control: the local name is rebound to a timeout before the loop, so the loop adds no skip.',
+    conftestHook([], [
+      '    marker = pytest.mark.skip(reason="disabled")',
+      '    marker = pytest.mark.timeout(30)',
+      '    for item in items:',
+      '        item.add_marker(marker)',
+    ]),
+  ],
+  [
+    'a1-pytest-hook-skip-marker-bound-after-loop',
+    'Control: the local name is bound only after the loop, so the loop cannot add a skip.',
+    conftestHook([], ['    for item in items:', '        item.add_marker(marker)', '    marker = pytest.mark.skip(reason="disabled")']),
+  ],
+  [
+    'a1-pytest-hook-module-marker-rebound-elsewhere',
+    'Control: another hook may rebind the module-level constant before collection, so it is not read as a skip.',
+    conftestHook(
+      [
+        'MARK = pytest.mark.skip(reason="disabled")',
+        '',
+        '',
+        'def pytest_configure(config):',
+        '    global MARK',
+        '    MARK = pytest.mark.timeout(30)',
+        '',
+      ],
+      ['    for item in items:', '        item.add_marker(MARK)'],
+    ),
+  ],
+  [
+    'a1-pytest-hook-module-marker-not-skip',
+    'Control: the module-level constant holds a timeout marker, not a skip.',
+    conftestHook(['MARK = pytest.mark.timeout(30)', ''], ['    for item in items:', '        item.add_marker(MARK)']),
+  ],
+  [
+    'a1-pytest-hook-skipif-marker-held',
+    'Control: the held marker is a skipif with a condition.',
+    conftestHook([], [
+      '    posix_only = pytest.mark.skipif(not hasattr(__import__("os"), "fork"), reason="posix")',
+      '    for item in items:',
+      '        item.add_marker(posix_only)',
+    ]),
+  ],
+  [
+    'a1-pytest-hook-marker-by-other-name',
+    'Control: the marker added by name is "slow", not "skip".',
+    conftestHook([], ['    for item in items:', '        item.add_marker("slow")']),
+  ],
+] as const) {
+  FALSE_ASSURANCE_FIXTURES_REVIEW.push({ name, issue: '#518', purpose, commits: [PY_LIBRARY, { 'tests/conftest.py': conftest }] });
 }
 
 export const FALSE_ASSURANCE_FIXTURES: readonly FalseAssuranceFixture[] = [

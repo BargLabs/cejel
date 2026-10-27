@@ -22,6 +22,71 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
+## 2026-10-27 — v27 A1: a pytest hook that adds a skip marker held in a name, or the marker named "skip", to every item disables the suite (#518); #519 needs no further change under v27; no published score moved
+
+**Defect (#518).** v27's run-wide hook reader (2026-10-19 entry below) read a skip only when it was
+written in the call, `item.add_marker(pytest.mark.skip(...))`. The pytest documentation's own idiom
+binds the marker first (`skip_all = pytest.mark.skip(reason=...)`, then `item.add_marker(skip_all)`),
+and pytest also takes a marker by name (`item.add_marker("skip")` is `pytest.mark.skip`). Either one,
+in a loop over every item with no condition in the hook, skips every test, yet v27 scored A1
+verified 2.3, exactly as v17 does.
+
+**Change, A1, v27 only.** In the same unconditional loop over `items`, a skip is now also read from
+`item.add_marker("skip")` (either quote), and from `item.add_marker(<name>)` when all of these hold:
+- `<name>` is bound to `pytest.mark.skip`, bare or with arguments that hold no bracket, in one
+  statement on one line;
+- that statement is at the module's top level, or at the hook body's own first indent before the
+  loop;
+- the conftest names `<name>` exactly twice in code: the binding and that use.
+
+A second binding, a `global`, any other use, a binding after the loop, a `skipif`, a marker of
+another name, and every condition the reader already refused make no claim. v17 and every other
+rubric are unchanged: the reader runs only under `usesV27FalseAssuranceClosure`.
+
+**Why nothing can rise.** The 2026-10-19 argument for the hook rule applies unchanged: a disabled
+file stays where v17 rates it in `non_hollow_test_share`, so the share can only fall, and the added
+warning finding names the hook. The no-rise and finding-preservation tests in
+`false-assurance-v27.test.ts` run over the ten new fixtures, and the six generated no-rise shards
+were rerun.
+
+**Measured.** The scanner before is `origin/main` `69424d657`. Full `report.json` bytes were compared
+before and after, with the scan directory replaced by a placeholder.
+
+| Set | Rubrics | Reports | Byte-identical | Changed |
+|---|---|---|---|---|
+| Behaviour corpus (30 specimens) | all 11 selectable | 330 | 330 | 0 |
+| #518 and #519 false-assurance fixtures (52, ten of them new) | v17, v27 | 104 | 101 | 3: the three new change fixtures, under v27 |
+
+Every fingerprint pin is unchanged; no corpus specimen has a pytest hook. The public board is scored
+under v17, which this change does not reach, and was not re-run.
+
+| Fixture | v17 A1 | v27 A1 before | v27 A1 after |
+|---|---|---|---|
+| `a1-pytest-hook-skip-marker-held-in-local` | verified 2.3 | verified 2.3, share 2 | critical 1.7, share 0, hook warning |
+| `a1-pytest-hook-skip-marker-module-constant` | verified 2.3 | verified 2.3, share 2 | critical 1.7, share 0, hook warning |
+| `a1-pytest-hook-skip-marker-by-name` | verified 2.3 | verified 2.3, share 2 | critical 1.7, share 0, hook warning |
+| the seven controls | verified 2.3 | verified 2.3 | verified 2.3 (no move) |
+
+Each of the three moves the v27 overall score from 1.4 to 1.3.
+
+**#519, measured, no code change.** On the issue's reproduction rebuilt as
+`a1-js-suite-as-lfs-pointers` (both test files committed as pointers, with the issue's
+`.gitattributes` line), v27 abstains A1 as a read failure kept in the composite at 0. It counts the
+pointers as `contentReadSummary.byReason.lfsPointer` 2, lists A1 in `affectedCriteria`, keeps them
+out of every metric, and lists no test-file evidence. A new pin, `a1-js-suite-one-test-file-lfs-pointer`, shows the
+same with one pointer beside a readable test file; it passes on main. Under v17 the pointers are
+counted and labelled as pointers and A1 still scores their text, by the 2026-10-21 ruling on
+promotion.
+
+**Not changed.**
+- "Similar fixture or hook files" is read as `conftest.py` only, pytest's one per-directory hook
+  file. Other support files under a test directory (`__init__.py`, helpers) stay in
+  `test_to_source_ratio` under every rubric, as the ratio has always counted them. Narrowing that
+  needs a rubric decision.
+- Conditional skips (a `skipif` with a real condition, a hook that skips only some items) are out of
+  scope and unchanged.
+- The per-file and per-suite skip handling (#487, #488, #494) is unchanged.
+
 ## 2026-10-27 — A4 reads the uv sync-then-run shape on any runner, earlier uses: steps, and pip --require-hashes, and says when lockfile coverage was not computed (#520); v27 B3's publishing rule no longer evaded by removing the gate (#517); published corpus not measured
 
 **Defects.** #520: the lockfile-requirement reader decided "the lockfile may be generated" once per

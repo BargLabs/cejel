@@ -264,6 +264,49 @@ describe('#518 — a suite that cannot fail is not verified', () => {
     expect(a1.status).not.toBe('insufficient_data');
     expect(metricValue(a1, 'test_to_source_ratio')).toBe(0);
   });
+
+  // Follow-up 2026-10-27: the skip marker held in a local or module-level name, as in the pytest
+  // documentation's own example, or added by the name "skip". v17 is unchanged.
+  it('v27: a skip marker held in a name or added by name marks the suite hollow and names the hook', () => {
+    for (const [name, line] of [
+      ['a1-pytest-hook-skip-marker-held-in-local', 4],
+      ['a1-pytest-hook-skip-marker-module-constant', 6],
+      ['a1-pytest-hook-skip-marker-by-name', 4],
+    ] as const) {
+      const v17 = criterion(name, V17, 'A1');
+      expect(v17.status, name).toBe('verified');
+      const a1 = criterion(name, V27, 'A1');
+      expect(metricValue(a1, 'non_hollow_test_share'), name).toBe(0);
+      expect(a1.status, name).toBe('critical');
+      expect(a1.score, name).toBeLessThan(v17.score);
+      const hook = a1.findings.find(({ summary }) => summary.startsWith('A pytest collection hook'));
+      expect(hook?.severity, name).toBe('warning');
+      expect(hook?.summary, name).toContain('marks every collected test skipped');
+      expect(hook?.evidence.path, name).toBe('tests/conftest.py');
+      expect(hook?.evidence.line, name).toBe(line);
+    }
+  });
+
+  it('v27: a held marker that is conditional, rebound, bound too late, not a skip, or a skipif makes no claim', () => {
+    for (const name of [
+      'a1-pytest-hook-skip-marker-held-conditional',
+      'a1-pytest-hook-skip-marker-rebound-before-loop',
+      'a1-pytest-hook-skip-marker-bound-after-loop',
+      'a1-pytest-hook-module-marker-rebound-elsewhere',
+      'a1-pytest-hook-module-marker-not-skip',
+      'a1-pytest-hook-skipif-marker-held',
+      'a1-pytest-hook-marker-by-other-name',
+    ]) {
+      const v17 = criterion(name, V17, 'A1');
+      const v27 = criterion(name, V27, 'A1');
+      expect(
+        v27.findings.some(({ summary }) => summary.startsWith('A pytest collection hook')),
+        name,
+      ).toBe(false);
+      expect(metricValue(v27, 'non_hollow_test_share'), name).toBe(metricValue(v17, 'non_hollow_test_share'));
+      expect(v27.status, name).toBe(v17.status);
+    }
+  });
 });
 
 describe('#519 — Git LFS pointers are content Cejel did not read', () => {
@@ -312,6 +355,21 @@ describe('#519 — Git LFS pointers are content Cejel did not read', () => {
     expect(a1.notes).toContain('git lfs pull');
     expect(report(lfs, V27).contentReadSummary?.affectedCriteria).toEqual(['A1']);
     expect(report(lfs, V27).codeTrustScore ?? 0).toBeLessThan(report(lfs, V17).codeTrustScore ?? 0);
+  });
+
+  // Pin added 2026-10-27, green on main: one pointer among readable tests is enough. v27 does not
+  // score the readable file alone, and lists no test-file evidence, pointer or not.
+  it('v27: one test file of two as a pointer still abstains A1, with no test-file evidence', () => {
+    const name = 'a1-js-suite-one-test-file-lfs-pointer';
+    expect(report(name, V17).contentReadSummary?.byReason.lfsPointer).toBe(1);
+    expect(report(name, V27).contentReadSummary?.byReason.lfsPointer).toBe(1);
+    const v17 = criterion(name, V17, 'A1');
+    expect(v17.evidence.find(({ path }) => path === 'test/lite.js')?.label).toContain('Git LFS pointer');
+    const a1 = criterion(name, V27, 'A1');
+    expect(a1.status).toBe('insufficient_data');
+    expect(a1.score).toBe(0);
+    expect(a1.evidence.filter(({ kind }) => kind === 'test_run')).toEqual([]);
+    expect(report(name, V27).contentReadSummary?.affectedCriteria).toEqual(['A1']);
   });
 });
 
