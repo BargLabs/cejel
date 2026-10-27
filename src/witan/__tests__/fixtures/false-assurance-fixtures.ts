@@ -384,6 +384,18 @@ const FALSE_ASSURANCE_FIXTURES_ISSUES: readonly FalseAssuranceFixture[] = [
       },
     ],
   },
+  {
+    name: 'a1-js-suite-one-test-file-lfs-pointer',
+    issue: '#519',
+    purpose: 'Corner (pin, 2026-10-27): one of the two test files is a Git LFS pointer, the other is readable.',
+    commits: [
+      JS_LIBRARY,
+      {
+        'test/lite.js': lfsPointerFor(JS_TEST_LITE),
+        '.gitattributes': 'test/lite.js filter=lfs diff=lfs merge=lfs -text\n',
+      },
+    ],
+  },
   // #520 ------------------------------------------------------------------------------------
   {
     name: 'a4-uv-locked-with-lockfile',

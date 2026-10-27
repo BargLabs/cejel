@@ -356,6 +356,21 @@ describe('#519 — Git LFS pointers are content Cejel did not read', () => {
     expect(report(lfs, V27).contentReadSummary?.affectedCriteria).toEqual(['A1']);
     expect(report(lfs, V27).codeTrustScore ?? 0).toBeLessThan(report(lfs, V17).codeTrustScore ?? 0);
   });
+
+  // Pin added 2026-10-27, green on main: one pointer among readable tests is enough. v27 does not
+  // score the readable file alone, and lists no test-file evidence, pointer or not.
+  it('v27: one test file of two as a pointer still abstains A1, with no test-file evidence', () => {
+    const name = 'a1-js-suite-one-test-file-lfs-pointer';
+    expect(report(name, V17).contentReadSummary?.byReason.lfsPointer).toBe(1);
+    expect(report(name, V27).contentReadSummary?.byReason.lfsPointer).toBe(1);
+    const v17 = criterion(name, V17, 'A1');
+    expect(v17.evidence.find(({ path }) => path === 'test/lite.js')?.label).toContain('Git LFS pointer');
+    const a1 = criterion(name, V27, 'A1');
+    expect(a1.status).toBe('insufficient_data');
+    expect(a1.score).toBe(0);
+    expect(a1.evidence.filter(({ kind }) => kind === 'test_run')).toEqual([]);
+    expect(report(name, V27).contentReadSummary?.affectedCriteria).toEqual(['A1']);
+  });
 });
 
 describe('#520 — A4 says what the repository itself requires, and cites what drove the metric', () => {
