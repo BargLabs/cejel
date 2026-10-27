@@ -114,6 +114,35 @@ export const FIXTURES_520: readonly FalseAssuranceFixture[] = [
     ...PY_SOURCES,
     '.github/workflows/tests.yaml': testsWorkflow('      - run: uv sync --locked\n        shell: bash\n      - run: uv run pytest\n        shell: bash\n'),
   }),
+  // v3 item C: a custom shell of the bash family runs bash on the step's script file, which exits
+  // with its one command's status.
+  fixture('uv-sync-then-run-shell-bash-login', '#520', 'Change: the separate-step shape with `shell: bash -l {0}` on each step.', {
+    ...PY_SOURCES,
+    '.github/workflows/tests.yaml': testsWorkflow('      - run: uv sync --locked\n        shell: bash -l {0}\n      - run: uv run pytest\n        shell: bash -l {0}\n'),
+  }),
+  fixture('uv-sync-then-run-shell-bash-el-windows', '#520', 'Change: the separate-step shape with `shell: bash -el {0}` on a Windows runner.', {
+    ...PY_SOURCES,
+    '.github/workflows/tests.yaml': testsWorkflow(
+      '      - run: uv sync --locked\n        shell: bash -el {0}\n      - run: uv run pytest\n        shell: bash -el {0}\n',
+      'windows-latest',
+    ),
+  }),
+  fixture(
+    'uv-sync-then-run-shell-bash-noprofile',
+    '#520',
+    'Change: the separate-step shape under a workflow default `bash --noprofile --norc -eo pipefail {0}`.',
+    {
+      ...PY_SOURCES,
+      '.github/workflows/tests.yaml': testsWorkflow(SYNC_THEN_RUN).replace(
+        'jobs:\n',
+        "defaults:\n  run:\n    shell: 'bash --noprofile --norc -eo pipefail {0}'\njobs:\n",
+      ),
+    },
+  ),
+  fixture('uv-sync-then-run-shell-nu', '#520', 'Corner: a custom shell outside the bash family (`nu {0}`) is not read.', {
+    ...PY_SOURCES,
+    '.github/workflows/tests.yaml': testsWorkflow('      - run: uv sync --locked\n        shell: nu {0}\n      - run: uv run pytest\n        shell: nu {0}\n'),
+  }),
   fixture(
     'uv-sync-then-run-one-step-windows',
     '#520',
@@ -365,6 +394,21 @@ export const EVASIONS: readonly Shape[] = [
     "Evasion: a fork guard, `if: github.repository == 'octo-org/signer'`.",
     { '.github/workflows/publish.yaml': publishWorkflow({ job: "    if: github.repository == 'octo-org/signer'\n    runs-on: ubuntu-latest\n" }) },
   ],
+  // v3 item C: an owner check guards forks as a repository check does.
+  [
+    'job-if-repository-owner-fork-guard',
+    "Evasion: an owner fork guard, `if: github.repository_owner == 'octo-org'`.",
+    { '.github/workflows/publish.yaml': publishWorkflow({ job: "    if: github.repository_owner == 'octo-org'\n    runs-on: ubuntu-latest\n" }) },
+  ],
+  [
+    'step-if-repository-owner-reversed',
+    "Evasion: `if: ${{ 'octo-org' == github.repository_owner }}` on the publishing step.",
+    {
+      '.github/workflows/publish.yaml': publishWorkflow({
+        steps: `${PUBLISH_STEPS}        if: \${{ 'octo-org' == github.repository_owner }}\n`,
+      }),
+    },
+  ],
   [
     'run-line-publish-list-runs-on',
     'Evasion: a run-line `uv publish` on `runs-on: [ubuntu-latest]`.',
@@ -445,6 +489,11 @@ export const CONTROLS_517: readonly Shape[] = [
     'job-if-repository-not-equal',
     "Control: `github.repository != 'octo-org/signer'` is false in the repository itself, so it is a gate.",
     { '.github/workflows/publish.yaml': publishWorkflow({ job: "    if: github.repository != 'octo-org/signer'\n    runs-on: ubuntu-latest\n" }) },
+  ],
+  [
+    'job-if-repository-owner-not-equal',
+    "Control: `github.repository_owner != 'octo-org'` is false in the repository itself, so it is a gate.",
+    { '.github/workflows/publish.yaml': publishWorkflow({ job: "    if: github.repository_owner != 'octo-org'\n    runs-on: ubuntu-latest\n" }) },
   ],
   [
     'run-line-publish-pwsh-shell',

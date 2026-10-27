@@ -96,6 +96,9 @@ describe('#520 — a requiring step stands when it comes before every step that 
     ['uv-sync-and-run-one-line', 'uv sync --locked', 'uv.lock', 12],
     ['uv-sync-and-run-one-line-windows', 'uv sync --locked', 'uv.lock', 12],
     ['uv-sync-and-echo-then-run', 'uv sync --locked', 'uv.lock', 12],
+    ['uv-sync-then-run-shell-bash-login', 'uv sync --locked', 'uv.lock', 12],
+    ['uv-sync-then-run-shell-bash-el-windows', 'uv sync --locked', 'uv.lock', 12],
+    ['uv-sync-then-run-shell-bash-noprofile', 'uv sync --locked', 'uv.lock', 15],
   ] as const;
 
   it('every rubric: the note names the requiring line instead of saying a lockfile is not required', () => {
@@ -151,6 +154,7 @@ describe('#520 — a requiring step stands when it comes before every step that 
       'uv-lock-and-sync-one-line',
       'uv-sync-semicolon-run-one-line-windows',
       'uv-sync-and-run-then-echo',
+      'uv-sync-then-run-shell-nu',
     ]) {
       for (const rubricVersion of [V17, V27]) {
         const a4 = criterion(name, rubricVersion, 'A4');

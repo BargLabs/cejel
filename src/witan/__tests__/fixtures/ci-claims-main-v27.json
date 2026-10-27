@@ -563,6 +563,210 @@
         }
       }
     },
+    "uv-sync-then-run-shell-bash-login": {
+      "overallScore": 1.4,
+      "codeTrustScore": 1.4,
+      "processTrustScore": 1.3,
+      "criteria": {
+        "A1": {
+          "score": 2.3,
+          "status": "verified"
+        },
+        "A2": {
+          "score": 0,
+          "status": "not_applicable"
+        },
+        "A3": {
+          "score": 0,
+          "status": "not_applicable"
+        },
+        "A4": {
+          "score": 0.5,
+          "status": "critical"
+        },
+        "A5": {
+          "score": 1.4,
+          "status": "warning"
+        },
+        "B1": {
+          "score": 0,
+          "status": "not_applicable"
+        },
+        "B2": {
+          "score": 1.6,
+          "status": "warning"
+        },
+        "B3": {
+          "score": 1,
+          "status": "verified"
+        },
+        "B4": {
+          "score": 0,
+          "status": "not_applicable"
+        },
+        "B5": {
+          "score": 0,
+          "status": "not_applicable"
+        },
+        "B6": {
+          "score": 0,
+          "status": "not_applicable"
+        }
+      }
+    },
+    "uv-sync-then-run-shell-bash-el-windows": {
+      "overallScore": 1.4,
+      "codeTrustScore": 1.4,
+      "processTrustScore": 1.3,
+      "criteria": {
+        "A1": {
+          "score": 2.3,
+          "status": "verified"
+        },
+        "A2": {
+          "score": 0,
+          "status": "not_applicable"
+        },
+        "A3": {
+          "score": 0,
+          "status": "not_applicable"
+        },
+        "A4": {
+          "score": 0.5,
+          "status": "critical"
+        },
+        "A5": {
+          "score": 1.4,
+          "status": "warning"
+        },
+        "B1": {
+          "score": 0,
+          "status": "not_applicable"
+        },
+        "B2": {
+          "score": 1.6,
+          "status": "warning"
+        },
+        "B3": {
+          "score": 1,
+          "status": "verified"
+        },
+        "B4": {
+          "score": 0,
+          "status": "not_applicable"
+        },
+        "B5": {
+          "score": 0,
+          "status": "not_applicable"
+        },
+        "B6": {
+          "score": 0,
+          "status": "not_applicable"
+        }
+      }
+    },
+    "uv-sync-then-run-shell-bash-noprofile": {
+      "overallScore": 1.4,
+      "codeTrustScore": 1.4,
+      "processTrustScore": 1.3,
+      "criteria": {
+        "A1": {
+          "score": 2.3,
+          "status": "verified"
+        },
+        "A2": {
+          "score": 0,
+          "status": "not_applicable"
+        },
+        "A3": {
+          "score": 0,
+          "status": "not_applicable"
+        },
+        "A4": {
+          "score": 0.5,
+          "status": "critical"
+        },
+        "A5": {
+          "score": 1.4,
+          "status": "warning"
+        },
+        "B1": {
+          "score": 0,
+          "status": "not_applicable"
+        },
+        "B2": {
+          "score": 1.6,
+          "status": "warning"
+        },
+        "B3": {
+          "score": 1,
+          "status": "verified"
+        },
+        "B4": {
+          "score": 0,
+          "status": "not_applicable"
+        },
+        "B5": {
+          "score": 0,
+          "status": "not_applicable"
+        },
+        "B6": {
+          "score": 0,
+          "status": "not_applicable"
+        }
+      }
+    },
+    "uv-sync-then-run-shell-nu": {
+      "overallScore": 1.4,
+      "codeTrustScore": 1.4,
+      "processTrustScore": 1.3,
+      "criteria": {
+        "A1": {
+          "score": 2.3,
+          "status": "verified"
+        },
+        "A2": {
+          "score": 0,
+          "status": "not_applicable"
+        },
+        "A3": {
+          "score": 0,
+          "status": "not_applicable"
+        },
+        "A4": {
+          "score": 0.5,
+          "status": "critical"
+        },
+        "A5": {
+          "score": 1.4,
+          "status": "warning"
+        },
+        "B1": {
+          "score": 0,
+          "status": "not_applicable"
+        },
+        "B2": {
+          "score": 1.6,
+          "status": "warning"
+        },
+        "B3": {
+          "score": 1,
+          "status": "verified"
+        },
+        "B4": {
+          "score": 0,
+          "status": "not_applicable"
+        },
+        "B5": {
+          "score": 0,
+          "status": "not_applicable"
+        },
+        "B6": {
+          "score": 0,
+          "status": "not_applicable"
+        }
+      }
+    },
     "uv-sync-then-run-one-step-windows": {
       "overallScore": 1.4,
       "codeTrustScore": 1.4,
@@ -2552,6 +2756,108 @@
         }
       }
     },
+    "job-if-repository-owner-fork-guard": {
+      "overallScore": 2.2,
+      "codeTrustScore": 1.7,
+      "processTrustScore": 2.7,
+      "criteria": {
+        "A1": {
+          "score": 2.3,
+          "status": "verified"
+        },
+        "A2": {
+          "score": 0,
+          "status": "not_applicable"
+        },
+        "A3": {
+          "score": 0,
+          "status": "not_applicable"
+        },
+        "A4": {
+          "score": 1.4,
+          "status": "warning"
+        },
+        "A5": {
+          "score": 1.4,
+          "status": "warning"
+        },
+        "B1": {
+          "score": 0,
+          "status": "not_applicable"
+        },
+        "B2": {
+          "score": 3.2,
+          "status": "warning"
+        },
+        "B3": {
+          "score": 2.1,
+          "status": "verified"
+        },
+        "B4": {
+          "score": 0,
+          "status": "not_applicable"
+        },
+        "B5": {
+          "score": 0,
+          "status": "not_applicable"
+        },
+        "B6": {
+          "score": 0,
+          "status": "not_applicable"
+        }
+      }
+    },
+    "step-if-repository-owner-reversed": {
+      "overallScore": 2.2,
+      "codeTrustScore": 1.7,
+      "processTrustScore": 2.7,
+      "criteria": {
+        "A1": {
+          "score": 2.3,
+          "status": "verified"
+        },
+        "A2": {
+          "score": 0,
+          "status": "not_applicable"
+        },
+        "A3": {
+          "score": 0,
+          "status": "not_applicable"
+        },
+        "A4": {
+          "score": 1.4,
+          "status": "warning"
+        },
+        "A5": {
+          "score": 1.4,
+          "status": "warning"
+        },
+        "B1": {
+          "score": 0,
+          "status": "not_applicable"
+        },
+        "B2": {
+          "score": 3.2,
+          "status": "warning"
+        },
+        "B3": {
+          "score": 2.1,
+          "status": "verified"
+        },
+        "B4": {
+          "score": 0,
+          "status": "not_applicable"
+        },
+        "B5": {
+          "score": 0,
+          "status": "not_applicable"
+        },
+        "B6": {
+          "score": 0,
+          "status": "not_applicable"
+        }
+      }
+    },
     "run-line-publish-list-runs-on": {
       "overallScore": 2.2,
       "codeTrustScore": 1.7,
@@ -3063,6 +3369,57 @@
       }
     },
     "job-if-repository-not-equal": {
+      "overallScore": 2.2,
+      "codeTrustScore": 1.7,
+      "processTrustScore": 2.7,
+      "criteria": {
+        "A1": {
+          "score": 2.3,
+          "status": "verified"
+        },
+        "A2": {
+          "score": 0,
+          "status": "not_applicable"
+        },
+        "A3": {
+          "score": 0,
+          "status": "not_applicable"
+        },
+        "A4": {
+          "score": 1.4,
+          "status": "warning"
+        },
+        "A5": {
+          "score": 1.4,
+          "status": "warning"
+        },
+        "B1": {
+          "score": 0,
+          "status": "not_applicable"
+        },
+        "B2": {
+          "score": 3.2,
+          "status": "warning"
+        },
+        "B3": {
+          "score": 2.1,
+          "status": "verified"
+        },
+        "B4": {
+          "score": 0,
+          "status": "not_applicable"
+        },
+        "B5": {
+          "score": 0,
+          "status": "not_applicable"
+        },
+        "B6": {
+          "score": 0,
+          "status": "not_applicable"
+        }
+      }
+    },
+    "job-if-repository-owner-not-equal": {
       "overallScore": 2.2,
       "codeTrustScore": 1.7,
       "processTrustScore": 2.7,
