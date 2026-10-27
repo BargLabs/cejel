@@ -9,19 +9,19 @@ export const HISTORY_READING_CRITERIA = ['A2', 'B2'] as const;
 
 /**
  * The disclosure under every rubric but v27. #442 (operator decision 2026-10-26: a shallow clone must
- * not lower the history score): B2, where it would be scored, abstains when fewer commits are visible
- * than its window reads, and the abstention is left out of the composite. A2 is scored as before: on a
- * truncated history its reads can only miss evidence, never add it, so its score there is never
- * lower than on a full clone. The sentence no longer says scores are computed exactly as for any
- * other scan.
+ * not lower the history score; revised 2026-10-27): B2, where it would be scored, withholds its
+ * pull-request merge ratio when fewer commits are visible than its window reads and is scored on
+ * the checked-out files alone. A2 is scored as before: on a truncated history its reads can only
+ * miss evidence, never add it, so its score there is never lower than on a full clone. The sentence
+ * no longer says scores are computed exactly as for any other scan.
  */
 export const SHALLOW_HISTORY_LIMITATION =
   'This repository is a shallow clone (git rev-parse --is-shallow-repository reports true), so its ' +
   'commit history is truncated. A2 (credentials and .env files in earlier commits) read history and ' +
   'saw only the commits present; on a full clone its result may differ. B2 (pull-request merge ratio ' +
-  'over recent commits), where it would be scored, abstains when fewer commits are visible than it ' +
-  'reads, and is left out of the composite. Re-scan a full clone (for actions/checkout, set ' +
-  'fetch-depth: 0).';
+  'over recent commits), where it would be scored, leaves that ratio out when fewer commits are ' +
+  'visible than it reads, and is scored on the CI workflows, pull-request template and review-gate ' +
+  'record in the checked-out files. Re-scan a full clone (for actions/checkout, set fetch-depth: 0).';
 
 /**
  * The same disclosure under witan-rubric-v27-prospective-2026-10-19, which does not score history
@@ -54,8 +54,8 @@ export function isShallowRepository(repoPath: string): boolean {
  * Disclosures about the commit history the scan read. Declared, never scored: this does not enter
  * scanLimitations, so it moves no score, abstention, badge or --min-score outcome (operator ruling
  * 2026-10-08, issue #428). Undefined when the history is complete or there is no git repository.
- * `v27Abstains` selects the v27 sentence; the abstentions themselves (v27's A2 and B2, and #442's B2
- * under every other rubric) happen in the collectors, not here.
+ * `v27Abstains` selects the v27 sentence; the abstentions themselves (v27's A2 and B2) and #442's
+ * withheld B2 ratio under every other rubric happen in the collectors, not here.
  */
 export function detectHistoryLimitations(repoPath: string, v27Abstains = false): string[] | undefined {
   if (!isShallowRepository(repoPath)) return undefined;
