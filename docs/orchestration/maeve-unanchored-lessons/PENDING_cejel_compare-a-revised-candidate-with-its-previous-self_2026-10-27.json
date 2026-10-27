@@ -1,0 +1,44 @@
+[
+  {
+    "statement": "A fix to a prospective rubric was checked for no rise only against the old rubric, so it could not see itself raising the new rubric back toward the old one: a whole-file matrix refusal let an unrelated job's fromJSON matrix keep an ungated publish counted, lifting the new rubric's score to exactly the old rubric's. Rules: when a candidate rubric is revised, compare each fixture with the candidate's own previous revision too, pinned from that commit; and list every permitted rise by name, so a new one fails.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "false-assurance"
+    ],
+    "tags": [
+      "no-rise-baseline",
+      "regression-invisible-to-comparison",
+      "false-assurance"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-10-27T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 599
+    }
+  },
+  {
+    "statement": "After a squash merge dropped two commits a changelog cited, the citation check went red on main, and the errata register could not repair it: its lost-in-squash entry clears only a citation that resolves to nothing, while GitHub still holds the dropped commits under the pull request's head, where they are unreachable commits that only an evidence tag clears. Rules: merge any pull request whose records cite its own commits with a merge commit; when one is squashed, the repair is an evidence tag, an operator action.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "evidence-discipline"
+    ],
+    "tags": [
+      "squash-drops-cited-commits",
+      "errata-scope",
+      "cited-commits"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-10-27T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 599
+    }
+  }
+]

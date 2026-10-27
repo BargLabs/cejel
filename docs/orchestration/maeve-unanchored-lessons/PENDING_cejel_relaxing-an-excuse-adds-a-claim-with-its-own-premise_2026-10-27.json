@@ -17,7 +17,7 @@
     "movesWhen": {
       "kind": "pr-merged",
       "repository": "BargLabs/cejel",
-      "number": 598
+      "number": 599
     }
   },
   {
@@ -38,7 +38,7 @@
     "movesWhen": {
       "kind": "pr-merged",
       "repository": "BargLabs/cejel",
-      "number": 598
+      "number": 599
     }
   }
 ]
