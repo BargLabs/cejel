@@ -7,6 +7,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 
 import type { WitanCriterionScore, WitanReport } from '../schemas.js';
 
+import { SHALLOW_HISTORY_LIMITATION } from '../history-depth.js';
 import { scoreRepoWithPublicCejel } from '../public-scan.js';
 import { WITAN_RUBRIC_VERSION_V17, WITAN_RUBRIC_VERSION_V27 } from '../rubric-version.js';
 import { HERMETIC_GIT_ENV } from './fixtures/behaviour-corpus.js';
@@ -136,6 +137,8 @@ function normalized(score: WitanCriterionScore, name: string): number | undefine
 
 const compare = (shallow: number, full: number) => (shallow < full ? 'below' : shallow > full ? 'above' : 'equal');
 const BAND = ['unverified', 'at_risk', 'conditional', 'verified'];
+// Higher is better, so compare() reads it the same way as a score.
+const SEVERITY: Readonly<Record<string, number>> = { critical: 0, warning: 1, info: 2, verified: 3 };
 
 interface Row {
   readonly history: History;
@@ -203,7 +206,24 @@ describe('#442 (27 Oct): on a shallow clone B2 keeps its file evidence and withh
       if (direction === 'below') expect(ratio, label).toBeGreaterThan(primitives);
       if (direction === 'above') expect(ratio, label).toBeLessThan(primitives);
       if (ratio === primitives) expect(direction, label).toBe('equal');
+      // v17's calibrated B2 status reads the ratio itself (calibratedCriterionStateV11: verified when
+      // it is positive, warning when it is 0). With the ratio withheld the status comes from the
+      // score bands, so it falls below the full clone's only where the full clone's verified rested
+      // on a positive ratio, and rises above it only where the full clone's ratio was 0 or worse
+      // than its file evidence.
+      const status = compare(SEVERITY[shallow.status]!, SEVERITY[full.status]!);
+      if (status === 'below') expect(ratio, label).toBeGreaterThan(0);
+      if (status === 'above') expect(ratio === 0 || ratio < primitives, label).toBe(true);
     }
+  });
+
+  it('v17, under the window: the display-only disclosure says B2 left the ratio out and was scored on the files', () => {
+    for (const row of rows.filter((entry) => entry.rubric === V17 && entry.depth < WINDOW)) {
+      expect(row.shallow.historyLimitations).toEqual([SHALLOW_HISTORY_LIMITATION]);
+      expect(row.full.historyLimitations).toBeUndefined();
+    }
+    expect(SHALLOW_HISTORY_LIMITATION).toContain('leaves that ratio out when fewer commits are visible than it reads');
+    expect(SHALLOW_HISTORY_LIMITATION).not.toContain('left out of the composite');
   });
 
   it('v17: every criterion but B2 scores on a shallow clone exactly as on its full clone, so the overall moves only with B2', () => {
@@ -249,10 +269,20 @@ describe('#442 matrix table', () => {
       return `B2 ${b2.status} ${b2.score}; overall ${report.overallScore} ${report.verdict}`;
     };
     const lines = rows.map((row) => {
-      const b2 = compare(criterion(row.shallow, 'B2').score, criterion(row.full, 'B2').score);
+      const full = criterion(row.full, 'B2');
+      const shallow = criterion(row.shallow, 'B2');
+      const score = compare(shallow.score, full.score);
+      // An abstention has no status to rank; '-' where either side abstained.
+      const status =
+        SEVERITY[shallow.status] === undefined || SEVERITY[full.status] === undefined
+          ? shallow.status === full.status
+            ? 'equal'
+            : '-'
+          : compare(SEVERITY[shallow.status]!, SEVERITY[full.status]!);
       const overall = compare(row.shallow.overallScore!, row.full.overallScore!);
+      const band = compare(BAND.indexOf(row.shallow.verdict), BAND.indexOf(row.full.verdict));
       const rubric = row.rubric === V17 ? 'v17' : 'v27';
-      return `| ${rubric} | ${row.history} | ${row.evidence} | ${row.depth} | ${cell(row.full)} | ${cell(row.shallow)} | ${b2} | ${overall} |`;
+      return `| ${rubric} | ${row.history} | ${row.evidence} | ${row.depth} | ${cell(row.full)} | ${cell(row.shallow)} | ${score} | ${status} | ${overall} | ${band} |`;
     });
     expect(lines.length).toBe(HISTORIES.length * EVIDENCE.length * DEPTHS.length * 2);
     writeFileSync(join(tmpdir(), 'cejel-442-matrix.md'), `${lines.join('\n')}\n`);
