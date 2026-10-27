@@ -120,6 +120,37 @@ export const FIXTURES_520: readonly FalseAssuranceFixture[] = [
     'Corner: both commands in one step under pwsh, which runs the next line after a failing native command.',
     { ...PY_SOURCES, '.github/workflows/tests.yaml': testsWorkflow('      - run: |\n          uv sync --locked\n          uv run pytest\n', 'windows-latest') },
   ),
+  // v3 item B: a one-line `&&` chain. In bash, sh, pwsh 7 and cmd, `&&` stops at the first failing
+  // command, and under Windows PowerShell 5.1 it is a parse error, so the later `uv run` never
+  // runs, and the step fails with the sync.
+  fixture('uv-sync-and-run-one-line', '#520', 'Change: `uv sync --locked && uv run pytest` on one line, the whole step.', {
+    ...PY_SOURCES,
+    '.github/workflows/tests.yaml': testsWorkflow('      - run: uv sync --locked && uv run pytest\n'),
+  }),
+  fixture('uv-sync-and-run-one-line-windows', '#520', 'Change: the same one-line chain on a Windows runner, whose default shell is pwsh.', {
+    ...PY_SOURCES,
+    '.github/workflows/tests.yaml': testsWorkflow('      - run: uv sync --locked && uv run pytest\n', 'windows-latest'),
+  }),
+  fixture('uv-sync-and-echo-then-run', '#520', 'Change: a one-line `uv sync --locked && echo synced` step, then a `uv run pytest` step.', {
+    ...PY_SOURCES,
+    '.github/workflows/tests.yaml': testsWorkflow('      - run: uv sync --locked && echo synced\n      - run: uv run pytest\n'),
+  }),
+  fixture('uv-lock-and-sync-one-line', '#520', 'Corner: `uv lock && uv sync --locked`, a writer before the requiring command on its line.', {
+    ...PY_SOURCES,
+    '.github/workflows/tests.yaml': testsWorkflow('      - run: uv lock && uv sync --locked\n'),
+  }),
+  fixture(
+    'uv-sync-semicolon-run-one-line-windows',
+    '#520',
+    'Corner: `uv sync --locked; uv run pytest` under pwsh, which runs the command after `;` whatever the sync did.',
+    { ...PY_SOURCES, '.github/workflows/tests.yaml': testsWorkflow('      - run: uv sync --locked; uv run pytest\n', 'windows-latest') },
+  ),
+  fixture(
+    'uv-sync-and-run-then-echo',
+    '#520',
+    'Corner: the chain on the first of two lines in one step; bash -e does not stop at a failing `&&` list, so the step may pass.',
+    { ...PY_SOURCES, '.github/workflows/tests.yaml': testsWorkflow('      - run: |\n          uv sync --locked && uv run pytest\n          echo done\n') },
+  ),
   fixture('pip-require-hashes-file-deleted', '#520', 'Change: CI installs with `--require-hashes` from a requirements file that is not committed.', {
     ...PY_SOURCES,
     '.github/workflows/tests.yaml': testsWorkflow('      - run: pip install --require-hashes -r requirements/ci.txt\n      - run: pytest\n'),

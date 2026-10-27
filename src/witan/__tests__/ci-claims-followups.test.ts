@@ -93,6 +93,9 @@ describe('#520 — a requiring step stands when it comes before every step that 
     ['pip-require-hashes-file-deleted', 'pip install --require-hashes', 'requirements/ci.txt', 12],
     ['local-composite-without-writer', 'uv sync --locked', 'uv.lock', 13],
     ['action-in-another-job', 'uv sync --locked', 'uv.lock', 12],
+    ['uv-sync-and-run-one-line', 'uv sync --locked', 'uv.lock', 12],
+    ['uv-sync-and-run-one-line-windows', 'uv sync --locked', 'uv.lock', 12],
+    ['uv-sync-and-echo-then-run', 'uv sync --locked', 'uv.lock', 12],
   ] as const;
 
   it('every rubric: the note names the requiring line instead of saying a lockfile is not required', () => {
@@ -145,6 +148,9 @@ describe('#520 — a requiring step stands when it comes before every step that 
       'pip-without-require-hashes',
       'pip-require-hashes-compiled-first',
       'local-composite-writes-lockfile',
+      'uv-lock-and-sync-one-line',
+      'uv-sync-semicolon-run-one-line-windows',
+      'uv-sync-and-run-then-echo',
     ]) {
       for (const rubricVersion of [V17, V27]) {
         const a4 = criterion(name, rubricVersion, 'A4');
