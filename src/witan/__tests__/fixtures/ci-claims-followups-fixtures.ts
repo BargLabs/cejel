@@ -202,6 +202,10 @@ const RUN_LINE_PUBLISH_STEPS =
 const FROMJSON_MATRIX_JOB =
   "  test:\n    runs-on: ubuntu-latest\n    strategy:\n      matrix:\n        py: ${{ fromJSON('[\"3.12\"]') }}\n    steps:\n      - uses: actions/checkout@v4\n      - run: echo ${{ matrix.py }}\n";
 
+// A job that computes the publishing job's matrix, as release workflows do.
+const PLAN_JOB =
+  "  plan:\n    runs-on: ubuntu-latest\n    outputs:\n      targets: ${{ steps.plan.outputs.targets }}\n    steps:\n      - id: plan\n        run: echo 'targets=[\"3.12\"]' >> \"$GITHUB_OUTPUT\"\n";
+
 // #517's PyPI shape in one job: build, then publish through the PyPI action, on every push to main
 // and with no environment.
 function publishWorkflow(options: { on?: string; top?: string; job?: string; steps?: string } = {}): string {
@@ -265,6 +269,36 @@ export const EVASIONS: readonly Shape[] = [
     'matrix-in-unrelated-job',
     "Evasion: an unrelated job in the publishing workflow reads its matrix with `fromJSON('[\"3.12\"]')`.",
     { '.github/workflows/publish.yaml': `${publishWorkflow()}${FROMJSON_MATRIX_JOB}` },
+  ],
+  // Introduced by #599's per-job matrix refusal (v3 item A): a publishing job is publishing
+  // whatever its matrix, as on main, so a fromJSON matrix on the publishing job itself, literal or
+  // from another job's output, does not lift B3 above main's v27.
+  [
+    'publishing-job-fromjson-matrix',
+    "Evasion: the publishing job's own matrix is `fromJSON('[\"3.12\"]')`, with a literal `runs-on: ubuntu-latest`.",
+    {
+      '.github/workflows/publish.yaml': publishWorkflow({
+        job: "    strategy:\n      matrix:\n        py: ${{ fromJSON('[\"3.12\"]') }}\n    runs-on: ubuntu-latest\n",
+      }),
+    },
+  ],
+  [
+    'publishing-job-matrix-from-plan',
+    "Evasion: the publishing job's matrix is `fromJSON(needs.plan.outputs.targets)`, a plan job's output.",
+    {
+      '.github/workflows/publish.yaml': `${publishWorkflow({
+        job: '    needs: plan\n    strategy:\n      matrix:\n        target: ${{ fromJSON(needs.plan.outputs.targets) }}\n    runs-on: ubuntu-latest\n',
+      })}${PLAN_JOB}`,
+    },
+  ],
+  [
+    'dynamic-matrix',
+    'Evasion: the publishing job reads its matrix with `fromJSON(vars.PUBLISH_OSES)` and runs on `${{ matrix.os }}`.',
+    {
+      '.github/workflows/publish.yaml': publishWorkflow({
+        job: '    strategy:\n      matrix:\n        os: ${{ fromJSON(vars.PUBLISH_OSES) }}\n    runs-on: ${{ matrix.os }}\n',
+      }),
+    },
   ],
   [
     'job-if-success',
@@ -359,15 +393,6 @@ export const CONTROLS_517: readonly Shape[] = [
     {
       '.github/workflows/publish.yaml': callerWorkflow('./.github/workflows/pypi.yaml'),
       '.github/workflows/pypi.yaml': CALLED_PYPI_WORKFLOW.replace('    runs-on: ubuntu-latest\n', '    if: inputs.publish\n    runs-on: ubuntu-latest\n'),
-    },
-  ],
-  [
-    'dynamic-matrix',
-    'Control: a matrix read from an expression may be empty, so the job may not run.',
-    {
-      '.github/workflows/publish.yaml': publishWorkflow({
-        job: '    strategy:\n      matrix:\n        os: ${{ fromJSON(vars.PUBLISH_OSES) }}\n    runs-on: ${{ matrix.os }}\n',
-      }),
     },
   ],
   [

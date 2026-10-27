@@ -32,8 +32,8 @@ import { NO_RISE_COMPOSITES, checkNoRise, lostFindings, rises } from './v27-no-r
 //
 // #517: v27's publishing rule was evaded by an always-true job condition, a pull-request word in a
 // comment, a matrix, list-form or non-Ubuntu runner, a default shell, a reusable-workflow job, a
-// fromJSON matrix in an unrelated job, `success()`/`!cancelled()`, an upper-case event name or a
-// fork guard. Each evasion below is #517's publishing workflow, moved onto every push to main with
+// fromJSON matrix in an unrelated job or in the publishing job itself, `success()`/`!cancelled()`,
+// an upper-case event name or a fork guard. Each evasion below is #517's publishing workflow, moved onto every push to main with
 // its gate removed, and must not raise B3 above the same repository without it.
 //
 // The fixtures are in fixtures/ci-claims-followups-fixtures.ts.
@@ -234,7 +234,7 @@ describe('#517 — removing the gate does not raise v27 B3, whichever evasion is
     }
   });
 
-  it('v27 keeps counting a condition that can be false, a run-line publish off bash, a remote or guarded reusable workflow, and a dynamic matrix', () => {
+  it('v27 keeps counting a condition that can be false, a run-line publish off bash, and a remote or guarded reusable workflow', () => {
     for (const [name] of CONTROLS_517) {
       expect(criterion(name, V27, 'B3'), name).toEqual(criterion(name, V17, 'B3'));
     }
@@ -261,8 +261,9 @@ describe('no rise against v17 on these fixtures', () => {
 // ---- v27 against main's v27 --------------------------------------------------------------------
 //
 // The comparison with v17 above cannot see a change that raises v27 back towards v17: #598's
-// whole-file matrix refusal raised B3 on `matrix-in-unrelated-job` from main's 1.6 to 2.1, still
-// no higher than v17. So every fixture here is also compared with main's own v27, pinned in
+// whole-file matrix refusal raised B3 on `matrix-in-unrelated-job` from main's 1.6 to 2.1, and
+// #599's per-job refusal did the same on `publishing-job-fromjson-matrix`, each still no higher than
+// v17. So every fixture here is also compared with main's own v27, pinned in
 // fixtures/ci-claims-main-v27.json from the Cejel commit named there. To re-pin, score the fixtures
 // with that commit's source: set CI_CLAIMS_MAIN_V27_PIN to the output path and
 // CI_CLAIMS_MAIN_V27_COMMIT to the commit, and run only the test named "writes the pin".

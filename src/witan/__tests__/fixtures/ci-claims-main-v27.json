@@ -1787,6 +1787,159 @@
         }
       }
     },
+    "publishing-job-fromjson-matrix": {
+      "overallScore": 2.1,
+      "codeTrustScore": 1.7,
+      "processTrustScore": 2.4,
+      "criteria": {
+        "A1": {
+          "score": 2.3,
+          "status": "verified"
+        },
+        "A2": {
+          "score": 0,
+          "status": "not_applicable"
+        },
+        "A3": {
+          "score": 0,
+          "status": "not_applicable"
+        },
+        "A4": {
+          "score": 1.4,
+          "status": "warning"
+        },
+        "A5": {
+          "score": 1.4,
+          "status": "warning"
+        },
+        "B1": {
+          "score": 0,
+          "status": "not_applicable"
+        },
+        "B2": {
+          "score": 3.2,
+          "status": "warning"
+        },
+        "B3": {
+          "score": 1.6,
+          "status": "verified"
+        },
+        "B4": {
+          "score": 0,
+          "status": "not_applicable"
+        },
+        "B5": {
+          "score": 0,
+          "status": "not_applicable"
+        },
+        "B6": {
+          "score": 0,
+          "status": "not_applicable"
+        }
+      }
+    },
+    "publishing-job-matrix-from-plan": {
+      "overallScore": 2.1,
+      "codeTrustScore": 1.7,
+      "processTrustScore": 2.4,
+      "criteria": {
+        "A1": {
+          "score": 2.3,
+          "status": "verified"
+        },
+        "A2": {
+          "score": 0,
+          "status": "not_applicable"
+        },
+        "A3": {
+          "score": 0,
+          "status": "not_applicable"
+        },
+        "A4": {
+          "score": 1.4,
+          "status": "warning"
+        },
+        "A5": {
+          "score": 1.4,
+          "status": "warning"
+        },
+        "B1": {
+          "score": 0,
+          "status": "not_applicable"
+        },
+        "B2": {
+          "score": 3.2,
+          "status": "warning"
+        },
+        "B3": {
+          "score": 1.6,
+          "status": "verified"
+        },
+        "B4": {
+          "score": 0,
+          "status": "not_applicable"
+        },
+        "B5": {
+          "score": 0,
+          "status": "not_applicable"
+        },
+        "B6": {
+          "score": 0,
+          "status": "not_applicable"
+        }
+      }
+    },
+    "dynamic-matrix": {
+      "overallScore": 2.2,
+      "codeTrustScore": 1.7,
+      "processTrustScore": 2.7,
+      "criteria": {
+        "A1": {
+          "score": 2.3,
+          "status": "verified"
+        },
+        "A2": {
+          "score": 0,
+          "status": "not_applicable"
+        },
+        "A3": {
+          "score": 0,
+          "status": "not_applicable"
+        },
+        "A4": {
+          "score": 1.4,
+          "status": "warning"
+        },
+        "A5": {
+          "score": 1.4,
+          "status": "warning"
+        },
+        "B1": {
+          "score": 0,
+          "status": "not_applicable"
+        },
+        "B2": {
+          "score": 3.2,
+          "status": "warning"
+        },
+        "B3": {
+          "score": 2.1,
+          "status": "verified"
+        },
+        "B4": {
+          "score": 0,
+          "status": "not_applicable"
+        },
+        "B5": {
+          "score": 0,
+          "status": "not_applicable"
+        },
+        "B6": {
+          "score": 0,
+          "status": "not_applicable"
+        }
+      }
+    },
     "job-if-success": {
       "overallScore": 2.2,
       "codeTrustScore": 1.7,
@@ -2451,57 +2604,6 @@
       }
     },
     "reusable-workflow-guarded-inside": {
-      "overallScore": 2.2,
-      "codeTrustScore": 1.7,
-      "processTrustScore": 2.7,
-      "criteria": {
-        "A1": {
-          "score": 2.3,
-          "status": "verified"
-        },
-        "A2": {
-          "score": 0,
-          "status": "not_applicable"
-        },
-        "A3": {
-          "score": 0,
-          "status": "not_applicable"
-        },
-        "A4": {
-          "score": 1.4,
-          "status": "warning"
-        },
-        "A5": {
-          "score": 1.4,
-          "status": "warning"
-        },
-        "B1": {
-          "score": 0,
-          "status": "not_applicable"
-        },
-        "B2": {
-          "score": 3.2,
-          "status": "warning"
-        },
-        "B3": {
-          "score": 2.1,
-          "status": "verified"
-        },
-        "B4": {
-          "score": 0,
-          "status": "not_applicable"
-        },
-        "B5": {
-          "score": 0,
-          "status": "not_applicable"
-        },
-        "B6": {
-          "score": 0,
-          "status": "not_applicable"
-        }
-      }
-    },
-    "dynamic-matrix": {
       "overallScore": 2.2,
       "codeTrustScore": 1.7,
       "processTrustScore": 2.7,
