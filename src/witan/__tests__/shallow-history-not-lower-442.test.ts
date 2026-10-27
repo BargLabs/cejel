@@ -167,18 +167,23 @@ describe('#442: a shallow clone does not score the truncated history lower', () 
     expect(problems).toEqual([]);
   });
 
-  it('B2 abstains on a depth-1 clone whichever way the one visible commit points, and says why', () => {
+  // Operator decision 2026-10-27, revising #603's: B2 keeps its file evidence and withholds only
+  // the ratio, so it no longer abstains here. It scores the same whichever way HEAD points, since
+  // the ratio it no longer reads was the only part that depended on it.
+  it('B2 withholds its ratio on a depth-1 clone whichever way the one visible commit points, and says why', () => {
+    const scores = new Set<number>();
     for (const { name, shallow } of clones) {
       for (const rubricVersion of RUBRICS) {
         const b2 = criterion(scan(shallow, rubricVersion), 'B2');
-        expect(b2.status, `${name} ${rubricVersion}`).toBe('insufficient_data');
-        expect(b2.score, `${name} ${rubricVersion}`).toBe(0);
+        expect(b2.status, `${name} ${rubricVersion}`).not.toBe('insufficient_data');
+        expect(b2.metrics.map(({ name: metric }) => metric), `${name} ${rubricVersion}`).toEqual(['pr_trace_primitives']);
         expect(b2.notes ?? '', `${name} ${rubricVersion}`).toMatch(
-          /^B2 abstained: this repository is a shallow clone with fewer than 12 commits visible/,
+          /^B2 abstained from the pull-request merge ratio only: this repository is a shallow clone with fewer than 12 commits visible/,
         );
-        expect(b2.notes ?? '', `${name} ${rubricVersion}`).toContain('left out of the composite');
+        scores.add(b2.score);
       }
     }
+    expect([...scores]).toHaveLength(1);
   });
 
   it('the abstention is left out of the composite: it is not a read failure held at 0', () => {
