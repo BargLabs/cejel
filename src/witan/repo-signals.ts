@@ -53,6 +53,7 @@ import {
   WITAN_B3_UNCREDITED_CI_WORKFLOW_PREFIX,
   WITAN_B3_PUBLISHING_CI_WORKFLOW_PREFIX,
   WITAN_A4_LOCKFILE_COVERAGE_NOT_COMPUTED_PREFIX,
+  WITAN_A4_LOCKFILE_REQUIREMENT_NOT_DETERMINED_PREFIX,
   WITAN_B3_UNSHOWN_CHECK_PREFIX,
   WITAN_A3_BUILD_STEP_UNSETTLED_DISCLOSURE,
   WITAN_A5_RECONCILIATION_UNSETTLED_DISCLOSURE,
@@ -327,7 +328,8 @@ function withoutCountDisclosures(disclosures: readonly string[] | undefined): { 
       !text.startsWith(WITAN_B2_UNCREDITED_CI_WORKFLOW_PREFIX) &&
       !text.startsWith(WITAN_B3_UNCREDITED_CI_WORKFLOW_PREFIX) &&
       !text.startsWith(WITAN_B3_PUBLISHING_CI_WORKFLOW_PREFIX) &&
-      !text.startsWith(WITAN_A4_LOCKFILE_COVERAGE_NOT_COMPUTED_PREFIX),
+      !text.startsWith(WITAN_A4_LOCKFILE_COVERAGE_NOT_COMPUTED_PREFIX) &&
+      !text.startsWith(WITAN_A4_LOCKFILE_REQUIREMENT_NOT_DETERMINED_PREFIX),
   );
   return kept.length > 0 ? { disclosures: kept } : {};
 }
@@ -4243,24 +4245,34 @@ function collectA4DependencyEvidence(
     const actionsWorkflows = repoFiles.filter(isGitHubActionsWorkflow);
     const inventory = checkoutInventory(checkoutPaths);
     const isSatisfied = (lockfiles: readonly string[]) => lockfiles.some((name) => knownBasenames.has(name));
-    return (
-      findLockfileRequirement(repoPath, actionsWorkflows, inventory, isSatisfied) ??
-      findToxLockfileRequirement(
-        repoPath,
-        new Set(repoFiles),
-        new Set(checkoutPaths),
-        actionsWorkflows,
-        inventory,
-        isSatisfied,
-      )
+    const fromWorkflow = findLockfileRequirement(repoPath, actionsWorkflows, inventory, isSatisfied);
+    if (fromWorkflow && !fromWorkflow.unreadAction) return fromWorkflow;
+    const fromTox = findToxLockfileRequirement(
+      repoPath,
+      new Set(repoFiles),
+      new Set(checkoutPaths),
+      actionsWorkflows,
+      inventory,
+      isSatisfied,
     );
+    // A requirement that is determined is stated over one that is not (#520).
+    return fromTox && !fromTox.unreadAction ? fromTox : (fromWorkflow ?? fromTox);
   };
-  const lockfileRequirement =
+  const foundRequirement =
     hasLockfile || !manifest
       ? undefined
       : useV27FalseAssuranceClosure
         ? withContentReadSignal('A4', 'lockfile_coverage', findRequirement)
         : withoutContentReadAttribution(findRequirement);
+  // #520: a requirement an action Cejel did not read may meet is not determined. Nothing is claimed
+  // from it (no citation, finding or zero); A4 says so, under every rubric.
+  const lockfileRequirement = foundRequirement?.unreadAction ? undefined : foundRequirement;
+  const undeterminedRequirement = foundRequirement?.unreadAction ? foundRequirement : undefined;
+  const undeterminedReason = undeterminedRequirement?.unreadAction
+    ? `${
+        undeterminedRequirement.source === 'tox' ? 'a CI step' : 'an earlier step in the same job'
+      } (${undeterminedRequirement.unreadAction.file} line ${undeterminedRequirement.unreadAction.line}) uses an action Cejel did not read in full, which may write it first.`
+    : '';
   const leadingEvidence: WitanEvidencePointer[] = [];
   if (lockfileRequirement) {
     const needs = joinLockfileNames(lockfileRequirement.lockfiles);
@@ -4452,15 +4464,23 @@ function collectA4DependencyEvidence(
             ),
           ],
         }
-      : {}),
+      : !isAppOrService && undeterminedRequirement
+        ? {
+            disclosures: [
+              `${WITAN_A4_LOCKFILE_REQUIREMENT_NOT_DETERMINED_PREFIX}${
+                undeterminedRequirement.source === 'tox'
+                  ? `its tox configuration selects the \`${undeterminedRequirement.command}\` runner`
+                  : `an unconditional CI step runs \`${undeterminedRequirement.command}\``
+              } (${undeterminedRequirement.file} line ${undeterminedRequirement.line}), which exits with an error without ${joinLockfileNames(undeterminedRequirement.lockfiles)}, and ${undeterminedReason}`.slice(0, 1000),
+            ],
+          }
+        : {}),
     notes: isAppOrService
       ? `A4 scored against app/service norms (${packagedApplicationFiles.length > 0 ? 'packaged application' : 'deploy surface'} detected): pinned dependencies and a lockfile are required for reproducible installs.`
-      : lockfileRequirement
-        ? `A4 scored against library/CLI norms (no deploy surface detected — same archetype line as A3): declared version ranges are correct library behavior. ${
-            lockfileRequirement.source === 'tox'
-              ? `This repository's tox configuration selects the \`${lockfileRequirement.command}\` runner`
-              : `An unconditional step in this repository's CI runs \`${lockfileRequirement.command}\``
-          } (${lockfileRequirement.file} line ${lockfileRequirement.line}), which exits with an error without ${joinLockfileNames(lockfileRequirement.lockfiles)}, and the scanned inventory holds none.`.slice(0, 1000)
+      : (lockfileRequirement ?? undeterminedRequirement)
+        ? `A4 scored against library/CLI norms (no deploy surface detected — same archetype line as A3): declared version ranges are correct library behavior. ${requirementSentence(
+            (lockfileRequirement ?? undeterminedRequirement) as LockfileRequirement,
+          )}${undeterminedRequirement ? ` Whether that makes a lockfile required was not determined: ${undeterminedReason}` : ''}`.slice(0, 1000)
         : 'A4 scored against library/CLI norms (no deploy surface detected — same archetype line as A3): declared version ranges are correct library behavior; a committed lockfile is credited but not required.',
   };
 }
@@ -4555,10 +4575,25 @@ interface LockfileRequirement {
   /** The matched command, or for tox the runner name, trimmed for display. */
   readonly command: string;
   readonly lockfiles: readonly string[];
+  /**
+   * Set when a step using an action Cejel did not read in full may write the lockfile first: in the
+   * requiring step's job and before it, or for tox in any CI job (#520). Whether the lockfile is
+   * required is then not determined, and nothing is claimed from it.
+   */
+  readonly unreadAction?: { readonly file: string; readonly line: number };
 }
 
 function joinLockfileNames(names: readonly string[]): string {
   return names.length === 1 ? (names[0] ?? '') : `${names.slice(0, -1).join(', ')} or ${names[names.length - 1]}`;
+}
+
+/** A4's note sentence for a requirement: what states it, where, and the lockfile it needs. */
+function requirementSentence(requirement: LockfileRequirement): string {
+  return `${
+    requirement.source === 'tox'
+      ? `This repository's tox configuration selects the \`${requirement.command}\` runner`
+      : `An unconditional step in this repository's CI runs \`${requirement.command}\``
+  } (${requirement.file} line ${requirement.line}), which exits with an error without ${joinLockfileNames(requirement.lockfiles)}, and the scanned inventory holds none.`;
 }
 
 function isGitHubActionsWorkflow(file: string): boolean {
@@ -4997,6 +5032,57 @@ function workflowReadsOnlyThisTree(inventory: CheckoutInventory, contents: strin
   return true;
 }
 
+// Actions that check out this repository or install a tool, and write no other file into the
+// checkout, so none can stand in for a lockfile (#520). Their tool caches live outside the checkout.
+// Every other action, `actions/cache` and installers that may run an install included, may write
+// one.
+const ACTIONS_WRITING_NO_LOCKFILE: ReadonlySet<string> = new Set([
+  'actions/checkout',
+  'actions/setup-node',
+  'actions/setup-python',
+  'actions/setup-go',
+  'actions/setup-java',
+  'actions/setup-dotnet',
+  'astral-sh/setup-uv',
+  'oven-sh/setup-bun',
+  'dtolnay/rust-toolchain',
+]);
+const COMPOSITE_ACTION_USING_PATTERN = /^[ \t]+using:[ \t]*(['"]?)composite\1[ \t]*(?:#.*)?$/m;
+
+function isActionWritingNoLockfile(value: string): boolean {
+  const at = value.indexOf('@');
+  return at > 0 && ACTIONS_WRITING_NO_LOCKFILE.has(value.slice(0, at).toLowerCase());
+}
+
+/**
+ * What a step's action may write into the checkout, from its `uses:` value as written (#520):
+ * 'none' for an action in ACTIONS_WRITING_NO_LOCKFILE; for a local composite action
+ * (`uses: ./path`, its action.yml or action.yaml in the scanned inventory) whose every `uses:` step
+ * is such an action, the shell commands of its `run:` steps, read as if inline; and 'unread' for
+ * anything else: another action, a local action that runs JavaScript or a container, or one Cejel
+ * cannot find or place.
+ */
+function actionStepWrites(
+  repoPath: string,
+  inventory: CheckoutInventory,
+  value: string,
+): 'none' | 'unread' | readonly (readonly string[])[] {
+  if (isActionWritingNoLockfile(value)) return 'none';
+  if (!value.startsWith('./')) return 'unread';
+  const directory = literalCheckoutPath(value);
+  if (directory === undefined || directory === '.' || directory.split('/').includes('..')) return 'unread';
+  const file = [`${directory}/action.yml`, `${directory}/action.yaml`].find(
+    (path) => inventory.files.has(path) && isRegularFile(join(repoPath, path)),
+  );
+  if (file === undefined) return 'unread';
+  const contents = readRepoText(join(repoPath, file), 'utf8');
+  if (YAML_LINE_BREAK_NOT_SPLIT_PATTERN.test(contents) || !COMPOSITE_ACTION_USING_PATTERN.test(contents)) return 'unread';
+  for (const step of githubActionsUsesSteps(contents)) {
+    if (!isActionWritingNoLockfile(unquoteYamlScalar(beforeShellComment(step.lines[0]?.text ?? '')))) return 'unread';
+  }
+  return githubActionsRunSteps(contents).flatMap((step) => step.lines.flatMap(({ text }) => shellCommands(text)));
+}
+
 /**
  * One command, in a step, that requires a lockfile the scan does not hold: the text quoted for it,
  * the lockfiles it needs as displayed, and the test for a command that may write one of them first.
@@ -5101,25 +5187,32 @@ const STEP_MAY_CONTINUE_PAST_FAILURE_WORDS: ReadonlySet<string> = new Set([
 /**
  * True when a failure of the single command on `line` ends its step, and so its job, before any
  * later command or step runs. Required only when the lockfile may be written after that line
- * (#520): the workflow runs every job on a GitHub-hosted Ubuntu or macOS label with no `shell:`,
- * so each step runs under `bash -e`, and names no BASH_ENV; the line holds that command alone,
- * does not continue a line or continue onto the next; and no line of the step holds a pipeline,
- * list, subshell, group status, substitution or any of STEP_MAY_CONTINUE_PAST_FAILURE_WORDS.
+ * (#520). The workflow names no BASH_ENV; the line holds that command alone and does not continue
+ * a line or continue onto the next; and no line of the step holds a pipeline, list, subshell, group
+ * status, substitution or any of STEP_MAY_CONTINUE_PAST_FAILURE_WORDS. Then either:
+ *   - that line is the step's whole script, and every `shell:` in the workflow is one GitHub
+ *     provides (setsOnlyGitHubProvidedShells): each exits with the one command's status, on any
+ *     runner, so the failing step fails the job; or
+ *   - every job runs on a GitHub-hosted Ubuntu or macOS label under bash
+ *     (runsOnlyOnHostedBashRunners), so each step runs under `bash -e`, which stops at the line.
  */
 function failureStopsJobAt(contents: string, step: WorkflowRunStep, line: number): boolean {
-  if (!runsOnlyOnHostedBashRunners(contents) || /\bBASH_ENV\b/.test(contents)) return false;
+  if (/\bBASH_ENV\b/.test(contents)) return false;
   const at = step.lines.findIndex((entry) => entry.line === line);
   if (at === -1) return false;
   const text = step.lines[at]?.text ?? '';
   if (shellCommands(text).length !== 1 || /\\[ \t]*$/.test(text)) return false;
   if (at > 0 && /\\[ \t]*$/.test(step.lines[at - 1]?.text ?? '')) return false;
-  return step.lines.every(({ text: body }) => {
+  const stops = step.lines.every(({ text: body }) => {
     const code = beforeShellComment(body);
     return (
       !STEP_MAY_CONTINUE_PAST_FAILURE_PATTERN.test(code) &&
       !code.split(/[ \t;]+/).some((word) => STEP_MAY_CONTINUE_PAST_FAILURE_WORDS.has(word))
     );
   });
+  if (!stops) return false;
+  if (step.lines.length === 1) return setsOnlyGitHubProvidedShells(contents);
+  return runsOnlyOnHostedBashRunners(contents);
 }
 
 /**
@@ -5137,6 +5230,11 @@ function failureStopsJobAt(contents: string, step: WorkflowRunStep, line: number
  * line, in the same job. One that comes only after it, in the same job, excuses nothing (#520):
  * `uv sync --locked` then `uv run pytest` fails at the sync, and the run never happens. That
  * reading rests on the failure ending the job, so it is made only when failureStopsJobAt holds.
+ *
+ * A `uses:` step may write the lockfile too (actionStepWrites). A local composite action's `run:`
+ * commands are read as if inline at its `uses:` line. Any other action Cejel does not read, used in
+ * the requiring step's job before it, leaves the requirement not determined (`unreadAction`): it is
+ * returned only when no workflow states a requirement that is determined.
  * Linear in the workflow: where each lockfile may be written is decided once per workflow.
  */
 function findLockfileRequirement(
@@ -5145,6 +5243,7 @@ function findLockfileRequirement(
   inventory: CheckoutInventory,
   isSatisfied: (lockfiles: readonly string[]) => boolean,
 ): LockfileRequirement | undefined {
+  let notDetermined: LockfileRequirement | undefined;
   for (const file of workflows) {
     const fullPath = join(repoPath, file);
     if (!isRegularFile(fullPath)) continue;
@@ -5154,6 +5253,21 @@ function findLockfileRequirement(
     const commandsOf = (step: WorkflowRunStep) =>
       step.lines.flatMap(({ line, text }) => shellCommands(text).map((words) => ({ line, words })));
     const stepCommands = steps.map(commandsOf);
+    // Each placed `uses:` step: a local composite action's commands join the writers at its line;
+    // any other action Cejel did not read is noted at the first line in its job that uses one.
+    const actionCommands: { job: number; line: number; words: readonly string[] }[] = [];
+    const firstUnreadAction = new Map<number, number>();
+    for (const usesStep of githubActionsUsesSteps(contents)) {
+      const entry = usesStep.lines[0];
+      if (usesStep.job === -1 || entry === undefined) continue;
+      const writes = actionStepWrites(repoPath, inventory, unquoteYamlScalar(beforeShellComment(entry.text)));
+      if (writes === 'none') continue;
+      if (writes === 'unread') {
+        firstUnreadAction.set(usesStep.job, Math.min(firstUnreadAction.get(usesStep.job) ?? entry.line, entry.line));
+        continue;
+      }
+      for (const words of writes) actionCommands.push({ job: usesStep.job, line: entry.line, words });
+    }
     // For each key, the first line in each job (-1 for a step not placed in one) holding a command
     // that may write the lockfile. Undefined past PIP_REQUIREMENTS_FILES_PER_WORKFLOW pip files.
     const writers = new Map<string, ReadonlyMap<number, number>>();
@@ -5171,6 +5285,9 @@ function findLockfileRequirement(
         for (const { line, words } of commands) {
           if (match.mayWrite(words)) byJob.set(job, Math.min(byJob.get(job) ?? line, line));
         }
+      }
+      for (const { job, line, words } of actionCommands) {
+        if (match.mayWrite(words)) byJob.set(job, Math.min(byJob.get(job) ?? line, line));
       }
       writers.set(match.key, byJob);
       return byJob;
@@ -5196,12 +5313,15 @@ function findLockfileRequirement(
             const elsewhere = step.job === -1 || [...byJob.keys()].some((job) => job !== step.job);
             if (elsewhere || first === undefined || first <= line || !failureStopsJobAt(contents, step, line)) continue;
           }
-          return { source: 'workflow', file, line, command: match.command, lockfiles: match.lockfiles };
+          const requirement: LockfileRequirement = { source: 'workflow', file, line, command: match.command, lockfiles: match.lockfiles };
+          const unreadAt = firstUnreadAction.get(step.job);
+          if (unreadAt === undefined || unreadAt > line) return requirement;
+          notDetermined ??= { ...requirement, unreadAction: { file, line: unreadAt } };
         }
       }
     }
   }
-  return undefined;
+  return notDetermined;
 }
 
 // #520. tox-uv's `uv-venv-lock-runner` installs an environment with `uv sync --locked`, which exits
@@ -5250,8 +5370,16 @@ function findToxLockfileRequirement(
       return TOX_LOCK_RUNNER_PATTERN.test(beforeShellComment(raw));
     });
     if (index === -1) return undefined;
-    if (workflowsMayProvideLockfile(repoPath, workflows, inventory, rule)) return undefined;
-    return { source: 'tox', file, line: index + 1, command: 'uv-venv-lock-runner', lockfiles: rule.lockfiles };
+    const provided = workflowsMayProvideLockfile(repoPath, workflows, inventory, rule);
+    if (provided === true) return undefined;
+    return {
+      source: 'tox',
+      file,
+      line: index + 1,
+      command: 'uv-venv-lock-runner',
+      lockfiles: rule.lockfiles,
+      ...(provided === false ? {} : { unreadAction: provided }),
+    };
   }
   return undefined;
 }
@@ -5259,14 +5387,22 @@ function findToxLockfileRequirement(
 /**
  * True when any CI workflow may put `rule`'s lockfile in its workspace before tox runs: it brings in
  * files from outside the scanned tree, runs the tool's lockfile-writing subcommand without the
- * requiring flag, or names the lockfile in a command. findLockfileRequirement's per-workflow test.
+ * requiring flag, or names the lockfile in a command, in a `run:` step or a local composite action
+ * (actionStepWrites). findLockfileRequirement's per-workflow test. Otherwise, the first step that
+ * uses an action Cejel did not read, which may write it (#520), or false when there is none.
  */
 function workflowsMayProvideLockfile(
   repoPath: string,
   workflows: readonly string[],
   inventory: CheckoutInventory,
   rule: LockfileRequiringCommand,
-): boolean {
+): boolean | { readonly file: string; readonly line: number } {
+  const writes = (words: readonly string[]) =>
+    (words[0] === rule.tool &&
+      rule.generators.includes(words[1] ?? '') &&
+      matchLockfileRequiringCommand(words, rule) === undefined) ||
+    words.some((word) => rule.lockfiles.some((lockfile) => word.includes(lockfile)));
+  let unread: { readonly file: string; readonly line: number } | undefined;
   for (const file of workflows) {
     const fullPath = join(repoPath, file);
     if (!isRegularFile(fullPath)) continue;
@@ -5274,19 +5410,18 @@ function workflowsMayProvideLockfile(
     if (!workflowReadsOnlyThisTree(inventory, contents)) return true;
     for (const step of githubActionsRunSteps(contents)) {
       for (const { text } of step.lines) {
-        for (const words of shellCommands(text)) {
-          const generates =
-            words[0] === rule.tool &&
-            rule.generators.includes(words[1] ?? '') &&
-            matchLockfileRequiringCommand(words, rule) === undefined;
-          if (generates || words.some((word) => rule.lockfiles.some((lockfile) => word.includes(lockfile)))) {
-            return true;
-          }
-        }
+        if (shellCommands(text).some(writes)) return true;
       }
     }
+    for (const step of githubActionsUsesSteps(contents)) {
+      const entry = step.lines[0];
+      if (step.job === -1 || entry === undefined) continue;
+      const action = actionStepWrites(repoPath, inventory, unquoteYamlScalar(beforeShellComment(entry.text)));
+      if (action === 'unread') unread ??= { file, line: entry.line };
+      else if (action !== 'none' && action.some(writes)) return true;
+    }
   }
-  return false;
+  return unread ?? false;
 }
 
 // Full credit up to this many declared dependency specs (aggregated across all manifests,
@@ -6378,23 +6513,49 @@ function publishingWorkflowReasons(
 }
 
 const RUNS_ON_KEY_PATTERN = /^[ \t]*runs-on:[ \t]*(.*)$/;
-const SHELL_KEY_PATTERN = /^[ \t]*(?:-[ \t]+)?shell:/;
+const SHELL_KEY_PATTERN = /^[ \t]*(?:-[ \t]+)?shell:[ \t]*(.*)$/;
+// A one-element flow list, `[label]`: a hosted runner carries only its own label, so this names it.
+const ONE_LABEL_LIST_PATTERN = /^\[[ \t]*([^,[\]]+?)[ \t]*\]$/;
+
+/** The value a `shell:` line sets, unquoted and without a trailing comment. */
+function shellKeyValue(match: RegExpExecArray): string {
+  return unquoteYamlScalar(stripYamlComment(match[1] ?? ''));
+}
 
 /**
  * True when the workflow has a `runs-on:` line, every one names a GitHub-hosted Ubuntu or macOS label
- * (isGitHubHostedBashRunner, #564), and no line sets a `shell:`: the run lines are then read as bash
- * reads them, as the publish-only and print-only readers require. Linear in the file.
+ * (isGitHubHostedBashRunner, #564), plainly or as a one-element list, and every `shell:` line sets
+ * exactly `bash` (GitHub runs that as `bash -eo pipefail`, stricter than the default `bash -e`): the
+ * run lines are then read as bash reads them, as the publish-only and print-only readers require.
+ * Linear in the file.
  */
 function runsOnlyOnHostedBashRunners(contents: string): boolean {
   let runsOn = 0;
   for (const raw of contents.split(/\r?\n/)) {
-    if (SHELL_KEY_PATTERN.test(raw)) return false;
+    const shell = SHELL_KEY_PATTERN.exec(raw);
+    if (shell && shellKeyValue(shell) !== 'bash') return false;
     const match = RUNS_ON_KEY_PATTERN.exec(raw);
     if (!match) continue;
-    if (!isGitHubHostedBashRunner(beforeShellComment(match[1] ?? ''))) return false;
+    const value = beforeShellComment(match[1] ?? '').trim();
+    const listed = ONE_LABEL_LIST_PATTERN.exec(value);
+    if (!isGitHubHostedBashRunner(listed ? (listed[1] ?? '') : value)) return false;
     runsOn += 1;
   }
   return runsOn > 0;
+}
+
+// Every shell GitHub provides for `run:`. A step whose script is one command exits with that
+// command's status in each: bash and sh run with -e, pwsh and powershell end with the last exit
+// code, and cmd returns the last command's status (#520). A custom shell (`perl {0}`) is not read.
+const GITHUB_PROVIDED_SHELLS: ReadonlySet<string> = new Set(['bash', 'sh', 'pwsh', 'powershell', 'cmd']);
+
+/** True when every `shell:` line in the workflow sets one of GITHUB_PROVIDED_SHELLS. Linear in the file. */
+function setsOnlyGitHubProvidedShells(contents: string): boolean {
+  for (const raw of contents.split(/\r?\n/)) {
+    const shell = SHELL_KEY_PATTERN.exec(raw);
+    if (shell && !GITHUB_PROVIDED_SHELLS.has(shellKeyValue(shell))) return false;
+  }
+  return true;
 }
 
 /** A workflow's triggers, and its push trigger's branch filter, which decide what a condition can be. */
@@ -6477,38 +6638,53 @@ function githubPushBranchFilter(contents: string): readonly string[] | null {
   return branches.every((branch) => LITERAL_BRANCH_PATTERN.test(branch)) ? branches : null;
 }
 
-const EVENT_NAME_CONDITION_PATTERN = /^github\.event_name[ \t]*(==|!=)[ \t]*'([a-z_]+)'$/;
-const EVENT_NAME_CONDITION_REVERSED_PATTERN = /^'([a-z_]+)'[ \t]*(==|!=)[ \t]*github\.event_name$/;
-const REF_CONDITION_PATTERN = /^github\.(ref|ref_name)[ \t]*==[ \t]*'([A-Za-z0-9._/-]+)'$/;
-const REF_CONDITION_REVERSED_PATTERN = /^'([A-Za-z0-9._/-]+)'[ \t]*==[ \t]*github\.(ref|ref_name)$/;
+// GitHub compares strings, and reads context property and function names, ignoring case (#517), so
+// every pattern here is case-insensitive and every comparison is made on lower-cased text.
+const EVENT_NAME_CONDITION_PATTERN = /^github\.event_name[ \t]*(==|!=)[ \t]*'([a-z_]+)'$/i;
+const EVENT_NAME_CONDITION_REVERSED_PATTERN = /^'([a-z_]+)'[ \t]*(==|!=)[ \t]*github\.event_name$/i;
+const REF_CONDITION_PATTERN = /^github\.(ref|ref_name)[ \t]*==[ \t]*'([A-Za-z0-9._/-]+)'$/i;
+const REF_CONDITION_REVERSED_PATTERN = /^'([A-Za-z0-9._/-]+)'[ \t]*==[ \t]*github\.(ref|ref_name)$/i;
+// `github.repository == 'owner/name'` is a fork guard: it holds wherever the workflow's own
+// repository runs it, which is the repository Cejel scans, so it is no gate there.
+const REPOSITORY_CONDITION_PATTERN = /^github\.repository[ \t]*==[ \t]*'[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+'$/i;
+const REPOSITORY_CONDITION_REVERSED_PATTERN = /^'[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+'[ \t]*==[ \t]*github\.repository$/i;
+// Status checks that hold on every run that reaches the job or step: `success()` is the default
+// condition, and `always()` and `!cancelled()` are weaker than it.
+const ALWAYS_TRUE_STATUS_CHECK_PATTERN = /^(?:always\(\)|success\(\)|![ \t]*cancelled\(\))$/i;
+// The status-check calls, with a `!` before any of them, removed before the expression's
+// characters are checked; isAlwaysTrueConditionAtom then decides each one (`!always()` is not read).
+const STATUS_CHECK_CALL_PATTERN = /!?[ \t]*\b(?:always|success|cancelled|failure)\(\)/gi;
 
 /** True for one comparison isAlwaysTrueCondition reads that holds on every run the triggers start. */
 function isAlwaysTrueConditionAtom(atom: string, context: WorkflowTriggerContext): boolean {
-  if (atom === 'true' || atom === 'always()') return true;
+  if (atom === 'true' || ALWAYS_TRUE_STATUS_CHECK_PATTERN.test(atom)) return true;
+  if (REPOSITORY_CONDITION_PATTERN.test(atom) || REPOSITORY_CONDITION_REVERSED_PATTERN.test(atom)) return true;
   const event = EVENT_NAME_CONDITION_PATTERN.exec(atom);
   const eventReversed = event ? null : EVENT_NAME_CONDITION_REVERSED_PATTERN.exec(atom);
   if (event || eventReversed) {
     const operator = event ? event[1] : eventReversed?.[2];
-    const name = (event ? event[2] : eventReversed?.[1]) ?? '';
+    const name = ((event ? event[2] : eventReversed?.[1]) ?? '').toLowerCase();
     return operator === '!=' ? !context.triggers.has(name) : context.triggers.size === 1 && context.triggers.has(name);
   }
   const ref = REF_CONDITION_PATTERN.exec(atom);
   const refReversed = ref ? null : REF_CONDITION_REVERSED_PATTERN.exec(atom);
   if (!ref && !refReversed) return false;
-  const property = ref ? ref[1] : refReversed?.[2];
-  const value = (ref ? ref[2] : refReversed?.[1]) ?? '';
+  const property = (ref ? ref[1] : refReversed?.[2])?.toLowerCase();
+  const value = ((ref ? ref[2] : refReversed?.[1]) ?? '').toLowerCase();
   const branches = context.pushBranches;
   if (context.triggers.size !== 1 || !context.triggers.has('push') || branches?.length !== 1) return false;
-  return value === (property === 'ref' ? `refs/heads/${branches[0]}` : branches[0]);
+  return value === (property === 'ref' ? `refs/heads/${branches[0]}` : (branches[0] ?? '')).toLowerCase();
 }
 
 /**
  * v27 (#517): true only when a job or step `if:` expression holds on every run the workflow's own
  * triggers can start, so it is no gate. Read are `${{ }}`-wrapped or bare expressions made of
- * `true`, `always()`, `github.event_name` compared with an event name, and `github.ref` or
- * `github.ref_name` compared with the one branch a branch-filtered push runs for, joined by `&&`
- * and `||` with no parentheses or `!`, and quoted strings of plain name characters only. Anything
- * else may be false, so it is a gate. Linear in the expression.
+ * `true`, `always()`, `success()`, `!cancelled()`, `github.event_name` compared with an event name,
+ * `github.ref` or `github.ref_name` compared with the one branch a branch-filtered push runs for,
+ * and `github.repository` compared with a name (a fork guard), joined by `&&` and `||` with no
+ * other parentheses or `!`, and quoted strings of plain name characters only; names and strings are
+ * compared ignoring case, as GitHub compares them. Anything else may be false, so it is a gate.
+ * Linear in the expression.
  */
 function isAlwaysTrueCondition(expression: string, context: WorkflowTriggerContext): boolean {
   let text = expression.trim();
@@ -6516,7 +6692,8 @@ function isAlwaysTrueCondition(expression: string, context: WorkflowTriggerConte
   if (wrapped) text = (wrapped[1] ?? '').trim();
   if (text.includes('${{') || text.includes('}}')) return false;
   if (text.replace(/'[A-Za-z0-9._/-]*'/g, '').includes("'") || /["\\]/.test(text)) return false;
-  if (/[()]/.test(text.replace(/\balways\(\)/g, '')) || /!(?!=)/.test(text)) return false;
+  const withoutStatusChecks = text.replace(STATUS_CHECK_CALL_PATTERN, ' ');
+  if (/[()]/.test(withoutStatusChecks) || /!(?!=)/.test(withoutStatusChecks)) return false;
   return text
     .split('||')
     .some((disjunct) => disjunct.split('&&').every((atom) => isAlwaysTrueConditionAtom(atom.trim(), context)));
@@ -6539,15 +6716,29 @@ const LOCAL_REUSABLE_WORKFLOW_PATTERN = /^\.\/(\.github\/workflows\/[A-Za-z0-9._
 // Reusable workflows followed from a caller, at most this deep (GitHub allows four levels).
 const REUSABLE_WORKFLOW_MAX_DEPTH = 3;
 
+const STRATEGY_KEY_PATTERN = /^[ \t]*strategy:/;
+const FROMJSON_CALL_PATTERN = /fromjson[ \t]*\(/i;
+
+interface WorkflowJob {
+  /** The line index of the job's key, and of the first line after the job. */
+  readonly start: number;
+  readonly end: number;
+  /** The reusable workflow a job-level `uses:` calls, as written. */
+  readonly target?: string;
+  /** A job-level key `isGuardLine` counts as a guard sits on it. */
+  readonly conditional: boolean;
+  /**
+   * Its `strategy:` holds a `fromJSON(` call outside comments: the matrix is read from an
+   * expression, may be empty, and then the job does not run.
+   */
+  readonly dynamicMatrix: boolean;
+}
+
 /**
- * The jobs of a workflow that call a reusable workflow (a job-level `uses:`), each with its target
- * as written and whether a job-level key `isGuardLine` counts as a guard sits on it. Read by
- * indentation under the top-level `jobs:`; text inside a block scalar and comments are skipped.
+ * The jobs of a workflow, read by indentation under the top-level `jobs:`; text inside a block
+ * scalar and comments are skipped. One pass, linear in the file.
  */
-function reusableWorkflowJobs(
-  contents: string,
-  isGuardLine: (line: string) => boolean,
-): { readonly target: string; readonly conditional: boolean }[] {
+function workflowJobs(contents: string, isGuardLine: (line: string) => boolean): WorkflowJob[] {
   const lines = contents.split(/\r?\n/);
   const indents = lines.map(lineIndent);
   const inBlockScalar = blockScalarBodyLines(lines, indents);
@@ -6555,39 +6746,48 @@ function reusableWorkflowJobs(
     const raw = lines[index] ?? '';
     return !inBlockScalar[index] && raw.trim() !== '' && !raw.trimStart().startsWith('#');
   };
-  const calls: { target: string; conditional: boolean }[] = [];
+  const jobs: WorkflowJob[] = [];
   const jobsAt = lines.findIndex((raw, index) => structural(index) && JOBS_KEY_PATTERN.test(stripYamlComment(raw)));
-  if (jobsAt === -1) return calls;
+  if (jobsAt === -1) return jobs;
   let jobIndent = -1;
   let keyIndent = -1;
-  let job: { target?: string; conditional: boolean } | null = null;
-  const close = () => {
-    if (job?.target !== undefined) calls.push({ target: job.target, conditional: job.conditional });
+  let inStrategy = false;
+  let job: { start: number; target?: string; conditional: boolean; dynamicMatrix: boolean } | null = null;
+  const close = (end: number) => {
+    if (job) jobs.push({ ...job, end });
     job = null;
   };
-  for (let index = jobsAt + 1; index < lines.length; index += 1) {
+  let index = jobsAt + 1;
+  for (; index < lines.length; index += 1) {
     if (!structural(index)) continue;
     const indent = indents[index] ?? 0;
     if (indent === 0) break;
     if (jobIndent === -1) jobIndent = indent;
     if (indent < jobIndent) break;
     if (indent === jobIndent) {
-      close();
-      job = { conditional: false };
+      close(index);
+      job = { start: index, conditional: false, dynamicMatrix: false };
       keyIndent = -1;
+      inStrategy = false;
       continue;
     }
     if (!job) continue;
+    const current: { start: number; target?: string; conditional: boolean; dynamicMatrix: boolean } = job;
     if (keyIndent === -1) keyIndent = indent;
-    if (indent !== keyIndent) continue;
     const raw = lines[index] ?? '';
-    const current: { target?: string; conditional: boolean } = job;
+    if (indent > keyIndent) {
+      if (inStrategy && FROMJSON_CALL_PATTERN.test(stripYamlComment(raw))) current.dynamicMatrix = true;
+      continue;
+    }
+    if (indent !== keyIndent) continue;
+    inStrategy = STRATEGY_KEY_PATTERN.test(raw);
+    if (inStrategy && FROMJSON_CALL_PATTERN.test(stripYamlComment(raw))) current.dynamicMatrix = true;
     if (isGuardLine(raw)) current.conditional = true;
     const uses = JOB_USES_KEY_PATTERN.exec(raw);
     if (uses) current.target = unquoteYamlScalar(stripYamlComment(uses[1] ?? ''));
   }
-  close();
-  return calls;
+  close(index);
+  return jobs;
 }
 
 /**
@@ -6600,21 +6800,30 @@ function reusableWorkflowJobs(
  * A job that calls a reusable workflow in this repository (`uses: ./.github/workflows/...`) is
  * followed, with the same context, to REUSABLE_WORKFLOW_MAX_DEPTH. A step or job counts only when
  * no `continue-on-error:` and no `if:` that can be false under the triggers (isAlwaysTrueIfLine)
- * sits on it or its job. A matrix read with `fromJSON` may be empty, so such a file claims nothing.
+ * sits on it or its job. A job whose matrix is read with `fromJSON` may not run, so nothing is
+ * claimed from that job; the file's other jobs are still read (#517: a whole-file refusal let an
+ * unrelated job's matrix keep a publishing job counted).
  */
 function publishesOnEveryRun(root: string, contents: string, context: WorkflowTriggerContext, depth: number): boolean {
   if (YAML_LINE_BREAK_NOT_SPLIT_PATTERN.test(contents)) return false;
-  if (/^[ \t]*matrix:/m.test(contents) && /fromjson[ \t]*\(/i.test(contents)) return false;
   const isGuardLine = (line: string) => isStepOrJobGuard(line) && !isAlwaysTrueIfLine(line, context);
+  const jobs = workflowJobs(contents, isGuardLine);
+  // For each line, whether it lies in a job with a dynamic matrix; a step is placed by the line of
+  // its job's `steps:` key.
+  const inDynamicMatrixJob = new Array<boolean>(contents.split(/\r?\n/).length).fill(false);
+  for (const { start, end, dynamicMatrix } of jobs) {
+    if (dynamicMatrix) inDynamicMatrixJob.fill(true, start, end);
+  }
+  const mayRun = (step: WorkflowRunStep) => !step.conditional && step.job !== -1 && !inDynamicMatrixJob[step.job];
   for (const step of githubActionsUsesSteps(contents, isGuardLine)) {
-    if (step.conditional) continue;
+    if (!mayRun(step)) continue;
     const value = unquoteYamlScalar(beforeShellComment(step.lines[0]?.text ?? ''));
     const at = value.indexOf('@');
     if (at > 0 && PUBLISHING_ACTIONS.has(value.slice(0, at).toLowerCase())) return true;
   }
   if (runsOnlyOnHostedBashRunners(contents)) {
     for (const step of githubActionsRunSteps(contents, isGuardLine)) {
-      if (step.conditional) continue;
+      if (!mayRun(step)) continue;
       const commands = joinShellContinuationLines(step.lines.map(({ text }) => text)).flatMap((text) =>
         shellCommands(text).map((words) => ({ words })),
       );
@@ -6623,8 +6832,8 @@ function publishesOnEveryRun(root: string, contents: string, context: WorkflowTr
     }
   }
   if (depth >= REUSABLE_WORKFLOW_MAX_DEPTH) return false;
-  for (const { target, conditional } of reusableWorkflowJobs(contents, isGuardLine)) {
-    if (conditional) continue;
+  for (const { target, conditional, dynamicMatrix } of jobs) {
+    if (target === undefined || conditional || dynamicMatrix) continue;
     const local = LOCAL_REUSABLE_WORKFLOW_PATTERN.exec(target);
     if (!local) continue;
     const calledPath = join(root, local[1] ?? '');

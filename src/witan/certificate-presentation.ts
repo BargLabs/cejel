@@ -5,6 +5,7 @@ import {
   WITAN_A3_BUILD_STEP_UNSETTLED_DISCLOSURE,
   WITAN_A5_RECONCILIATION_UNSETTLED_DISCLOSURE,
   WITAN_A4_LOCKFILE_COVERAGE_NOT_COMPUTED_PREFIX,
+  WITAN_A4_LOCKFILE_REQUIREMENT_NOT_DETERMINED_PREFIX,
   WITAN_B2_UNCREDITED_CI_WORKFLOW_PREFIX,
   WITAN_B3_UNCREDITED_CI_WORKFLOW_PREFIX,
   WITAN_B3_PUBLISHING_CI_WORKFLOW_PREFIX,
@@ -967,11 +968,16 @@ function uncreditedCiWorkflowDisclosures(report: WitanReport): string[] {
 }
 
 // Every rubric but v27 (#520): A4 did not compute lockfile coverage although the repository's own
-// CI or tox configuration requires a lockfile that is not committed. Listed only while A4 is scored.
+// CI or tox configuration requires a lockfile that is not committed. Every rubric: A4 did not
+// compute it because whether such a requirement holds was not determined. Listed only while A4 is
+// scored.
 function lockfileCoverageNotComputedDisclosures(report: WitanReport): string[] {
   const a4 = report.criteria.find((criterion) => criterion.id === 'A4');
   if (!a4 || a4.status === 'not_applicable' || a4.status === 'insufficient_data') return [];
-  return criterionDisclosures(report, 'A4', WITAN_A4_LOCKFILE_COVERAGE_NOT_COMPUTED_PREFIX);
+  return [
+    ...criterionDisclosures(report, 'A4', WITAN_A4_LOCKFILE_COVERAGE_NOT_COMPUTED_PREFIX),
+    ...criterionDisclosures(report, 'A4', WITAN_A4_LOCKFILE_REQUIREMENT_NOT_DETERMINED_PREFIX),
+  ];
 }
 
 function criterionDisclosures(report: WitanReport, criterionId: string, prefix: string): string[] {

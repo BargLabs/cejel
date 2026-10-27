@@ -90,6 +90,13 @@ export const WITAN_B3_PUBLISHING_CI_WORKFLOW_PREFIX =
 // under "What was not established" while A4 is scored. It moves no score.
 export const WITAN_A4_LOCKFILE_COVERAGE_NOT_COMPUTED_PREFIX =
   "A4 did not compute lockfile coverage under this rubric, which scores a library's lockfile only when one is committed: ";
+// Every rubric, presentation only (#520): under library norms, CI or tox states a requirement for a
+// lockfile that is not committed, but an earlier CI step uses an action Cejel did not read in full,
+// which may write it. Whether the lockfile is required is not determined, so A4 neither claims the
+// requirement (no finding, and under v27 no zero) nor says a lockfile is not required: it says it
+// did not compute lockfile_coverage, and why. Listed like the prefix above while A4 is scored.
+export const WITAN_A4_LOCKFILE_REQUIREMENT_NOT_DETERMINED_PREFIX =
+  'A4 did not compute lockfile coverage, because whether this repository requires a lockfile was not determined: ';
 
 export function isWitanNoMeasurementAbstention(report: WitanReport): boolean {
   return (
