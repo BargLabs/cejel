@@ -245,7 +245,7 @@ The [Cejel OSS trust leaderboard](https://cejel.dev/leaderboard/) is hosted on c
 which is the single current board. This repository no longer distributes a second copy of
 its scores or certificates. The board records its producing package version, rubric,
 run date, pinned public revisions, and reproduction instructions for that particular run.
-The private Alfred transparency snapshot is not independently reproducible.
+The board's row for Barg Labs' own private codebase is a transparency snapshot and is not independently reproducible.
 
 The site's History section preserves the **2026-08-18 withdrawal**: the earlier
 sealed-public-scorer reproducibility claim was false. The stale prospective-rubric copy
@@ -424,7 +424,7 @@ Three ways a scanner's output gets ingested:
    `--ingest scorecard.json`; auto-detected by its `checks` array.
 3. **Generic JSON** — for a tool that emits neither, map its output into the minimal shape
    below (or write a small adapter mirroring
-   [`scorecard-adapter.ts`](../witan/src/scorecard-adapter.ts) if the format needs real
+   [`scorecard-adapter.ts`](./src/witan/scorecard-adapter.ts) if the format needs real
    parsing):
 
    ```json
@@ -448,7 +448,7 @@ Three ways a scanner's output gets ingested:
    }
    ```
 
-   `dimension` is one of the Witan rubric criterion ids (`A1`-`A5`, `B1`-`B6`); `weight`
+   `dimension` is one of the rubric criterion ids (`A1`-`A5`, `B1`-`B6`); `weight`
    (0–1, default `0.5`) bounds how much this signal can move that dimension; `severity` is
    `critical` | `warning` | `info`; `location` is optional.
 
@@ -786,7 +786,7 @@ scoring tool that has not been checked:
   the invariant it claimed to be. Rubric v3 removes that second path: every corpus row now
   passes through the same sealed public scorer, every external source is pinned to a commit,
   and a required guard re-scores every row and compares score, verdict, coverage, and
-  evidence. The honest correction moved Alfred's Code score from 2.5 to 2.4 and A5 from 2.9
+  evidence. The honest correction moved our own private codebase's Code score from 2.5 to 2.4 and A5 from 2.9
   to 2.4. It is less flattering and more trustworthy.
 - **A tracked symlink could make evidence depend on files outside the checkout.** Repository
   discovery used a regular-file check that followed symlinks, so a tracked link could escape
