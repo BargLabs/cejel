@@ -22,6 +22,87 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
+## 2026-10-26 — v27: B3 stops counting workflows that publish, release or deploy with no pull-request trigger (#517); A4 states a lockfile the repository requires as a finding, and reads tox-uv's lock runner (#520); published corpus not measured
+
+**Defects.** #517: v27's first closure removed CI credit only from upload-only workflows, so #517's
+own reproductions, which build or install before they publish, still raised B3 when the
+environment gate was removed and publishing moved onto every push to the default branch. Rebuilt
+as fixtures, the PyPI shape rose from 1.6 to 2.1 under v27 (`default_branch_ci_depth` 2 to 3), as
+the issue reports under v17. #520: under v27 the repository's own CI requiring a missing lockfile
+scored `lockfile_coverage` 0, but no finding said the lockfile was missing (only a metric-derived
+finding citing the requiring line); and a tox configuration selecting tox-uv's
+`uv-venv-lock-runner`, which runs `uv sync --locked`, was not read as a requirement under any
+rubric, so the library note still said a lockfile was "not required".
+
+**Change, `witan-rubric-v27-prospective-2026-10-19` only, B3 only.** A GitHub Actions workflow is
+not counted toward `default_branch_ci_depth` or `ci_script_depth` when all of the following hold,
+whatever else it runs:
+- its `on:` is placed by the trigger reader and holds no `pull_request`, `pull_request_target`,
+  `merge_group` or `workflow_call`, and the file names no pull-request trigger anywhere;
+- every `runs-on:` names a documented GitHub-hosted Ubuntu or macOS label (#564's list) and no
+  line sets `shell:`;
+- a step with no `if:` or `continue-on-error:` on it or its job uses `pypa/gh-action-pypi-publish`,
+  `softprops/action-gh-release`, `actions/deploy-pages`, `peaceiris/actions-gh-pages` or
+  `JamesIves/github-pages-deploy-action`, or runs, in command position and in a shell with no
+  heredoc, guard or `||`, a registry publish or upload (`npm`/`pnpm`/`yarn`/`bun publish`,
+  `twine upload`, `uv`/`poetry`/`flit`/`hatch`/`cargo publish`, `gem push`), `gh release
+  create`/`upload`, `semantic-release`, `goreleaser [release]`, `docker [image] push`, or a deploy
+  (`vercel`/`netlify`/`flyctl`/`fly`/`firebase`/`serverless`/`wrangler deploy`, `kubectl apply`,
+  `helm upgrade`/`install`, `terraform apply`), optionally after `npx`, `bunx`, `pnpx`, `uvx` or
+  `python -m`. A `--dry-run` or `--snapshot` is not a publish.
+B3 names such a workflow in its note (last, after the sentences B2 shares), in a disclosure with its
+own prefix ("B3 did not count CI workflows that publish, release or deploy with no pull-request
+trigger, whatever else they run: "), and in the metric condition, never as a workflow Cejel did not
+see run a check, because it may run checks too. B2 is not changed: B2 and B3 still agree on every
+workflow not shown to run a check. Actions whose effect depends on inputs
+(`docker/build-push-action`, `changesets/action`, `goreleaser/goreleaser-action`) are not read as
+publishing, so a workflow using one keeps its credit. Whether an ungated publish on push should also
+be a finding is a rubric question this change does not decide.
+
+**Change, A4.** Every rubric, presentation only: a tox configuration that selects
+`uv-venv-lock-runner` is a lockfile requirement, read only from the file tox itself reads (the first
+of `tox.ini`, `setup.cfg` with `[tox:tox]`, `pyproject.toml` with `[tool.tox]` or `legacy_tox_ini`,
+and `tox.toml`), and not when that file names `uv_sync_locked`, was not scanned, or a CI workflow may
+write or bring in `uv.lock` first. The library note then names the runner line instead of saying a
+lockfile is "not required", and that line is cited first. v27 only: the requirement, from a
+workflow or tox, scores `lockfile_coverage` 0 under library norms (as before for workflows) and is a
+`warning` finding citing the requiring line, under any norms.
+
+**No rise.** Each change only removes a workflow from a count or adds a finding, which can only cap
+a score. The new tests check the no-rise property on every new fixture. The false-assurance suite
+checks it on every existing fixture.
+
+**Measured before and after, fixtures.** On every false-assurance fixture and every behaviour-corpus
+specimen (227 repositories, 454 reports), before = `6a6a5344a` (main `2ad939a71` plus the red tests)
+and after = `e0064dae3`:
+- v17: every `report.json` is byte-identical, except one fixture whose `repo.headSha` differs between
+  any two builds, because it commits a symlink to a fresh temporary directory. That is not this
+  change.
+- v27: 75 reports differ, besides that same symlink fixture. 57 fixtures lose B3 credit: 54 #517
+  review fixtures, the two ungated #517 issue fixtures, and the test-then-publish corner. Each falls
+  to B3 1.0, from 1.6, or from 1.5 and 2.0 on one each. 22 of them move verdict from `conditional`
+  to `at_risk`. The two gated issue fixtures only gain the note. 21 fixtures (six of them among the
+  57) and one behaviour-corpus specimen gain the A4 warning finding, with no A4 score change. The
+  full list is in the PR.
+
+**Behaviour fingerprint.** v27 moves from
+`sha256:6e03aa1bf63a31c5ec58a68cb49fb8ef571ba233cf79059a311ec55aecea5bb3` to
+`sha256:dfe4e7e9ba37666f60b1ebcee4eb44917110798e9038c81eef079718db9ee7b1`. Only the A4 component
+moves: `pr-template-directory-form`, whose CI runs `npm ci` with no committed lockfile, now carries
+the warning finding. No report component moves, and no corpus specimen has a publishing workflow.
+v17 and v18-v26 do not move.
+
+**Published corpus: not measured.** This change was made in a runner without network access to the
+public board's repositories, so the before/after across `leaderboard/corpus.json` has not run. v17
+cannot move there: every scoring change is behind the v27 gate, and v17's only change is the A4 note
+and citation order on a tox lock-runner repository with no `uv.lock`. v27 rows can move where a
+repository has a publishing workflow with no pull-request trigger, or a lockfile requirement with no
+lockfile. The paired v27 board delta is owed before this candidate is pinned. **No holdout or
+calibration ran, and this entry makes no precision or recall claim.**
+
+Tests: `src/witan/__tests__/ci-claims-publish-and-lockfile.test.ts`, and the updated expectations in
+`src/witan/__tests__/false-assurance-v27.test.ts`.
+
 ## 2026-10-23 — #586: A2's batched history re-read has a time budget; a spent budget is declared as an incomplete read; no public row moved (preregistered paired delta: E0-E3 held)
 
 **Defect.** Since #567, a whole-history read that stops at Cejel's own output limit or timeout is

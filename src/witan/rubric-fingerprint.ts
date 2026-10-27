@@ -248,8 +248,11 @@ export const WITAN_RUBRIC_BEHAVIOUR_FINGERPRINTS: Readonly<Record<string, string
   // score lockfile_coverage 0 under library norms, and `workspace-package-scripts`, whose only
   // workflow checks out and prints, earns no B2 or B3 workflow credit (re-pinned 2026-10-22;
   // leaderboard/RUBRIC_CHANGELOG.md). That specimen's report component differs from v17's.
+  // Re-pinned 2026-10-26 (#517, #520 follow-up): the specimen whose CI runs `npm ci` with no
+  // committed lockfile now also carries A4's warning finding citing that line, so the A4 component
+  // moves; no score, status or report component does. B3's publishing rule reaches no specimen.
   [WITAN_RUBRIC_VERSION_V27]:
-    'sha256:6e03aa1bf63a31c5ec58a68cb49fb8ef571ba233cf79059a311ec55aecea5bb3',
+    'sha256:dfe4e7e9ba37666f60b1ebcee4eb44917110798e9038c81eef079718db9ee7b1',
 });
 
 /**

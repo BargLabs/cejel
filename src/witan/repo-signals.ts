@@ -51,6 +51,7 @@ import {
   WITAN_A2_TENANT_ISOLATION_UNSETTLED_DISCLOSURE,
   WITAN_B2_UNCREDITED_CI_WORKFLOW_PREFIX,
   WITAN_B3_UNCREDITED_CI_WORKFLOW_PREFIX,
+  WITAN_B3_PUBLISHING_CI_WORKFLOW_PREFIX,
   WITAN_B3_UNSHOWN_CHECK_PREFIX,
   WITAN_A3_BUILD_STEP_UNSETTLED_DISCLOSURE,
   WITAN_A5_RECONCILIATION_UNSETTLED_DISCLOSURE,
@@ -322,7 +323,8 @@ function withoutCountDisclosures(disclosures: readonly string[] | undefined): { 
       !text.startsWith(WITAN_B3_UNSHOWN_CHECK_PREFIX) &&
       !text.startsWith(WITAN_A2_HISTORY_APPLICABILITY_PREFIX) &&
       !text.startsWith(WITAN_B2_UNCREDITED_CI_WORKFLOW_PREFIX) &&
-      !text.startsWith(WITAN_B3_UNCREDITED_CI_WORKFLOW_PREFIX),
+      !text.startsWith(WITAN_B3_UNCREDITED_CI_WORKFLOW_PREFIX) &&
+      !text.startsWith(WITAN_B3_PUBLISHING_CI_WORKFLOW_PREFIX),
   );
   return kept.length > 0 ? { disclosures: kept } : {};
 }
@@ -4210,11 +4212,13 @@ function collectA4DependencyEvidence(
   }
 
   // #520. The repository's own CI can require a committed lockfile (`uv run --locked`, `npm ci`,
-  // ...). Every rubric uses this for presentation only: the library note stops saying a lockfile
-  // is "not required", and the requiring line is cited first, so the metric-derived finding cites
-  // it. Those reads are of CI workflows B3 reads anyway and are attributed to nothing, so no
-  // rubric's score or abstention can move. v27 also scores it (lockfile_coverage below), and there
-  // the read is A4's own, so a workflow A4 cannot read abstains A4.
+  // ...), and so can its tox configuration (tox-uv's `uv-venv-lock-runner`). Every rubric uses this
+  // for presentation only: the library note stops saying a lockfile is "not required", and the
+  // requiring line is cited first, so the metric-derived finding cites it. Those reads are of CI
+  // workflows B3 reads anyway and of tox and manifest files A1 and A4 read anyway, and are
+  // attributed to nothing, so no rubric's score or abstention can move. v27 also scores it
+  // (lockfile_coverage below) and states it as a finding citing that line, and there the read is
+  // A4's own, so a file A4 cannot read abstains A4.
   //
   // A requirement is reported only when the specific lockfile its command needs is absent from
   // everything the scan knows of: the inventory, the monorepo root, and the paths the file walk
@@ -4230,13 +4234,24 @@ function collectA4DependencyEvidence(
   const checkoutPaths = [...repoFiles, ...withheldRepoPaths().map(({ path }) => path)];
   const knownPaths = [...checkoutPaths, ...(mono?.sharedFiles ?? [])];
   const knownBasenames = new Set(knownPaths.map((path) => basename(path)));
-  const findRequirement = () =>
-    findLockfileRequirement(
-      repoPath,
-      repoFiles.filter(isGitHubActionsWorkflow),
-      checkoutInventory(checkoutPaths),
-      (lockfiles) => lockfiles.some((name) => knownBasenames.has(name)),
+  // A tox configuration selecting tox-uv's lock runner is the repository's own requirement too
+  // (#520), read after the workflows and only from the file tox would read.
+  const findRequirement = () => {
+    const actionsWorkflows = repoFiles.filter(isGitHubActionsWorkflow);
+    const inventory = checkoutInventory(checkoutPaths);
+    const isSatisfied = (lockfiles: readonly string[]) => lockfiles.some((name) => knownBasenames.has(name));
+    return (
+      findLockfileRequirement(repoPath, actionsWorkflows, inventory, isSatisfied) ??
+      findToxLockfileRequirement(
+        repoPath,
+        new Set(repoFiles),
+        new Set(checkoutPaths),
+        actionsWorkflows,
+        inventory,
+        isSatisfied,
+      )
     );
+  };
   const lockfileRequirement =
     hasLockfile || !manifest
       ? undefined
@@ -4245,12 +4260,15 @@ function collectA4DependencyEvidence(
         : withoutContentReadAttribution(findRequirement);
   const leadingEvidence: WitanEvidencePointer[] = [];
   if (lockfileRequirement) {
+    const needs = joinLockfileNames(lockfileRequirement.lockfiles);
     const cite = () =>
       evidenceForRelativeAtLine(
         repoPath,
         lockfileRequirement.file,
         'dependency_report',
-        `CI step runs \`${lockfileRequirement.command}\`, which needs ${joinLockfileNames(lockfileRequirement.lockfiles)}; the scanned inventory holds none`,
+        lockfileRequirement.source === 'tox'
+          ? `tox configuration selects the \`${lockfileRequirement.command}\` runner, which needs ${needs}; the scanned inventory holds none`
+          : `CI step runs \`${lockfileRequirement.command}\`, which needs ${needs}; the scanned inventory holds none`,
         lockfileRequirement.line,
       );
     leadingEvidence.push(
@@ -4258,6 +4276,19 @@ function collectA4DependencyEvidence(
         ? withContentReadSignal('A4', 'lockfile_coverage', cite)
         : withoutContentReadAttribution(cite),
     );
+    // v27 (#520): the requirement is a finding of its own, citing the requiring line, so the
+    // certificate says the lockfile is missing rather than only a metric-derived score. A warning:
+    // the repository's own automation exits with an error as committed. It can only lower A4.
+    if (useV27FalseAssuranceClosure) {
+      findings.push({
+        severity: 'warning',
+        summary:
+          lockfileRequirement.source === 'tox'
+            ? `This repository's tox configuration requires a lockfile that is not committed: it selects the \`${lockfileRequirement.command}\` runner, which exits with an error without ${needs}, and the scanned inventory holds none.`
+            : `This repository's CI requires a lockfile that is not committed: an unconditional step runs \`${lockfileRequirement.command}\`, which exits with an error without ${needs}, and the scanned inventory holds none.`,
+        evidence: withContentReadSignal('A4', 'lockfile_coverage', cite),
+      });
+    }
   }
   // #520, every rubric, presentation only. Under library norms the manifest cited first is the
   // one holding a dependency declared with no version constraint, when that is not already the
@@ -4384,7 +4415,9 @@ function collectA4DependencyEvidence(
               1,
               0.3,
               'present',
-              "Scored 0: this repository's own CI requires a lockfile, and the scanned inventory holds no recognized lockfile.",
+              lockfileRequirement.source === 'tox'
+                ? "Scored 0: this repository's tox configuration requires a lockfile, and the scanned inventory holds no recognized lockfile."
+                : "Scored 0: this repository's own CI requires a lockfile, and the scanned inventory holds no recognized lockfile.",
             ),
           ]
         : []),
@@ -4408,7 +4441,11 @@ function collectA4DependencyEvidence(
     notes: isAppOrService
       ? `A4 scored against app/service norms (${packagedApplicationFiles.length > 0 ? 'packaged application' : 'deploy surface'} detected): pinned dependencies and a lockfile are required for reproducible installs.`
       : lockfileRequirement
-        ? `A4 scored against library/CLI norms (no deploy surface detected — same archetype line as A3): declared version ranges are correct library behavior. An unconditional step in this repository's CI runs \`${lockfileRequirement.command}\` (${lockfileRequirement.file} line ${lockfileRequirement.line}), which exits with an error without ${joinLockfileNames(lockfileRequirement.lockfiles)}, and the scanned inventory holds none.`.slice(0, 1000)
+        ? `A4 scored against library/CLI norms (no deploy surface detected — same archetype line as A3): declared version ranges are correct library behavior. ${
+            lockfileRequirement.source === 'tox'
+              ? `This repository's tox configuration selects the \`${lockfileRequirement.command}\` runner`
+              : `An unconditional step in this repository's CI runs \`${lockfileRequirement.command}\``
+          } (${lockfileRequirement.file} line ${lockfileRequirement.line}), which exits with an error without ${joinLockfileNames(lockfileRequirement.lockfiles)}, and the scanned inventory holds none.`.slice(0, 1000)
         : 'A4 scored against library/CLI norms (no deploy surface detected — same archetype line as A3): declared version ranges are correct library behavior; a committed lockfile is credited but not required.',
   };
 }
@@ -4496,9 +4533,11 @@ const SHELL_COMMAND_SEPARATORS = new Set(['&&', '||', ';', '|']);
 const DIRECTORY_CHANGE_COMMANDS = new Set(['cd', 'pushd']);
 
 interface LockfileRequirement {
+  /** A CI workflow step (findLockfileRequirement), or a tox configuration (findToxLockfileRequirement). */
+  readonly source: 'workflow' | 'tox';
   readonly file: string;
   readonly line: number;
-  /** The matched command, trimmed for display. */
+  /** The matched command, or for tox the runner name, trimmed for display. */
   readonly command: string;
   readonly lockfiles: readonly string[];
 }
@@ -4607,6 +4646,21 @@ function isConditionalShellCommand(words: readonly string[]): boolean {
   );
 }
 
+/**
+ * True when a run step's shell makes its commands depend on something: a heredoc, a conditional or
+ * status-inverting command (isConditionalShellCommand), or a `||`.
+ */
+function stepShellIsConditional(
+  step: WorkflowRunStep,
+  commands: readonly { readonly words: readonly string[] }[],
+): boolean {
+  return (
+    step.lines.some(({ text }) => beforeShellComment(text).includes('<<')) ||
+    commands.some(({ words }) => isConditionalShellCommand(words)) ||
+    step.lines.some(({ text }) => /(^|[ \t])\|\|([ \t]|$)/.test(beforeShellComment(text)))
+  );
+}
+
 interface WorkflowRunStep {
   /** 1-based line of each command line, with its text. */
   readonly lines: readonly { readonly line: number; readonly text: string }[];
@@ -4618,6 +4672,7 @@ interface WorkflowRunStep {
 }
 
 const RUN_KEY_PATTERN = /^([ \t]*)(?:-[ \t]+)?run:[ \t]*(.*)$/;
+const USES_KEY_PATTERN = /^([ \t]*)(?:-[ \t]+)?uses:[ \t]*(.*)$/;
 const IF_KEY_PATTERN = /^[ \t]*(?:-[ \t]+)?if:/;
 const CONTINUE_ON_ERROR_KEY_PATTERN = /^[ \t]*(?:-[ \t]+)?continue-on-error:[ \t]*(.*)$/;
 const STEPS_KEY_PATTERN = /^[ \t]*steps:[ \t]*$/;
@@ -4723,6 +4778,19 @@ function leastGuardIndentWithin(
  * every per-step and per-job lookup is an index or set built by a single pass beforehand.
  */
 function githubActionsRunSteps(contents: string): WorkflowRunStep[] {
+  return githubActionsKeyedSteps(contents, RUN_KEY_PATTERN);
+}
+
+/**
+ * The `uses:` steps of a GitHub Actions workflow, placed and guarded exactly as
+ * githubActionsRunSteps places `run:` steps; each has one line, the value as written. A job-level
+ * `uses:` (a reusable-workflow call) is outside every step item, so it is never placed.
+ */
+function githubActionsUsesSteps(contents: string): WorkflowRunStep[] {
+  return githubActionsKeyedSteps(contents, USES_KEY_PATTERN);
+}
+
+function githubActionsKeyedSteps(contents: string, keyPattern: RegExp): WorkflowRunStep[] {
   const lines = contents.split(/\r?\n/);
   const indents = lines.map(lineIndent);
   const inBlockScalar = blockScalarBodyLines(lines, indents);
@@ -4765,7 +4833,7 @@ function githubActionsRunSteps(contents: string): WorkflowRunStep[] {
   for (let index = 0; index < lines.length; index += 1) {
     if (!structural[index]) continue;
     const raw = lines[index] ?? '';
-    const match = execOnTerminatorFreeLine(RUN_KEY_PATTERN, raw);
+    const match = execOnTerminatorFreeLine(keyPattern, raw);
     if (!match) continue;
     const keyIndent = workflowKeyIndent(raw, (match[1] ?? '').length);
     const value = (match[2] ?? '').trim();
@@ -4941,11 +5009,7 @@ function findLockfileRequirement(
     for (const [stepIndex, step] of steps.entries()) {
       if (step.conditional) continue;
       const commands = stepCommands[stepIndex] ?? [];
-      const shellIsConditional =
-        step.lines.some(({ text }) => beforeShellComment(text).includes('<<')) ||
-        commands.some(({ words }) => isConditionalShellCommand(words)) ||
-        step.lines.some(({ text }) => /(^|[ \t])\|\|([ \t]|$)/.test(beforeShellComment(text)));
-      if (shellIsConditional) continue;
+      if (stepShellIsConditional(step, commands)) continue;
       const leavesCheckout = commands.some(({ words }) => {
         const head = commandHead(words);
         return (
@@ -4965,12 +5029,97 @@ function findLockfileRequirement(
           ) {
             continue;
           }
-          return { file, line, command: command.slice(0, 80), lockfiles: rule.lockfiles };
+          return { source: 'workflow', file, line, command: command.slice(0, 80), lockfiles: rule.lockfiles };
         }
       }
     }
   }
   return undefined;
+}
+
+// #520. tox-uv's `uv-venv-lock-runner` installs an environment with `uv sync --locked`, which exits
+// with an error when uv.lock is absent, unless `uv_sync_locked` turns the flag off. Matched in a
+// line's text before any comment: `runner = uv-venv-lock-runner` (INI) or `runner =
+// "uv-venv-lock-runner"` (TOML, also inside an inline table). One alternation, linear in the line.
+const TOX_LOCK_RUNNER_PATTERN = /(?:^|[\s{,])runner[ \t]*=[ \t]*(["']?)uv-venv-lock-runner\1(?=[\s,}]|$)/;
+const TOX_UV_LOCK_RULE = LOCKFILE_REQUIRING_COMMANDS.find(({ tool }) => tool === 'uv');
+
+/** True when `contents`, the named file, is the configuration tox reads (tox 4's own test). */
+function isToxConfiguration(file: string, contents: string): boolean {
+  if (file === 'tox.ini' || file === 'tox.toml') return true;
+  if (file === 'setup.cfg') return /^\[tox:tox\][ \t]*$/m.test(contents);
+  return /^\[tool\.tox(?:\.[^\]\n]*)?\][ \t]*$/m.test(contents) || /\blegacy_tox_ini\b/.test(contents);
+}
+
+/**
+ * The tox configuration line that selects `uv-venv-lock-runner` when uv.lock is absent from
+ * everything the scan knows of (`isSatisfied`). Only the file tox itself would read is consulted:
+ * the first of tox.ini, setup.cfg, pyproject.toml and tox.toml at the scan root that holds tox
+ * configuration, so a runner in pyproject.toml is not read when a tox.ini exists. Nothing is
+ * claimed when that file was not scanned, when it names `uv_sync_locked` anywhere, or when a CI
+ * workflow may write or bring in uv.lock first (a uv command that writes it, a word naming it, a
+ * download or another repository's checkout).
+ */
+function findToxLockfileRequirement(
+  repoPath: string,
+  scanned: ReadonlySet<string>,
+  known: ReadonlySet<string>,
+  workflows: readonly string[],
+  inventory: CheckoutInventory,
+  isSatisfied: (lockfiles: readonly string[]) => boolean,
+): LockfileRequirement | undefined {
+  const rule = TOX_UV_LOCK_RULE;
+  if (!rule || isSatisfied(rule.lockfiles)) return undefined;
+  for (const file of ['tox.ini', 'setup.cfg', 'pyproject.toml', 'tox.toml']) {
+    if (!known.has(file)) continue;
+    if (!scanned.has(file)) return undefined;
+    const contents = readRepoText(join(repoPath, file), 'utf8');
+    if (!isToxConfiguration(file, contents)) continue;
+    if (/\buv_sync_locked\b/.test(contents)) return undefined;
+    const lines = contents.split(/\r?\n/);
+    const index = lines.findIndex((raw) => {
+      const trimmed = raw.trimStart();
+      if (trimmed.startsWith(';')) return false;
+      return TOX_LOCK_RUNNER_PATTERN.test(beforeShellComment(raw));
+    });
+    if (index === -1) return undefined;
+    if (workflowsMayProvideLockfile(repoPath, workflows, inventory, rule)) return undefined;
+    return { source: 'tox', file, line: index + 1, command: 'uv-venv-lock-runner', lockfiles: rule.lockfiles };
+  }
+  return undefined;
+}
+
+/**
+ * True when any CI workflow may put `rule`'s lockfile in its workspace before tox runs: it brings in
+ * files from outside the scanned tree, runs the tool's lockfile-writing subcommand without the
+ * requiring flag, or names the lockfile in a command. findLockfileRequirement's per-workflow test.
+ */
+function workflowsMayProvideLockfile(
+  repoPath: string,
+  workflows: readonly string[],
+  inventory: CheckoutInventory,
+  rule: LockfileRequiringCommand,
+): boolean {
+  for (const file of workflows) {
+    const fullPath = join(repoPath, file);
+    if (!isRegularFile(fullPath)) continue;
+    const contents = readRepoText(fullPath, 'utf8');
+    if (!workflowReadsOnlyThisTree(inventory, contents)) return true;
+    for (const step of githubActionsRunSteps(contents)) {
+      for (const { text } of step.lines) {
+        for (const words of shellCommands(text)) {
+          const generates =
+            words[0] === rule.tool &&
+            rule.generators.includes(words[1] ?? '') &&
+            matchLockfileRequiringCommand(words, rule) === undefined;
+          if (generates || words.some((word) => rule.lockfiles.some((lockfile) => word.includes(lockfile)))) {
+            return true;
+          }
+        }
+      }
+    }
+  }
+  return false;
 }
 
 // Full credit up to this many declared dependency specs (aggregated across all manifests,
@@ -5690,16 +5839,23 @@ function collectB3CiDisciplineEvidence(
   // counts it: making it run on every push raised B3. B2 uses the same predicate (#527).
   // A monorepo root's workflows get no inventory, so any command whose behaviour that root's files
   // decide keeps them counted.
+  // v27 (#517), B3 only: a workflow with no pull-request trigger that runs an unconditional publish,
+  // release or deploy step is not counted either, whatever else it runs (publishingWorkflowReasons).
+  // Making a release workflow run on every push, without its human gate, must not raise B3.
   // Decided once per workflow, under both depth signals, since each depends on the reading.
   const uncreditedWorkflows: ReadonlyMap<string, UncreditedCiWorkflowReason> = useV27FalseAssuranceClosure
     ? withContentReadSignals('B3', ['ci_script_depth', 'default_branch_ci_depth'], () =>
-        uncreditedCiWorkflows(repoPath, workflows, ownPublishOnlyInventory(repoFiles)),
+        publishingWorkflowReasons(
+          repoPath,
+          workflows,
+          uncreditedCiWorkflows(repoPath, workflows, ownPublishOnlyInventory(repoFiles)),
+        ),
       )
     : new Map();
   const uncreditedRootWorkflows: ReadonlyMap<string, UncreditedCiWorkflowReason> =
     useV27FalseAssuranceClosure && mono
       ? withContentReadSignals('B3', ['ci_script_depth', 'default_branch_ci_depth'], () =>
-          uncreditedCiWorkflows(mono.root, rootWorkflows, null),
+          publishingWorkflowReasons(mono.root, rootWorkflows, uncreditedCiWorkflows(mono.root, rootWorkflows, null)),
         )
       : new Map();
   const countsAsCi = (uncredited: ReadonlyMap<string, UncreditedCiWorkflowReason>) => (file: string) =>
@@ -5906,25 +6062,199 @@ function collectB3CiDisciplineEvidence(
         b3UnshownCheckCount(unshownCheckWorkflows) > 0
           ? { condition: b3UnshownCheckCondition(unshownCheckWorkflows) }
           : b3Uncredited.size > 0
-            ? { condition: uncreditedCiWorkflowCondition(b3Uncredited.size) }
+            ? { condition: b3UncreditedCondition(b3Uncredited) }
             : undefined,
       ),
     ],
     ...(b3Uncredited.size > 0 ? { notes: b3UncreditedWorkflowsNote(b3Uncredited) } : {}),
-    ...b3Disclosures(
-      unshownCheckWorkflows,
-      b3Uncredited.size > 0
-        ? uncreditedCiWorkflowDisclosure(WITAN_B3_UNCREDITED_CI_WORKFLOW_PREFIX, b3Uncredited)
-        : '',
-    ),
+    ...b3Disclosures(unshownCheckWorkflows, ...b3UncreditedDisclosures(b3Uncredited)),
   };
 }
 
-function b3Disclosures(unshown: B3UnshownCheckWorkflows, uncredited: string): { disclosures?: string[] } {
-  const sentences = [b3UnshownCheckDisclosure(unshown, CRITERION_DISCLOSURE_MAX_LENGTH), uncredited].filter(
+function b3Disclosures(unshown: B3UnshownCheckWorkflows, ...uncredited: string[]): { disclosures?: string[] } {
+  const sentences = [b3UnshownCheckDisclosure(unshown, CRITERION_DISCLOSURE_MAX_LENGTH), ...uncredited].filter(
     (sentence) => sentence !== '',
   );
   return sentences.length > 0 ? { disclosures: sentences } : {};
+}
+
+/** B3's uncredited workflows split by claim: not shown to run a check, and publishing (#517). */
+function splitPublishingReasons(uncredited: ReadonlyMap<string, UncreditedCiWorkflowReason>): {
+  readonly unshownCheck: ReadonlyMap<string, UncreditedCiWorkflowReason>;
+  readonly publishing: ReadonlyMap<string, UncreditedCiWorkflowReason>;
+} {
+  const entries = [...uncredited];
+  return {
+    unshownCheck: new Map(entries.filter(([, reason]) => reason !== 'publishes')),
+    publishing: new Map(entries.filter(([, reason]) => reason === 'publishes')),
+  };
+}
+
+/**
+ * B3's uncredited-workflow disclosures. A publishing workflow may run checks too, so it is named
+ * under its own prefix, never as a workflow Cejel did not see run a check.
+ */
+function b3UncreditedDisclosures(uncredited: ReadonlyMap<string, UncreditedCiWorkflowReason>): string[] {
+  const { unshownCheck, publishing } = splitPublishingReasons(uncredited);
+  return [
+    unshownCheck.size > 0 ? uncreditedCiWorkflowDisclosure(WITAN_B3_UNCREDITED_CI_WORKFLOW_PREFIX, unshownCheck) : '',
+    publishing.size > 0 ? uncreditedCiWorkflowDisclosure(WITAN_B3_PUBLISHING_CI_WORKFLOW_PREFIX, publishing) : '',
+  ];
+}
+
+/** default_branch_ci_depth's condition; with no publishing workflow, uncreditedCiWorkflowCondition's. */
+function b3UncreditedCondition(uncredited: ReadonlyMap<string, UncreditedCiWorkflowReason>): string {
+  const { unshownCheck, publishing } = splitPublishingReasons(uncredited);
+  if (publishing.size === 0) return uncreditedCiWorkflowCondition(unshownCheck.size);
+  const files = (count: number) => `${count} CI workflow file${count === 1 ? '' : 's'}`;
+  const publishes = (count: number) => (count === 1 ? 'publishes, releases or deploys' : 'publish, release or deploy');
+  if (unshownCheck.size === 0) {
+    return `${files(publishing.size)} that ${publishes(publishing.size)} with no pull-request trigger ${publishing.size === 1 ? 'is' : 'are'} not counted`;
+  }
+  return `${files(unshownCheck.size)} not shown to run a check and ${publishing.size} that ${publishes(publishing.size)} with no pull-request trigger are not counted`;
+}
+
+// v27 (#517), B3 only. Actions whose every run publishes, releases or deploys, matched by name,
+// lowercased (GitHub resolves owner and repository case-insensitively). An action whose effect
+// depends on its inputs (`docker/build-push-action` pushes only with `push: true`,
+// `changesets/action` publishes only with a `publish` input, `goreleaser/goreleaser-action` runs
+// whatever its `args` say) is not listed, so a workflow using one keeps its credit.
+const PUBLISHING_ACTIONS: ReadonlySet<string> = new Set([
+  'pypa/gh-action-pypi-publish',
+  'softprops/action-gh-release',
+  'actions/deploy-pages',
+  'peaceiris/actions-gh-pages',
+  'jamesives/github-pages-deploy-action',
+]);
+
+// Launchers that run the next word as the command: `npx semantic-release`, `uvx twine upload`.
+// `python -m` and `python3 -m` are read separately.
+const PUBLISHING_COMMAND_LAUNCHERS: ReadonlySet<string> = new Set(['npx', 'bunx', 'pnpx', 'uvx']);
+const PUBLISHING_REGISTRY_TOOLS: ReadonlySet<string> = new Set(['uv', 'poetry', 'flit', 'hatch', 'cargo']);
+const PUBLISHING_DEPLOY_TOOLS: ReadonlySet<string> = new Set([
+  'vercel', 'netlify', 'flyctl', 'fly', 'firebase', 'serverless', 'wrangler',
+]);
+
+/**
+ * True when one shell command, read from its command position, publishes, releases or deploys:
+ * a package-registry publish or upload, a release, an image push, or a deploy command. A dry run or
+ * snapshot is not. The words after any leading `(`, `{`, `NAME=value` assignment and launcher are
+ * matched word by word, so a publish named in `echo` text or as an argument is not one.
+ */
+function isPublishingCommand(input: readonly string[]): boolean {
+  const head = commandHead(input);
+  if (head.inverted) return false;
+  let words = [head.word, ...input.slice(head.argsFrom)];
+  let start = 0;
+  while (start < words.length && /^[A-Za-z_][A-Za-z0-9_]*=/.test(words[start] ?? '')) start += 1;
+  if (PUBLISHING_COMMAND_LAUNCHERS.has(words[start] ?? '')) start += 1;
+  else if ((words[start] === 'python' || words[start] === 'python3') && words[start + 1] === '-m') start += 2;
+  words = words.slice(start);
+  if (words.some((word) => word === '--dry-run' || word.startsWith('--dry-run=') || word === '--snapshot')) return false;
+  const [first = '', second = '', third = ''] = words;
+  switch (first) {
+    case 'npm':
+    case 'pnpm':
+    case 'bun':
+      return second === 'publish';
+    case 'yarn':
+      return second === 'publish' || (second === 'npm' && third === 'publish');
+    case 'twine':
+      return second === 'upload';
+    case 'gem':
+      return second === 'push';
+    case 'gh':
+      return second === 'release' && (third === 'create' || third === 'upload');
+    case 'semantic-release':
+      return true;
+    case 'goreleaser':
+      return second === '' || second === 'release' || second.startsWith('-');
+    case 'docker':
+      return second === 'push' || (second === 'image' && third === 'push');
+    case 'kubectl':
+      return second === 'apply';
+    case 'helm':
+      return second === 'upgrade' || second === 'install';
+    case 'terraform':
+      return second === 'apply';
+    default:
+      if (PUBLISHING_REGISTRY_TOOLS.has(first)) return second === 'publish';
+      if (PUBLISHING_DEPLOY_TOOLS.has(first)) return second === 'deploy';
+      return false;
+  }
+}
+
+/**
+ * v27 (#517), B3 only: `uncredited` with each other GitHub Actions workflow that publishes,
+ * releases or deploys added as 'publishes', in `workflows` order. Such a workflow:
+ *   - has an `on:` the trigger reader places, with no pull-request, merge-queue or
+ *     `workflow_call` trigger, and no pull-request trigger word anywhere in the file (a mention in
+ *     a comment keeps it counted);
+ *   - runs every job on a GitHub-hosted Ubuntu or macOS label and sets no `shell:`
+ *     (runsOnlyOnHostedBashRunners), so its run lines are read as bash reads them (#564);
+ *   - has a step, placed in a step item with no `if:` or `continue-on-error:` on it or its job,
+ *     that uses an action in PUBLISHING_ACTIONS, or runs a command isPublishingCommand reads as a
+ *     publish in a shell with no heredoc, guard or `||` (stepShellIsConditional).
+ * The claim is only that such a step exists; the workflow may also run checks, and is not counted
+ * because it publishes with no pull-request gate. Anything the readers cannot place keeps it counted.
+ */
+function publishingWorkflowReasons(
+  root: string,
+  workflows: readonly string[],
+  uncredited: ReadonlyMap<string, UncreditedCiWorkflowReason>,
+): Map<string, UncreditedCiWorkflowReason> {
+  const reasons = new Map<string, UncreditedCiWorkflowReason>();
+  for (const file of workflows) {
+    const reason = uncredited.get(file) ?? (isPublishingWorkflow(root, file) ? 'publishes' : undefined);
+    if (reason) reasons.set(file, reason);
+  }
+  return reasons;
+}
+
+const RUNS_ON_KEY_PATTERN = /^[ \t]*runs-on:[ \t]*(.*)$/;
+const SHELL_KEY_PATTERN = /^[ \t]*(?:-[ \t]+)?shell:/;
+
+/**
+ * True when the workflow has a `runs-on:` line, every one names a GitHub-hosted Ubuntu or macOS label
+ * (isGitHubHostedBashRunner, #564), and no line sets a `shell:`: the run lines are then read as bash
+ * reads them, as the publish-only and print-only readers require. Linear in the file.
+ */
+function runsOnlyOnHostedBashRunners(contents: string): boolean {
+  let runsOn = 0;
+  for (const raw of contents.split(/\r?\n/)) {
+    if (SHELL_KEY_PATTERN.test(raw)) return false;
+    const match = RUNS_ON_KEY_PATTERN.exec(raw);
+    if (!match) continue;
+    if (!isGitHubHostedBashRunner(beforeShellComment(match[1] ?? ''))) return false;
+    runsOn += 1;
+  }
+  return runsOn > 0;
+}
+
+function isPublishingWorkflow(root: string, file: string): boolean {
+  if (!isGitHubActionsWorkflow(file)) return false;
+  const fullPath = join(root, file);
+  if (!isRegularFile(fullPath)) return false;
+  const contents = readRepoText(fullPath, 'utf8');
+  if (YAML_LINE_BREAK_NOT_SPLIT_PATTERN.test(contents) || PULL_REQUEST_TRIGGER_PATTERN.test(contents)) return false;
+  const triggers = githubWorkflowTriggers(contents);
+  if (triggers === null || triggers.size === 0 || triggers.has('workflow_call')) return false;
+  if (!runsOnlyOnHostedBashRunners(contents)) return false;
+  for (const step of githubActionsUsesSteps(contents)) {
+    if (step.conditional) continue;
+    const value = unquoteYamlScalar(beforeShellComment(step.lines[0]?.text ?? ''));
+    const at = value.indexOf('@');
+    if (at > 0 && PUBLISHING_ACTIONS.has(value.slice(0, at).toLowerCase())) return true;
+  }
+  for (const step of githubActionsRunSteps(contents)) {
+    if (step.conditional) continue;
+    const commands = joinShellContinuationLines(step.lines.map(({ text }) => text)).flatMap((text) =>
+      shellCommands(text).map((words) => ({ words })),
+    );
+    if (stepShellIsConditional(step, commands)) continue;
+    if (commands.some(({ words }) => isPublishingCommand(words))) return true;
+  }
+  return false;
 }
 
 /**
@@ -5949,7 +6279,8 @@ function uncreditedCiWorkflowReason(
   return isPrintOnlyWorkflow(readRepoText(fullPath, 'utf8')) ? 'print_only' : null;
 }
 
-type UncreditedCiWorkflowReason = 'publish_only' | 'print_only';
+// 'publishes' is B3's alone (publishingWorkflowReasons); B2 and B3 share the other two.
+type UncreditedCiWorkflowReason = 'publish_only' | 'print_only' | 'publishes';
 
 /** The uncredited workflows among `workflows`, in their order, with each one's reason. */
 function uncreditedCiWorkflows(
@@ -5994,6 +6325,7 @@ function uncreditedCiWorkflowCondition(count: number): string {
 const UNCREDITED_CI_WORKFLOW_REASON_TEXT: Readonly<Record<UncreditedCiWorkflowReason, string>> = {
   print_only: 'only checks out the repository, prints text or does nothing',
   publish_only: 'only checks out, sets up a toolchain, configures credentials or uploads an already-built artifact',
+  publishes: 'runs an unconditional publish, release or deploy step',
 };
 
 /**
@@ -6030,6 +6362,7 @@ function uncreditedCiWorkflowNote(
     [...uncredited].filter(([, why]) => why === reason).map(([file]) => file);
   const publishOnly = of('publish_only');
   const printOnly = of('print_only');
+  const publishing = of('publishes');
   const listed = (files: readonly string[], shown: number) =>
     shown === 0 ? '' : `: ${files.slice(0, shown).join(', ')}${files.length > shown ? ', ...' : ''}`;
   const sentences = (shown: number) => [
@@ -6041,6 +6374,12 @@ function uncreditedCiWorkflowNote(
     ...(printOnly.length > 0
       ? [
           `${printOnly.length === 1 ? '1 workflow' : `${printOnly.length} workflows`} not shown to run a check (every step Cejel reads only checks out the repository, prints text or does nothing) ${printOnly.length === 1 ? 'is' : 'are'} not counted as ${notCountedAs}${listed(printOnly, shown)}.`,
+        ]
+      : []),
+    // B3 only (#517), and last, so the sentences B2 shares come first and read the same.
+    ...(publishing.length > 0
+      ? [
+          `${publishing.length === 1 ? '1 workflow that publishes, releases or deploys' : `${publishing.length} workflows that publish, release or deploy`} with no pull-request trigger (an unconditional step runs a publish, release or deploy command or action) ${publishing.length === 1 ? 'is' : 'are'} not counted as ${notCountedAs}, whatever else ${publishing.length === 1 ? 'it runs' : 'they run'}${listed(publishing, shown)}.`,
         ]
       : []),
   ].join(' ');

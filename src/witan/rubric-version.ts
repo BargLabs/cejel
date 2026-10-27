@@ -171,7 +171,9 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 // also names WITAN_RUBRIC_VERSION_V27, and the only comparison naming V27 without V17 is the one
 // v27 gate, `usesV27FalseAssuranceClosure` in src/witan/repo-signals.ts. That gate changes only
 // places where a v17 certificate asserts more than Cejel read (#517, #518, #519, #520, #442):
-//   - B3: a workflow that only publishes, releases or deploys is not counted as CI depth;
+//   - B3: a workflow that only publishes, releases or deploys is not counted as CI depth, nor
+//     (#517, 2026-10-26) is one with no pull-request trigger that runs an unconditional publish,
+//     release or deploy step, whatever else it runs;
 //   - A1: conftest.py is not a concrete test file, and an unconditional run-wide pytest skip
 //     (a collection hook that skips or clears every item, or a module-level pytestmark skip)
 //     marks the test files in its scope hollow;
@@ -179,11 +181,13 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     read it abstains as a read failure instead of scoring the pointer text, unless its
 //     collector made a critical finding (it then scores as under v17);
 //   - A4: under library norms, lockfile_coverage is 0 rather than omitted when the repository's
-//     own CI requires a lockfile and none is committed;
+//     own CI (or, from 2026-10-26, its tox configuration) requires a lockfile and none is
+//     committed, and (#520, 2026-10-26) under any norms that requirement is a warning finding
+//     citing the requiring line;
 //   - A2 and B2: on a shallow clone, A2 abstains unless a confirmed critical secret finding
 //     stands, and B2 abstains when fewer commits are visible than its window reads.
 // Each abstention is a read failure, kept in the composite at 0, and each other change only
-// lowers a metric or adds a zero-valued one (A1's non-hollow share stays measured over v17's test
+// lowers a metric, adds a zero-valued one or adds a finding, which can only cap a score (A1's non-hollow share stays measured over v17's test
 // list, so excluding conftest.py cannot shrink its denominator), so no score or status can rise
 // against v17; the measured before/after is in
 // leaderboard/RUBRIC_CHANGELOG.md and docs/reviews/v27-false-assurance-closure-2026-10-19.md.

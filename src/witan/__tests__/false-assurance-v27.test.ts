@@ -78,6 +78,88 @@ function metricValue(score: WitanCriterionScore, name: string): number | undefin
   return score.metrics.find((metric) => metric.name === name)?.value;
 }
 
+// #517 follow-up (2026-10-26). B3 no longer counts a workflow with no pull-request trigger that runs
+// an unconditional publish, release or deploy step, whatever else it runs. The fixtures below were
+// built so that the publish-only reader would refuse them, and each one is such a workflow. The
+// reader still refuses them: B3's note never says "only publishes", and B2 is unchanged. B3 now
+// sets them aside as publishing workflows instead of matching v17. Every other fixture these tests
+// name still matches v17. The list is the set the before/after probe of this change measured as
+// moving in B3.
+const SET_ASIDE_AS_PUBLISHING: ReadonlySet<string> = new Set([
+  'review5-b3-bun-test-then-publish',
+  'review5-b3-pnpm-lint-typecheck-build-then-publish',
+  'review5-b3-cargo-build-release',
+  'review5-b3-semantic-release-after-setup',
+  'review6-b3-flow-mapping-run-step',
+  'review6-b3-flow-mapping-uses-step',
+  'review6-b3-quoted-run-key',
+  'review6-b3-rustup-run-cargo-build',
+  'review6-b3-command-glued-to-echo',
+  'review7-b3-prepublishonly-script',
+  'review7-b3-prepare-script',
+  'review7-b3-npmrc-present',
+  'review7-b3-semantic-release-with-config',
+  'review7-b3-goreleaser-cli-with-hooks',
+  'review7-b3-cargo-publish-verifies',
+  'review7-b3-node-options-leading',
+  'review7-b3-node-options-exported',
+  'review7-b3-echo-into-github-env',
+  'review7-b3-step-env-ld-preload',
+  'review9-b3-step-env-ld-audit-twine',
+  'review7-b3-step-env-pythonpath-twine',
+  'review7-b3-python-build-runs-setup-py',
+  'review7-b3-third-party-setup-action',
+  'review8-b3-binding-gyp-publish',
+  'review8-b3-gypfile-publish',
+  'review8-b3-pnpm-workspace-publish',
+  'review8-b3-uv-sync-path-source',
+  'review8-b3-maturin-build',
+  'review8-b3-quoted-export-node-options',
+  'review8-b3-softprops-without-files',
+  'review11-twine-upload-pwsh-hashtable-argument',
+  'review12-pnpm-publish-glob-flag',
+  'review12-yarn-publish-glob-flag',
+  'review12-npm-publish-unknown-flag',
+  'review12-cargo-publish-glob-flag',
+  'review12-cargo-credential-provider-variable',
+  'review12-twine-pythonuserbase-variable',
+  'review12-cargo-home-step-env',
+  'review12-gh-release-xdg-config-step-env',
+  'review12-cargo-committed-config-credential-provider',
+  'review12-twine-upload-flag-glob',
+  'review13-poetry-project-plugin-pth',
+  'review13-poetry-requires-plugins',
+  'review13-uv-toml-committed',
+  'review13-uv-pyproject-table',
+  'review13-rust-toolchain-toml',
+  'review14-uv-index-array-table',
+  'review14-uv-under-tool-table-dotted',
+  'review14-uv-root-dotted-key',
+  'review14-uv-inline-table',
+  'review14-uv-quoted-key',
+  'review14-uv-escaped-key',
+  'review14-poetry-quoted-requires-plugins',
+  'review15-uv-hex-escaped-key',
+]);
+
+/**
+ * The publish-only reader does not claim `name`. B3 under v27 either matches v17, or, for a
+ * SET_ASIDE_AS_PUBLISHING fixture, sets the workflow aside as publishing (never as publish-only)
+ * and scores no higher than v17.
+ */
+function expectPublishOnlyRefused(name: string): void {
+  const v17 = criterion(name, V17, 'B3');
+  const v27 = criterion(name, V27, 'B3');
+  expect(v27.notes ?? '', name).not.toContain('only publish');
+  if (!SET_ASIDE_AS_PUBLISHING.has(name)) {
+    expect(v27, name).toEqual(v17);
+    return;
+  }
+  expect(v27.notes ?? '', name).toMatch(/workflows? that publish(?:es)?, releases? or deploys? with no pull-request trigger/);
+  expect(v27.score, name).toBeLessThanOrEqual(v17.score);
+  expect(criterion(name, V27, 'B2'), name).toEqual(criterion(name, V17, 'B2'));
+}
+
 describe('#517 — a workflow that only publishes is not CI depth', () => {
   it('v17 is unchanged: the ungated publish still raises B3, as the issue reports', () => {
     for (const [gated, ungated] of [
@@ -101,18 +183,32 @@ describe('#517 — a workflow that only publishes is not CI depth', () => {
     );
   });
 
-  it('v27: the issue\'s own repros build or install before they publish, so they stay counted (a recorded recall reduction)', () => {
-    for (const name of ['b3-pypi-publish-ungated', 'b3-npm-publish-ungated']) {
-      expect(criterion(name, V27, 'B3'), name).toEqual(criterion(name, V17, 'B3'));
+  // Changed 2026-10-26 (#517 follow-up): these were a recorded recall reduction, counted under v27
+  // because they build or install before they publish. A workflow with no pull-request trigger that
+  // runs an unconditional publish step is now not counted by B3, whatever else it runs.
+  it('v27: the issue\'s own repros, which build or install before they publish, no longer raise B3 when the gate is removed', () => {
+    for (const [gated, ungated] of [
+      ['b3-pypi-publish-gated', 'b3-pypi-publish-ungated'],
+      ['b3-npm-publish-gated', 'b3-npm-publish-ungated'],
+    ] as const) {
+      const before = criterion(gated, V27, 'B3');
+      const after = criterion(ungated, V27, 'B3');
+      expect(after.score, ungated).toBe(before.score);
+      expect(metricValue(after, 'default_branch_ci_depth'), ungated).toBe(metricValue(before, 'default_branch_ci_depth'));
+      expect(after.notes, ungated).toContain('1 workflow that publishes, releases or deploys with no pull-request trigger');
+      expect(after.notes ?? '', ungated).not.toContain('only publish');
     }
   });
 
-  it('v27: a workflow that runs the tests and then publishes still counts', () => {
+  it('v27: a workflow that runs the tests and then publishes on every push, with no pull-request trigger, is not counted', () => {
+    // Changed 2026-10-26 (#517 follow-up): this corner counted under v27 before.
     const v17 = criterion('b3-test-then-publish-workflow', V17, 'B3');
     const v27 = criterion('b3-test-then-publish-workflow', V27, 'B3');
-    expect(v27.score).toBe(v17.score);
-    expect(v27.metrics).toEqual(v17.metrics);
-    expect(v27.notes).toBeUndefined();
+    expect(v27.score).toBeLessThan(v17.score);
+    expect(metricValue(v27, 'default_branch_ci_depth')).toBe((metricValue(v17, 'default_branch_ci_depth') ?? 0) - 1);
+    expect(v27.notes).toBe(
+      '1 workflow that publishes, releases or deploys with no pull-request trigger (an unconditional step runs a publish, release or deploy command or action) is not counted as CI verification, whatever else it runs: .github/workflows/ci-release.yml.',
+    );
   });
 });
 
@@ -681,7 +777,10 @@ describe('post-merge review findings against #521 stay fixed', () => {
     expect(metricValue(kept, 'non_hollow_test_share')).toBe(0);
   });
 
-  it('#517: a workflow that runs anything besides setup, packaging and a publish stays counted, and the note never calls it publish-only', () => {
+  // Changed 2026-10-26 (#517 follow-up): the workflows here that publish with no pull-request
+  // trigger are set aside as publishing (SET_ASIDE_AS_PUBLISHING); a publish word only in a
+  // comment and a dry run are not publish steps and still match v17.
+  it('#517: a workflow that runs anything besides setup, packaging and a publish is never called publish-only', () => {
     for (const name of [
       'review5-b3-bun-test-then-publish',
       'review5-b3-pnpm-lint-typecheck-build-then-publish',
@@ -690,23 +789,23 @@ describe('post-merge review findings against #521 stay fixed', () => {
       'review5-b3-docs-build-publish-word-in-comment',
       'review5-b3-npm-publish-dry-run',
     ]) {
-      const v27 = criterion(name, V27, 'B3');
-      expect(v27, name).toEqual(criterion(name, V17, 'B3'));
-      expect(v27.notes ?? '', name).not.toContain('only publish');
+      expectPublishOnlyRefused(name);
     }
   });
 
-  it('#517: cargo build keeps B3 its build category under v27', () => {
+  it('#517: a cargo build in a workflow that also publishes with no pull-request trigger no longer earns B3 its build category under v27', () => {
+    // Changed 2026-10-26 (#517 follow-up): this was 1, from the release workflow's cargo build.
     const b3 = criterion('review5-b3-cargo-build-release', V27, 'B3');
     const depth = b3.metrics.find(({ name }) => name === 'ci_script_depth');
-    expect(depth?.presentation?.components?.find(({ label }) => label === 'repository CI command: build')?.count).toBe(1);
+    expect(depth?.presentation?.components?.find(({ label }) => label === 'repository CI command: build')?.count).toBe(0);
+    const v17Depth = criterion('review5-b3-cargo-build-release', V17, 'B3').metrics.find(({ name }) => name === 'ci_script_depth');
+    expect(v17Depth?.presentation?.components?.find(({ label }) => label === 'repository CI command: build')?.count).toBe(1);
   });
 
-  it('#517: npx semantic-release is not a publish Cejel admits (it runs configured plugins), so the workflow stays counted', () => {
+  it('#517: npx semantic-release is not a publish the publish-only reader admits (it runs configured plugins)', () => {
     // Changed by the re-run of review pass 1 on #553: this fixture was a publish-only corner.
-    const name = 'review5-b3-semantic-release-after-setup';
-    expect(criterion(name, V27, 'B3')).toEqual(criterion(name, V17, 'B3'));
-    expect(criterion(name, V27, 'B3').notes ?? '').not.toContain('only publish');
+    // Changed 2026-10-26 (#517 follow-up): it is now set aside as a publishing workflow.
+    expectPublishOnlyRefused('review5-b3-semantic-release-after-setup');
   });
 });
 
@@ -721,9 +820,7 @@ describe('review findings against #553 stay fixed', () => {
       'review6-b3-changesets-publish-input',
       'review6-b3-command-glued-to-echo',
     ]) {
-      const v27 = criterion(name, V27, 'B3');
-      expect(v27, name).toEqual(criterion(name, V17, 'B3'));
-      expect(v27.notes ?? '', name).not.toContain('only publish');
+      expectPublishOnlyRefused(name);
     }
   });
 
@@ -791,9 +888,7 @@ describe('re-run review findings against #553 stay fixed', () => {
       'review7-b3-python-build-runs-setup-py',
       'review7-b3-third-party-setup-action',
     ]) {
-      const v27 = criterion(name, V27, 'B3');
-      expect(v27, name).toEqual(criterion(name, V17, 'B3'));
-      expect(v27.notes ?? '', name).not.toContain('only publish');
+      expectPublishOnlyRefused(name);
     }
   });
 
@@ -829,15 +924,15 @@ describe('publish-only means checkout, credentials and an upload of a built arti
       'review8-b3-quoted-export-node-options',
       'review8-b3-softprops-without-files',
     ]) {
-      const v27 = criterion(name, V27, 'B3');
-      expect(v27, name).toEqual(criterion(name, V17, 'B3'));
-      expect(v27.notes ?? '', name).not.toContain('only publish');
+      expectPublishOnlyRefused(name);
     }
   });
 
-  it('#517: a workflow that installs before it publishes, or uses changesets, is counted (recorded recall reductions)', () => {
+  it('#517: changesets without a publish input stays counted; a workflow that installs before it publishes is now set aside', () => {
+    // Changed 2026-10-26 (#517 follow-up): both were recorded recall reductions. changesets/action
+    // publishes only with a publish input, so it is not a publish step and stays counted.
     for (const name of ['review6-b3-changesets-without-command-inputs', 'review5-b3-semantic-release-after-setup']) {
-      expect(criterion(name, V27, 'B3'), name).toEqual(criterion(name, V17, 'B3'));
+      expectPublishOnlyRefused(name);
     }
   });
 });
@@ -1028,10 +1123,15 @@ describe('#564 — the print-only and publish-only readers claim nothing outside
     'review11-print-only-ubuntu-xlarge-label',
     'review11-twine-upload-pwsh-hashtable-argument',
   ])('%s keeps its credit under v27 and gets no print-only disclosure under v17', (name) => {
-    for (const id of ['B2', 'B3']) {
+    // Changed 2026-10-26 (#517 follow-up): review11's twine upload runs on ubuntu-latest, so B3 now
+    // sets it aside as a publishing workflow; it is still never read as publish-only or print-only.
+    const ids = SET_ASIDE_AS_PUBLISHING.has(name) ? ['B2'] : ['B2', 'B3'];
+    for (const id of ids) {
       expect(criterion(name, V27, id), `${name} ${id}`).toEqual(criterion(name, V17, id));
       expect(criterion(name, V27, id).disclosures, `${name} ${id}`).toBeUndefined();
     }
+    expectPublishOnlyRefused(name);
+    expect((criterion(name, V27, 'B3').disclosures ?? []).join(' ')).not.toContain('did not see run a check');
     expect(v17Disclosure(name).join(' ')).not.toContain('only prints text');
   });
 
@@ -1070,10 +1170,11 @@ describe('publish-only admits no glob in flag position, no unknown flag, no unli
     'review14-uv-escaped-key',
     'review14-poetry-quoted-requires-plugins',
     'review15-uv-hex-escaped-key',
-  ])('%s keeps its credit under v27', (name) => {
-    for (const id of ['B2', 'B3']) {
-      expect(criterion(name, V27, id), `${name} ${id}`).toEqual(criterion(name, V17, id));
-    }
+  ])('%s is not read as publish-only under v27', (name) => {
+    // Changed 2026-10-26 (#517 follow-up): each publishes on a push with no pull-request trigger,
+    // so B3 now sets it aside as a publishing workflow; B2 keeps v17's credit.
+    expect(criterion(name, V27, 'B2'), name).toEqual(criterion(name, V17, 'B2'));
+    expectPublishOnlyRefused(name);
   });
 
   it('controls: upload-only shapes with known flags, a file glob after a directory and credential variables stay publish-only', () => {
@@ -1125,6 +1226,10 @@ describe('v27 certificates say a CI workflow was not credited, never that it is 
   });
 });
 
+// #517 (2026-10-26): B3 alone also sets aside a workflow that publishes, releases or deploys with no
+// pull-request trigger, whatever else it runs. B2 and B3 still agree on every workflow not shown to
+// run a check; B3's publishing sentence comes last in its note, after the sentences B2 shares, and
+// its count is not part of the "not shown to run a check" condition.
 describe('B2 and B3 never disagree about which workflows are credited (v27)', () => {
   for (const fixture of FALSE_ASSURANCE_FIXTURES) {
     it(fixture.name, () => {
@@ -1132,7 +1237,15 @@ describe('B2 and B3 never disagree about which workflows are credited (v27)', ()
       const b3 = criterion(fixture.name, V27, 'B3');
       // Skipped where either abstains: an abstaining criterion carries no count to compare.
       if (b2.status === 'insufficient_data' || b3.status === 'insufficient_data') return;
-      expect(b2.notes?.replaceAll('a PR-trace CI workflow', 'CI verification')).toBe(b3.notes);
+      const shared = b2.notes?.replaceAll('a PR-trace CI workflow', 'CI verification') ?? '';
+      const b3Notes = b3.notes ?? '';
+      expect(b3Notes.startsWith(shared)).toBe(true);
+      const publishingSentence = b3Notes.slice(shared.length).trim();
+      if (publishingSentence !== '') {
+        expect(publishingSentence).toMatch(
+          /^\d+ workflows? that publish(?:es)?, releases? or deploys? with no pull-request trigger /,
+        );
+      }
       // The counts agree too: B2 credits every CI workflow file B3 does not set aside.
       const files = new Set<string>();
       for (const commit of fixture.commits) {

@@ -78,6 +78,11 @@ export const WITAN_V27_A2_FAILED_HISTORY_NOTE_PREFIX =
 // scored.
 export const WITAN_B2_UNCREDITED_CI_WORKFLOW_PREFIX = 'B2 did not count CI workflows Cejel did not see run a check: ';
 export const WITAN_B3_UNCREDITED_CI_WORKFLOW_PREFIX = 'B3 did not count CI workflows Cejel did not see run a check: ';
+// Prospective v27 only (#517): B3 names the workflows it did not count because they publish,
+// release or deploy with no pull-request trigger. They may run checks too, so they are never named
+// under the prefix above. Listed the same way.
+export const WITAN_B3_PUBLISHING_CI_WORKFLOW_PREFIX =
+  'B3 did not count CI workflows that publish, release or deploy with no pull-request trigger, whatever else they run: ';
 
 export function isWitanNoMeasurementAbstention(report: WitanReport): boolean {
   return (
