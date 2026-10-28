@@ -6172,7 +6172,12 @@ function collectB2PrTraceEvidence(
         }
       : {};
   const uncreditedNote = uncredited.size > 0 ? uncreditedCiWorkflowNote(uncredited, 'a PR-trace CI workflow') : undefined;
-  const withUncreditedNote = (note: string) => (uncreditedNote ? `${note} ${uncreditedNote}` : note);
+  // v27 freeze change F1, second pass: the joined note fits CRITERION_NOTES_MAX_LENGTH. `note` stays
+  // whole and the uncredited part gets what is left (a shallow scan wrote no report otherwise).
+  const withUncreditedNote = (note: string) =>
+    uncreditedNote
+      ? `${note} ${uncreditedCiWorkflowNote(uncredited, 'a PR-trace CI workflow', CRITERION_NOTES_MAX_LENGTH - note.length - 1)}`
+      : note;
   if (ratioWithheld && prTracePrimitives === 0) {
     return {
       ...shallowHistoryAbstention('B2', withUncreditedNote(B2_SHALLOW_HISTORY_NOTE)),
@@ -7095,18 +7100,30 @@ function b3UncreditedWorkflowsNote(uncredited: ReadonlyMap<string, UncreditedCiW
  * One sentence per reason, in the collector's own words. Workflow paths are listed, up to four per
  * reason, then fewer, then none, so the note fits CRITERION_NOTES_MAX_LENGTH whole. With only
  * publish-only workflows and `CI verification`, this is v27's #517 sentence unchanged.
+ *
+ * With a `budget` (the room left after another note it is joined to; v27 freeze change F1, second
+ * pass), the note above is used where it fits the budget. Otherwise each sentence lists fewer
+ * paths and then says how many more ("a, b and 2 more"), then lists none (each sentence already
+ * states its count), then the count alone.
  */
 function uncreditedCiWorkflowNote(
   uncredited: ReadonlyMap<string, UncreditedCiWorkflowReason>,
   notCountedAs: string,
+  budget?: number,
 ): string {
+  if (budget !== undefined) {
+    const unbudgeted = uncreditedCiWorkflowNote(uncredited, notCountedAs);
+    if (unbudgeted.length <= budget) return unbudgeted;
+  }
   const of = (reason: UncreditedCiWorkflowReason) =>
     [...uncredited].filter(([, why]) => why === reason).map(([file]) => file);
   const publishOnly = of('publish_only');
   const printOnly = of('print_only');
   const publishing = of('publishes');
   const listed = (files: readonly string[], shown: number) =>
-    shown === 0 ? '' : `: ${files.slice(0, shown).join(', ')}${files.length > shown ? ', ...' : ''}`;
+    shown === 0
+      ? ''
+      : `: ${files.slice(0, shown).join(', ')}${files.length > shown ? (budget === undefined ? ', ...' : ` and ${files.length - shown} more`) : ''}`;
   const sentences = (shown: number) => [
     ...(publishOnly.length > 0
       ? [
@@ -7125,11 +7142,12 @@ function uncreditedCiWorkflowNote(
         ]
       : []),
   ].join(' ');
-  for (const shown of [4, 3, 2, 1]) {
+  const limit = budget ?? CRITERION_NOTES_MAX_LENGTH;
+  for (const shown of [4, 3, 2, 1, 0]) {
     const note = sentences(shown);
-    if (note.length <= CRITERION_NOTES_MAX_LENGTH) return note;
+    if (note.length <= limit || (budget === undefined && shown === 0)) return note;
   }
-  return sentences(0);
+  return `${uncreditedCiWorkflowCondition(uncredited.size)} as ${notCountedAs}.`;
 }
 
 // v27 (#517). A step that ships an artifact or changes a running environment, from a bounded
