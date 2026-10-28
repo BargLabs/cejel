@@ -6036,20 +6036,16 @@ export function a2HistoryApplicabilityDisclosure(incompleteness: A2HistoryIncomp
   );
 }
 
-const V27_B2_SHALLOW_HISTORY_NOTE =
-  `B2 abstained: this repository is a shallow clone with fewer than ${RECENT_COMMIT_WINDOW} commits ` +
-  'visible, so the pull-request merge ratio cannot be read over its window. Re-scan a full clone ' +
-  '(for actions/checkout, set fetch-depth: 0).';
-// #442, every rubric but v27, where B2 has no PR-trace evidence to score without the ratio: the same
-// abstention, left out of the composite. It starts with the same words as the v27 note, so a reader
-// of either knows it is the shallow-clone one.
+// #442, where B2 has no PR-trace evidence to score without the ratio: B2 abstains, left out of the
+// composite. Every rubric since the v27 freeze change F1 (2026-10-28); v27's own read-failure note,
+// which began with the same words, is gone with that abstention.
 const B2_SHALLOW_HISTORY_NOTE =
   `B2 abstained: this repository is a shallow clone with fewer than ${RECENT_COMMIT_WINDOW} commits ` +
   'visible, so the pull-request merge ratio cannot be read over its window. B2 is left out of the ' +
   'composite rather than scored on the commits present. Re-scan a full clone (for actions/checkout, ' +
   'set fetch-depth: 0).';
-// #442, every rubric but v27 (operator decision 2026-10-27): B2 withholds only the ratio and is
-// scored on the checked-out files. It starts with the same words as the notes above, so a reader
+// #442, every rubric (operator decision 2026-10-27; v27 from F1, 2026-10-28): B2 withholds only the
+// ratio and is scored on the checked-out files. It starts with the same words as the notes above, so a reader
 // knows it is the shallow-clone one, and says at once that only the ratio was withheld, since B2
 // itself is scored.
 const B2_SHALLOW_RATIO_WITHHELD_NOTE =
@@ -6060,11 +6056,11 @@ const B2_SHALLOW_RATIO_WITHHELD_NOTE =
   'commits present. Re-scan a full clone (for actions/checkout, set fetch-depth: 0).';
 
 /**
- * A criterion that reads commit history, abstaining because the clone is shallow (v27, #442). No
- * insufficientDataReason: it is a read failure, so it stays in the composite at 0 and a shallow
- * clone can never score higher than the full clone would have on that account. Under every other
- * rubric B2 abstains only when it has no PR-trace evidence to score without the ratio, and adds
- * the 'shallow_history' reason, which leaves the composite.
+ * A criterion that reads commit history, abstaining because the clone is shallow (#442). No
+ * insufficientDataReason: it is a read failure, so it stays in the composite at 0 (v27's A2). B2,
+ * under every rubric (v27 from the freeze change F1, 2026-10-28), abstains only when it has no
+ * PR-trace evidence to score without the ratio, and adds the 'shallow_history' reason, which
+ * leaves the composite.
  */
 function shallowHistoryAbstention(
   criterionId: 'A2' | 'B2',
@@ -6145,19 +6141,29 @@ function collectB2PrTraceEvidence(
     creditedWorkflowCount + (prTemplate ? 1 : 0) + (branchProtectionDoc ? 1 : 0);
   // #442: pr_merge_ratio reads the most recent RECENT_COMMIT_WINDOW commits. A shallow clone with
   // fewer visible has truncated that window, and the ratio over what remains can score lower than
-  // the full window would (at depth 1 it is 0 or 1, from HEAD's subject alone). v27 abstains on all
-  // of B2 as a read failure at 0, as its no-rise property requires. Every other rubric withholds
-  // only the ratio and scores pr_trace_primitives, which reads the checked-out files and no history
+  // the full window would (at depth 1 it is 0 or 1, from HEAD's subject alone). B2 withholds only
+  // the ratio and scores pr_trace_primitives, which reads the checked-out files and no history
   // (operator decision 2026-10-27, revising 2026-10-26's whole-criterion abstention, which took the
   // file evidence out of the composite with the ratio). Where there is no PR-trace evidence to
-  // score, B2 abstains out of the composite instead.
+  // score, B2 abstains out of the composite instead. v27 does the same since the v27 freeze change
+  // F1 (operator decision 2026-10-28); before it, v27 abstained on all of B2 as a read failure at 0.
+  // Under v27 a workflow it does not credit still has its disclosure, whichever way B2 goes.
   const ratioWithheld =
     isShallowRepository(repoPath) && readRecentCommits(repoPath).length < RECENT_COMMIT_WINDOW;
-  if (ratioWithheld && useV27FalseAssuranceClosure) {
-    return shallowHistoryAbstention('B2', V27_B2_SHALLOW_HISTORY_NOTE);
-  }
+  const uncreditedDisclosures =
+    uncredited.size > 0
+      ? {
+          disclosures: [uncreditedCiWorkflowDisclosure(WITAN_B2_UNCREDITED_CI_WORKFLOW_PREFIX, uncredited)],
+        }
+      : {};
+  const uncreditedNote = uncredited.size > 0 ? uncreditedCiWorkflowNote(uncredited, 'a PR-trace CI workflow') : undefined;
+  const withUncreditedNote = (note: string) => (uncreditedNote ? `${note} ${uncreditedNote}` : note);
   if (ratioWithheld && prTracePrimitives === 0) {
-    return { ...shallowHistoryAbstention('B2', B2_SHALLOW_HISTORY_NOTE), insufficientDataReason: 'shallow_history' };
+    return {
+      ...shallowHistoryAbstention('B2', withUncreditedNote(B2_SHALLOW_HISTORY_NOTE)),
+      insufficientDataReason: 'shallow_history',
+      ...uncreditedDisclosures,
+    };
   }
   return {
     criterionId: 'B2',
@@ -6208,17 +6214,13 @@ function collectB2PrTraceEvidence(
             ),
           ]),
     ],
-    // v27 never reaches here with the ratio withheld, and only v27 leaves CI workflows uncredited.
+    // Only v27 leaves CI workflows uncredited, so every other rubric's notes are unchanged.
     ...(ratioWithheld
-      ? { notes: B2_SHALLOW_RATIO_WITHHELD_NOTE }
-      : uncredited.size > 0
-      ? {
-          notes: uncreditedCiWorkflowNote(uncredited, 'a PR-trace CI workflow'),
-          disclosures: [
-            uncreditedCiWorkflowDisclosure(WITAN_B2_UNCREDITED_CI_WORKFLOW_PREFIX, uncredited),
-          ],
-        }
-      : {}),
+      ? { notes: withUncreditedNote(B2_SHALLOW_RATIO_WITHHELD_NOTE) }
+      : uncreditedNote
+        ? { notes: uncreditedNote }
+        : {}),
+    ...uncreditedDisclosures,
   };
 }
 

@@ -31,15 +31,19 @@ export const SHALLOW_HISTORY_LIMITATION =
  * not-applicable result: with no tree evidence it is unmeasured, whatever the history. The composite
  * sentence is exact: a wholesale content-read abstention whose every skip was self-imposed
  * (too_large, excluded_by_extension, non_regular_file) replaces the shallow one and is excluded.
+ * v27 freeze change F1 (operator decision 2026-10-28): B2 withholds only its ratio, as under every
+ * other rubric, and abstains out of the composite only where no credited PR-trace file remains.
  */
 export const SHALLOW_HISTORY_V27_ABSTENTION =
   'This repository is a shallow clone (git rev-parse --is-shallow-repository reports true), so its ' +
   'commit history is truncated. A2 (credentials and .env files in earlier commits) and B2 (pull-request ' +
   'merge ratio over recent commits) read history. Under this rubric A2 abstains unless a confirmed ' +
   'critical secret finding stands, including where it would otherwise be marked not applicable, ' +
-  'because that decision also rests on its scans of earlier commits. B2, where it would be scored, ' +
-  'abstains when fewer commits are visible than it reads. Each of these shallow-clone abstentions ' +
-  'counts as 0 in the composite, as a read failure does. A criterion that abstains instead only ' +
+  'because that decision also rests on its scans of earlier commits. That abstention counts as 0 in ' +
+  'the composite, as a read failure does. B2, where it would be scored, leaves that ratio out when ' +
+  'fewer commits are visible than it reads, and is scored on the CI workflows it credits, the ' +
+  'pull-request template and the review-gate record in the checked-out files; where none of those ' +
+  'remains, B2 abstains and is left out of the composite. A criterion that abstains instead only ' +
   "because Cejel declined files under its own size, type or file-kind limits is left out of the " +
   'composite, and the scan limitations say so. ' +
   'Re-scan a full clone (for actions/checkout, set fetch-depth: 0).';
