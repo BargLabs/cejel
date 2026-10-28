@@ -1,0 +1,24 @@
+[
+  {
+    "statement": "A classifier keyed on a tool's exact error wording breaks silently when the tool's next release rewords the message. git 2.56 changed the message for a .git file pointing at a missing gitdir from 'not a git repository: <gitdir>' to 'gitfile does not point to a valid repository: <.git file>'; Cejel recognised only the first, so on the new CI runner image a no-repository case classified as a failed git invocation and the scan threw, with no code change on either side. The end-to-end tests that caught it pass or fail with whatever git the host has, so they could not show which wording mattered. Rules: verify each recognised message against the tool's source at a named version and record the version beside the pattern; pin every known wording as a literal input to the classifier, so its tests do not depend on the installed tool; keep each new pattern anchored at the message start, with a fixed prefix, so a path inside the message still cannot choose the class.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "toolchain-drift"
+    ],
+    "tags": [
+      "error-message-classifier",
+      "upstream-rewording",
+      "ci-runner-image",
+      "git"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-10-28T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 609
+    }
+  }
+]
