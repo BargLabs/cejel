@@ -1,0 +1,24 @@
+[
+  {
+    "statement": "Moving an abstention from 'counted as 0' to 'left out of the composite' flips which way the degraded score can err: held at 0 it can never rise above the complete input, left out it rises whenever the complete input's criterion scores below the mean of the rest. On a shallow clone v27's A2 abstains; left out, a repository whose deleted secret only an earlier commit holds scored 2.0 against its full clone's 1.8, where A2 is critical. Rules: before turning a must-not-lower rule into left-out abstentions, enumerate fixtures whose complete-input finding lives only in the withheld input and measure the degraded composite against the complete one; state the must-not-raise half explicitly, and pin any rise you accept so a new one fails.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "false-assurance"
+    ],
+    "tags": [
+      "abstention-scope",
+      "composite-arithmetic",
+      "degraded-input",
+      "shallow-clone"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-10-27T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 605
+    }
+  }
+]
