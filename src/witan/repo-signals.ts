@@ -10546,11 +10546,18 @@ function pythonHeldSkipNames(code: string, statements: readonly PythonLogicalSta
   for (const match of code.matchAll(PYTHON_UNBOUND_IDENTIFIER_PATTERN)) {
     if (bindings.has(match[0])) mentions.set(match[0], (mentions.get(match[0]) ?? 0) + 1);
   }
+  // Each bare `@name` decorator: how many, and the first line.
+  const uses = new Map<string, { count: number; first: number }>();
+  for (const statement of statements) {
+    const name = /^@([A-Za-z_]\w*)$/.exec(statement.text.replace(/\s+/g, ''))?.[1];
+    if (name === undefined || !bindings.has(name)) continue;
+    const seen = uses.get(name);
+    uses.set(name, { count: (seen?.count ?? 0) + 1, first: seen?.first ?? statement.line });
+  }
   for (const [name, line] of bindings) {
-    if (Number.isNaN(line)) continue;
-    const uses = statements.filter((statement) => statement.text.replace(/\s+/g, '') === `@${name}`);
-    if (uses.length === 0 || uses.some((use) => use.line < line)) continue;
-    if (mentions.get(name) === uses.length + 1) held.add(name);
+    const use = uses.get(name);
+    if (Number.isNaN(line) || use === undefined || use.first < line) continue;
+    if (mentions.get(name) === use.count + 1) held.add(name);
   }
   return held;
 }
@@ -10649,10 +10656,8 @@ function readEveryPythonTestSkipped(contents: string): PerTestSkipReading | unde
     if (!readStatement(statement, true)) return undefined;
   }
   if (decorators.length > 0 || found.length === 0) return undefined;
-  return {
-    line: Math.min(...found.map(({ line }) => line)),
-    skips: [...new Set([...found].sort((left, right) => left.line - right.line).map(({ skip }) => skip))],
-  };
+  const ordered = [...found].sort((left, right) => left.line - right.line);
+  return { line: ordered[0]?.line ?? 1, skips: [...new Set(ordered.map(({ skip }) => skip))] };
 }
 
 // Keywords after which a `/` starts a regular expression rather than dividing.
@@ -10730,9 +10735,10 @@ function maskJavaScriptLiterals(contents: string): string | undefined {
 const JS_TEST_GLOBAL_PATTERN =
   /(?<![\w$.])(it|test|specify|fit|xit|xtest|xspecify|describe|xdescribe|fdescribe|context|xcontext|suite)(?![\w$])((?:\s*\.\s*[A-Za-z_$][\w$]*)*)\s*(\()?/g;
 const JS_TEST_CASE_GLOBALS = new Set(['it', 'test', 'specify', 'fit', 'xit', 'xtest', 'xspecify']);
-// Import and require bindings name the globals without calling them.
+// Import and require bindings name the globals without calling them. Each whitespace run has one
+// quantifier, so a long blank run backtracks linearly.
 const JS_TEST_GLOBAL_BINDING_PATTERN =
-  /\bimport\s+(?:type\s+)?(?:[A-Za-z_$][\w$]*\s*,?\s*)?(?:\{[^{}]*\}|\*\s*as\s+[A-Za-z_$][\w$]*)?\s*from\b|\b(?:const|let|var)\s*\{[^{}]*\}\s*=\s*require\s*\(/g;
+  /\bimport\s+(?:type\s+)?(?:[A-Za-z_$][\w$]*\s*(?:,\s*)?)?(?:\{[^{}]*\}\s*|\*\s*as\s+[A-Za-z_$][\w$]*\s*)?from\b|\b(?:const|let|var)\s*\{[^{}]*\}\s*=\s*require\s*\(/g;
 
 /** The skip a call applies to itself or to what its callback registers, as Cejel names it. */
 function javaScriptUnconditionalSkip(name: string, members: string): string | undefined {
@@ -10748,16 +10754,31 @@ function javaScriptUnconditionalSkip(name: string, members: string): string | un
  * `suite.skip`, `xdescribe` or `xcontext` call; otherwise no claim. Also no claim when a test-case
  * global is named without being called (an alias, a property), or any call is a `.todo`, which stays out of
  * scope and keeps its reading. `skipIf`, `runIf` and every other member are not skips. Linear in
- * the file but for the parenthesis match of each skipped suite.
+ * the file.
  */
 function readEveryJavaScriptTestSkipped(contents: string): PerTestSkipReading | undefined {
   const masked = maskJavaScriptLiterals(contents);
   if (masked === undefined) return undefined;
   const code = masked.replace(JS_TEST_GLOBAL_BINDING_PATTERN, (binding) => ' '.repeat(binding.length));
-  const skippedSuites: { open: number; close: number; skip: string }[] = [];
-  const cases: { at: number; skip: string | undefined }[] = [];
+  // Each `(`'s matching `)`, in one pass; -1 where it never closes.
+  const closeOf = new Int32Array(code.length).fill(-1);
+  const opens: number[] = [];
+  for (let index = 0; index < code.length; index += 1) {
+    if (code[index] === '(') opens.push(index);
+    else if (code[index] === ')') {
+      const open = opens.pop();
+      if (open !== undefined) closeOf[open] = index;
+    }
+  }
+  // Matches come in source order and suites nest, so the skipped suites still open at a match are a
+  // stack, outermost first.
+  const openSuites: { open: number; close: number; skip: string }[] = [];
+  const sources = new Map<number, string>();
+  let cases = 0;
   for (const match of code.matchAll(JS_TEST_GLOBAL_PATTERN)) {
     const name = match[1] ?? '';
+    const at = match.index ?? 0;
+    while ((openSuites.at(-1)?.close ?? Infinity) < at) openSuites.pop();
     // A test-case global named but not called may be aliased into a test Cejel does not see. A
     // suite global not called (a `context` variable) registers nothing.
     if (match[3] === undefined) {
@@ -10767,36 +10788,21 @@ function readEveryJavaScriptTestSkipped(contents: string): PerTestSkipReading | 
     const members = (match[2] ?? '').replace(/\s+/g, '');
     if (/\.todo(?![\w$])/.test(members)) return undefined;
     const skip = javaScriptUnconditionalSkip(name, members);
-    const at = match.index ?? 0;
     if (JS_TEST_CASE_GLOBALS.has(name)) {
-      cases.push({ at, skip });
+      cases += 1;
+      const suite = openSuites[0];
+      if (skip !== undefined) sources.set(at, skip);
+      else if (suite !== undefined) sources.set(suite.open, suite.skip);
+      else return undefined;
       continue;
     }
     if (skip === undefined) continue;
     const open = at + match[0].length - 1;
-    let depth = 0;
-    let close = -1;
-    for (let index = open; index < code.length; index += 1) {
-      if (code[index] === '(') depth += 1;
-      else if (code[index] === ')' && --depth === 0) {
-        close = index;
-        break;
-      }
-    }
+    const close = closeOf[open] ?? -1;
     if (close === -1) return undefined;
-    skippedSuites.push({ open, close, skip });
+    openSuites.push({ open, close, skip });
   }
-  if (cases.length === 0) return undefined;
-  const sources = new Map<number, string>();
-  for (const { at, skip } of cases) {
-    if (skip !== undefined) {
-      sources.set(at, skip);
-      continue;
-    }
-    const suite = skippedSuites.find(({ open, close }) => open < at && at < close);
-    if (suite === undefined) return undefined;
-    sources.set(suite.open, suite.skip);
-  }
+  if (cases === 0) return undefined;
   const ordered = [...sources.entries()].sort(([left], [right]) => left - right);
   const first = ordered[0]?.[0] ?? 0;
   return {
