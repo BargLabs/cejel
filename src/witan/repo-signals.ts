@@ -5945,8 +5945,11 @@ function a2HistoryIncompletenessCauses(incompleteness: A2HistoryIncompleteness):
     .join(', and ');
 }
 
-/** What a re-scan can and cannot change, per detected cause. */
-function a2HistoryIncompletenessAdvice(incompleteness: A2HistoryIncompleteness): string {
+/**
+ * What a re-scan can and cannot change, per detected cause. With a `budget` (v27 freeze change F1,
+ * second pass), only the sentences that fit it, in order; the scan limitations name each failed read.
+ */
+function a2HistoryIncompletenessAdvice(incompleteness: A2HistoryIncompleteness, budget?: number): string {
   const advice: string[] = [];
   if (readNoHistory(incompleteness)) {
     if (incompleteness.gitUnavailable) advice.push('Re-scan on a host where git is installed.');
@@ -5990,7 +5993,12 @@ function a2HistoryIncompletenessAdvice(incompleteness: A2HistoryIncompleteness):
   if (incompleteness.controlCharacterSkip) {
     advice.push("A re-scan of the same repository will not lift Cejel's own rule on control characters in paths.");
   }
-  return advice.join(' ');
+  return budget === undefined
+    ? advice.join(' ')
+    : advice.reduce((kept, sentence) => {
+        const next = kept === '' ? sentence : `${kept} ${sentence}`;
+        return next.length <= budget ? next : kept;
+      }, '');
 }
 
 /**
@@ -6009,7 +6017,13 @@ export function v27A2FailedHistoryNote(
         ', and no confirmed critical finding stands on what was read.'
       : ', so the scan for credentials and .env files in earlier commits read only part of the history, ' +
         'and no confirmed critical finding stands on what was read.';
-  return `${WITAN_V27_A2_FAILED_HISTORY_NOTE_PREFIX}: ${a2HistoryIncompletenessCauses(incompleteness)}${consequence} ${a2HistoryIncompletenessAdvice(incompleteness)}`;
+  const lead = `${WITAN_V27_A2_FAILED_HISTORY_NOTE_PREFIX}: ${a2HistoryIncompletenessCauses(incompleteness)}${consequence}`;
+  const note = `${lead} ${a2HistoryIncompletenessAdvice(incompleteness)}`;
+  // v27 freeze change F1, second pass: with many causes at once the note ran past
+  // CRITERION_NOTES_MAX_LENGTH and the scan wrote no report. The cause sentence stays whole.
+  return note.length <= CRITERION_NOTES_MAX_LENGTH
+    ? note
+    : `${lead} ${a2HistoryIncompletenessAdvice(incompleteness, CRITERION_NOTES_MAX_LENGTH - lead.length - 1)}`;
 }
 
 /**
