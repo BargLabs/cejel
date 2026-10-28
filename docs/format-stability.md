@@ -9,7 +9,7 @@ never be converted into a default pass or fail.
 | Artifact | Version identifier | Consumer rule |
 | --- | --- | --- |
 | Generic ingest JSON | root `version`, currently `1.1` | Read major first; reject unknown majors. |
-| `report.json` | paired `attestation.json` field `predicate.reportFormatVersion`, currently `1.8` | Verify the digest binding, then route by report-format major. Legacy scan/v1 attestations without this additive field are report format 1.0. |
+| `report.json` | paired `attestation.json` field `predicate.reportFormatVersion`, currently `1.9` | Verify the digest binding, then route by report-format major. Legacy scan/v1 attestations without this additive field are report format 1.0. |
 | `attestation.json` | `_type` and `predicateType`; Cejel currently emits `https://in-toto.io/Statement/v1` and `https://cejel.dev/attestations/scan/v1` | Require exact supported identifiers. An unknown predicate major is unsupported. |
 | `issuance.json` | `predicate.issuanceFormatVersion`, currently `1.0` | Optional artifact. Verify the signature and the subject digests, then route by issuance-format major. Absent for every certificate that has no issuance, which is most of them. |
 | `certificate.html` | `<meta name="cejel-certificate-format" content="1.0">` | The meta value identifies the human format. Gates should consume the bound JSON pair, not scrape HTML. |
@@ -114,6 +114,17 @@ Stable in report format v1:
   A2's applicability was decided on complete history; `historyLimitations` and `scanLimitations` say
   what Cejel detected about the history it read. Under `witan-rubric-v27-prospective-2026-10-19`
   A2 abstains in that case instead and the sentence is not written.
+- verdict cap: `verdictCap` (report format 1.9), under `witan-rubric-v27-prospective-2026-10-19`
+  only. On a shallow clone A2 abstains with reason `shallow_history` and is left out of the
+  composite; the verdict is then capped at the band the composite would reach with that abstention
+  counted as 0. `verdictCap` is present only when the cap lowered the band, and holds
+  `criterionId` (`A2`), `reason` (`shallow_history`), `uncappedVerdict` (the band of
+  `overallScore`) and `scoreWithAbstentionAsZero` (the composite that set the cap). When it is
+  present, `verdict` is the band of `scoreWithAbstentionAsZero`, strictly below `uncappedVerdict`,
+  so a consumer must not derive the verdict from `overallScore` alone; `overallScore` itself is
+  never capped, and a `--min-score` gate reads it. When it is absent, `verdict` is the band of
+  `overallScore`, as before. A report without it is byte-identical to a 1.8 one (its paired
+  `attestation.json` records `1.9`).
 
 Experimental within report format v1: metric presentation hints under
 `criteria[].metrics[].presentation`, optional multi-category `categoryScores`, and the exact ordering

@@ -33,6 +33,7 @@ import {
   formatCertificateMetricValue,
   formatDimensionsMeasuredSentence,
   formatLowConfidenceSentence,
+  formatVerdictCapSentence,
   glossaryEntriesForReport,
 } from './certificate-presentation.js';
 import { PROSPECTIVE_RUBRIC_NOTICE, isProspectiveRubricVersion } from './rubric-version.js';
@@ -86,6 +87,7 @@ export function renderWitanMarkdownReport(
   const noMeasurementAbstention = isWitanNoMeasurementAbstention(report);
   const relyingPartySummary = buildRelyingPartySummary(report);
   const verdictExplanation = buildVerdictExplanation(report);
+  const verdictCapSentence = formatVerdictCapSentence(report);
   const summaryScoreLines =
     report.verdict === 'insufficient_source'
       ? [
@@ -98,6 +100,7 @@ export function renderWitanMarkdownReport(
           `- Code trust: ${formatScore(report.codeTrustScore)}/4.0`,
           `- Process trust: ${formatScore(report.processTrustScore)}/4.0`,
           `- Overall: ${formatScore(report.overallScore)}/4.0`,
+          ...(verdictCapSentence ? [`- ${verdictCapSentence}`] : []),
           ...coverageLines,
           ...naSummaryLines,
           ...insufficientDataSummaryLines,

@@ -24,6 +24,7 @@ import type {
   WitanCriterionScore,
   WitanFinding,
   WitanReport,
+  WitanScoredVerdict,
   WitanWithheldPath,
 } from './schemas.js';
 import { witanVerdictForScore } from './schemas.js';
@@ -801,6 +802,28 @@ export function formatLowConfidenceSentence(report: WitanReport): string | undef
     : sentence;
 }
 
+const SCORED_VERDICT_LABELS: Readonly<Record<WitanScoredVerdict, string>> = {
+  verified: 'Verified',
+  conditional: 'Conditional',
+  at_risk: 'At risk',
+  unverified: 'Unverified',
+};
+
+/**
+ * v27 freeze change F1, second pass (operator decision 2026-10-28, option C): the one sentence
+ * printed beside the verdict when report.verdictCap says the A2 cap lowered it. Undefined otherwise.
+ */
+export function formatVerdictCapSentence(report: WitanReport): string | undefined {
+  if (report.verdict === 'insufficient_source' || !report.verdictCap) return undefined;
+  const cap = report.verdictCap;
+  return (
+    `Verdict capped at ${SCORED_VERDICT_LABELS[report.verdict]} (${SCORED_VERDICT_LABELS[cap.uncappedVerdict]} from the overall score alone): ` +
+    `${cap.criterionId} could not read the commit history of this shallow clone and is left out of the overall score, ` +
+    `which counting ${cap.criterionId} as 0 would be ${cap.scoreWithAbstentionAsZero.toFixed(1)}; ` +
+    're-scan a full clone (for actions/checkout, set fetch-depth: 0).'
+  );
+}
+
 const SCORED_VERDICT_BANDS: Record<'conditional' | 'at_risk' | 'unverified', { label: string; band: string }> = {
   conditional: { label: 'Conditional', band: '2.5 up to 3.5' },
   at_risk: { label: 'At risk', band: '1.5 up to 2.5' },
@@ -817,6 +840,8 @@ const MAX_LOWEST_DIMENSIONS = 3;
 export function buildVerdictExplanation(report: WitanReport): string | undefined {
   if (report.verdict === 'insufficient_source' || report.verdict === 'verified') return undefined;
   if (report.overallScore === null) return undefined;
+  // A capped verdict does not come from the overall score's band; formatVerdictCapSentence says where.
+  if (report.verdictCap) return undefined;
   const hasCriticalOrWarning = report.criteria.some((criterion) =>
     criterion.findings.some((finding) => finding.severity === 'critical' || finding.severity === 'warning'),
   );
