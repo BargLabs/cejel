@@ -10,6 +10,7 @@ import {
   GIT_EXEC_TIMEOUT_MS,
   HARDENED_GIT_ARGUMENTS,
   HARDENED_GIT_READ_ONLY_SUBCOMMANDS,
+  classifyGitFailure,
   describeGitFailure,
   execGit,
   withGitDiscoveryConfinedTo,
@@ -324,5 +325,42 @@ describe('git subprocess chokepoint', () => {
       throw Object.assign(new Error('Command failed: git log'), { signal: 'SIGTERM', status: null });
     });
     expect(execGit(['log'], { cwd: '/repo' })).toEqual({ ok: false, reason: 'exec_failed' });
+  });
+
+  // A `.git` file whose gitdir is missing: git 2.55 and earlier name the gitdir as "not a git
+  // repository", git 2.56 names the `.git` file as "gitfile does not point to a valid repository"
+  // (setup.c, read_gitfile_error_die). Both are literals here, so the result does not depend on the
+  // git installed where the tests run.
+  it("classifies both git versions' wording for a .git file pointing at a missing gitdir", () => {
+    const classify = (message: string, stderr: string) =>
+      classifyGitFailure(Object.assign(new Error(message), { status: 128, stderr }));
+
+    expect(classify('fatal', 'fatal: not a git repository: /work/copy/.git/worktrees/gone\n')).toBe(
+      'not_a_repo',
+    );
+    expect(
+      classify('fatal', 'fatal: gitfile does not point to a valid repository: /work/copy/.git\n'),
+    ).toBe('not_a_repo');
+    // The 2.56 text after another message's start is not git's verdict on the repository.
+    expect(
+      classify(
+        'fatal',
+        'fatal: bad object abc123:secrets/gitfile does not point to a valid repository: x\n',
+      ),
+    ).toBe('exec_failed');
+    expect(
+      classify(
+        'fatal',
+        "fatal: path 'gitfile does not point to a valid repository: x' does not exist in 'abc123'\n",
+      ),
+    ).toBe('exec_failed');
+    // A path named like the message, on the command line Node repeats, cannot choose the class.
+    const missingObject = 'fatal: unable to read 0123456789abcdef0123456789abcdef01234567\n';
+    expect(
+      classify(
+        `Command failed: git show abc123:gitfile does not point to a valid repository: x.txt\n${missingObject}`,
+        missingObject,
+      ),
+    ).toBe('exec_failed');
   });
 });
