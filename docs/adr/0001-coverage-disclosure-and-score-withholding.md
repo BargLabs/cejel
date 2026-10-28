@@ -377,3 +377,14 @@ their depth-1 and depth-12 clones now score above it (overall 1.8 to 2.0 or 1.9)
 
 **For the operator.** Confirm that F1 supersedes the first two rulings for the shallow-only case, or
 say otherwise; the change is proposed in a pull request and not merged.
+
+**Addendum (2026-10-28, F1's second pass).** The operator's review of the first F1 pull request
+decided, as option C, how far the rise above goes: on a shallow clone under v27, where A2 abstains
+with reason `shallow_history`, the composite stays as F1 computes it, with A2 left out, but the
+verdict band is capped at the band the composite would reach with that abstention counted as 0,
+and `report.verdictCap` says so where the cap lowers the band. So the composite can still rise
+above the complete clone through A2, and the verdict band cannot rise above the band of that
+counted-as-0 composite. The cost is that a clean repository's shallow verdict can now sit below
+its full clone's. `leaderboard/RUBRIC_CHANGELOG.md` (the same entry) has the measurement. This
+addendum records the decision as the implementing agent received it; it does not answer the
+question above about the first two rulings.

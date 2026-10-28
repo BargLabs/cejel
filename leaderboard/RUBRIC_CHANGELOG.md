@@ -22,7 +22,7 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
-## 2026-10-28 — v27 freeze change F1: on a shallow clone v27 follows the 26/27 Oct rule (B2 keeps its file evidence; A2's shallow-clone abstention leaves the composite); v17-v26 byte-identical; no published score moved
+## 2026-10-28 — v27 freeze change F1: on a shallow clone v27 follows the 26/27 Oct rule (B2 keeps its file evidence; A2's shallow-clone abstention leaves the composite), and its verdict is capped where A2 could not be read; v17-v26 byte-identical; no published score moved
 
 **Status.** A scoring change under `witan-rubric-v27-prospective-2026-10-19` only, with no identifier
 change: the first of three changes after which v27 is frozen and measured for promotion to the
@@ -103,7 +103,10 @@ the four shapes whose secret-bearing `.env` was committed and later deleted scor
 the complete clone, from the secret its history scan reads in the earlier commit. Their depth-1 and
 depth-12 clones hold no such commit, so A2 abstains and, since this change, leaves the composite:
 v27's overall goes from 1.8 (complete clone) to 2.0 (two shapes) or 1.9 (the two with a crypto
-surface), at_risk throughout, where main gave 1.7 or 1.6. That is above the complete clone through A2,
+surface), at_risk in these four shapes, where main gave 1.7 or 1.6. (Corrected in the second pass
+below: "at_risk throughout" held for these shapes only. A data-layer repository with a deleted secret
+rose a band, from at_risk on its full clone to conditional on its shallow clones, under this pass
+as first proposed.) That is above the complete clone through A2,
 not through B2's ratio, which is the only rise F1's measurement rule admits. v17 gives these clones
 2.0. The test pins exactly these eight clones and fails on any other rise; the choice between keeping
 the operator's decision as is and holding A2 at 0 where it abstains on a shallow clone is the
@@ -133,6 +136,76 @@ and `73fc6b107` for A2); the property in `v27-no-rise.ts` and its suites, change
 commit; `false-assurance-v27.test.ts`, `disclosure-gaps.test.ts`,
 `shallow-history-ratio-withheld-442.test.ts` and `shallow-a2-applicability-556.test.ts` updated
 where they pinned v27's shallow read-failure abstentions.
+
+### Second pass (2026-10-28): no shallow scan fails on a long note, and the verdict is capped where A2 could not be read
+
+**Why.** The operator's review of the first pass confirmed v17-v26 byte-identical and found one
+defect and one decision. The defect: a shallow v27 scan could write no report. The decision
+(option C): the rise in the paragraph above is acceptable in the composite but not in the verdict.
+
+**A. Notes that fit the limit.** B2's note on a shallow clone joins the uncredited-workflow note to
+the withheld-ratio or abstention note. Each was trimmed to the report's 1000-character notes limit
+on its own, not after the join, so depth 1 with a CI workflow, a pull-request template and four
+print-only workflows with 100-character paths failed schema validation (`too_big`,
+`signals[6].notes`) and wrote no report. Main wrote one: its v27 abstention note was shorter. The
+join now keeps the first note whole and gives the uncredited part the room left: as before where it
+fits, else fewer paths per sentence and "and N more", then none, then the count alone. Every note that
+fitted before is unchanged. Every other place a note is built by joining parts was checked:
+
+- B2's two joins (withheld ratio; abstention): fixed as above.
+- v27's failed-history A2 note (cause sentence, then re-scan advice): 112 of its 510 cause
+  combinations ran past 1000 characters (longest 1253). The cause sentence now stays whole and the
+  advice keeps the sentences that fit, in order; only the 112 change.
+- A2's notes on the scoring path (three fixed sentences, at most 807 characters), B3's uncredited
+  note (trimmed on its own, nothing joined to it) and A4's library note (already cut at 1000
+  characters): unchanged.
+- Not fixed, because it is outside the v27 gate: the every-rubric A2 disclosure
+  (`a2HistoryApplicabilityDisclosure`, disclosure limit 1000) has the same construction, and 72 of
+  its 255 cause combinations overflow (longest 1286). A scan reaching one would write no report under
+  v17 too. It is left open for a change that may touch v17.
+
+**B. The verdict cap.** Under v27, where A2 abstains with reason `shallow_history`, the composite
+stays as the first pass computes it (A2 left out), and the verdict band is capped at the band the
+composite reaches with that abstention counted as 0, as a read failure is. The cap never raises a
+band. Where it lowers one, `report.json` carries `verdictCap` (`criterionId` A2, `reason`
+`shallow_history`, `uncappedVerdict`, `scoreWithAbstentionAsZero`; report format 1.9), and the
+terminal, Markdown and HTML certificates print one sentence beside the verdict naming A2 and the
+shallow clone and pointing to a full clone. On a shallow v27 clone A2 is never marked not
+applicable (it abstains instead), so the cap applies wherever A2's abstention is the shallow-only
+one, including where the full clone would mark A2 not applicable. `overallScore`, and a
+`--min-score` gate that reads it, are not capped.
+
+**C. Measured.** Main `4525add23`, the first pass at `b9d724f16`, and this head. The full report
+JSON was produced under all eleven selectable rubrics, at fixed fixture paths, for 108 checkouts:
+#604's matrix rebuilt (twelve repositories, full and depths 1, 5, 11, 12), the cache-library pair,
+#556's twelve shapes (full, 1, 12), the item A reproductions, and two new data-layer repositories
+(`src/witan/__tests__/fixtures/verdict-cap-data-layer.ts`, synthetic: a locked Node package with
+migrations, a CI workflow, a pull-request template and a pull-request-merge history; one clean, one
+with a secret-bearing `.env` committed and then deleted more than twelve commits before HEAD).
+v17-v26: 1,080 of 1,080 reports byte-identical to main and to the first pass. v27 full clones: 29 of
+29 identical. v27 shallow clones: 72 of 79 identical to the first pass. The seven that differ are
+the two item A reproductions, which now write a report, and five capped verdicts. No composite of a
+report the first pass wrote moved.
+
+| Shallow v27 clone | Composite | Verdict before cap | After cap | Full clone | Verdict vs full |
+|---|---|---|---|---|---|
+| data layer, secret deleted, depth 1 and 12 | 2.5 | conditional | at_risk | 2.4 at_risk | equal (was above) |
+| data layer, clean, depth 1 and 12 | 2.5 | conditional | at_risk | 2.5 conditional | below (was equal) |
+| #604 matrix, PR merges, CI only, depth 12 | 1.5 | at_risk | unverified | 1.9 at_risk | below (was equal) |
+
+The composite with A2 counted as 0 is 2.2 for both data-layer repositories and 1.4 for the matrix
+row. The clean data-layer repository's shallow verdict now sits a band below its full clone's. That
+is the stated cost of option C: on a shallow clone Cejel cannot tell it from the one with the
+deleted secret. Every other shallow v27 row keeps its first-pass verdict, because counting A2 as 0
+leaves it in the same band. That includes #556's four deleted-secret shapes, at_risk on both sides
+of the cap and against their full clones. Against the full clone the verdict band differs in 14
+shallow v27 rows, all below: the 11 of the first pass, the matrix row above, and the clean
+data-layer repository at depths 1 and 12. None is above. The behaviour corpus has no shallow
+specimen; every fingerprint pin and the v17 scoring-surface golden are unchanged.
+
+**Tests.** `src/witan/__tests__/v27-shallow-b2-note-limit.test.ts` (red first at `486c776de` for
+B2's joins and `85b288b7b` for the A2 note) and `src/witan/__tests__/v27-shallow-verdict-cap.test.ts`
+(red first at `e80d759af`). The report-format guard and the input-binding CLI test now expect 1.9.
 
 ## 2026-10-27 (revised) — on a shallow clone B2 keeps its file evidence and withholds only the pull-request merge ratio under v17 and every rubric but v27 (#442); no published score moved
 

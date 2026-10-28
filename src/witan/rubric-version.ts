@@ -199,6 +199,10 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     reads, and is scored on the checked-out files, or abstains out of the composite where none
 //     of them is credited; A2's shallow-only abstention is left out of the composite (reason
 //     shallow_history). A2's abstention after a failed history read is still a read failure.
+//     F1's second pass (operator decision 2026-10-28, option C): where A2's shallow-only
+//     abstention leaves the composite, the verdict band is capped at the band the composite
+//     would reach with it counted as 0 (report.verdictCap where that lowers it); the composite
+//     itself is not capped, and the cap never raises a band.
 // Every other abstention is a read failure, kept in the composite at 0, and each other change only
 // lowers a metric, adds a zero-valued one or adds a finding, which can only cap a score (A1's non-hollow share stays measured over v17's test
 // list, so excluding conftest.py cannot shrink its denominator). So on a full clone no score,
