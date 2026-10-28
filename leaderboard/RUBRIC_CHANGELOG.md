@@ -22,6 +22,86 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
+## 2026-10-28 — v27 freeze change F2: a test file whose every test is unconditionally skipped is hollow under v27 (A1); v17-v26 byte-identical; no published score moved
+
+**Status.** A scoring change under `witan-rubric-v27-prospective-2026-10-19` only, with no identifier
+change: the second of the three changes after which v27 is frozen and measured for promotion to the
+public default in 0.7.0 (operator decisions of 2026-10-28). v17-v26 are byte-identical to main on
+every input measured below. No holdout or calibration ran, and this entry makes no precision or
+recall claim.
+
+**Why.** #602 closed run-wide skips under v27: a conftest.py collection hook that skips every item,
+and a module-level `pytestmark` skip. A file where every test carries its own unconditional skip
+still counted as tests that run, so A1 stayed verified at v17's score. The operator decided to close
+it the way #602 treats a run-wide skip: the file is hollow.
+
+**Change (v27 only).** In A1's `non_hollow_test_share`, an asserting test file that would otherwise
+count as non-hollow is hollow when every test in it is skipped unconditionally. It stays in the
+denominator, so the change can only lower the share. A1 adds one warning per file, for the first two,
+in the form "Every test in `<file>` is skipped unconditionally (`<skip>`), so the file cannot fail.",
+citing the line of the first skip.
+
+- **Python.** Every `def test*` at the module's top level, and at the first indent of a top-level
+  class, carries `@pytest.mark.skip` (with or without a reason), `@unittest.skip(...)`,
+  `@pytest.mark.skipif(True, ...)`, `@unittest.skipIf(True, ...)`, or `@<name>` where `<name>` is
+  bound once, on one line at the top level, to `pytest.mark.skip` and used only as a bare decorator
+  after it. The skip may be on the test or on its class, and may sit under other `pytest.mark.*`
+  decorators but under no other decorator. `skipif`/`skipIf` with any other condition, and
+  `skipUnless`, are conditional and not read. Cejel makes no claim where it cannot see every test:
+  a test defined inside an `if`, `try` or other block, a nested class, a star import or an import or
+  assignment that may bind a `test*` or `Test*` name, an unskipped class whose base is not `object`
+  or `unittest`'s `TestCase`, a backslash continuation, or a tab in an indent.
+- **JavaScript/TypeScript.** Every `it`, `test`, `specify` or `fit` call is `it.skip`, `test.skip`,
+  `xit` or `xtest`, or sits inside the callback of a `describe.skip`, `context.skip`, `suite.skip`,
+  `xdescribe` or `xcontext`. `it.skipIf(...)`/`test.skipIf(...)`, `runIf` and every other member are
+  not skips. `.todo` is out of scope. Today a todo has no body, so it adds no assertion and does not
+  change whether a file is hollow, and a file holding any `.todo` call keeps exactly that reading:
+  the new reader makes no claim on it. Cejel makes no claim either where a test-case global is named
+  without being called (an alias), or where its literal masking is in doubt (a quote or regular
+  expression still open at the end of its line, an unclosed comment or template). The masking knows
+  regular-expression literals. The masker A1 already uses would read the quote in `/['"]/` as opening
+  a string, and could hide a live test after it.
+- **Unchanged.** One test that can run makes the file not hollow. A file with no test Cejel
+  recognises keeps today's reading. `describe.skip` already makes a file hollow under every rubric,
+  and that reading is unchanged. Each reader is linear in the file. On a scratch repository (not
+  committed), 2,500 held-name uses, 2,000 nested `xdescribe` calls, 20,000 unclosed calls and
+  400,000-character blank runs scanned in 240 ms under v27.
+
+**Measured.** Main `f02477f12` and this head, at fixed fixture paths, for 261 checkouts: the
+behaviour corpus and every false-assurance fixture, including the 23 added here. The full report JSON
+was produced under all eleven selectable rubrics. v17-v26: 2,610 of 2,610 reports byte-identical to
+main. v27: 252 of 261 identical. The nine that differ are the eight change fixtures and the
+`describe.skip` corner. Every behaviour-fingerprint pin and the v17 scoring-surface golden are
+unchanged. The behaviour corpus has no per-test-skipped specimen. A1 status, score,
+`non_hollow_test_share` (non-hollow / rated files) and overall, the same under v17 on main and head:
+
+| Fixture | v17 (main = head) | v27 main | v27 head |
+|---|---|---|---|
+| `f2-py-pytest-mark-skip-every-test` | verified 2.3, 2/2, overall 1.4 | verified 2.3, 2/2, 1.4 | critical 1.7, 0/2, 1.3 |
+| `f2-py-unittest-skip-every-method` | verified 2.3, 2/2, 1.4 | verified 2.3, 2/2, 1.4 | critical 1.7, 0/2, 1.3 |
+| `f2-py-skip-on-enclosing-class` | verified 2.3, 2/2, 1.4 | verified 2.3, 2/2, 1.4 | critical 1.7, 0/2, 1.3 |
+| `f2-py-skip-held-in-module-name` | verified 2.3, 2/2, 1.4 | verified 2.3, 2/2, 1.4 | critical 1.7, 0/2, 1.3 |
+| `f2-py-skipif-literal-true` | verified 2.3, 2/2, 1.4 | verified 2.3, 2/2, 1.4 | critical 1.7, 0/2, 1.3 |
+| `f2-js-it-skip-every-test` | verified 2.1, 2/2, 1.9 | verified 2.1, 2/2, 1.9 | critical 1.5, 0/2, 1.8 |
+| `f2-js-xit-xtest-every-test` | verified 2.1, 2/2, 1.9 | verified 2.1, 2/2, 1.9 | critical 1.5, 0/2, 1.8 |
+| `f2-js-xdescribe-contains-every-test` | verified 2.1, 2/2, 1.9 | verified 2.1, 2/2, 1.9 | critical 1.5, 0/2, 1.8 |
+| `f2-js-describe-skip-contains-every-test` (corner) | verified 1.8, 1/2, 1.9 | verified 1.8, 1/2, 1.9 | critical 1.5, 0/2, 1.8 |
+| 14 controls (`f2-py-mixed-one-test-runs`, `-unskipped-class-method`, `-skipif-with-condition`, `-held-name-rebound`, `-test-defined-in-block`, `-class-inherits-tests`, `-skip-under-other-decorator`, `-no-recognisable-tests`; `f2-js-control`, `-mixed-one-test-runs`, `-skipif-conditional`, `-aliased-test-global`, `-quote-in-regex-literal`, `-todo-beside-skips`) | verified, 2/2 (Python 2.3, overall 1.4; JS 2.1, 1.9) | as v17 | as v17, byte-identical to main |
+
+No verdict band moved (unverified and at_risk on both sides). In the corner, `test/sum.test.js` is
+hollow under every rubric through `describe.skip`, and `test/max.test.js`, all `it.skip`, is the one
+file v27 now rates hollow and names.
+
+**Decision noted: `skipif(True)`.** It is read as unconditional. `True` is a keyword Python cannot
+rebind, so `pytest.mark.skipif(True, ...)` and `unittest.skipIf(True, ...)` skip on every run, and the
+reader matches the literal exactly. #602's module-level `pytestmark` reader still reads any `skipif`
+as conditional. That is a recall gap, not a false assertion, and it is left as it was.
+
+**Tests.** `src/witan/__tests__/false-assurance-v27.test.ts`, describe block "F2". It was red first at
+`392474a09`: under v27 the all-skipped files counted as non-hollow. The fixtures are in
+`src/witan/__tests__/fixtures/false-assurance-fixtures.ts`. Every new fixture also runs through that
+file's no-rise, collector-critical and B2/B3 agreement properties against v17.
+
 ## 2026-10-28 — v27 freeze change F1: on a shallow clone v27 follows the 26/27 Oct rule (B2 keeps its file evidence; A2's shallow-clone abstention leaves the composite), and its verdict is capped where A2 could not be read; v17-v26 byte-identical; no published score moved
 
 **Status.** A scoring change under `witan-rubric-v27-prospective-2026-10-19` only, with no identifier
