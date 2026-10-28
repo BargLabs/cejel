@@ -1,0 +1,46 @@
+[
+  {
+    "statement": "When a field that was a pure function of another gains a second input, every place that re-derives it from the first becomes a false statement. Cejel's verdict was the band of overallScore; capping it on a shallow clone made three re-derivations wrong at once: the report schema rejected any verdict not equal to the score's band, the HTML certificate printed the band of the score rather than the stored verdict, and the verdict explanation said the verdict came from the overall score's band. Rules: before adding an input to a derived field, search for every re-derivation of it (the derivation function's callers, schema refinements, renderers, explanations) and route each through the stored value or state the new input; give the new input a machine-readable field so a consumer can tell the two derivations apart.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "false-assurance"
+    ],
+    "tags": [
+      "derived-field",
+      "presentation",
+      "report-schema",
+      "verdict"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-10-28T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 606
+    }
+  },
+  {
+    "statement": "A length cap on a message composed from parts must be checked against the product of its parts, not against the examples at hand. Fixing one overflow (a note joined to another after each was trimmed alone) and then enumerating every combination of a sibling note's causes found 112 of 510 combinations over the 1000-character limit in v27's failed-history A2 note and 72 of 255 in an every-rubric disclosure built the same way; each would have made a scan write no report. Rules: where a message is assembled from a finite vocabulary, enumerate the vocabulary's full product in a test and assert the cap on every member; trim only after the last join, keeping the leading sentence whole.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "schema-limits"
+    ],
+    "tags": [
+      "length-cap",
+      "message-composition",
+      "schema-validation",
+      "exhaustive-enumeration"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-10-28T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 606
+    }
+  }
+]

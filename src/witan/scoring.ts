@@ -22,6 +22,7 @@ import {
   type WitanReportInputPayload,
   WitanReportInputSchema,
   WitanReportSchema,
+  WITAN_VERDICT_BAND_RANK,
   witanVerdictForScore,
 } from './schemas.js';
 
@@ -31,6 +32,7 @@ import {
   WITAN_LEGACY_AUTHENTICATED_A1_ABSENCE_SUMMARY,
   WITAN_NO_MEASUREMENT_REASON,
 } from './abstention.js';
+import { usesV27FalseAssuranceClosure } from './repo-signals.js';
 import { rubricBehaviourFingerprint } from './rubric-fingerprint.js';
 import {
   WITAN_RUBRIC_VERSION_V9,
@@ -227,10 +229,41 @@ export function createWitanReport(
   // full 50% weight of process_trust. This is a deliberate category-parity choice, not an
   // oversight — see the criterion-count-weighted alternative considered and rejected in
   // lab_notes/_business/cejel_calibration_report_2026-07-06.md's "v2 hardening" section.
+  const compositeOf = (abstentionsCountedAsZero: ReadonlySet<WitanCriterionId>) =>
+    roundScore(
+      categoryOrder.reduce(
+        (sum, category) =>
+          sum +
+          averageScore(
+            criteria.filter((criterion) => criterion.category === category),
+            abstentionsCountedAsZero,
+          ),
+        0,
+      ) / Math.max(categoryOrder.length, 1),
+    );
   const overallScore = roundScore(
     categoryOrder.reduce((sum, category) => sum + (categoryScoreMap[category] ?? 0), 0) /
       Math.max(categoryOrder.length, 1),
   );
+  // v27 freeze change F1, second pass (operator decision 2026-10-28, option C). On a shallow clone
+  // v27's A2 abstains with reason 'shallow_history' and leaves the composite (F1), so a secret its
+  // history scan would have read cannot hold the score down. The composite stays so; the verdict
+  // band is capped at the band the composite reaches with that abstention counted as 0, as a read
+  // failure is. The cap only ever lowers the band. Only this rubric's A2 carries the reason.
+  const a2Signal = signalsByCriterion.get('A2');
+  const verdictCapScore =
+    usesV27FalseAssuranceClosure(parsedInput.rubricVersion) &&
+    a2Signal?.insufficientData === true &&
+    a2Signal.insufficientDataReason === 'shallow_history' &&
+    criteria.some((criterion) => criterion.id === 'A2' && criterion.status === 'insufficient_data')
+      ? compositeOf(new Set([...readFailureAbstentions, 'A2']))
+      : undefined;
+  const uncappedVerdict = witanVerdictForScore(overallScore);
+  const cappedVerdict =
+    verdictCapScore !== undefined &&
+    WITAN_VERDICT_BAND_RANK[witanVerdictForScore(verdictCapScore)] < WITAN_VERDICT_BAND_RANK[uncappedVerdict]
+      ? witanVerdictForScore(verdictCapScore)
+      : undefined;
 
   // V48 release-blocker closure: an average over zero measured free-core criteria is undefined,
   // not a measured zero. Older versions stay byte-compatible, and the caller-supplied trading
@@ -268,7 +301,17 @@ export function createWitanReport(
     ...(rubricBehaviourFingerprint(parsedInput.rubricVersion)
       ? { rubricBehaviourFingerprint: rubricBehaviourFingerprint(parsedInput.rubricVersion) }
       : {}),
-    verdict: abstained ? 'insufficient_source' : witanVerdictForScore(overallScore),
+    verdict: abstained ? 'insufficient_source' : (cappedVerdict ?? uncappedVerdict),
+    ...(!abstained && cappedVerdict !== undefined && verdictCapScore !== undefined
+      ? {
+          verdictCap: {
+            criterionId: 'A2' as const,
+            reason: 'shallow_history' as const,
+            uncappedVerdict,
+            scoreWithAbstentionAsZero: verdictCapScore,
+          },
+        }
+      : {}),
     codeTrustScore: abstained ? null : codeTrustScore,
     processTrustScore: abstained ? null : processTrustScore,
     overallScore: abstained ? null : overallScore,
@@ -408,7 +451,8 @@ function statusAfterInputAdjustment(
 
 // Reasons insufficientData can carry that are never a read failure, so the criterion leaves the
 // composite like ordinary insufficient_data: the self-imposed coverage limits Cejel chose itself,
-// and (#442, operator decision 2026-10-26) B2's commit window truncated by a shallow clone. See the
+// and (#442, operator decision 2026-10-26) B2's commit window truncated by a shallow clone, and (v27
+// freeze change F1, 2026-10-28) v27's A2 history read truncated by one. See the
 // WitanCriterionSignalSchema.insufficientDataReason comment.
 const COMPOSITE_EXCLUDED_ABSTENTION_REASONS: ReadonlySet<WitanInsufficientDataReason> = new Set([
   'too_large',

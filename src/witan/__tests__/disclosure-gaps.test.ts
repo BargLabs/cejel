@@ -1051,8 +1051,13 @@ const SCORING_SURFACE_PINS: Readonly<Record<string, string>> = {
   // on a decision that rests on history scans, so under v27 A2 abstains as a read failure kept in
   // the composite at 0 (overall 1.8 to 1.5, code_trust 2.3 to 1.7). Every other rubric's pin is
   // unchanged; their A2 gains a presentation-only disclosure.
+  // Re-captured 2026-10-28 for the v27 freeze change F1, v27 only: A2's shallow abstention leaves
+  // the composite and B2 withholds only its ratio (B2 insufficient_data to warning 2,
+  // pr_trace_primitives 1 of 2 alone; code_trust 1.7 to 2.3, process_trust 1.2 to 2.2, overall 1.5
+  // to 2.3, at_risk throughout): the composites v17 gives this checkout. The previous pin was
+  // fccdd8f9…; every other rubric's pin is unchanged.
   'b3-master-target-depth-1-clone@witan-rubric-v27-prospective-2026-10-19':
-    'fccdd8f9d2b881e84a0b085567a37a9662aa4b8a8e3d36d2e00a77f01ac24bfe',
+    '7a599ddddfb94e6f875db4a3bbe5dadfe4b21928e56b15b84fd8fa0ab22af120',
   'b3-master-target-single-branch-clone@witan-rubric-v17-2026-07-24':
     '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
   'b3-master-target-single-branch-clone@witan-rubric-v18-prospective-2026-07-25':
@@ -1101,8 +1106,10 @@ const SCORING_SURFACE_PINS: Readonly<Record<string, string>> = {
   // on a decision that rests on history scans, so under v27 A2 abstains as a read failure kept in
   // the composite at 0 (overall 1.8 to 1.5, code_trust 2.3 to 1.7). Every other rubric's pin is
   // unchanged; their A2 gains a presentation-only disclosure.
+  // Re-captured 2026-10-28 for the v27 freeze change F1, v27 only, exactly as for
+  // b3-master-target-depth-1-clone above. The previous pin was fccdd8f9….
   'b3-master-target-ci-fetch@witan-rubric-v27-prospective-2026-10-19':
-    'fccdd8f9d2b881e84a0b085567a37a9662aa4b8a8e3d36d2e00a77f01ac24bfe',
+    '7a599ddddfb94e6f875db4a3bbe5dadfe4b21928e56b15b84fd8fa0ab22af120',
   'b3-monorepo-root-print-only@witan-rubric-v17-2026-07-24':
     'c5a11cff205543bded3bbdd684d7364168df3db26d71af52885cc9f6f4e3b042',
   'b3-monorepo-root-print-only@witan-rubric-v18-prospective-2026-07-25':

@@ -1,6 +1,6 @@
 # ADR-0001: Coverage is disclosed, never discounted — and may later withhold a score
 
-**Status:** Accepted (four operator rulings recorded at the end: three of 2026-10-22, on v27 shallow-clone abstentions, #556's abstention, and its two further causes from #560's review; and one of 2026-10-23, on a `.git` that git cannot open)
+**Status:** Accepted (four operator rulings recorded at the end: three of 2026-10-22, on v27 shallow-clone abstentions, #556's abstention, and its two further causes from #560's review; and one of 2026-10-23, on a `.git` that git cannot open; a 2026-10-28 note records where the v27 freeze change F1 departs from the first two, awaiting the operator's confirmation)
 **Date:** 2026-08-02
 **Deciders:** Houman Azimi
 **Supersedes:** nothing. First ADR in this repository.
@@ -347,3 +347,44 @@ and is scored.
 for this cause. v17 and v18-v26 do not abstain for it. Where A2 is marked not applicable, a sentence
 among A2's disclosures names the cause. The cause adds no scan limitation. The ruling decides nothing
 about any other systematic limit.
+
+## Note (2026-10-28): the v27 freeze change F1 departs from the first and second rulings on shallow clones; awaiting the operator's confirmation
+
+Recorded by an AI agent (Claude Opus 5.5, Claude Code) in the pull request that makes the change.
+This is not a ruling. The text above is unchanged apart from the Status line.
+
+**What happened.** The operator's decisions of 2026-10-28 freeze v27 after three changes. The first
+(F1) applies the rule "a shallow clone must not lower the history score" to v27 too: on a shallow
+clone B2 keeps its file evidence and withholds only its pull-request merge ratio, and A2 "keeps its
+abstention and its note, but the abstention carries reason `shallow_history` and leaves the
+composite instead of counting as 0". The F1 decision, as given to the implementing agent, does not
+mention this ADR.
+
+**Where it departs.** The first ruling above (2026-10-22) made v27's shallow-clone abstention of A2
+and B2 a read failure, kept in the denominator at 0, and the second extended that to A2's
+abstention where it would otherwise be not applicable. Under F1 neither shallow-only abstention is a
+read failure any more: B2 is scored on the checked-out files, or abstains out of the composite where
+none is credited, and A2's abstention is left out of the composite. A2's abstention after a failed
+history read, or after one of Cejel's own limits (the second, third and fourth rulings), is
+unchanged: still a read failure at 0, on a shallow clone or not.
+
+**The consequence the first ruling's recorded explanation foresaw.** The recording agent's
+explanation there (not the operator's words) noted that dropping A2 and B2 from the denominator
+"can raise a composite". It does: in #556's fixtures, the shapes whose
+secret-bearing `.env` was committed and later deleted score A2 critical on the complete clone, and
+their depth-1 and depth-12 clones now score above it (overall 1.8 to 2.0 or 1.9), through A2 alone.
+`leaderboard/RUBRIC_CHANGELOG.md` (2026-10-28 entry) has the measurement.
+
+**For the operator.** Confirm that F1 supersedes the first two rulings for the shallow-only case, or
+say otherwise; the change is proposed in a pull request and not merged.
+
+**Addendum (2026-10-28, F1's second pass).** The operator's review of the first F1 pull request
+decided, as option C, how far the rise above goes: on a shallow clone under v27, where A2 abstains
+with reason `shallow_history`, the composite stays as F1 computes it, with A2 left out, but the
+verdict band is capped at the band the composite would reach with that abstention counted as 0,
+and `report.verdictCap` says so where the cap lowers the band. So the composite can still rise
+above the complete clone through A2, and the verdict band cannot rise above the band of that
+counted-as-0 composite. The cost is that a clean repository's shallow verdict can now sit below
+its full clone's. `leaderboard/RUBRIC_CHANGELOG.md` (the same entry) has the measurement. This
+addendum records the decision as the implementing agent received it; it does not answer the
+question above about the first two rulings.

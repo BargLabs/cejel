@@ -193,11 +193,23 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     requires its requirements file; a requirement an earlier action Cejel did not read may meet
 //     is not determined, and scores no zero);
 //   - A2 and B2: on a shallow clone, A2 abstains unless a confirmed critical secret finding
-//     stands, and B2 abstains when fewer commits are visible than its window reads.
-// Each abstention is a read failure, kept in the composite at 0, and each other change only
+//     stands. Since the v27 freeze change F1 (operator decision 2026-10-28) v27 follows the
+//     operator's 26/27 Oct rule for shallow clones, as every other rubric does since #604: B2
+//     withholds only its pull-request merge ratio when fewer commits are visible than its window
+//     reads, and is scored on the checked-out files, or abstains out of the composite where none
+//     of them is credited; A2's shallow-only abstention is left out of the composite (reason
+//     shallow_history). A2's abstention after a failed history read is still a read failure.
+//     F1's second pass (operator decision 2026-10-28, option C): where A2's shallow-only
+//     abstention leaves the composite, the verdict band is capped at the band the composite
+//     would reach with it counted as 0 (report.verdictCap where that lowers it); the composite
+//     itself is not capped, and the cap never raises a band.
+// Every other abstention is a read failure, kept in the composite at 0, and each other change only
 // lowers a metric, adds a zero-valued one or adds a finding, which can only cap a score (A1's non-hollow share stays measured over v17's test
-// list, so excluding conftest.py cannot shrink its denominator), so no score or status can rise
-// against v17 (against the earlier v27, A4 rises where that zero is withdrawn); the measured
+// list, so excluding conftest.py cannot shrink its denominator). So on a full clone no score,
+// status, composite or verdict can rise against v17 for the same commit (against the earlier v27,
+// A4 rises where that zero is withdrawn). On a shallow clone v27's history criteria are compared
+// with the same commit's full clone, not with v17 on the truncated input; everything else is
+// compared with v17 as on a full clone (src/witan/__tests__/v27-no-rise.ts). The measured
 // before/after is in
 // leaderboard/RUBRIC_CHANGELOG.md and docs/reviews/v27-false-assurance-closure-2026-10-19.md.
 // The name collides with the unrelated `useV27Detectors` detector-generation flag in

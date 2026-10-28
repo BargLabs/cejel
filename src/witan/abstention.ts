@@ -54,8 +54,9 @@ export const WITAN_A2_HISTORY_APPLICABILITY_PREFIX =
   "A2's applicability was decided from an incomplete read of the commit history";
 // v27 (#556): A2's abstention after an incomplete read of the history, other than the shallow-only
 // case (which keeps #442's notes), starts with this prefix (v27A2FailedHistoryNote in
-// repo-signals.ts). It is a read failure kept in the composite at 0, like the shallow-clone
-// abstention, and a checker that classifies v27 abstentions (the #531 no-rise property) should
+// repo-signals.ts). It is a read failure kept in the composite at 0 (the shallow-only abstention
+// was too until the v27 freeze change F1; it now leaves the composite with reason
+// 'shallow_history'), and a checker that classifies v27 abstentions (the #531 no-rise property) should
 // recognise it by this prefix. What else accompanies it depends on the cause, and several causes
 // can appear together:
 // - a failed git read (an error, a missing object, an output limit or the timeout): a scan

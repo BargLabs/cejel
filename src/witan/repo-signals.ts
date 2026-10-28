@@ -2790,17 +2790,11 @@ function collectA2IsolationEvidence(
     // depends on history Cejel did not read: a secret-bearing .env committed and later deleted is
     // exactly what it cannot see. On a complete clone whose history reads all completed, or a
     // directory that is not a git repository, the decision stands unchanged.
-    // v27: abstain as a read failure (kept in the composite at 0) rather than leave the composite,
-    // so an incomplete history read can never score higher than a complete one on A2's account.
-    // Every other rubric keeps its calibrated not-applicable result and says what it did not read.
+    // v27: abstain (v27A2HistoryAbstention says how each cause counts in the composite). Every
+    // other rubric keeps its calibrated not-applicable result and says what it did not read.
     if (historyIncompleteness && useV27FalseAssuranceClosure) {
       return {
-        ...shallowHistoryAbstention(
-          'A2',
-          historyReadFailed(historyIncompleteness)
-            ? v27A2FailedHistoryNote(historyIncompleteness, true)
-            : V27_A2_SHALLOW_APPLICABILITY_NOTE,
-        ),
+        ...v27A2HistoryAbstention(historyIncompleteness, true),
         ...placeholderSetAsideDisclosures(placeholderSetAside),
       };
     }
@@ -3160,18 +3154,14 @@ function collectA2IsolationEvidence(
   // for absence of isolation mechanisms it does not need.
   const hasCriticalFinding = findings.some((finding) => finding.severity === 'critical');
   // v27 (#442): on a shallow clone the history half of A2 read only the commits present, so a
-  // clean result asserts something about history Cejel did not read. A2 then abstains as a read
-  // failure (kept in the composite at 0). A confirmed critical finding stands on what was read,
-  // so A2 keeps scoring it. Withholding only secret_cleanliness is not done: the calibrated A2
-  // state needs that metric, and its score-band fallback can land on a less severe status.
+  // clean result asserts something about history Cejel did not read. A2 then abstains (left out
+  // of the composite since the v27 freeze change F1; see v27A2HistoryAbstention). A confirmed
+  // critical finding stands on what was read, so A2 keeps scoring it. Withholding only
+  // secret_cleanliness is not done: the calibrated A2 state needs that metric, and its score-band
+  // fallback can land on a less severe status.
   // #556: the same holds when one of A2's history reads failed, on a shallow clone or not.
   if (useV27FalseAssuranceClosure && !hasCriticalFinding && historyIncompleteness) {
-    return shallowHistoryAbstention(
-      'A2',
-      historyReadFailed(historyIncompleteness)
-        ? v27A2FailedHistoryNote(historyIncompleteness, false)
-        : V27_A2_SHALLOW_HISTORY_NOTE,
-    );
+    return v27A2HistoryAbstention(historyIncompleteness, false);
   }
   const secretCleanliness = hasCriticalFinding ? 0 : 1;
   // v24 withholds the metric — never scores it 0, never scores it 1 — when the current-tree scan
@@ -5955,8 +5945,11 @@ function a2HistoryIncompletenessCauses(incompleteness: A2HistoryIncompleteness):
     .join(', and ');
 }
 
-/** What a re-scan can and cannot change, per detected cause. */
-function a2HistoryIncompletenessAdvice(incompleteness: A2HistoryIncompleteness): string {
+/**
+ * What a re-scan can and cannot change, per detected cause. With a `budget` (v27 freeze change F1,
+ * second pass), only the sentences that fit it, in order; the scan limitations name each failed read.
+ */
+function a2HistoryIncompletenessAdvice(incompleteness: A2HistoryIncompleteness, budget?: number): string {
   const advice: string[] = [];
   if (readNoHistory(incompleteness)) {
     if (incompleteness.gitUnavailable) advice.push('Re-scan on a host where git is installed.');
@@ -6000,7 +5993,12 @@ function a2HistoryIncompletenessAdvice(incompleteness: A2HistoryIncompleteness):
   if (incompleteness.controlCharacterSkip) {
     advice.push("A re-scan of the same repository will not lift Cejel's own rule on control characters in paths.");
   }
-  return advice.join(' ');
+  return budget === undefined
+    ? advice.join(' ')
+    : advice.reduce((kept, sentence) => {
+        const next = kept === '' ? sentence : `${kept} ${sentence}`;
+        return next.length <= budget ? next : kept;
+      }, '');
 }
 
 /**
@@ -6019,7 +6017,37 @@ export function v27A2FailedHistoryNote(
         ', and no confirmed critical finding stands on what was read.'
       : ', so the scan for credentials and .env files in earlier commits read only part of the history, ' +
         'and no confirmed critical finding stands on what was read.';
-  return `${WITAN_V27_A2_FAILED_HISTORY_NOTE_PREFIX}: ${a2HistoryIncompletenessCauses(incompleteness)}${consequence} ${a2HistoryIncompletenessAdvice(incompleteness)}`;
+  const lead = `${WITAN_V27_A2_FAILED_HISTORY_NOTE_PREFIX}: ${a2HistoryIncompletenessCauses(incompleteness)}${consequence}`;
+  const note = `${lead} ${a2HistoryIncompletenessAdvice(incompleteness)}`;
+  // v27 freeze change F1, second pass: with many causes at once the note ran past
+  // CRITERION_NOTES_MAX_LENGTH and the scan wrote no report. The cause sentence stays whole.
+  return note.length <= CRITERION_NOTES_MAX_LENGTH
+    ? note
+    : `${lead} ${a2HistoryIncompletenessAdvice(incompleteness, CRITERION_NOTES_MAX_LENGTH - lead.length - 1)}`;
+}
+
+/**
+ * v27: A2's abstention after an incomplete read of the commit history. Where only the clone's
+ * depth truncated it (#442's notes), the abstention carries the 'shallow_history' reason and is
+ * left out of the composite, so a shallow clone does not lower the history score (v27 freeze
+ * change F1, operator decision 2026-10-28, following the operator's 26/27 Oct rule for every other
+ * rubric). Where a history read failed (#556, #560), on a shallow clone or not, it stays a read
+ * failure kept in the composite at 0, as before.
+ */
+function v27A2HistoryAbstention(
+  incompleteness: A2HistoryIncompleteness,
+  wouldBeNotApplicable: boolean,
+): WitanCriterionSignalPayload {
+  if (historyReadFailed(incompleteness)) {
+    return shallowHistoryAbstention('A2', v27A2FailedHistoryNote(incompleteness, wouldBeNotApplicable));
+  }
+  return {
+    ...shallowHistoryAbstention(
+      'A2',
+      wouldBeNotApplicable ? V27_A2_SHALLOW_APPLICABILITY_NOTE : V27_A2_SHALLOW_HISTORY_NOTE,
+    ),
+    insufficientDataReason: 'shallow_history',
+  };
 }
 
 /**
@@ -6036,20 +6064,16 @@ export function a2HistoryApplicabilityDisclosure(incompleteness: A2HistoryIncomp
   );
 }
 
-const V27_B2_SHALLOW_HISTORY_NOTE =
-  `B2 abstained: this repository is a shallow clone with fewer than ${RECENT_COMMIT_WINDOW} commits ` +
-  'visible, so the pull-request merge ratio cannot be read over its window. Re-scan a full clone ' +
-  '(for actions/checkout, set fetch-depth: 0).';
-// #442, every rubric but v27, where B2 has no PR-trace evidence to score without the ratio: the same
-// abstention, left out of the composite. It starts with the same words as the v27 note, so a reader
-// of either knows it is the shallow-clone one.
+// #442, where B2 has no PR-trace evidence to score without the ratio: B2 abstains, left out of the
+// composite. Every rubric since the v27 freeze change F1 (2026-10-28); v27's own read-failure note,
+// which began with the same words, is gone with that abstention.
 const B2_SHALLOW_HISTORY_NOTE =
   `B2 abstained: this repository is a shallow clone with fewer than ${RECENT_COMMIT_WINDOW} commits ` +
   'visible, so the pull-request merge ratio cannot be read over its window. B2 is left out of the ' +
   'composite rather than scored on the commits present. Re-scan a full clone (for actions/checkout, ' +
   'set fetch-depth: 0).';
-// #442, every rubric but v27 (operator decision 2026-10-27): B2 withholds only the ratio and is
-// scored on the checked-out files. It starts with the same words as the notes above, so a reader
+// #442, every rubric (operator decision 2026-10-27; v27 from F1, 2026-10-28): B2 withholds only the
+// ratio and is scored on the checked-out files. It starts with the same words as the notes above, so a reader
 // knows it is the shallow-clone one, and says at once that only the ratio was withheld, since B2
 // itself is scored.
 const B2_SHALLOW_RATIO_WITHHELD_NOTE =
@@ -6060,11 +6084,12 @@ const B2_SHALLOW_RATIO_WITHHELD_NOTE =
   'commits present. Re-scan a full clone (for actions/checkout, set fetch-depth: 0).';
 
 /**
- * A criterion that reads commit history, abstaining because the clone is shallow (v27, #442). No
- * insufficientDataReason: it is a read failure, so it stays in the composite at 0 and a shallow
- * clone can never score higher than the full clone would have on that account. Under every other
- * rubric B2 abstains only when it has no PR-trace evidence to score without the ratio, and adds
- * the 'shallow_history' reason, which leaves the composite.
+ * A criterion that reads commit history, abstaining because the clone is shallow or a history read
+ * failed (#442, #556). No insufficientDataReason: it is a read failure, so it stays in the composite
+ * at 0. Callers add the 'shallow_history' reason, which leaves the composite, where only the
+ * clone's depth is the cause: B2 where it has no PR-trace evidence to score without the ratio
+ * (every rubric but v27 since #604, v27 too since the v27 freeze change F1), and v27's A2 since F1
+ * (v27A2HistoryAbstention).
  */
 function shallowHistoryAbstention(
   criterionId: 'A2' | 'B2',
@@ -6145,19 +6170,34 @@ function collectB2PrTraceEvidence(
     creditedWorkflowCount + (prTemplate ? 1 : 0) + (branchProtectionDoc ? 1 : 0);
   // #442: pr_merge_ratio reads the most recent RECENT_COMMIT_WINDOW commits. A shallow clone with
   // fewer visible has truncated that window, and the ratio over what remains can score lower than
-  // the full window would (at depth 1 it is 0 or 1, from HEAD's subject alone). v27 abstains on all
-  // of B2 as a read failure at 0, as its no-rise property requires. Every other rubric withholds
-  // only the ratio and scores pr_trace_primitives, which reads the checked-out files and no history
+  // the full window would (at depth 1 it is 0 or 1, from HEAD's subject alone). B2 withholds only
+  // the ratio and scores pr_trace_primitives, which reads the checked-out files and no history
   // (operator decision 2026-10-27, revising 2026-10-26's whole-criterion abstention, which took the
   // file evidence out of the composite with the ratio). Where there is no PR-trace evidence to
-  // score, B2 abstains out of the composite instead.
+  // score, B2 abstains out of the composite instead. v27 does the same since the v27 freeze change
+  // F1 (operator decision 2026-10-28); before it, v27 abstained on all of B2 as a read failure at 0.
+  // Under v27 a workflow it does not credit still has its disclosure, whichever way B2 goes.
   const ratioWithheld =
     isShallowRepository(repoPath) && readRecentCommits(repoPath).length < RECENT_COMMIT_WINDOW;
-  if (ratioWithheld && useV27FalseAssuranceClosure) {
-    return shallowHistoryAbstention('B2', V27_B2_SHALLOW_HISTORY_NOTE);
-  }
+  const uncreditedDisclosures =
+    uncredited.size > 0
+      ? {
+          disclosures: [uncreditedCiWorkflowDisclosure(WITAN_B2_UNCREDITED_CI_WORKFLOW_PREFIX, uncredited)],
+        }
+      : {};
+  const uncreditedNote = uncredited.size > 0 ? uncreditedCiWorkflowNote(uncredited, 'a PR-trace CI workflow') : undefined;
+  // v27 freeze change F1, second pass: the joined note fits CRITERION_NOTES_MAX_LENGTH. `note` stays
+  // whole and the uncredited part gets what is left (a shallow scan wrote no report otherwise).
+  const withUncreditedNote = (note: string) =>
+    uncreditedNote
+      ? `${note} ${uncreditedCiWorkflowNote(uncredited, 'a PR-trace CI workflow', CRITERION_NOTES_MAX_LENGTH - note.length - 1)}`
+      : note;
   if (ratioWithheld && prTracePrimitives === 0) {
-    return { ...shallowHistoryAbstention('B2', B2_SHALLOW_HISTORY_NOTE), insufficientDataReason: 'shallow_history' };
+    return {
+      ...shallowHistoryAbstention('B2', withUncreditedNote(B2_SHALLOW_HISTORY_NOTE)),
+      insufficientDataReason: 'shallow_history',
+      ...uncreditedDisclosures,
+    };
   }
   return {
     criterionId: 'B2',
@@ -6208,17 +6248,13 @@ function collectB2PrTraceEvidence(
             ),
           ]),
     ],
-    // v27 never reaches here with the ratio withheld, and only v27 leaves CI workflows uncredited.
+    // Only v27 leaves CI workflows uncredited, so every other rubric's notes are unchanged.
     ...(ratioWithheld
-      ? { notes: B2_SHALLOW_RATIO_WITHHELD_NOTE }
-      : uncredited.size > 0
-      ? {
-          notes: uncreditedCiWorkflowNote(uncredited, 'a PR-trace CI workflow'),
-          disclosures: [
-            uncreditedCiWorkflowDisclosure(WITAN_B2_UNCREDITED_CI_WORKFLOW_PREFIX, uncredited),
-          ],
-        }
-      : {}),
+      ? { notes: withUncreditedNote(B2_SHALLOW_RATIO_WITHHELD_NOTE) }
+      : uncreditedNote
+        ? { notes: uncreditedNote }
+        : {}),
+    ...uncreditedDisclosures,
   };
 }
 
@@ -7078,18 +7114,30 @@ function b3UncreditedWorkflowsNote(uncredited: ReadonlyMap<string, UncreditedCiW
  * One sentence per reason, in the collector's own words. Workflow paths are listed, up to four per
  * reason, then fewer, then none, so the note fits CRITERION_NOTES_MAX_LENGTH whole. With only
  * publish-only workflows and `CI verification`, this is v27's #517 sentence unchanged.
+ *
+ * With a `budget` (the room left after another note it is joined to; v27 freeze change F1, second
+ * pass), the note above is used where it fits the budget. Otherwise each sentence lists fewer
+ * paths and then says how many more ("a, b and 2 more"), then lists none (each sentence already
+ * states its count), then the count alone.
  */
 function uncreditedCiWorkflowNote(
   uncredited: ReadonlyMap<string, UncreditedCiWorkflowReason>,
   notCountedAs: string,
+  budget?: number,
 ): string {
+  if (budget !== undefined) {
+    const unbudgeted = uncreditedCiWorkflowNote(uncredited, notCountedAs);
+    if (unbudgeted.length <= budget) return unbudgeted;
+  }
   const of = (reason: UncreditedCiWorkflowReason) =>
     [...uncredited].filter(([, why]) => why === reason).map(([file]) => file);
   const publishOnly = of('publish_only');
   const printOnly = of('print_only');
   const publishing = of('publishes');
   const listed = (files: readonly string[], shown: number) =>
-    shown === 0 ? '' : `: ${files.slice(0, shown).join(', ')}${files.length > shown ? ', ...' : ''}`;
+    shown === 0
+      ? ''
+      : `: ${files.slice(0, shown).join(', ')}${files.length > shown ? (budget === undefined ? ', ...' : ` and ${files.length - shown} more`) : ''}`;
   const sentences = (shown: number) => [
     ...(publishOnly.length > 0
       ? [
@@ -7108,11 +7156,12 @@ function uncreditedCiWorkflowNote(
         ]
       : []),
   ].join(' ');
-  for (const shown of [4, 3, 2, 1]) {
+  const limit = budget ?? CRITERION_NOTES_MAX_LENGTH;
+  for (const shown of [4, 3, 2, 1, 0]) {
     const note = sentences(shown);
-    if (note.length <= CRITERION_NOTES_MAX_LENGTH) return note;
+    if (note.length <= limit || (budget === undefined && shown === 0)) return note;
   }
-  return sentences(0);
+  return `${uncreditedCiWorkflowCondition(uncredited.size)} as ${notCountedAs}.`;
 }
 
 // v27 (#517). A step that ships an artifact or changes a running environment, from a bounded

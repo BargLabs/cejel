@@ -23,9 +23,9 @@ import { HERMETIC_GIT_ENV } from './fixtures/behaviour-corpus.js';
 // subject of HEAD. Both HEAD shapes are built, so the abstention cannot depend on which way the
 // truncated ratio points.
 //
-// witan-rubric-v27-prospective-2026-10-19 is outside this file: it already abstains on both
-// criteria as a read failure kept in the composite at 0 (false-assurance-v27.test.ts), and its
-// no-rise property against v17 is pinned there.
+// witan-rubric-v27-prospective-2026-10-19 is outside this file: since the v27 freeze change F1
+// (2026-10-28) it follows the same rule, measured against the full clone in
+// v27-shallow-history-f1.test.ts, and its no-rise property is pinned in false-assurance-v27.test.ts.
 
 const RUBRICS = WITAN_SELECTABLE_RUBRIC_VERSIONS.filter((version) => version !== WITAN_RUBRIC_VERSION_V27);
 const SEVERITY: Readonly<Record<string, number>> = { verified: 0, info: 1, warning: 2, critical: 3 };

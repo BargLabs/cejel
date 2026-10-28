@@ -25,8 +25,8 @@ import { HERMETIC_GIT_ENV } from './fixtures/behaviour-corpus.js';
 // (just under the window) and 12 (at it). Every shallow row is compared with the same
 // repository's full clone, never only with main.
 //
-// v27 is unchanged by the 27 Oct decision: it abstains on B2 as a read failure kept in the
-// composite at 0, as on main.
+// v27 was unchanged by the 27 Oct decision, abstaining on B2 as a read failure kept in the
+// composite at 0, until the v27 freeze change F1 (2026-10-28) put it on this path too.
 
 const V17 = WITAN_RUBRIC_VERSION_V17;
 const V27 = WITAN_RUBRIC_VERSION_V27;
@@ -250,13 +250,16 @@ describe('#442 (27 Oct): on a shallow clone B2 keeps its file evidence and withh
     }
   });
 
-  it('v27 is unchanged: under the window B2 abstains as a read failure kept in the composite at 0', () => {
+  // Changed by the v27 freeze change F1 (operator decision 2026-10-28): until then v27 abstained on
+  // all of B2 here as a read failure kept in the composite at 0. It now takes this path too
+  // (v27-shallow-history-f1.test.ts measures it against the full clone).
+  it('v27 since F1: under the window B2 is v17\'s, the ratio withheld and the file evidence scored', () => {
     for (const row of rows.filter((entry) => entry.rubric === V27 && underWindow(entry) && hasPrTraceFiles(entry))) {
       const label = `${row.history} ${row.evidence} depth ${row.depth}`;
-      const b2 = criterion(row.shallow, 'B2');
-      expect(b2.status, label).toBe('insufficient_data');
-      expect(b2.notes ?? '', label).toMatch(/^B2 abstained: this repository is a shallow clone with fewer than 12 commits visible/);
-      expect(b2.notes ?? '', label).not.toContain('left out of the composite');
+      const v17 = rows.find(
+        (entry) => entry.rubric === V17 && entry.history === row.history && entry.evidence === row.evidence && entry.depth === row.depth,
+      )!;
+      expect(criterion(row.shallow, 'B2'), label).toEqual(criterion(v17.shallow, 'B2'));
     }
   });
 });

@@ -37,6 +37,7 @@ import {
   formatCertificateMetricValue,
   formatDimensionsMeasuredSentence,
   formatLowConfidenceSentence,
+  formatVerdictCapSentence,
   glossaryEntriesForReport,
   glossaryEntryForMetric,
   type CertificateGlossaryEntry,
@@ -126,7 +127,11 @@ export function renderWitanHtmlReport(
           <p class="insufficient-note">${escapeHtml(report.insufficientSourceReason)}</p>`
               : `<div class="score">${formatScore(report.overallScore)}</div>
           <div class="score-unit">/ 4.0 overall</div>
-          <div class="verdict">${escapeHtml(renderVerdict(report.overallScore))}</div>
+          <div class="verdict">${escapeHtml(renderReportVerdict(report))}</div>${
+            formatVerdictCapSentence(report)
+              ? `\n          <div class="coverage-note verdict-cap">${escapeHtml(formatVerdictCapSentence(report) ?? '')}</div>`
+              : ''
+          }
           <div class="subscores">
             <span>Code ${renderCategoryScore(report.codeTrustScore, coverage, 'code_trust')}</span>
             <span>Process ${renderCategoryScore(report.processTrustScore, coverage, 'process_trust')}</span>

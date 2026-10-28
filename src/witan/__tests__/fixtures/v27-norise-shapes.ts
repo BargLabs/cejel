@@ -406,9 +406,10 @@ const EPOCH = 1_789_430_400; // 2026-09-15T00:00:00Z, as HERMETIC_GIT_ENV dates 
  * Materialises a shape as a git repository: one commit holding the files, then empty commits whose
  * subjects alternate with pull-request merges, written in one `git fast-import` pass. A shallow
  * shape is the same repository cloned at depth 1. Returns the path to scan and the directories to
- * remove afterwards.
+ * remove afterwards; for a shallow shape also the repository it was cloned from, the full clone of
+ * the same commit, against which v27's history criteria are compared (v27 freeze change F1).
  */
-export function buildNoRiseShape(shape: NoRiseShape): { repoPath: string; cleanup: () => void } {
+export function buildNoRiseShape(shape: NoRiseShape): { repoPath: string; fullRepoPath?: string; cleanup: () => void } {
   const dir = mkdtempSync(join(tmpdir(), 'cejel-v27-norise-'));
   const chunks: Buffer[] = [];
   const data = (text: string | Buffer): void => {
@@ -446,6 +447,7 @@ export function buildNoRiseShape(shape: NoRiseShape): { repoPath: string; cleanu
   git(tmpdir(), ['-c', 'protocol.file.allow=always', 'clone', '--quiet', '--depth', '1', `file://${dir}`, shallow]);
   return {
     repoPath: shallow,
+    fullRepoPath: dir,
     cleanup: () => {
       rmSync(dir, { recursive: true, force: true });
       rmSync(shallow, { recursive: true, force: true });

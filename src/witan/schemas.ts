@@ -237,8 +237,10 @@ export type WitanContentReadSkipReason = z.infer<typeof WitanContentReadSkipReas
 // 2026-10-26): 'shallow_history' is B2's abstention when a shallow clone holds fewer commits than
 // its pull-request merge window reads, under every rubric but witan-rubric-v27-prospective-2026-10-19.
 // Since the operator's decision of 2026-10-27 B2 withholds only that ratio there and abstains with
-// this reason only when it has no PR-trace evidence to score without it. It is never a content-read
-// skip, so contentReadSummary does not count it.
+// this reason only when it has no PR-trace evidence to score without it. The v27 freeze change F1
+// (operator decision 2026-10-28) extends both to v27: its B2 takes the same path, and its A2
+// abstention on a shallow clone, where no history read failed, carries this reason too. It is
+// never a content-read skip, so contentReadSummary does not count it.
 export const WitanInsufficientDataReasonSchema = z.enum([
   ...WitanContentReadSkipReasonSchema.options,
   'shallow_history',
@@ -273,7 +275,7 @@ export const WitanCriterionSignalSchema = z
     // 'shallow_history' (#442) is excluded the same way: a shallow clone must not lower the
     // history score, so B2 states the window it did not read instead of scoring what it did
     // (where it has no PR-trace evidence to score without the ratio; otherwise it withholds only
-    // the ratio and is scored).
+    // the ratio and is scored), and v27's A2 (F1, 2026-10-28) states the history it did not read.
     insufficientDataReason: WitanInsufficientDataReasonSchema.optional(),
   })
   .strict()
@@ -588,8 +590,25 @@ const WitanReportCommonSchema = z.object({
   toolVersion: z.string().min(1).max(80).optional(),
 });
 
+// Additive-optional (report format 1.9; v27 freeze change F1, second pass, operator decision
+// 2026-10-28, option C). Under witan-rubric-v27-prospective-2026-10-19 only: on a shallow clone A2
+// abstains with reason 'shallow_history' and is left out of the composite, and the verdict is
+// capped at the band the composite would reach with that abstention counted as 0. Present only
+// when the cap lowered the band: `verdict` is then that lower band, `uncappedVerdict` the band of
+// `overallScore`, and `scoreWithAbstentionAsZero` the composite that set the cap. `overallScore`
+// itself is never capped. Absent everywhere else, including where the cap would not lower it.
+export const WitanVerdictCapSchema = z
+  .object({
+    criterionId: z.literal('A2'),
+    reason: z.literal('shallow_history'),
+    uncappedVerdict: WitanScoredVerdictSchema,
+    scoreWithAbstentionAsZero: z.number().min(0).max(4),
+  })
+  .strict();
+
 const WitanScoredReportSchema = WitanReportCommonSchema.extend({
   verdict: WitanScoredVerdictSchema,
+  verdictCap: WitanVerdictCapSchema.optional(),
   codeTrustScore: z.number().min(0).max(4),
   processTrustScore: z.number().min(0).max(4),
   overallScore: z.number().min(0).max(4),
@@ -609,17 +628,39 @@ const WitanAbstainedReportSchema = WitanReportCommonSchema.extend({
   insufficientSourceReason: z.string().min(1).max(2000),
 }).strict();
 
+/** Scored verdict bands, lowest first. */
+export const WITAN_VERDICT_BAND_RANK: Readonly<Record<z.infer<typeof WitanScoredVerdictSchema>, number>> = {
+  unverified: 0,
+  at_risk: 1,
+  conditional: 2,
+  verified: 3,
+};
+
 const StrictWitanReportSchema = z
   .union([WitanScoredReportSchema, WitanAbstainedReportSchema])
   .superRefine((report, context) => {
+    if (report.verdict === 'insufficient_source') return;
+    const cap = report.verdictCap;
+    if (cap === undefined) {
+      if (report.verdict !== witanVerdictForScore(report.overallScore)) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['verdict'],
+          message: `verdict does not match overallScore ${report.overallScore}`,
+        });
+      }
+      return;
+    }
+    // A capped verdict is the band of the capping score, strictly below the band of overallScore.
     if (
-      report.verdict !== 'insufficient_source' &&
-      report.verdict !== witanVerdictForScore(report.overallScore)
+      cap.uncappedVerdict !== witanVerdictForScore(report.overallScore) ||
+      report.verdict !== witanVerdictForScore(cap.scoreWithAbstentionAsZero) ||
+      WITAN_VERDICT_BAND_RANK[report.verdict] >= WITAN_VERDICT_BAND_RANK[cap.uncappedVerdict]
     ) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
-        path: ['verdict'],
-        message: `verdict does not match overallScore ${report.overallScore}`,
+        path: ['verdictCap'],
+        message: `verdictCap does not lower the band of overallScore ${report.overallScore} to verdict ${report.verdict}`,
       });
     }
   });
@@ -671,7 +712,10 @@ export const WITAN_ATTESTATION_PREDICATE_TYPE = 'https://cejel.dev/attestations/
 // credential-shaped placeholder (A2) or counted a workflow it did not see run a check (B3). A
 // report with neither is byte-identical to a 1.7 report. #556 (still 1.8, no new field): A2's
 // disclosures may also say that A2 was marked not applicable on incomplete commit history.
-export const WITAN_REPORT_FORMAT_VERSION = '1.8' as const;
+// 1.9 (v27 freeze change F1, second pass): report.json gained optional verdictCap, present only on a
+// witan-rubric-v27-prospective-2026-10-19 scan of a shallow clone whose verdict the A2 cap lowered
+// (WitanVerdictCapSchema). A report without it is byte-identical to a 1.8 one.
+export const WITAN_REPORT_FORMAT_VERSION = '1.9' as const;
 
 export const WitanAttestationOutcomeSchema = z.discriminatedUnion('status', [
   z

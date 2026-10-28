@@ -18,6 +18,7 @@ import {
   formatCertificateMetricLabel,
   formatCertificateMetricValue,
   formatDimensionsMeasuredSentence,
+  formatVerdictCapSentence,
   formatLowConfidenceSentence,
 } from './witan/certificate-presentation.js';
 import { PROSPECTIVE_RUBRIC_NOTICE, isProspectiveRubricVersion } from './witan/rubric-version.js';
@@ -85,6 +86,7 @@ export function renderTerminalCertificate(summary: WitanCliSummary, report?: Wit
         `Cejel Trust Certificate — ${stripTerminalControls(summary.productDisplayName)}`,
         '',
         `Overall: ${formatScore(summary.overallScore)}/4.0 (${summary.verdict})`,
+        ...(report && formatVerdictCapSentence(report) ? [`  ${formatVerdictCapSentence(report)}`] : []),
         `  Code trust:    ${formatScore(summary.codeTrustScore)}/4.0`,
         `  Process trust: ${formatScore(summary.processTrustScore)}/4.0`,
         ...(report ? [`  ${formatDimensionsMeasuredSentence(report)}`] : []),
