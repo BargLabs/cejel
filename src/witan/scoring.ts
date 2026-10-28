@@ -408,7 +408,8 @@ function statusAfterInputAdjustment(
 
 // Reasons insufficientData can carry that are never a read failure, so the criterion leaves the
 // composite like ordinary insufficient_data: the self-imposed coverage limits Cejel chose itself,
-// and (#442, operator decision 2026-10-26) B2's commit window truncated by a shallow clone. See the
+// and (#442, operator decision 2026-10-26) B2's commit window truncated by a shallow clone, and (v27
+// freeze change F1, 2026-10-28) v27's A2 history read truncated by one. See the
 // WitanCriterionSignalSchema.insufficientDataReason comment.
 const COMPOSITE_EXCLUDED_ABSTENTION_REASONS: ReadonlySet<WitanInsufficientDataReason> = new Set([
   'too_large',

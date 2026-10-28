@@ -2790,17 +2790,11 @@ function collectA2IsolationEvidence(
     // depends on history Cejel did not read: a secret-bearing .env committed and later deleted is
     // exactly what it cannot see. On a complete clone whose history reads all completed, or a
     // directory that is not a git repository, the decision stands unchanged.
-    // v27: abstain as a read failure (kept in the composite at 0) rather than leave the composite,
-    // so an incomplete history read can never score higher than a complete one on A2's account.
-    // Every other rubric keeps its calibrated not-applicable result and says what it did not read.
+    // v27: abstain (v27A2HistoryAbstention says how each cause counts in the composite). Every
+    // other rubric keeps its calibrated not-applicable result and says what it did not read.
     if (historyIncompleteness && useV27FalseAssuranceClosure) {
       return {
-        ...shallowHistoryAbstention(
-          'A2',
-          historyReadFailed(historyIncompleteness)
-            ? v27A2FailedHistoryNote(historyIncompleteness, true)
-            : V27_A2_SHALLOW_APPLICABILITY_NOTE,
-        ),
+        ...v27A2HistoryAbstention(historyIncompleteness, true),
         ...placeholderSetAsideDisclosures(placeholderSetAside),
       };
     }
@@ -3160,18 +3154,14 @@ function collectA2IsolationEvidence(
   // for absence of isolation mechanisms it does not need.
   const hasCriticalFinding = findings.some((finding) => finding.severity === 'critical');
   // v27 (#442): on a shallow clone the history half of A2 read only the commits present, so a
-  // clean result asserts something about history Cejel did not read. A2 then abstains as a read
-  // failure (kept in the composite at 0). A confirmed critical finding stands on what was read,
-  // so A2 keeps scoring it. Withholding only secret_cleanliness is not done: the calibrated A2
-  // state needs that metric, and its score-band fallback can land on a less severe status.
+  // clean result asserts something about history Cejel did not read. A2 then abstains (left out
+  // of the composite since the v27 freeze change F1; see v27A2HistoryAbstention). A confirmed
+  // critical finding stands on what was read, so A2 keeps scoring it. Withholding only
+  // secret_cleanliness is not done: the calibrated A2 state needs that metric, and its score-band
+  // fallback can land on a less severe status.
   // #556: the same holds when one of A2's history reads failed, on a shallow clone or not.
   if (useV27FalseAssuranceClosure && !hasCriticalFinding && historyIncompleteness) {
-    return shallowHistoryAbstention(
-      'A2',
-      historyReadFailed(historyIncompleteness)
-        ? v27A2FailedHistoryNote(historyIncompleteness, false)
-        : V27_A2_SHALLOW_HISTORY_NOTE,
-    );
+    return v27A2HistoryAbstention(historyIncompleteness, false);
   }
   const secretCleanliness = hasCriticalFinding ? 0 : 1;
   // v24 withholds the metric — never scores it 0, never scores it 1 — when the current-tree scan
@@ -6023,6 +6013,30 @@ export function v27A2FailedHistoryNote(
 }
 
 /**
+ * v27: A2's abstention after an incomplete read of the commit history. Where only the clone's
+ * depth truncated it (#442's notes), the abstention carries the 'shallow_history' reason and is
+ * left out of the composite, so a shallow clone does not lower the history score (v27 freeze
+ * change F1, operator decision 2026-10-28, following the operator's 26/27 Oct rule for every other
+ * rubric). Where a history read failed (#556, #560), on a shallow clone or not, it stays a read
+ * failure kept in the composite at 0, as before.
+ */
+function v27A2HistoryAbstention(
+  incompleteness: A2HistoryIncompleteness,
+  wouldBeNotApplicable: boolean,
+): WitanCriterionSignalPayload {
+  if (historyReadFailed(incompleteness)) {
+    return shallowHistoryAbstention('A2', v27A2FailedHistoryNote(incompleteness, wouldBeNotApplicable));
+  }
+  return {
+    ...shallowHistoryAbstention(
+      'A2',
+      wouldBeNotApplicable ? V27_A2_SHALLOW_APPLICABILITY_NOTE : V27_A2_SHALLOW_HISTORY_NOTE,
+    ),
+    insufficientDataReason: 'shallow_history',
+  };
+}
+
+/**
  * Every rubric, presentation only (#556): A2 was marked not applicable after an incomplete read of
  * the commit history. Starts with WITAN_A2_HISTORY_APPLICABILITY_PREFIX and states only the causes
  * Cejel detected, with the re-scan advice each one admits.
@@ -6056,11 +6070,12 @@ const B2_SHALLOW_RATIO_WITHHELD_NOTE =
   'commits present. Re-scan a full clone (for actions/checkout, set fetch-depth: 0).';
 
 /**
- * A criterion that reads commit history, abstaining because the clone is shallow (#442). No
- * insufficientDataReason: it is a read failure, so it stays in the composite at 0 (v27's A2). B2,
- * under every rubric (v27 from the freeze change F1, 2026-10-28), abstains only when it has no
- * PR-trace evidence to score without the ratio, and adds the 'shallow_history' reason, which
- * leaves the composite.
+ * A criterion that reads commit history, abstaining because the clone is shallow or a history read
+ * failed (#442, #556). No insufficientDataReason: it is a read failure, so it stays in the composite
+ * at 0. Callers add the 'shallow_history' reason, which leaves the composite, where only the
+ * clone's depth is the cause: B2 where it has no PR-trace evidence to score without the ratio
+ * (every rubric but v27 since #604, v27 too since the v27 freeze change F1), and v27's A2 since F1
+ * (v27A2HistoryAbstention).
  */
 function shallowHistoryAbstention(
   criterionId: 'A2' | 'B2',
