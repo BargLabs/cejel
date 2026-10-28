@@ -1,3 +1,7 @@
+import { writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
 import { beforeAll, describe, expect, it } from 'vitest';
 
 import type { WitanReport } from '../schemas.js';
@@ -222,5 +226,71 @@ describe('F1 B: on a shallow clone v27\'s A2 abstention keeps its note and leave
       expect(a2Signal(cacheLibrary.full, rubric)?.insufficientDataReason, rubric).toBeUndefined();
     }
     expect(a2Signal(cacheLibrary.shallow, V17)?.insufficientDataReason).toBeUndefined();
+  });
+});
+
+// D. Every shallow row against the same repository's full clone, under v17 and v27: B2, A2 and the
+// overall, each labelled below, equal or above, with the reason. Below is allowed only where the
+// full clone's score rests on history the shallow clone withholds; above only where the full
+// clone's merge ratio is worse than its file evidence (#604's case).
+const BAND = ['unverified', 'at_risk', 'conditional', 'verified'];
+
+function reasons(row: Row): string[] {
+  const out: string[] = [];
+  const fullA2 = criterionOf(row.full, 'A2');
+  const shallowA2 = criterionOf(row.shallow, 'A2');
+  if (shallowA2.status === 'insufficient_data' && fullA2.status !== 'insufficient_data' && fullA2.status !== 'not_applicable') {
+    out.push(`A2 left out (full ${fullA2.score} rests on its history scans)`);
+  }
+  const fullB2 = criterionOf(row.full, 'B2');
+  const shallowB2 = criterionOf(row.shallow, 'B2');
+  const ratio = normalizedMetric(fullB2, 'pr_merge_ratio');
+  const primitives = normalizedMetric(fullB2, 'pr_trace_primitives');
+  if (shallowB2.status === 'insufficient_data' && fullB2.status !== 'insufficient_data') {
+    out.push(`B2 left out (full ${fullB2.score} rests on the ratio alone, file evidence ${primitives})`);
+  } else if (ratio !== undefined && normalizedMetric(shallowB2, 'pr_merge_ratio') === undefined) {
+    const relation = ratio < primitives! ? 'worse than' : ratio > primitives! ? 'better than' : 'equal to';
+    out.push(`B2 ratio withheld (full ratio ${ratio} ${relation} file evidence ${primitives})`);
+  }
+  return out;
+}
+
+describe('F1 D: every shallow row against its full clone', () => {
+  it('v27: below only where the full clone rests on withheld history, above only where its ratio is worse than its file evidence', () => {
+    for (const row of rows.filter((entry) => entry.rubric === V27)) {
+      const b2 = compare(criterionOf(row.shallow, 'B2').score, criterionOf(row.full, 'B2').score);
+      const overall = compare(row.shallow.overallScore!, row.full.overallScore!);
+      const why = reasons(row).join('; ');
+      if (overall === 'below') expect(why, label(row)).not.toBe('');
+      if (overall === 'above') {
+        expect(b2, label(row)).toBe('above');
+        expect(why, label(row)).toContain('worse than file evidence');
+      }
+    }
+  });
+
+  it('writes the table to cejel-f1-matrix.md in the temporary directory', () => {
+    const cell = (report: WitanReport) => {
+      const a2 = criterionOf(report, 'A2');
+      const b2 = criterionOf(report, 'B2');
+      return `A2 ${a2.status} ${a2.score}; B2 ${b2.status} ${b2.score}; overall ${report.overallScore} ${report.verdict}`;
+    };
+    const lines = rows.map((row) => {
+      const a2 = compare(criterionOf(row.shallow, 'A2').score, criterionOf(row.full, 'A2').score);
+      const b2 = compare(criterionOf(row.shallow, 'B2').score, criterionOf(row.full, 'B2').score);
+      const overall = compare(row.shallow.overallScore!, row.full.overallScore!);
+      const band = compare(BAND.indexOf(row.shallow.verdict), BAND.indexOf(row.full.verdict));
+      const rubric = row.rubric === V17 ? 'v17' : 'v27';
+      return `| ${rubric} | ${row.history} | ${row.evidence} | ${row.depth} | ${cell(row.full)} | ${cell(row.shallow)} | ${a2} | ${b2} | ${overall} | ${band} | ${reasons(row).join('; ') || '-'} |`;
+    });
+    const pair = [V17, V27].map((rubric) => {
+      const full = scanRepository(cacheLibrary.full, rubric);
+      const shallow = scanRepository(cacheLibrary.shallow, rubric);
+      const name = rubric === V17 ? 'v17' : 'v27';
+      return `| ${name} | #114 depth-1 pair shape | full: ${cell(full)} | depth 1: ${cell(shallow)} | overall ${compare(shallow.overallScore!, full.overallScore!)} |`;
+    });
+    expect(lines.length).toBe(HISTORIES.length * EVIDENCE.length * DEPTHS.length * 2);
+    const path = join(tmpdir(), 'cejel-f1-matrix.md');
+    writeFileSync(path, `${[...lines, '', ...pair].join('\n')}\n`);
   });
 });
