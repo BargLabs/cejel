@@ -4,6 +4,7 @@ import { dirname, join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { v27A2FailedHistoryNote } from '../repo-signals.js';
 import { WITAN_RUBRIC_VERSION_V17, WITAN_RUBRIC_VERSION_V27 } from '../rubric-version.js';
 import { cloneRepository, criterionOf, git, scanRepository } from './fixtures/shallow-history-matrix.js';
 
@@ -90,6 +91,31 @@ describe('F1 v2 A: a shallow v27 scan never fails on B2\'s joined note', () => {
     expect(notes.length).toBeLessThanOrEqual(NOTES_LIMIT);
     expect(notes).toMatch(ABSTENTION_LEAD);
     expect(notes).toMatch(/ and \d more\.$/);
+  });
+
+  it('the other v27 note built by joining parts, the failed-history A2 note, fits the limit for every combination of causes; its cause sentence stays whole', () => {
+    // Its parts are fixed sentences and Cejel's own limit names (the two output limits history
+    // reads use, 8 MiB and 512,000 bytes, the 30-second timeout and #586's budget), so these 255
+    // combinations, on both paths, are every form it can take short of the no-read causes.
+    const limits = ['120-second time budget for re-reading history in batches', '30-second timeout', '500 KiB output limit', '8 MiB output limit'];
+    let checked = 0;
+    for (let mask = 1; mask < 1 << 8; mask += 1) {
+      const input = {
+        limitHits: limits.filter((_, bit) => (mask & (1 << bit)) !== 0),
+        shallow: (mask & 16) !== 0,
+        otherFailure: (mask & 32) !== 0,
+        blobCapHit: (mask & 64) !== 0,
+        controlCharacterSkip: (mask & 128) !== 0,
+      };
+      for (const wouldBeNotApplicable of [false, true]) {
+        const note = v27A2FailedHistoryNote(input, wouldBeNotApplicable);
+        expect(note.length, JSON.stringify(input)).toBeLessThanOrEqual(NOTES_LIMIT);
+        // The first sentence (prefix, causes, consequence) ends at the first '. ' after the causes.
+        expect(note, JSON.stringify(input)).toMatch(/(?:not applicable on a decision that rests in part on Cejel's scans of earlier commits for \.env files and credential-shaped values\.|no confirmed critical finding stands on what was read\.)( |$)/);
+        checked += 1;
+      }
+    }
+    expect(checked).toBe(510);
   });
 
   it('at exactly the limit the joined note is unchanged; one character over, it is shortened', () => {
