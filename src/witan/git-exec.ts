@@ -239,15 +239,20 @@ function stderrText(error: unknown): string {
 // against the strings in the installed binary), each printed after "fatal: " by die():
 //   not a git repository (or any of the parent directories): %s
 //   not a git repository (or any parent up to mount point %s)
-//   not a git repository: %s          (GIT_DIR, or a `.git` file whose gitdir is missing)
+//   not a git repository: %s          (GIT_DIR; and to git 2.55, a `.git` file whose gitdir is missing)
 //   not a git repository: '%s'
 //   Not a git repository              (and "Not a git repository. Use --no-index ...", git diff)
 //   not a git repository, but the field '%.*s' requires access to object data
 //   not in a git directory
 //   this operation must be run in a work tree
-// All the "not a git repository" forms are recognised by their common start; the rest exactly.
+//   gitfile does not point to a valid repository: %s
+//                                     (git 2.56 source, setup.c read_gitfile_error_die: a `.git` file
+//                                     whose gitdir is missing; %s is the `.git` file's path)
+// All the "not a git repository" forms are recognised by their common start; the rest by their fixed
+// text from the start of the line, up to any trailing %s.
 const GIT_NO_REPOSITORY_DIAGNOSTICS: readonly RegExp[] = [
   /^fatal: not a git repository\b/i,
+  /^fatal: gitfile does not point to a valid repository: /,
   /^fatal: not in a git directory$/,
   /^fatal: this operation must be run in a work tree$/,
   /^fatal: ambiguous argument 'HEAD': unknown revision or path not in the working tree\.$/,
