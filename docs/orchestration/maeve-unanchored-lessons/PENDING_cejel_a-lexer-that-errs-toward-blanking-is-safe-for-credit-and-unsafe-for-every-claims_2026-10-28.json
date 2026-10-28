@@ -1,0 +1,23 @@
+[
+  {
+    "statement": "A comment-and-string masker built for crediting evidence errs safely when it blanks too much: a hidden assertion only withholds credit. Reused under a reader that claims a universal, 'every test in this file is skipped', the same over-blanking hides the one counter-example and turns into a false assertion. A quote inside a regular-expression literal such as /['\"]/ opens a string in that masker and can swallow a live test after it. Rules: before reusing a lexer under a claim of absence or universality, check which way its errors push; any doubt in the lexing (a quote or regular expression open at the end of its line, an unclosed comment) withholds the claim; and plant a control whose counter-example sits right after the construct the lexer misreads.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "false-assurance"
+    ],
+    "tags": [
+      "error-direction-flips-with-the-claim",
+      "universal-claim-needs-strict-lexing",
+      "false-assurance"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-10-28T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 608
+    }
+  }
+]
