@@ -335,6 +335,130 @@ describe('#518 — a suite that cannot fail is not verified', () => {
   });
 });
 
+// v27 freeze change F2 (operator decision 2026-10-28). #602 read run-wide skips; a file whose every
+// test carries its own unconditional skip still counted as tests that run. Under v27 it is hollow,
+// and A1 says which file and which skip. v17 is unchanged.
+describe('F2 — a test file whose every test is unconditionally skipped is hollow (v27)', () => {
+  const perTestNotes = (score: WitanCriterionScore) =>
+    score.findings.filter(({ summary }) => summary.startsWith('Every test in '));
+  /** non_hollow_test_share as a share: non-hollow files over rated files. */
+  const share = (score: WitanCriterionScore): number | undefined => {
+    const found = score.metrics.find((metric) => metric.name === 'non_hollow_test_share');
+    return found ? found.value / found.max : undefined;
+  };
+
+  it('v27: each shape makes its files hollow and names the file and the skip; v17 stays verified', () => {
+    for (const [name, notes] of [
+      [
+        'f2-py-pytest-mark-skip-every-test',
+        [
+          ['tests/test_cache.py', 5, '@pytest.mark.skip'],
+          ['tests/test_lru.py', 5, '@pytest.mark.skip'],
+        ],
+      ],
+      [
+        'f2-py-unittest-skip-every-method',
+        [
+          ['tests/test_cache.py', 7, '@unittest.skip'],
+          ['tests/test_lru.py', 7, '@unittest.skip'],
+        ],
+      ],
+      [
+        'f2-py-skip-on-enclosing-class',
+        [
+          ['tests/test_cache.py', 6, '@pytest.mark.skip on class TestCache'],
+          ['tests/test_lru.py', 6, '@unittest.skip on class LRUTest'],
+        ],
+      ],
+      [
+        'f2-py-skip-held-in-module-name',
+        [
+          ['tests/test_cache.py', 7, '@skip_all, bound to pytest.mark.skip'],
+          ['tests/test_lru.py', 7, '@disabled, bound to pytest.mark.skip'],
+        ],
+      ],
+      [
+        'f2-py-skipif-literal-true',
+        [
+          ['tests/test_cache.py', 5, '@pytest.mark.skipif(True)'],
+          ['tests/test_lru.py', 7, '@unittest.skipIf(True)'],
+        ],
+      ],
+      [
+        'f2-js-it-skip-every-test',
+        [
+          ['test/max.test.js', 4, 'test.skip'],
+          ['test/sum.test.js', 5, 'it.skip'],
+        ],
+      ],
+      [
+        'f2-js-xit-xtest-every-test',
+        [
+          ['test/max.test.js', 4, 'xtest'],
+          ['test/sum.test.js', 5, 'xit'],
+        ],
+      ],
+      [
+        'f2-js-xdescribe-contains-every-test',
+        [
+          ['test/max.test.js', 4, 'it.skip'],
+          ['test/sum.test.js', 4, 'xdescribe'],
+        ],
+      ],
+    ] as const) {
+      const v17 = criterion(name, V17, 'A1');
+      expect(v17.status, name).toBe('verified');
+      expect(share(v17), name).toBe(1);
+      expect(perTestNotes(v17), name).toEqual([]);
+      const v27 = criterion(name, V27, 'A1');
+      expect(share(v27), name).toBe(0);
+      expect(v27.status, name).not.toBe('verified');
+      expect(v27.score, name).toBeLessThan(v17.score);
+      expect(
+        perTestNotes(v27).map(({ severity, summary, evidence }) => [severity, summary, evidence.path, evidence.line]),
+        name,
+      ).toEqual(
+        notes.map(([path, line, skip]) => [
+          'warning',
+          `Every test in ${path} is skipped unconditionally (${skip}), so the file cannot fail.`,
+          path,
+          line,
+        ]),
+      );
+    }
+  });
+
+  it('v27: describe.skip, hollow under every rubric already, keeps its reading; the it.skip file beside it is hollow', () => {
+    const name = 'f2-js-describe-skip-contains-every-test';
+    const v17 = criterion(name, V17, 'A1');
+    const v27 = criterion(name, V27, 'A1');
+    expect(share(v17)).toBe(0.5);
+    expect(share(v27)).toBe(0);
+    expect(perTestNotes(v27).map(({ evidence }) => evidence.path)).toEqual(['test/max.test.js']);
+  });
+
+  it('v27: a mixed file, a conditional skip, a rebound name, .todo, or a file with no recognisable tests makes no claim', () => {
+    for (const name of [
+      'f2-py-mixed-one-test-runs',
+      'f2-py-unskipped-class-method',
+      'f2-py-skipif-with-condition',
+      'f2-py-held-name-rebound',
+      'f2-py-no-recognisable-tests',
+      'f2-js-control',
+      'f2-js-mixed-one-test-runs',
+      'f2-js-skipif-conditional',
+      'f2-js-todo-beside-skips',
+    ]) {
+      const v17 = criterion(name, V17, 'A1');
+      const v27 = criterion(name, V27, 'A1');
+      expect(perTestNotes(v27), name).toEqual([]);
+      expect(share(v27), name).toBe(share(v17));
+      expect(v27.status, name).toBe(v17.status);
+      expect(v27.score, name).toBe(v17.score);
+    }
+  });
+});
+
 describe('#519 — Git LFS pointers are content Cejel did not read', () => {
   const lfs = 'a1-js-suite-as-lfs-pointers';
 
