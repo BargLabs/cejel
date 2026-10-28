@@ -472,16 +472,23 @@ describe('#442 — history Cejel did not read is not scored', () => {
     expect(report(shallow, V17).historyLimitations).toEqual([SHALLOW_HISTORY_LIMITATION]);
   });
 
-  it('v27: A2 and B2 abstain as read failures and the disclosure says so', () => {
-    for (const id of ['A2', 'B2']) {
-      const score = criterion(shallow, V27, id);
-      expect(score.status).toBe('insufficient_data');
-      expect(score.score).toBe(0);
-      expect(score.notes).toContain('shallow clone');
-    }
+  // v27 freeze change F1 (operator decision 2026-10-28): until then A2 and B2 both abstained here as
+  // read failures kept in the composite at 0, so process_trust fell below v17's. Now B2 is v17's
+  // (the ratio withheld, scored on the checked-out files) and A2's abstention leaves the composite.
+  it('v27: A2 abstains out of the composite, B2 withholds only its ratio as under v17, and the disclosure says so', () => {
+    const a2 = criterion(shallow, V27, 'A2');
+    expect(a2.status).toBe('insufficient_data');
+    expect(a2.score).toBe(0);
+    expect(a2.notes).toMatch(/^A2 abstained: this repository is a shallow clone/);
+    expect(criterion(shallow, V27, 'B2')).toEqual(criterion(shallow, V17, 'B2'));
     expect(report(shallow, V27).historyLimitations).toEqual([SHALLOW_HISTORY_V27_ABSTENTION]);
-    expect(report(shallow, V27).processTrustScore ?? 0).toBeLessThan(
-      report(shallow, V17).processTrustScore ?? 0,
+    expect(SHALLOW_HISTORY_V27_ABSTENTION).toContain('left out of the composite rather than counted as 0');
+    expect(report(shallow, V27).processTrustScore).toBe(report(shallow, V17).processTrustScore);
+    const scoredCodeTrust = report(shallow, V27).criteria.filter(
+      ({ category, status }) => category === 'code_trust' && status !== 'not_applicable' && status !== 'insufficient_data',
+    );
+    expect(report(shallow, V27).codeTrustScore).toBe(
+      Math.round((scoredCodeTrust.reduce((sum, { score }) => sum + score, 0) / scoredCodeTrust.length) * 10) / 10,
     );
   });
 
@@ -1339,7 +1346,12 @@ describe('B2 and B3 never disagree about which workflows are credited (v27)', ()
       const b3 = criterion(fixture.name, V27, 'B3');
       // Skipped where either abstains: an abstaining criterion carries no count to compare.
       if (b2.status === 'insufficient_data' || b3.status === 'insufficient_data') return;
-      const shared = b2.notes?.replaceAll('a PR-trace CI workflow', 'CI verification') ?? '';
+      // F1: on a shallow clone B2's note starts with #604's withheld-ratio sentences, which B3
+      // does not share; the uncredited-workflow sentences, if any, follow them.
+      const shared =
+        b2.notes
+          ?.replace(/^B2 abstained from the pull-request merge ratio only: .*?set fetch-depth: 0\)\.\s*/, '')
+          .replaceAll('a PR-trace CI workflow', 'CI verification') ?? '';
       const b3Notes = b3.notes ?? '';
       expect(b3Notes.startsWith(shared)).toBe(true);
       const publishingSentence = b3Notes.slice(shared.length).trim();
