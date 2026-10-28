@@ -2,6 +2,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 
 import type { WitanReport } from '../schemas.js';
 
+import { buildWitanInputFromRepo } from '../repo-signals.js';
 import { WITAN_RUBRIC_VERSION_V17, WITAN_RUBRIC_VERSION_V27 } from '../rubric-version.js';
 import {
   DEPTHS,
@@ -10,6 +11,7 @@ import {
   HISTORIES,
   type History,
   WINDOW,
+  buildCacheLibraryOrigin,
   buildMatrixOrigin,
   cloneRepository,
   compositeWithoutUnscored,
@@ -27,6 +29,13 @@ import {
 //   A. B2 under v27 behaves exactly as #604 made it behave under v17: it keeps its file evidence
 //      (pr_trace_primitives), withholds only pr_merge_ratio with #604's note, and abstains out of
 //      the composite (reason shallow_history) only when no PR-trace file evidence remains.
+//   B. A2 under v27 keeps its abstention and its note on a shallow clone, but the abstention
+//      carries reason shallow_history and leaves the composite instead of counting as 0. A2 is
+//      unchanged on full clones, where a history read failed, and under every other rubric.
+//
+// The matrix exercises A2's scoring path (a .env template makes it applicable); the shape of the
+// #114 regression run's depth-1 pair (a cachetools-like library with no .env surface) exercises
+// the path where A2 would otherwise have been marked not applicable.
 //
 // Every shallow row is compared with the same repository's full clone under v27, never only with
 // main or with v17 on the truncated input (fixtures/shallow-history-matrix.ts).
@@ -44,8 +53,12 @@ interface Row {
 }
 
 let rows: Row[];
+// The #114 depth-1 pair's shape: its full clone and its depth-1 clone.
+let cacheLibrary: { full: string; shallow: string };
 
 beforeAll(() => {
+  const cacheOrigin = buildCacheLibraryOrigin();
+  cacheLibrary = { full: cloneRepository(cacheOrigin), shallow: cloneRepository(cacheOrigin, 1) };
   rows = [];
   for (const history of HISTORIES) {
     for (const evidence of EVIDENCE) {
@@ -140,5 +153,74 @@ describe('F1 A: on a shallow clone v27\'s B2 keeps its file evidence and withhol
     for (const row of rows.filter((entry) => entry.rubric === V27 && (!underWindow(entry) || entry.evidence === 'none'))) {
       expect(criterionOf(row.shallow, 'B2'), label(row)).toEqual(criterionOf(row.full, 'B2'));
     }
+  });
+});
+
+// v27's A2 notes on a shallow clone, unchanged by F1 (repo-signals.ts V27_A2_SHALLOW_HISTORY_NOTE and
+// V27_A2_SHALLOW_APPLICABILITY_NOTE).
+const A2_SHALLOW_NOTE =
+  'A2 abstained: this repository is a shallow clone, so the scan for credentials and .env files in ' +
+  'earlier commits read only the commits present, and no confirmed critical finding stands on what ' +
+  'was read. Re-scan a full clone (for actions/checkout, set fetch-depth: 0).';
+const A2_SHALLOW_APPLICABILITY_NOTE =
+  'A2 abstained: this repository is a shallow clone, and A2 would otherwise have been marked not ' +
+  'applicable on a decision that rests in part on its scans of earlier commits for .env files and ' +
+  'credential-shaped values, which read only the commits present. Re-scan a full clone (for ' +
+  'actions/checkout, set fetch-depth: 0).';
+
+function a2Signal(repoPath: string, rubricVersion: string) {
+  const input = buildWitanInputFromRepo({
+    productSlug: 'shallow-history-f1',
+    productDisplayName: 'Shallow history F1',
+    repoPath,
+    generatedAt: '2026-10-28T00:00:00.000Z',
+    rubricVersion,
+  });
+  return (input.signals ?? []).find((signal) => signal.criterionId === 'A2');
+}
+
+describe('F1 B: on a shallow clone v27\'s A2 abstention keeps its note and leaves the composite', () => {
+  it('v27, every shallow depth: A2 abstains with its note, and code_trust is the mean of the criteria scored', () => {
+    const subject = rows.filter((row) => row.rubric === V27);
+    expect(subject.length).toBe(HISTORIES.length * EVIDENCE.length * DEPTHS.length);
+    for (const row of subject) {
+      const a2 = criterionOf(row.shallow, 'A2');
+      expect(criterionOf(row.full, 'A2').status, label(row)).toBe('verified');
+      expect(a2.status, label(row)).toBe('insufficient_data');
+      expect(a2.score, label(row)).toBe(0);
+      expect(a2.notes, label(row)).toBe(A2_SHALLOW_NOTE);
+      expect(row.shallow.codeTrustScore, label(row)).toBe(compositeWithoutUnscored(row.shallow, 'code_trust'));
+    }
+  });
+
+  it('v27, the scoring path: the A2 signal carries reason shallow_history', () => {
+    const shallow = cloneRepository(buildMatrixOrigin('mixed', 'ci-only'), 1);
+    const signal = a2Signal(shallow, V27);
+    expect(signal?.insufficientData).toBe(true);
+    expect(signal?.insufficientDataReason).toBe('shallow_history');
+    expect(signal?.notes).toBe(A2_SHALLOW_NOTE);
+  });
+
+  it('v27, the not-applicable path (#114 depth-1 pair shape): A2 abstains with its note, reason shallow_history, out of the composite', () => {
+    expect(criterionOf(scanRepository(cacheLibrary.full, V27), 'A2').status).toBe('not_applicable');
+    const report = scanRepository(cacheLibrary.shallow, V27);
+    const a2 = criterionOf(report, 'A2');
+    expect(a2.status).toBe('insufficient_data');
+    expect(a2.notes).toBe(A2_SHALLOW_APPLICABILITY_NOTE);
+    expect(report.codeTrustScore).toBe(compositeWithoutUnscored(report, 'code_trust'));
+    expect(a2Signal(cacheLibrary.shallow, V27)?.insufficientDataReason).toBe('shallow_history');
+  });
+
+  it('v17 and full clones are untouched: v17 scores A2 on a shallow clone as on its full clone, and no full-clone A2 signal carries a reason', () => {
+    for (const row of rows.filter((entry) => entry.rubric === V17)) {
+      expect(criterionOf(row.shallow, 'A2'), label(row)).toEqual(criterionOf(row.full, 'A2'));
+    }
+    const full = cloneRepository(buildMatrixOrigin('mixed', 'ci-only'));
+    for (const rubric of [V17, V27]) {
+      expect(a2Signal(full, rubric)?.insufficientData, rubric).not.toBe(true);
+      expect(a2Signal(full, rubric)?.insufficientDataReason, rubric).toBeUndefined();
+      expect(a2Signal(cacheLibrary.full, rubric)?.insufficientDataReason, rubric).toBeUndefined();
+    }
+    expect(a2Signal(cacheLibrary.shallow, V17)?.insufficientDataReason).toBeUndefined();
   });
 });
