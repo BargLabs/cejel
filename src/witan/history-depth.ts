@@ -40,12 +40,11 @@ export const SHALLOW_HISTORY_V27_ABSTENTION =
   'merge ratio over recent commits) read history. Under this rubric A2 abstains unless a confirmed ' +
   'critical secret finding stands, including where it would otherwise be marked not applicable, ' +
   'because that decision also rests on its scans of earlier commits. That abstention counts as 0 in ' +
-  'the composite, as a read failure does. B2, where it would be scored, leaves that ratio out when ' +
-  'fewer commits are visible than it reads, and is scored on the CI workflows it credits, the ' +
-  'pull-request template and the review-gate record in the checked-out files; where none of those ' +
-  'remains, B2 abstains and is left out of the composite. A criterion that abstains instead only ' +
-  "because Cejel declined files under its own size, type or file-kind limits is left out of the " +
-  'composite, and the scan limitations say so. ' +
+  'the composite, as a read failure does; one made only because Cejel declined files under its own ' +
+  'size, type or file-kind limits is left out, as the scan limitations say. B2, where it would be ' +
+  'scored, leaves that ratio out when fewer commits are visible than it reads and is scored on the ' +
+  'CI workflows it credits, pull-request template and review-gate record in the checked-out files, ' +
+  'or abstains out of the composite where none of those remains. ' +
   'Re-scan a full clone (for actions/checkout, set fetch-depth: 0).';
 
 /** True when `repoPath` is a shallow clone. False when it is complete or not a git repository. */
