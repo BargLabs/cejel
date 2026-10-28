@@ -2037,6 +2037,27 @@ for (const [name, purpose, files] of [
     },
   ],
   [
+    'f2-py-test-defined-in-block',
+    'Control: every top-level test is skipped, but a test defined inside an if block runs where the condition holds.',
+    {
+      'tests/test_cache.py': `${PY_CACHE_TEST('@pytest.mark.skip')}\n\nif hasattr(__import__("os"), "fork"):\n    def test_fork_cache():\n        assert get({}, "b", 3) == 3\n`,
+    },
+  ],
+  [
+    'f2-py-class-inherits-tests',
+    'Control: every test the file shows is skipped, but an unskipped class inherits tests from a base defined elsewhere.',
+    {
+      'tests/test_cache.py': `${PY_CACHE_TEST('@pytest.mark.skip')}\n\nfrom tests.base import CacheContract\n\n\nclass TestDictCache(CacheContract):\n    def make(self):\n        return {}\n`,
+    },
+  ],
+  [
+    'f2-py-skip-under-other-decorator',
+    'Control: the skip mark sits under a decorator that may replace what it wraps, so Cejel does not read it.',
+    {
+      'tests/test_cache.py': PY_CACHE_TEST('@retry(3)\n@pytest.mark.skip').replace('import pytest\n', 'import pytest\nfrom tests.helpers import retry\n'),
+    },
+  ],
+  [
     'f2-py-no-recognisable-tests',
     'Control: a skipped helper and module-level assertions, but no test function or method Cejel recognises.',
     {
@@ -2081,6 +2102,21 @@ for (const [name, purpose, files] of [
     {
       'test/sum.test.js': JS_SUM_TEST('describe', "it.skipIf(process.platform === 'win32')", "it.skipIf(process.platform === 'win32')"),
       'test/max.test.js': JS_MAX_TEST("test.skipIf(process.platform === 'win32')"),
+    },
+  ],
+  [
+    'f2-js-aliased-test-global',
+    'Control: every call Cejel sees is skipped, but test is aliased and the alias registers a live test.',
+    { 'test/sum.test.js': `${JS_SUM_TEST('describe', 'it.skip', 'it.skip')}\nconst check = test;\ncheck('adds zero', () => {\n  expect(sum(0, 0)).toBe(0);\n});\n` },
+  ],
+  [
+    'f2-js-quote-in-regex-literal',
+    'Control: a skipped test holds a regular expression with a quote in it; the live test after it must not be read as part of a string.',
+    {
+      'test/sum.test.js': JS_SUM_TEST('describe', 'it.skip', 'it.skip').replace(
+        '});\n});\n',
+        "});\n\n  it.skip('formats', () => {\n    expect(String(sum(1, 2))).toMatch(/['\"]?3/);\n  });\n\n  it('adds zero', () => {\n    expect(sum(0, 0)).toBe(0);\n  });\n});\n",
+      ),
     },
   ],
   [

@@ -2408,6 +2408,20 @@ function collectA1TestIntegrityEvidence(
       ),
     });
   }
+  // v27 (F2): empty under every other rubric.
+  for (const skipped of nonHollowShare.perTestSkipped.slice(0, 2)) {
+    findings.push({
+      severity: 'warning',
+      summary: `Every test in ${skipped.path} is skipped unconditionally (${skipped.skips.join(', ')}), so the file cannot fail.`,
+      evidence: evidenceForRelativeAtLine(
+        repoPath,
+        skipped.path,
+        'test_run',
+        'Unconditionally skipped test file',
+        skipped.line,
+      ),
+    });
+  }
 
   return {
     criterionId: 'A1',
@@ -9901,6 +9915,11 @@ interface NonHollowTestShare {
    * test directory with no assertions is support scaffolding — excluded from the share.
    */
   ratedCount: number;
+  /**
+   * witan-rubric-v27 only (v27 freeze change F2): asserting files made hollow because every test
+   * in them carries its own unconditional skip. Always empty under every other rubric.
+   */
+  perTestSkipped: PerTestSkippedFile[];
 }
 
 interface RunWideSkipOptions {
@@ -9917,6 +9936,7 @@ function measureNonHollowTestShare(
 ): NonHollowTestShare {
   let nonHollowCount = 0;
   let ratedCount = 0;
+  const perTestSkipped: PerTestSkippedFile[] = [];
   for (const file of files) {
     const fullPath = join(repoPath, file);
     if (!isRegularFile(fullPath)) continue;
@@ -9930,18 +9950,27 @@ function measureNonHollowTestShare(
       MULTI_ECOSYSTEM_TEST_ASSERTION_PATTERN.test(contents) ||
       hasLiveAvaAssertion(contents) ||
       hasLiveFrameworkAssertion(masked());
+    const suiteSkipped = SUITE_LEVEL_SKIP_PATTERN.test(contents);
     // A file the run cannot execute as a test is hollow however live its assertions read: one a
     // run-wide skip disables, and (v27) a conftest.py, which pytest never collects tests from. It
     // stays where v17 rates it, so this can only lower the share, never shrink the denominator to
     // the files that still run.
-    const cannotRunAsTest =
+    const disabledRunWide =
       runWideSkip !== undefined &&
       (PYTEST_CONFTEST_PATTERN.test(file) ||
         runWideSkip.disabledByRunWideSkip(file) ||
         hasUnconditionalPytestModuleSkip(file, contents));
+    // v27 (F2): so is a file whose every test carries its own unconditional skip. Read only for a
+    // file that would otherwise count as non-hollow, so it names only the files it moves.
+    const perTestSkip =
+      runWideSkip !== undefined && asserting && !suiteSkipped && !frameworkSuiteSkipped && !disabledRunWide
+        ? readEveryTestUnconditionallySkipped(file, contents)
+        : undefined;
+    if (perTestSkip) perTestSkipped.push({ path: file, ...perTestSkip });
+    const cannotRunAsTest = disabledRunWide || perTestSkip !== undefined;
     const nonHollow =
       asserting &&
-      !SUITE_LEVEL_SKIP_PATTERN.test(contents) &&
+      !suiteSkipped &&
       !frameworkSuiteSkipped &&
       !cannotRunAsTest;
     if (nonHollow) {
@@ -9956,7 +9985,7 @@ function measureNonHollowTestShare(
       ratedCount += 1;
     }
   }
-  return { nonHollowCount, ratedCount };
+  return { nonHollowCount, ratedCount, perTestSkipped };
 }
 
 // ---- Run-wide pytest skips (witan-rubric-v27, #518) ----------------------------------------
@@ -10326,6 +10355,454 @@ function findPytestRunWideSkips(
     }
   }
   return found;
+}
+
+// ---- Per-test unconditional skips (witan-rubric-v27, v27 freeze change F2) -----------------
+//
+// A test file whose every test carries its own unconditional skip runs no test, as a run-wide skip
+// leaves it (#518). Each reader claims only when it can see every test the file defines and every
+// one is skipped; anything it cannot place (a test defined inside a block, an import or assignment
+// that may bind a test, a class that may inherit tests, a conditional skip, a todo) makes no claim,
+// so the file keeps its reading under every other rubric.
+
+interface PerTestSkipReading {
+  /** 1-based line of the first skip. */
+  readonly line: number;
+  /** Each skip as Cejel names it, in the order first met. */
+  readonly skips: readonly string[];
+}
+
+interface PerTestSkippedFile extends PerTestSkipReading {
+  readonly path: string;
+}
+
+const JS_OR_TS_TEST_SOURCE_PATTERN = /\.[cm]?[jt]sx?$/;
+
+function readEveryTestUnconditionallySkipped(file: string, contents: string): PerTestSkipReading | undefined {
+  if (/\.py$/.test(file)) return readEveryPythonTestSkipped(contents);
+  if (JS_OR_TS_TEST_SOURCE_PATTERN.test(file)) return readEveryJavaScriptTestSkipped(contents);
+  return undefined;
+}
+
+/** One logical Python statement: its first line's indent and line, and its lines joined. */
+interface PythonLogicalStatement {
+  readonly indent: number;
+  readonly line: number;
+  readonly lineCount: number;
+  readonly text: string;
+}
+
+/**
+ * Logical statements of Python source already free of comments and string contents: a statement
+ * runs on while a bracket is open. A backslash continuation, a tab in an indent, or brackets that
+ * do not balance return undefined. Linear in the source.
+ */
+function pythonLogicalStatements(code: string): PythonLogicalStatement[] | undefined {
+  const statements: PythonLogicalStatement[] = [];
+  let current: { indent: number; line: number; parts: string[] } | undefined;
+  let depth = 0;
+  for (const [index, raw] of code.split('\n').entries()) {
+    const line = raw.replace(/\r$/, '');
+    if (current === undefined) {
+      if (line.trim() === '') continue;
+      const lead = /^[ \t]*/.exec(line)?.[0] ?? '';
+      if (lead.includes('\t')) return undefined;
+      current = { indent: lead.length, line: index + 1, parts: [] };
+    }
+    current.parts.push(line.trim());
+    if (/\\[ \t]*$/.test(line)) return undefined;
+    depth += pythonBracketDelta(line);
+    if (depth < 0) return undefined;
+    if (depth === 0) {
+      statements.push({
+        indent: current.indent,
+        line: current.line,
+        lineCount: current.parts.length,
+        text: current.parts.join(' ').trim(),
+      });
+      current = undefined;
+    }
+  }
+  return current === undefined ? statements : undefined;
+}
+
+/** True when the `(` at `open` closes at the last character of `text`, and not before. */
+function callClosesAtEnd(text: string, open: number): boolean {
+  if (text[open] !== '(') return false;
+  let depth = 0;
+  for (let index = open; index < text.length; index += 1) {
+    const character = text[index];
+    if (character === '(') depth += 1;
+    else if (character === ')') {
+      depth -= 1;
+      if (depth === 0) return index === text.length - 1;
+    }
+  }
+  return false;
+}
+
+// Identifiers pytest or unittest may collect: functions and methods named test*, classes Test*.
+// `TestCase` is unittest's base class, not a test.
+const PYTHON_TEST_NAME_PATTERN = /^(?:test|Test)/;
+const PYTHON_UNBOUND_IDENTIFIER_PATTERN = /(?<![\w.])[A-Za-z_]\w*/g;
+const PYTHON_DEF_PATTERN = /^(?:async[ \t]+)?def[ \t]+([A-Za-z_]\w*)/;
+const PYTHON_CLASS_PATTERN = /^class[ \t]+([A-Za-z_]\w*)[ \t]*/;
+const PYTHON_BLOCK_STATEMENT_PATTERN =
+  /^(?:if|elif|else|for|while|try|except|finally|with|match|case|async[ \t]+(?:for|with))\b/;
+// Bases a class may name and still define no test it does not show: a class with any other base may
+// inherit tests from it.
+const PYTHON_TEST_CLASS_PLAIN_BASES = new Set([
+  '',
+  'object',
+  'TestCase',
+  'unittest.TestCase',
+  'IsolatedAsyncioTestCase',
+  'unittest.IsolatedAsyncioTestCase',
+]);
+
+function isPythonTestName(name: string): boolean {
+  return PYTHON_TEST_NAME_PATTERN.test(name) && name !== 'TestCase';
+}
+
+/** True when `text` names, other than as an attribute, an identifier pytest or unittest may collect. */
+function namesPythonTestIdentifier(text: string): boolean {
+  for (const match of text.matchAll(PYTHON_UNBOUND_IDENTIFIER_PATTERN)) {
+    if (isPythonTestName(match[0])) return true;
+  }
+  return false;
+}
+
+/**
+ * True when an import statement may bind a name pytest or unittest collects, or is a star import,
+ * which may bind anything. Undefined when `text` is not an import.
+ */
+function pythonImportMayBindTest(text: string): boolean | undefined {
+  const from = /^from[ \t]+\S+[ \t]+import[ \t]+(.*)$/.exec(text);
+  const plain = from ? undefined : /^import[ \t]+(.*)$/.exec(text);
+  const names = from?.[1] ?? plain?.[1];
+  if (names === undefined) return undefined;
+  if (names.includes('*')) return true;
+  return names
+    .replace(/[()]/g, ' ')
+    .split(',')
+    .map((item) => item.trim())
+    .filter((item) => item !== '')
+    .some((item) => {
+      const alias = /[ \t]as[ \t]+([A-Za-z_]\w*)$/.exec(item)?.[1];
+      const bound = alias ?? (item.split('.')[0] ?? '').trim();
+      return isPythonTestName(bound);
+    });
+}
+
+/**
+ * The skip a decorator applies unconditionally, as Cejel names it, or undefined. `text` is the
+ * decorator without its `@`, free of comments and string contents, whitespace removed.
+ * `skipif`/`skipIf` count only with the literal condition `True`, which Python cannot rebind.
+ */
+function pythonUnconditionalSkipDecorator(text: string, heldSkipNames: ReadonlySet<string>): string | undefined {
+  if (text === 'pytest.mark.skip') return '@pytest.mark.skip';
+  const call = (prefix: string): boolean => text.startsWith(`${prefix}(`) && callClosesAtEnd(text, prefix.length);
+  if (call('pytest.mark.skip')) return '@pytest.mark.skip';
+  if (call('unittest.skip')) return '@unittest.skip';
+  if (call('pytest.mark.skipif') && /^pytest\.mark\.skipif\(True[,)]/.test(text)) return '@pytest.mark.skipif(True)';
+  if (call('unittest.skipIf') && /^unittest\.skipIf\(True,/.test(text)) return '@unittest.skipIf(True)';
+  if (heldSkipNames.has(text)) return `@${text}, bound to pytest.mark.skip`;
+  return undefined;
+}
+
+/**
+ * The unconditional skip in a decorator stack, with its line, or undefined. The skip may sit under
+ * other pytest marks, which only annotate; under any other decorator, which may replace what it
+ * wraps, Cejel does not read it.
+ */
+function pythonSkipInDecorators(
+  decorators: readonly PythonLogicalStatement[],
+  heldSkipNames: ReadonlySet<string>,
+): { skip: string; line: number } | undefined {
+  for (const decorator of decorators) {
+    const text = decorator.text.slice(1).replace(/\s+/g, '');
+    const skip = pythonUnconditionalSkipDecorator(text, heldSkipNames);
+    if (skip !== undefined) return { skip, line: decorator.line };
+    if (!text.startsWith('pytest.mark.')) return undefined;
+  }
+  return undefined;
+}
+
+/**
+ * Names bound once, on one line at the module's top level, to `pytest.mark.skip` (with or without
+ * arguments), whose every other mention in code is a bare `@name` decorator after the binding.
+ */
+function pythonHeldSkipNames(code: string, statements: readonly PythonLogicalStatement[]): Set<string> {
+  const bindings = new Map<string, number>();
+  for (const statement of statements) {
+    if (statement.indent !== 0) continue;
+    const name = PYTEST_SKIP_MARKER_BINDING_PATTERN.exec(statement.text)?.[1];
+    if (name === undefined) continue;
+    bindings.set(name, bindings.has(name) || statement.lineCount !== 1 ? Number.NaN : statement.line);
+  }
+  const held = new Set<string>();
+  if (bindings.size === 0) return held;
+  const mentions = new Map<string, number>();
+  for (const match of code.matchAll(PYTHON_UNBOUND_IDENTIFIER_PATTERN)) {
+    if (bindings.has(match[0])) mentions.set(match[0], (mentions.get(match[0]) ?? 0) + 1);
+  }
+  for (const [name, line] of bindings) {
+    if (Number.isNaN(line)) continue;
+    const uses = statements.filter((statement) => statement.text.replace(/\s+/g, '') === `@${name}`);
+    if (uses.length === 0 || uses.some((use) => use.line < line)) continue;
+    if (mentions.get(name) === uses.length + 1) held.add(name);
+  }
+  return held;
+}
+
+/**
+ * Every test function and test method in a Python test file, read where pytest and unittest
+ * collect them: `def test*` at the module's top level, and `def test*` at the first indent of a
+ * top-level class. Each must carry an unconditional skip itself or on its class, or no claim is
+ * made. Also no claim when the file defines a test elsewhere (inside a block, a nested class) or may
+ * bind one another way (an import, an assignment), or a class that may inherit tests is not itself
+ * skipped. Linear in the file.
+ */
+function readEveryPythonTestSkipped(contents: string): PerTestSkipReading | undefined {
+  const { code } = maskCommentsAndStrings(contents, true);
+  const statements = pythonLogicalStatements(code);
+  if (statements === undefined) return undefined;
+  const heldSkipNames = pythonHeldSkipNames(code, statements);
+  const found: { skip: string; line: number }[] = [];
+  let decorators: PythonLogicalStatement[] = [];
+  // What the latest top-level statement opened: a function body (ignored: pytest does not collect
+  // what a function defines), a class body, or another block.
+  let opened = 'none' as 'def' | 'class' | 'block' | 'none';
+  let classSkip: { skip: string; line: number } | undefined;
+  let classBodyIndent: number | undefined;
+  /** Reads a decorator, def, class or other statement at the top level or a class body's indent. */
+  const readStatement = (statement: PythonLogicalStatement, inClass: boolean): boolean => {
+    const { text } = statement;
+    if (text.startsWith('@')) {
+      decorators.push(statement);
+      return true;
+    }
+    const stack = decorators;
+    decorators = [];
+    const def = PYTHON_DEF_PATTERN.exec(text);
+    if (def) {
+      if (!inClass) opened = 'def';
+      if (!PYTHON_TEST_NAME_PATTERN.test(def[1] ?? '')) return true;
+      const skip = (inClass ? classSkip : undefined) ?? pythonSkipInDecorators(stack, heldSkipNames);
+      if (skip === undefined) return false;
+      found.push(skip);
+      return true;
+    }
+    const klass = PYTHON_CLASS_PATTERN.exec(text);
+    if (klass) {
+      if (inClass) return false;
+      const name = klass[1] ?? '';
+      const rest = text.slice(klass[0].length);
+      let bases = '';
+      if (rest.startsWith('(')) {
+        const close = rest.indexOf(')');
+        if (close === -1 || rest.indexOf('(', 1) !== -1) return false;
+        bases = rest.slice(1, close);
+      }
+      const skip = pythonSkipInDecorators(stack, heldSkipNames);
+      const plain = bases
+        .split(',')
+        .map((base) => base.trim())
+        .every((base) => PYTHON_TEST_CLASS_PLAIN_BASES.has(base));
+      if (skip === undefined && !plain) return false;
+      opened = 'class';
+      classSkip = skip === undefined ? undefined : { skip: `${skip.skip} on class ${name}`, line: skip.line };
+      classBodyIndent = undefined;
+      return true;
+    }
+    if (stack.length > 0) return false;
+    const imported = pythonImportMayBindTest(text);
+    if (imported !== undefined) {
+      if (!inClass) opened = 'none';
+      return !imported;
+    }
+    if (PYTHON_BLOCK_STATEMENT_PATTERN.test(text)) {
+      if (inClass) return false;
+      opened = 'block';
+      return !namesPythonTestIdentifier(text);
+    }
+    if (!inClass) opened = 'none';
+    return !namesPythonTestIdentifier(text);
+  };
+  for (const statement of statements) {
+    if (statement.indent === 0) {
+      classSkip = undefined;
+      if (!readStatement(statement, false)) return undefined;
+      continue;
+    }
+    if (opened === 'def') continue;
+    if (opened === 'block') {
+      if (/^(?:@|class\b|(?:async[ \t]+)?def\b)/.test(statement.text) || namesPythonTestIdentifier(statement.text)) {
+        return undefined;
+      }
+      continue;
+    }
+    if (opened !== 'class') return undefined;
+    classBodyIndent ??= statement.indent;
+    if (statement.indent < classBodyIndent) return undefined;
+    if (statement.indent > classBodyIndent) continue;
+    if (!readStatement(statement, true)) return undefined;
+  }
+  if (decorators.length > 0 || found.length === 0) return undefined;
+  return {
+    line: Math.min(...found.map(({ line }) => line)),
+    skips: [...new Set([...found].sort((left, right) => left.line - right.line).map(({ skip }) => skip))],
+  };
+}
+
+// Keywords after which a `/` starts a regular expression rather than dividing.
+const JS_REGEX_PRECEDING_KEYWORDS = new Set([
+  'return', 'typeof', 'instanceof', 'in', 'of', 'new', 'delete', 'void', 'throw', 'case', 'do', 'else', 'yield', 'await',
+]);
+
+/**
+ * JavaScript or TypeScript with comments, string, template and regular-expression literals blanked,
+ * offsets and newlines kept, or undefined where the lexing is in doubt: a quote or regular
+ * expression still open at the end of its line, or a comment or template never closed. A wrong
+ * lexing could hide a live test call, so doubt withholds the claim. Linear in the source.
+ */
+function maskJavaScriptLiterals(contents: string): string | undefined {
+  const output = contents.split('');
+  const blank = (from: number, to: number) => {
+    for (let index = from; index < to; index += 1) if (output[index] !== '\n') output[index] = ' ';
+  };
+  // The last significant token outside literals: '/' after it divides when it is 'x' (a value).
+  let previous = '';
+  let index = 0;
+  while (index < contents.length) {
+    const character = contents[index] ?? '';
+    const next = contents[index + 1] ?? '';
+    if (character === '/' && next === '/') {
+      let end = contents.indexOf('\n', index);
+      if (end === -1) end = contents.length;
+      blank(index, end);
+      index = end;
+    } else if (character === '/' && next === '*') {
+      const close = contents.indexOf('*/', index + 2);
+      if (close === -1) return undefined;
+      blank(index, close + 2);
+      index = close + 2;
+    } else if (character === "'" || character === '"' || character === '`' || (character === '/' && previous !== 'x')) {
+      let end = index + 1;
+      let inClass = false;
+      let closed = false;
+      while (end < contents.length) {
+        const inner = contents[end] ?? '';
+        if (inner === '\\') {
+          end += 2;
+          continue;
+        }
+        if (inner === '\n' && character !== '`') return undefined;
+        end += 1;
+        if (character === '/' && inner === '[') inClass = true;
+        else if (character === '/' && inner === ']') inClass = false;
+        else if (inner === character && !inClass) {
+          closed = true;
+          break;
+        }
+      }
+      if (!closed) return undefined;
+      if (character === '/') while (/[A-Za-z]/.test(contents[end] ?? '')) end += 1;
+      blank(index, end);
+      previous = 'x';
+      index = end;
+    } else if (/[A-Za-z_$]/.test(character)) {
+      let end = index + 1;
+      while (/[\w$]/.test(contents[end] ?? '')) end += 1;
+      previous = JS_REGEX_PRECEDING_KEYWORDS.has(contents.slice(index, end)) ? '(' : 'x';
+      index = end;
+    } else {
+      if (/[0-9)\]]/.test(character)) previous = 'x';
+      else if (!/\s/.test(character)) previous = character;
+      index += 1;
+    }
+  }
+  return output.join('');
+}
+
+// A test-framework global, its member chain (`.skip`, `.only.each`) in group 2, and the opening
+// parenthesis of its call, if any, in group 3.
+const JS_TEST_GLOBAL_PATTERN =
+  /(?<![\w$.])(it|test|specify|fit|xit|xtest|xspecify|describe|xdescribe|fdescribe|context|xcontext|suite)(?![\w$])((?:\s*\.\s*[A-Za-z_$][\w$]*)*)\s*(\()?/g;
+const JS_TEST_CASE_GLOBALS = new Set(['it', 'test', 'specify', 'fit', 'xit', 'xtest', 'xspecify']);
+// Import and require bindings name the globals without calling them.
+const JS_TEST_GLOBAL_BINDING_PATTERN =
+  /\bimport\s+(?:type\s+)?(?:[A-Za-z_$][\w$]*\s*,?\s*)?(?:\{[^{}]*\}|\*\s*as\s+[A-Za-z_$][\w$]*)?\s*from\b|\b(?:const|let|var)\s*\{[^{}]*\}\s*=\s*require\s*\(/g;
+
+/** The skip a call applies to itself or to what its callback registers, as Cejel names it. */
+function javaScriptUnconditionalSkip(name: string, members: string): string | undefined {
+  if (name === 'xit' || name === 'xtest' || name === 'xdescribe' || name === 'xcontext') return members === '' ? name : undefined;
+  if (members !== '.skip') return undefined;
+  return ['it', 'test', 'describe', 'context', 'suite'].includes(name) ? `${name}.skip` : undefined;
+}
+
+/**
+ * Every test case in a JavaScript or TypeScript test file: each `it`, `test`, `specify` or `fit`
+ * call, with any member chain. Each must be skipped unconditionally, as `it.skip`, `test.skip`,
+ * `xit` or `xtest`, or by sitting inside the callback of a `describe.skip`, `context.skip`,
+ * `suite.skip`, `xdescribe` or `xcontext` call; otherwise no claim. Also no claim when a test-case
+ * global is named without being called (an alias, a property), or any call is a `.todo`, which stays out of
+ * scope and keeps its reading. `skipIf`, `runIf` and every other member are not skips. Linear in
+ * the file but for the parenthesis match of each skipped suite.
+ */
+function readEveryJavaScriptTestSkipped(contents: string): PerTestSkipReading | undefined {
+  const masked = maskJavaScriptLiterals(contents);
+  if (masked === undefined) return undefined;
+  const code = masked.replace(JS_TEST_GLOBAL_BINDING_PATTERN, (binding) => ' '.repeat(binding.length));
+  const skippedSuites: { open: number; close: number; skip: string }[] = [];
+  const cases: { at: number; skip: string | undefined }[] = [];
+  for (const match of code.matchAll(JS_TEST_GLOBAL_PATTERN)) {
+    const name = match[1] ?? '';
+    // A test-case global named but not called may be aliased into a test Cejel does not see. A
+    // suite global not called (a `context` variable) registers nothing.
+    if (match[3] === undefined) {
+      if (JS_TEST_CASE_GLOBALS.has(name)) return undefined;
+      continue;
+    }
+    const members = (match[2] ?? '').replace(/\s+/g, '');
+    if (/\.todo(?![\w$])/.test(members)) return undefined;
+    const skip = javaScriptUnconditionalSkip(name, members);
+    const at = match.index ?? 0;
+    if (JS_TEST_CASE_GLOBALS.has(name)) {
+      cases.push({ at, skip });
+      continue;
+    }
+    if (skip === undefined) continue;
+    const open = at + match[0].length - 1;
+    let depth = 0;
+    let close = -1;
+    for (let index = open; index < code.length; index += 1) {
+      if (code[index] === '(') depth += 1;
+      else if (code[index] === ')' && --depth === 0) {
+        close = index;
+        break;
+      }
+    }
+    if (close === -1) return undefined;
+    skippedSuites.push({ open, close, skip });
+  }
+  if (cases.length === 0) return undefined;
+  const sources = new Map<number, string>();
+  for (const { at, skip } of cases) {
+    if (skip !== undefined) {
+      sources.set(at, skip);
+      continue;
+    }
+    const suite = skippedSuites.find(({ open, close }) => open < at && at < close);
+    if (suite === undefined) return undefined;
+    sources.set(suite.open, suite.skip);
+  }
+  const ordered = [...sources.entries()].sort(([left], [right]) => left - right);
+  const first = ordered[0]?.[0] ?? 0;
+  return {
+    line: contents.slice(0, first).split('\n').length,
+    skips: [...new Set(ordered.map(([, skip]) => skip))],
+  };
 }
 
 function countFilesContaining(repoPath: string, files: readonly string[], pattern: RegExp): number {

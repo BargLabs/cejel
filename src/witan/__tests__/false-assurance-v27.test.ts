@@ -344,7 +344,7 @@ describe('F2 — a test file whose every test is unconditionally skipped is holl
   /** non_hollow_test_share as a share: non-hollow files over rated files. */
   const share = (score: WitanCriterionScore): number | undefined => {
     const found = score.metrics.find((metric) => metric.name === 'non_hollow_test_share');
-    return found ? found.value / found.max : undefined;
+    return found?.max ? found.value / found.max : undefined;
   };
 
   it('v27: each shape makes its files hollow and names the file and the skip; v17 stays verified', () => {
@@ -443,10 +443,15 @@ describe('F2 — a test file whose every test is unconditionally skipped is holl
       'f2-py-unskipped-class-method',
       'f2-py-skipif-with-condition',
       'f2-py-held-name-rebound',
+      'f2-py-test-defined-in-block',
+      'f2-py-class-inherits-tests',
+      'f2-py-skip-under-other-decorator',
       'f2-py-no-recognisable-tests',
       'f2-js-control',
       'f2-js-mixed-one-test-runs',
       'f2-js-skipif-conditional',
+      'f2-js-aliased-test-global',
+      'f2-js-quote-in-regex-literal',
       'f2-js-todo-beside-skips',
     ]) {
       const v17 = criterion(name, V17, 'A1');
