@@ -17,15 +17,22 @@ import {
   shapeName,
   validPairs,
 } from './fixtures/v27-norise-shapes.js';
-import { type IntroducedAbstention, checkNoRise, lostCriticalFindings, lostFindings } from './v27-no-rise.js';
+import {
+  type IntroducedAbstention,
+  checkNoRise,
+  lostCriticalFindings,
+  lostFindings,
+  shallowOnlyAbstention,
+} from './v27-no-rise.js';
 
 // #531: v27's no-rise property over generated repository shapes, not only the curated fixtures.
 // fixtures/v27-norise-shapes.ts says what is generated and how; v27-no-rise.ts says what is
 // checked. Each shape is scored under v17 and v27 at the same commit, and the pair must show no
 // composite, criterion score or status rising, nothing scored under v27 that v17 left unscored,
 // no scored composite becoming null, every abstention v27 introduces a read failure kept in the
-// denominator at 0, and no finding lost or made less severe. A shape's test name is its full
-// coordinates, so a failure reproduces from it.
+// denominator at 0, and no finding lost or made less severe. On a shallow shape A2 and B2 are
+// compared instead with the same commit's full clone under v27 (v27 freeze change F1; see
+// v27-no-rise.ts). A shape's test name is its full coordinates, so a failure reproduces from it.
 //
 // The shapes are split into NO_RISE_SHARDS test files (false-assurance-v27-generated-<n>.test.ts)
 // so vitest runs them in parallel. A shard holds whole test-directory x conftest x hook
@@ -126,6 +133,11 @@ export function describeGeneratedNoRiseShard(index: number): void {
     readableWorkflows: new Set<string>(),
     workflowsScored: new Set<string>(),
     shallowShapes: 0,
+    // Shallow shapes where v27's A2 abstained out of the composite, and where B2 withheld its ratio
+    // and was scored, or abstained out of the composite (F1).
+    shallowA2LeftOut: 0,
+    shallowB2RatioWithheld: 0,
+    shallowB2LeftOut: 0,
     compositesFallen: 0,
     // The names of the shape tests whose bodies ran, checked after the describe against an
     // independent recomputation of the shard, so a filter or skip cannot drop shapes silently.
@@ -137,11 +149,14 @@ export function describeGeneratedNoRiseShard(index: number): void {
       const name = shapeName(shape);
       it(name, () => {
         seen.ran.push(name);
-        const { repoPath, cleanup } = buildNoRiseShape(shape);
+        const { repoPath, fullRepoPath, cleanup } = buildNoRiseShape(shape);
         try {
           const before = score(repoPath, WITAN_RUBRIC_VERSION_V17);
           const after = score(repoPath, WITAN_RUBRIC_VERSION_V27);
-          const result = checkNoRise(before, after);
+          // F1: on a shallow shape v27's history criteria are compared with the same commit's full
+          // clone under v27; checkNoRise reports a shallow report given without one.
+          const fullClone = fullRepoPath === undefined ? undefined : score(fullRepoPath, WITAN_RUBRIC_VERSION_V27);
+          const result = checkNoRise(before, after, fullClone);
           // Each failure message carries the first findings in full (criterion, summary, both
           // pointers), so a failure that does not reproduce still leaves a record (#574).
           expect(result.problems, record(name, result.problems)).toEqual([]);
@@ -151,14 +166,22 @@ export function describeGeneratedNoRiseShard(index: number): void {
           expect(lostCritical, record(name, lostCritical)).toEqual([]);
           if (shape.history === 'shallow') {
             seen.shallowShapes += 1;
-            // The shape is live: v27 abstains on B2 wherever v17 scored it, and on A2 wherever v17
-            // scored it below critical (a confirmed critical finding keeps A2 scored).
-            for (const id of ['A2', 'B2']) {
-              const v17 = before.criteria.find((criterion) => criterion.id === id)!;
-              const v27 = after.criteria.find((criterion) => criterion.id === id)!;
-              if (v17.status === 'not_applicable' || v17.status === 'insufficient_data') continue;
-              if (id === 'A2' && v17.status === 'critical') continue;
-              expect(v27.status, `${id} ${name}`).toBe('insufficient_data');
+            // The shape is live (F1): v27 abstains on A2 wherever v17 scored it below critical (a
+            // confirmed critical finding keeps A2 scored), only because the clone is shallow (left
+            // out of the composite) unless a content read failed first; and withholds B2's ratio
+            // wherever v17 scored B2 (v17 withholds it too, since #604).
+            const v17A2 = before.criteria.find((criterion) => criterion.id === 'A2')!;
+            const v27A2 = after.criteria.find((criterion) => criterion.id === 'A2')!;
+            if (v17A2.status !== 'not_applicable' && v17A2.status !== 'insufficient_data' && v17A2.status !== 'critical') {
+              expect(v27A2.status, `A2 ${name}`).toBe('insufficient_data');
+            }
+            if (shallowOnlyAbstention(after, v27A2)) seen.shallowA2LeftOut += 1;
+            const v17B2 = before.criteria.find((criterion) => criterion.id === 'B2')!;
+            const v27B2 = after.criteria.find((criterion) => criterion.id === 'B2')!;
+            if (v17B2.status !== 'not_applicable' && v17B2.status !== 'insufficient_data') {
+              expect(v27B2.metrics.map(({ name: metric }) => metric), `B2 ${name}`).not.toContain('pr_merge_ratio');
+              if (v27B2.status === 'insufficient_data') seen.shallowB2LeftOut += 1;
+              else seen.shallowB2RatioWithheld += 1;
             }
           }
           if (shape.history === 'full' && shape.workflow !== 'none' && shape.lfs !== 'workflow') {
@@ -193,10 +216,14 @@ export function describeGeneratedNoRiseShard(index: number): void {
       // shows held in the denominator.
       const pairs = [...new Set(seen.abstentions.map((a) => `${a.kind} ${a.id}`))];
       expect(pairs.filter((pair) => !seen.abstentions.some((a) => `${a.kind} ${a.id}` === pair && a.denominator === 'kept'))).toEqual([]);
-      for (const pair of ['shallow-history A2', 'shallow-history B2', 'content-read A1', 'content-read B2', 'content-read B3']) {
+      // F1: the shallow-clone abstentions are no longer read failures introduced against v17; A2's
+      // and B2's moves on shallow shapes are counted below instead.
+      for (const pair of ['content-read A1', 'content-read B2', 'content-read B3']) {
         expect(pairs, pair).toContain(pair);
       }
       expect(seen.shallowShapes).toBeGreaterThan(0);
+      expect(seen.shallowA2LeftOut).toBeGreaterThan(0);
+      expect(seen.shallowB2RatioWithheld).toBeGreaterThan(0);
       // A hollow suite (A1) and a publish-only workflow (B3) lose credit somewhere.
       expect(seen.fallen.get('A1') ?? 0).toBeGreaterThan(0);
       expect(seen.fallen.get('B3') ?? 0).toBeGreaterThan(0);

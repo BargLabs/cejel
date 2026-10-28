@@ -70,6 +70,30 @@ function report(name: string, rubricVersion: string): WitanReport {
   return scored;
 }
 
+/**
+ * v27's report of a shallow fixture's full clone: the same commits, not cloned at depth 1. Since the
+ * v27 freeze change F1 the no-rise property compares v27's A2 and B2 on a shallow clone with it.
+ * Undefined for a fixture that is not shallow.
+ */
+function fullCloneReport(name: string): WitanReport | undefined {
+  const fixture = falseAssuranceFixture(name);
+  if (!fixture.shallow) return undefined;
+  const key = `${name}@full-clone@${V27}`;
+  const cached = reports.get(key);
+  if (cached) return cached;
+  const scored = scoreRepoWithPublicCejel({
+    repoPath: buildFalseAssuranceFixture({ ...fixture, shallow: false }),
+    productSlug: 'false-assurance-fixture',
+    productDisplayName: 'False-assurance fixture',
+    generatedAt: '2026-10-19T00:00:00.000Z',
+    rubricVersion: V27,
+    ingestPatterns: [],
+    autoDiscoverIngest: false,
+  });
+  reports.set(key, scored);
+  return scored;
+}
+
 function criterion(name: string, rubricVersion: string, id: string): WitanCriterionScore {
   const found = report(name, rubricVersion).criteria.find((entry) => entry.id === id);
   if (!found) throw new Error(`${name}@${rubricVersion} has no ${id}`);
@@ -1374,25 +1398,39 @@ describe('v27 keeps every collector critical finding v17 reports', () => {
 // composite may fall. Nothing may rise, nothing v17 left unscored may be scored, and no scored
 // composite may become null (v27-no-rise.ts; #531 items a and b). The same property runs over
 // generated shapes in false-assurance-v27-generated-1.test.ts to -6.test.ts
-// (v27-no-rise-generated-suite.ts; #531 item c).
+// (v27-no-rise-generated-suite.ts; #531 item c). On a shallow fixture (v27 freeze change F1) A2
+// and B2 are compared with v27's report of the same commits' full clone instead of with v17.
 describe('no score, status or composite rises from v17 to v27 on any fixture', () => {
   for (const fixture of FALSE_ASSURANCE_FIXTURES) {
     it(fixture.name, () => {
-      expect(checkNoRise(report(fixture.name, V17), report(fixture.name, V27)).problems).toEqual([]);
+      expect(
+        checkNoRise(report(fixture.name, V17), report(fixture.name, V27), fullCloneReport(fixture.name)).problems,
+      ).toEqual([]);
       expect(lostFindings(report(fixture.name, V17), report(fixture.name, V27))).toEqual([]);
     });
   }
 
-  // Under v17 B2 on this depth-1 clone withholds only its ratio and is scored (#442, operator
-  // decision 2026-10-27), so both abstentions are ones v27 introduces again, as before #603.
-  it('#442: the shallow-clone abstentions are read failures kept in the denominator at 0', () => {
-    const result = checkNoRise(report('history-shallow-clone', V17), report('history-shallow-clone', V27));
-    expect(result.introducedAbstentions).toEqual([
-      { id: 'A2', kind: 'shallow-history', denominator: 'kept' },
-      { id: 'B2', kind: 'shallow-history', denominator: 'kept' },
+  // Changed by the v27 freeze change F1 (operator decision 2026-10-28). Until then both shallow-
+  // clone abstentions were read failures v27 introduced against v17, kept in the denominator at 0
+  // ({ A2, shallow-history, kept } and { B2, shallow-history, kept }). Now B2 withholds only its
+  // ratio, exactly as v17 does on this clone, and A2's abstention is left out of the composite: no
+  // abstention is introduced against v17, and both history criteria pass the full-clone comparison.
+  it('F1: on the shallow clone v27 introduces no abstention against v17, and A2 and B2 follow the full-clone rule', () => {
+    const result = checkNoRise(
+      report('history-shallow-clone', V17),
+      report('history-shallow-clone', V27),
+      fullCloneReport('history-shallow-clone'),
+    );
+    expect(result.problems).toEqual([]);
+    expect(result.introducedAbstentions).toEqual([]);
+    expect(criterion('history-shallow-clone', V27, 'B2')).toEqual(criterion('history-shallow-clone', V17, 'B2'));
+    expect(criterion('history-shallow-clone', V27, 'A2').status).toBe('insufficient_data');
+  });
+
+  it('F1: a shallow report compared without its full clone is a problem, not a pass', () => {
+    expect(checkNoRise(report('history-shallow-clone', V17), report('history-shallow-clone', V27)).problems).toEqual([
+      "v27's report is of a shallow clone and no full clone of the same commit was given",
     ]);
-    expect(criterion('history-shallow-clone', V17, 'B2').status).toBe('warning');
-    expect(criterion('history-shallow-clone', V27, 'B2').status).toBe('insufficient_data');
   });
 
   it('#519: the LFS pointer abstention is a read failure kept in the denominator at 0', () => {
