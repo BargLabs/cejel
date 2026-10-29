@@ -6031,21 +6031,22 @@ function a2HistoryIncompletenessCauseList(incompleteness: A2HistoryIncompletenes
 
 /**
  * The detected causes, in Cejel's own words, joined into one clause. With `shown` (#606 review),
- * only the first `shown` causes are named, and the rest are counted ("and 2 more causes"), pointing
- * to the scan limitations only where every cause counted is one they name.
+ * the first `shown` causes are named, and so is every cause no scan limitation names (a shallow
+ * clone, the history secret scan's file cap), which would otherwise be named nowhere; the rest, each
+ * one a scan limitation names, are counted ("and 2 more causes that the scan limitations name").
  */
 function a2HistoryIncompletenessCauses(incompleteness: A2HistoryIncompleteness, shown?: number): string {
   const causes = a2HistoryIncompletenessCauseList(incompleteness);
-  const named = causes.slice(0, shown ?? causes.length);
+  const isNamed = (cause: A2HistoryCause, index: number) =>
+    shown === undefined || index < shown || !cause.inScanLimitations;
+  const named = causes.filter(isNamed);
   const lastFailedRead = named.map(({ failedRead }) => failedRead).lastIndexOf(true);
   const clauses = named.map(({ text }, index) =>
     index === lastFailedRead ? `${text} (the scan limitations name each failed read)` : text,
   );
-  const counted = causes.slice(named.length);
-  if (counted.length > 0) {
-    clauses.push(
-      `${counted.length} more ${counted.length === 1 ? 'cause' : 'causes'}${counted.every(({ inScanLimitations }) => inScanLimitations) ? ' that the scan limitations name' : ''}`,
-    );
+  const counted = causes.length - named.length;
+  if (counted > 0) {
+    clauses.push(`${counted} more ${counted === 1 ? 'cause' : 'causes'} that the scan limitations name`);
   }
   return clauses.join(', and ');
 }

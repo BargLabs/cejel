@@ -21,7 +21,8 @@ import {
 // scan failed validation and wrote no report, under v17, the default, too. #606 fixed the same kind
 // of overflow on v27's B2 note only. A disclosure that fits is unchanged. One that does not keeps the
 // prefix and the first cause whole, names the next causes while the whole fits with its advice, and
-// counts the rest ("and 2 more causes").
+// counts the rest ("and 2 more causes that the scan limitations name"). A cause no scan limitation
+// names (a shallow clone, the history secret scan's file cap) is never counted, only named.
 //
 // The 30-second timeout cannot be produced quickly on a host that has git, so, as #560's tests do,
 // the execGit mock below reports chosen reasons for chosen reads and runs the real git otherwise.
@@ -135,7 +136,7 @@ describe('the #606 review: A2\'s history-applicability disclosure never stops a 
     expect(disclosure.length).toBeLessThanOrEqual(LIMIT);
     // The prefix and the first cause stay whole; the rest are named while they fit, then counted.
     expect(disclosure.startsWith(`${WITAN_A2_HISTORY_APPLICABILITY_PREFIX}: ${SHALLOW_CAUSE}, and `)).toBe(true);
-    expect(disclosure).toMatch(/, and \d more causes? (?:that the scan limitations name)?\. Marking A2 not applicable/);
+    expect(disclosure).toContain(', and 1 more cause that the scan limitations name. Marking A2 not applicable');
     expect(disclosure).toContain(MIDDLE);
     expect(disclosure).toContain('Re-scan a full, unfiltered clone (for actions/checkout, set fetch-depth: 0 and no filter).');
 
@@ -165,6 +166,11 @@ describe('the #606 review: A2\'s history-applicability disclosure never stops a 
       expect(disclosure, JSON.stringify(input)).toContain(MIDDLE);
       if (/ more causes?(?: that the scan limitations name)?\. Marking/.test(disclosure)) {
         shortened += 1;
+        // Only causes a scan limitation names are counted: a shallow clone and the file cap, which
+        // none names, are always named in the disclosure itself.
+        expect(disclosure, JSON.stringify(input)).toMatch(/ more causes? that the scan limitations name\. Marking/);
+        if (input.shallow) expect(disclosure, JSON.stringify(input)).toContain(SHALLOW_CAUSE);
+        if (input.blobCapHit) expect(disclosure, JSON.stringify(input)).toContain('stopped at its own cap of 5,000 historical files');
         // The first cause is whole: the text after the prefix runs to the first ", and " that
         // begins another cause, and is one of the causes' own openings.
         expect(disclosure, JSON.stringify(input)).toMatch(
