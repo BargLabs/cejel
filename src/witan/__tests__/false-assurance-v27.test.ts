@@ -552,6 +552,8 @@ describe('F3-d, F3-e, F3-f — a per-test skip reader makes no claim when it can
       'f3d-js-shared-suite-helper-beside-skip',
       'f3d-js-jsx-before-live-test',
       'f3d-js-postfix-increment-before-live-test',
+      'f3d-js-jsx-hides-whole-live-test',
+      'f3d-js-postfix-increment-hides-whole-live-test',
     ]) {
       expectSameAsV17(name);
     }

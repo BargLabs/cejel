@@ -2246,6 +2246,22 @@ for (const [name, purpose, files] of [
     'Change: a `/` after a postfix `++` on the same line as a live `it(`; it was read as a regular expression that hid the call.',
     { 'test/sum.test.js': JS_SKIPPED_SUM_SUITE_WITH("let runs = 0; const half = runs++ / 2; it('halves', () => expect(sum(4, 2) / 2).toBe(3 + half));") },
   ],
+  // The two shapes above leave a call after the misread slash, which the helper-call rule also
+  // refuses. In these two the misread regular expression ends inside the live test's last call, so
+  // only the JSX rule, or only reading `++` as one token, keeps the reader from the claim.
+  [
+    'f3d-js-jsx-hides-whole-live-test',
+    'Change: JSX before a live `it(` whose whole call the misread regular expression hides.',
+    {
+      'test/sum.test.js': null,
+      'test/sum.test.jsx': JS_SKIPPED_SUM_SUITE_WITH("const label = <p>hi</p>; it('adds', () => expect(sum(4, 2)).toBe(6 / 1));"),
+    },
+  ],
+  [
+    'f3d-js-postfix-increment-hides-whole-live-test',
+    'Change: a `/` after a postfix `++` before a live `it(` whose whole call the misread regular expression hides.',
+    { 'test/sum.test.js': JS_SKIPPED_SUM_SUITE_WITH("let runs = 0; runs++ / 2; it('adds', () => expect(sum(4, 2)).toBe(6 / 1));") },
+  ],
 ] as const) {
   FALSE_ASSURANCE_FIXTURES_REVIEW.push({ name, issue: '#518', purpose, commits: [{ ...JS_VITEST_LIBRARY, ...files }] });
 }

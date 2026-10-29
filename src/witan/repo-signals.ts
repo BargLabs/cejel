@@ -11035,6 +11035,12 @@ function maskJavaScriptLiterals(contents: string): string | undefined {
       while (/[\w$]/.test(contents[end] ?? '')) end += 1;
       previous = JS_REGEX_PRECEDING_KEYWORDS.has(contents.slice(index, end)) ? '(' : 'x';
       index = end;
+    } else if ((character === '+' || character === '-') && next === character) {
+      // `++` and `--` (v27 freeze change F3-d): a `/` after either divides. After a postfix one it
+      // follows a value; after a prefix one a regular expression is not an operand JavaScript
+      // accepts. Read one at a time, `runs++ / 2` opened a regular expression at the slash.
+      previous = 'x';
+      index += 2;
     } else {
       if (/[0-9)\]]/.test(character)) previous = 'x';
       else if (!/\s/.test(character)) previous = character;
@@ -11054,6 +11060,43 @@ const JS_TEST_CASE_GLOBALS = new Set(['it', 'test', 'specify', 'fit', 'xit', 'xt
 const JS_TEST_GLOBAL_BINDING_PATTERN =
   /\bimport\s+(?:type\s+)?(?:[A-Za-z_$][\w$]*\s*(?:,\s*)?)?(?:\{[^{}]*\}\s*|\*\s*as\s+[A-Za-z_$][\w$]*\s*)?from\b|\b(?:const|let|var)\s*\{[^{}]*\}\s*=\s*require\s*\(/g;
 
+// v27 freeze change F3-d. Hook calls: their callbacks run around tests and register none.
+const JS_TEST_HOOK_CALL_PATTERN = /(?<![\w$.])(?:beforeEach|afterEach|beforeAll|afterAll|before|after)\s*\(/g;
+// JSX closes every element with `</` or `/>`. The masker would read the slash as a regular
+// expression that can hide a live call (`<p>hi</p>; it('adds', ...)`).
+const JSX_CLOSING_PATTERN = /<\/|\/>/;
+// Words before a `(` that does not call a function the file defines or imports: keywords that take
+// a parenthesis, a function expression (`function (`, `async (`), and `require(`.
+const JS_PARENTHESIS_KEYWORDS: ReadonlySet<string> = new Set([
+  'if', 'for', 'while', 'switch', 'catch', 'with', 'return', 'typeof', 'void', 'await', 'yield', 'in', 'of',
+  'instanceof', 'delete', 'throw', 'case', 'do', 'else', 'function', 'async', 'require',
+]);
+
+/**
+ * True when the `(` at `open` in masked code calls something: a name that is not one of
+ * JS_PARENTHESIS_KEYWORDS and is not being declared (`function name(`), a member (`Deno.test(`,
+ * `t.test(`), or a call's or index's result (`)(`, `](`, a generic `>(`). Plain backward scanning
+ * over the words just before it.
+ */
+function isJavaScriptCallParenthesis(code: string, open: number): boolean {
+  let end = open - 1;
+  while (end >= 0 && /\s/.test(code[end] ?? '')) end -= 1;
+  const before = code[end] ?? '';
+  if (before === ')' || before === ']') return true;
+  if (before === '>') return code[end - 1] !== '=';
+  if (!/[\w$]/.test(before)) return false;
+  let start = end;
+  while (start > 0 && /[\w$]/.test(code[start - 1] ?? '')) start -= 1;
+  const word = code.slice(start, end + 1);
+  let previous = start - 1;
+  while (previous >= 0 && /\s/.test(code[previous] ?? '')) previous -= 1;
+  if (code[previous] === '.') return true;
+  if (/^[0-9]/.test(word) || JS_PARENTHESIS_KEYWORDS.has(word)) return false;
+  // A declaration, `function name(` or `function* name(`.
+  while (previous >= 0 && /[\s*]/.test(code[previous] ?? '')) previous -= 1;
+  return code.slice(Math.max(0, previous - 7), previous + 1) !== 'function' || /[\w$]/.test(code[previous - 8] ?? '');
+}
+
 /** The skip a call applies to itself or to what its callback registers, as Cejel names it. */
 function javaScriptUnconditionalSkip(name: string, members: string): string | undefined {
   if (name === 'xit' || name === 'xtest' || name === 'xdescribe' || name === 'xcontext') return members === '' ? name : undefined;
@@ -11069,8 +11112,16 @@ function javaScriptUnconditionalSkip(name: string, members: string): string | un
  * global is named without being called (an alias, a property), or any call is a `.todo`, which stays out of
  * scope and keeps its reading. `skipIf`, `runIf` and every other member are not skips. Linear in
  * the file.
+ *
+ * v27 freeze change F3-d: also no claim where a live test may sit where the reader cannot see it.
+ * That is any JSX (JSX_CLOSING_PATTERN), and any call outside the bodies of test-case and hook calls
+ * that is not a test, suite or hook global, a keyword, `require` or a declaration
+ * (isJavaScriptCallParenthesis). Such a call may register tests: a method (`Deno.test`, `tap.test`,
+ * `t.test`, `QUnit.test`) or a helper (`behavesLikeAnAdder(sum)`), at the top level or in a suite's
+ * callback.
  */
 function readEveryJavaScriptTestSkipped(contents: string): PerTestSkipReading | undefined {
+  if (JSX_CLOSING_PATTERN.test(contents)) return undefined;
   const masked = maskJavaScriptLiterals(contents);
   if (masked === undefined) return undefined;
   const code = masked.replace(JS_TEST_GLOBAL_BINDING_PATTERN, (binding) => ' '.repeat(binding.length));
@@ -11089,6 +11140,10 @@ function readEveryJavaScriptTestSkipped(contents: string): PerTestSkipReading | 
   const openSuites: { open: number; close: number; skip: string }[] = [];
   const sources = new Map<number, string>();
   let cases = 0;
+  // F3-d: the `(` of each test, suite and hook call, and how many test-case or hook bodies cover
+  // each offset (a running sum over `bodies`).
+  const knownCalls = new Set<number>();
+  const bodies = new Int32Array(code.length + 1);
   for (const match of code.matchAll(JS_TEST_GLOBAL_PATTERN)) {
     const name = match[1] ?? '';
     const at = match.index ?? 0;
@@ -11099,11 +11154,17 @@ function readEveryJavaScriptTestSkipped(contents: string): PerTestSkipReading | 
       if (JS_TEST_CASE_GLOBALS.has(name)) return undefined;
       continue;
     }
+    const open = at + match[0].length - 1;
+    knownCalls.add(open);
     const members = (match[2] ?? '').replace(/\s+/g, '');
     if (/\.todo(?![\w$])/.test(members)) return undefined;
     const skip = javaScriptUnconditionalSkip(name, members);
     if (JS_TEST_CASE_GLOBALS.has(name)) {
       cases += 1;
+      const close = closeOf[open] ?? -1;
+      if (close === -1) return undefined;
+      bodies[open] = (bodies[open] ?? 0) + 1;
+      bodies[close + 1] = (bodies[close + 1] ?? 0) - 1;
       const suite = openSuites[0];
       if (skip !== undefined) sources.set(at, skip);
       else if (suite !== undefined) sources.set(suite.open, suite.skip);
@@ -11111,12 +11172,25 @@ function readEveryJavaScriptTestSkipped(contents: string): PerTestSkipReading | 
       continue;
     }
     if (skip === undefined) continue;
-    const open = at + match[0].length - 1;
     const close = closeOf[open] ?? -1;
     if (close === -1) return undefined;
     openSuites.push({ open, close, skip });
   }
   if (cases === 0) return undefined;
+  for (const match of code.matchAll(JS_TEST_HOOK_CALL_PATTERN)) {
+    const open = (match.index ?? 0) + match[0].length - 1;
+    const close = closeOf[open] ?? -1;
+    if (close === -1) return undefined;
+    knownCalls.add(open);
+    bodies[open] = (bodies[open] ?? 0) + 1;
+    bodies[close + 1] = (bodies[close + 1] ?? 0) - 1;
+  }
+  let insideBodies = 0;
+  for (let index = 0; index < code.length; index += 1) {
+    insideBodies += bodies[index] ?? 0;
+    if (code[index] !== '(' || insideBodies > 0 || knownCalls.has(index)) continue;
+    if (isJavaScriptCallParenthesis(code, index)) return undefined;
+  }
   const ordered = [...sources.entries()].sort(([left], [right]) => left - right);
   const first = ordered[0]?.[0] ?? 0;
   return {
