@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 
 import { HERMETIC_GIT_ENV } from './behaviour-corpus.js';
+import { PY_SOURCES, testsWorkflow } from './ci-claims-followups-fixtures.js';
 
 // FALSE-ASSURANCE FIXTURES (#517, #518, #519, #520, #442).
 //
@@ -2125,6 +2126,238 @@ for (const [name, purpose, files] of [
     {
       'test/sum.test.js': JS_SUM_TEST('describe', 'it.skip', 'it.skip').replace("});\n});\n", "});\n\n  it.todo('adds three');\n});\n"),
       'test/max.test.js': `${JS_MAX_TEST('test.skip')}\ntest.todo('picks from three');\n`,
+    },
+  ],
+] as const) {
+  FALSE_ASSURANCE_FIXTURES_REVIEW.push({ name, issue: '#518', purpose, commits: [{ ...JS_VITEST_LIBRARY, ...files }] });
+}
+
+// v27 freeze change F3 (operator decision 2026-10-28): residuals from the #600 review, the #114
+// regression check and the #608 (F2) review.
+//
+// F3-a (#520). A command followed by a single `&` runs in the background: its exit status does not
+// decide the step (bash and sh background it, pwsh 7 starts a job, cmd runs the next command
+// whatever it returned), so the step does not show that CI requires the lockfile. Line 12 is the
+// step after checkout and setup, as in ci-claims-followups-fixtures.ts.
+const F3A_BASH_LOGIN = (run: string): string => `      - run: ${run}\n        shell: bash -l {0}\n`;
+for (const [name, purpose, steps, runsOn] of [
+  ['f3a-uv-sync-backgrounded-ubuntu', 'Change: `uv sync --locked & uv run pytest`, uv.lock absent, on ubuntu-latest.', '      - run: uv sync --locked & uv run pytest\n', 'ubuntu-latest'],
+  ['f3a-uv-sync-backgrounded-windows', 'Change: the same line on windows-latest, whose default shell is pwsh.', '      - run: uv sync --locked & uv run pytest\n', 'windows-latest'],
+  ['f3a-uv-sync-backgrounded-bash-login', 'Change: the same line under `shell: bash -l {0}`.', F3A_BASH_LOGIN('uv sync --locked & uv run pytest'), 'ubuntu-latest'],
+  [
+    'f3a-uv-sync-backgrounded-then-wait',
+    'Change: `uv sync --locked & wait`, then pytest in its own step. A bare `wait` returns 0 whatever the job it waited for returned.',
+    '      - run: uv sync --locked & wait\n      - run: pytest\n',
+    'ubuntu-latest',
+  ],
+  ['f3a-control-uv-sync-and-run', 'Control: `uv sync --locked && uv run pytest` on one line, the whole step, as #600 left it.', '      - run: uv sync --locked && uv run pytest\n', 'ubuntu-latest'],
+  [
+    'f3a-control-uv-sync-redirected',
+    'Control: `uv sync --locked > sync.log 2>&1`; `2>&1` is a redirection, not a background `&`.',
+    '      - run: uv sync --locked > sync.log 2>&1\n',
+    'ubuntu-latest',
+  ],
+] as const) {
+  FALSE_ASSURANCE_FIXTURES_REVIEW.push({
+    name,
+    issue: '#520',
+    purpose,
+    commits: [{ ...PY_SOURCES, '.github/workflows/tests.yaml': testsWorkflow(steps, runsOn) }],
+  });
+}
+
+// F3-b (#517). B3 sets aside a workflow that publishes with no pull-request trigger; under v27 its
+// note now also names, from the workflow itself, what triggers it and whether the publishing job
+// declares an environment.
+const F3B_RELEASE_WORKFLOW = (on: string, environment: string): string =>
+  `name: release\n${on}jobs:\n  publish:\n    runs-on: ubuntu-latest\n${environment}    permissions:\n      id-token: write\n    steps:\n      - uses: actions/checkout@v4\n      - uses: actions/setup-python@v5\n      - run: pip install build\n      - run: python -m build\n      - uses: pypa/gh-action-pypi-publish@release/v1\n`;
+for (const [name, purpose, on, environment] of [
+  ['f3b-publish-push-main-no-environment', 'Change: a PyPI publish on every push to main, with no environment.', 'on:\n  push:\n    branches: [main]\n', ''],
+  ['f3b-publish-push-main-environment-pypi', 'Change: the same publish, its job declaring `environment: pypi`.', 'on:\n  push:\n    branches: [main]\n', '    environment: pypi\n'],
+  ['f3b-publish-on-tag-push', 'Change: a PyPI publish on a pushed tag, with no environment.', "on:\n  push:\n    tags:\n      - 'v*'\n", ''],
+  ['f3b-publish-workflow-dispatch-only', 'Change: a PyPI publish started by hand (workflow_dispatch only), with no environment.', 'on:\n  workflow_dispatch:\n', ''],
+  [
+    'f3b-publish-release-and-dispatch-environment-mapping',
+    'Change: a PyPI publish on a published release or by hand, its job declaring the environment as a mapping with a name and a URL.',
+    'on:\n  release:\n    types: [published]\n  workflow_dispatch:\n',
+    '    environment:\n      name: pypi\n      url: https://pypi.org/p/cachelib\n',
+  ],
+] as const) {
+  FALSE_ASSURANCE_FIXTURES_REVIEW.push({
+    name,
+    issue: '#517',
+    purpose,
+    commits: [{ ...PY_LIBRARY, '.github/workflows/release.yml': F3B_RELEASE_WORKFLOW(on, environment) }],
+  });
+}
+
+// F3-d (#518). The JavaScript per-test skip reader claimed "every test is skipped" in files where a
+// live test sat where it could not see it. Each change fixture skips the one test the reader sees
+// in test/sum.test.js and registers a live one another way; test/max.test.js stays live.
+const JS_SKIPPED_SUM_WITH = (importLine: string, code: string): string =>
+  `import { describe, expect, it } from 'vitest';\n${importLine}import { sum } from '../src/index.js';\n\ndescribe('sum', () => {\n  it.skip('adds', () => {\n    expect(sum(1, 2)).toBe(3);\n  });\n});\n\n${code}`;
+const JS_SKIPPED_SUM_SUITE_WITH = (line: string): string =>
+  `import { describe, expect, it } from 'vitest';\nimport { sum } from '../src/index.js';\n\ndescribe('sum', () => {\n  it.skip('adds', () => {\n    expect(sum(1, 2)).toBe(3);\n  });\n\n  ${line}\n});\n`;
+for (const [name, purpose, files] of [
+  [
+    'f3d-js-deno-test-beside-skip',
+    'Change: a live test registered as a method call, `Deno.test(...)`, beside `it.skip`.',
+    { 'test/sum.test.js': JS_SKIPPED_SUM_WITH('', "Deno.test('adds zero', () => {\n  expect(sum(0, 0)).toBe(0);\n});\n") },
+  ],
+  [
+    'f3d-js-tap-test-beside-skip',
+    'Change: a live test registered as `tap.test(...)` beside `it.skip`.',
+    { 'test/sum.test.js': JS_SKIPPED_SUM_WITH("import tap from 'tap';\n", "tap.test('adds zero', (t) => {\n  t.equal(sum(0, 0), 0);\n  t.end();\n});\n") },
+  ],
+  [
+    'f3d-js-t-test-beside-skip',
+    'Change: a live test registered as `t.test(...)` beside `it.skip`.',
+    { 'test/sum.test.js': JS_SKIPPED_SUM_WITH("import t from 'tap';\n", "t.test('adds zero', (child) => {\n  child.equal(sum(0, 0), 0);\n  child.end();\n});\n") },
+  ],
+  [
+    'f3d-js-qunit-test-beside-skip',
+    'Change: a live test registered as `QUnit.test(...)` beside `it.skip`.',
+    { 'test/sum.test.js': JS_SKIPPED_SUM_WITH("import QUnit from 'qunit';\n", "QUnit.test('adds zero', (assert) => {\n  assert.equal(sum(0, 0), 0);\n});\n") },
+  ],
+  [
+    'f3d-js-shared-suite-helper-beside-skip',
+    'Change: a shared-suite helper, `behavesLikeAnAdder(sum)`, registers a live test inside the describe beside `it.skip`.',
+    {
+      'test/sum.test.js': JS_SKIPPED_SUM_SUITE_WITH('behavesLikeAnAdder(sum);').replace(
+        "import { sum } from '../src/index.js';\n",
+        "import { sum } from '../src/index.js';\nimport { behavesLikeAnAdder } from './support/adder.js';\n",
+      ),
+      'test/support/adder.js':
+        "import { expect, it } from 'vitest';\n\nexport function behavesLikeAnAdder(add) {\n  it('adds negatives', () => {\n    expect(add(-1, -2)).toBe(-3);\n  });\n}\n",
+    },
+  ],
+  [
+    'f3d-js-jsx-before-live-test',
+    'Change: JSX on the same line as a live `it(`; the `/` of `</p>` was read as a regular expression that hid the call.',
+    {
+      'test/sum.test.js': null,
+      'test/sum.test.jsx': JS_SKIPPED_SUM_SUITE_WITH(
+        "const label = <p>{sum(1, 2)}</p>; it('renders the sum', () => expect(label.props.children).toBe(sum(4, 2) / 2));",
+      ),
+    },
+  ],
+  [
+    'f3d-js-postfix-increment-before-live-test',
+    'Change: a `/` after a postfix `++` on the same line as a live `it(`; it was read as a regular expression that hid the call.',
+    { 'test/sum.test.js': JS_SKIPPED_SUM_SUITE_WITH("let runs = 0; const half = runs++ / 2; it('halves', () => expect(sum(4, 2) / 2).toBe(3 + half));") },
+  ],
+] as const) {
+  FALSE_ASSURANCE_FIXTURES_REVIEW.push({ name, issue: '#518', purpose, commits: [{ ...JS_VITEST_LIBRARY, ...files }] });
+}
+
+// F3-e (#518). unittest and pytest run a TestCase's `runTest` when the class defines no `test*`
+// method. The Python reader did not count it as a test.
+const PY_UNITTEST_RUNTEST = (liveMethod: string): string =>
+  [
+    'import unittest',
+    '',
+    'from cachelib import get, put',
+    '',
+    '',
+    'class CacheTest(unittest.TestCase):',
+    `    def ${liveMethod}(self):`,
+    '        self.assertEqual(get({}, "a", 1), 1)',
+    '',
+    '    @unittest.skip("flaky on CI")',
+    '    def test_put(self):',
+    '        c = {}',
+    '        put(c, "a", 2)',
+    '        self.assertEqual(c["a"], 2)',
+    '',
+  ].join('\n');
+for (const [name, purpose, testCache] of [
+  ['f3e-py-runtest-beside-skipped-method', 'Change: a TestCase with a live `def runTest` and one `@unittest.skip` test method.', PY_UNITTEST_RUNTEST('runTest')],
+  [
+    'f3e-py-runtest-only-class-beside-skipped-class',
+    'Change: a TestCase whose only test is a live `runTest`, which both runners collect, beside a TestCase whose one test method is skipped.',
+    [
+      'import unittest',
+      '',
+      'from cachelib import get, put',
+      '',
+      '',
+      'class GetDefaultTest(unittest.TestCase):',
+      '    def runTest(self):',
+      '        self.assertEqual(get({}, "a", 1), 1)',
+      '',
+      '',
+      'class PutTest(unittest.TestCase):',
+      '    @unittest.skip("flaky on CI")',
+      '    def test_put(self):',
+      '        c = {}',
+      '        put(c, "a", 2)',
+      '        self.assertEqual(c["a"], 2)',
+      '',
+    ].join('\n'),
+  ],
+  ['f3e-control-helper-method-not-runtest', 'Control: the same class with the live method named `run_check`, which no runner collects, so every test is skipped.', PY_UNITTEST_RUNTEST('run_check')],
+] as const) {
+  FALSE_ASSURANCE_FIXTURES_REVIEW.push({ name, issue: '#518', purpose, commits: [PY_LIBRARY, { 'tests/test_cache.py': testCache, 'tests/test_lru.py': null }] });
+}
+
+// F3-f (#518). Controls the F2 tests lacked, in both languages: a commented-out skip, a skip inside
+// a string or docstring, a test registered on a member, and a helper call that may register tests.
+// Each must read as v17 reads it.
+const PY_SKIPPED_CACHE_CLASS = [
+  'import unittest',
+  '',
+  'from cachelib import get, put',
+  '',
+  '',
+  'class CacheTest(unittest.TestCase):',
+  '    @unittest.skip("flaky on CI")',
+  '    def test_get_default(self):',
+  '        self.assertEqual(get({}, "a", 1), 1)',
+  '',
+].join('\n');
+for (const [name, purpose, files] of [
+  ['f3f-py-commented-out-skip', 'Control: every test function has its skip commented out, so every test runs.', { 'tests/test_cache.py': PY_CACHE_TEST('# @pytest.mark.skip') }],
+  [
+    'f3f-py-skip-in-docstring-and-string',
+    'Control: a skip decorator appears only in a module docstring, a function docstring and a string, so every test runs.',
+    {
+      'tests/test_cache.py': `"""Cache tests.\n\n@pytest.mark.skip\ndef test_get_default():\n"""\n${PY_CACHE_TEST('').replace('def test_get_default():\n', 'def test_get_default():\n    """Was @pytest.mark.skip until the cache landed."""\n').replace('import pytest\n', 'import pytest\n\nREASON = "@pytest.mark.skip"\n')}`,
+    },
+  ],
+  [
+    'f3f-py-member-registered-test',
+    'Control: the class\'s one method is skipped, but a live function is assigned to the class as `test_put` after it.',
+    {
+      'tests/test_cache.py': `${PY_SKIPPED_CACHE_CLASS}\n\ndef _put_check(self):\n    c = {}\n    put(c, "a", 2)\n    self.assertEqual(c["a"], 2)\n\n\nCacheTest.test_put = _put_check\n`,
+    },
+  ],
+  [
+    'f3f-py-helper-call',
+    'Control: the class\'s one method is skipped, but a helper called at the top level may add live tests to it.',
+    {
+      'tests/test_cache.py': `${PY_SKIPPED_CACHE_CLASS.replace('from cachelib import get, put\n', 'from cachelib import get, put\nfrom tests.contracts import add_contract_tests\n')}\n\nadd_contract_tests(CacheTest)\n`,
+    },
+  ],
+] as const) {
+  FALSE_ASSURANCE_FIXTURES_REVIEW.push({ name, issue: '#518', purpose, commits: [PY_LIBRARY, { ...files, 'tests/test_lru.py': null }] });
+}
+for (const [name, purpose, files] of [
+  [
+    'f3f-js-commented-out-skip',
+    'Control: every test case has its skip commented out, in a line comment above it and in a block comment inside the call, so every test runs.',
+    {
+      'test/sum.test.js': JS_SUM_TEST('describe', "// it.skip('adds', () => {\n  it", 'it/* .skip */'),
+      'test/max.test.js': JS_MAX_TEST('/* xtest */ test'),
+    },
+  ],
+  [
+    'f3f-js-skip-in-string',
+    'Control: skips appear only inside a string and a template literal, so every test runs.',
+    {
+      'test/sum.test.js': JS_SUM_TEST('describe', 'it', 'it').replace(
+        "import { sum } from '../src/index.js';\n",
+        "import { sum } from '../src/index.js';\n\nconst SKIPPED = \"it.skip('adds', () => {})\";\nconst ALSO = `xit('adds negatives')`;\n",
+      ),
     },
   ],
 ] as const) {

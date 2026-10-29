@@ -464,6 +464,142 @@ describe('F2 — a test file whose every test is unconditionally skipped is holl
   });
 });
 
+// v27 freeze change F3 (operator decision 2026-10-28): residuals from the #600 review, the #114
+// regression check and the #608 (F2) review. Every change is under v27 only; v17 is unchanged.
+describe('F3-a — a command backgrounded with a single & is not a CI lockfile requirement (v27)', () => {
+  const REQUIREMENT_FINDING = "This repository's CI requires a lockfile";
+  const requiringNote = "An unconditional step in this repository's CI runs `uv sync --locked` (.github/workflows/tests.yaml line 12)";
+
+  it('v27: `uv sync --locked &` on ubuntu, windows and bash -l, and `& wait`, state no requirement; v17 still cites the line', () => {
+    for (const name of [
+      'f3a-uv-sync-backgrounded-ubuntu',
+      'f3a-uv-sync-backgrounded-windows',
+      'f3a-uv-sync-backgrounded-bash-login',
+      'f3a-uv-sync-backgrounded-then-wait',
+    ]) {
+      const v17 = criterion(name, V17, 'A4');
+      expect(v17.notes, name).toContain(requiringNote);
+      const v27 = criterion(name, V27, 'A4');
+      expect(v27.notes ?? '', name).not.toContain('uv sync --locked');
+      expect(metricValue(v27, 'lockfile_coverage'), name).toBeUndefined();
+      expect(v27.findings.some(({ summary }) => summary.startsWith(REQUIREMENT_FINDING)), name).toBe(false);
+      expect(v27.evidence.some(({ path }) => path === '.github/workflows/tests.yaml'), name).toBe(false);
+      expect(v27.score, name).toBe(v17.score);
+      expect(v27.status, name).toBe(v17.status);
+    }
+  });
+
+  it('controls: `&&` and a `2>&1` redirection keep the requirement under v27, as #600 left it', () => {
+    for (const name of ['f3a-control-uv-sync-and-run', 'f3a-control-uv-sync-redirected']) {
+      const v27 = criterion(name, V27, 'A4');
+      expect(v27.notes, name).toContain(requiringNote);
+      expect(metricValue(v27, 'lockfile_coverage'), name).toBe(0);
+      const finding = v27.findings.find(({ summary }) => summary.startsWith(REQUIREMENT_FINDING));
+      expect(finding?.evidence.line, name).toBe(12);
+    }
+  });
+});
+
+describe('F3-b — v27 B3 names what triggers a publishing workflow and whether its job declares an environment', () => {
+  const PUBLISHING_SENTENCE =
+    '1 workflow that publishes, releases or deploys with no pull-request trigger (an unconditional step runs a publish, release or deploy command or action) is not counted as CI verification, whatever else it runs: .github/workflows/release.yml.';
+
+  it.each([
+    ['f3b-publish-push-main-no-environment', 'is triggered by push to main, and its publishing job declares no environment.'],
+    ['f3b-publish-push-main-environment-pypi', 'is triggered by push to main, and its publishing job declares the environment pypi.'],
+    ['f3b-publish-on-tag-push', 'is triggered by push of a tag, and its publishing job declares no environment.'],
+    ['f3b-publish-workflow-dispatch-only', 'is triggered by workflow_dispatch, and its publishing job declares no environment.'],
+    [
+      'f3b-publish-release-and-dispatch-environment-mapping',
+      'is triggered by release and workflow_dispatch, and its publishing job declares the environment pypi.',
+    ],
+  ])('%s: the earlier sentence stays a prefix; only the note changes', (name, detail) => {
+    const v27 = criterion(name, V27, 'B3');
+    expect(v27.notes).toBe(`${PUBLISHING_SENTENCE} .github/workflows/release.yml ${detail}`);
+    // Measured on main: the publishing workflow is set aside, and nothing else about B3 differs by
+    // fixture except the note.
+    expect(v27.status).toBe('verified');
+    expect(v27.score).toBe(1);
+    expect(metricValue(v27, 'default_branch_ci_depth')).toBe(1);
+    expect(criterion(name, V17, 'B3').notes).toBeUndefined();
+  });
+});
+
+describe('F3-d, F3-e, F3-f — a per-test skip reader makes no claim when it cannot see every test (v27)', () => {
+  const perTestNotes = (score: WitanCriterionScore) =>
+    score.findings.filter(({ summary }) => summary.startsWith('Every test in '));
+  const share = (score: WitanCriterionScore): number | undefined => {
+    const found = score.metrics.find((metric) => metric.name === 'non_hollow_test_share');
+    return found?.max ? found.value / found.max : undefined;
+  };
+  const expectSameAsV17 = (name: string) => {
+    const v17 = criterion(name, V17, 'A1');
+    const v27 = criterion(name, V27, 'A1');
+    expect(perTestNotes(v27), name).toEqual([]);
+    expect(share(v27), name).toBe(share(v17));
+    expect(v27.status, name).toBe(v17.status);
+    expect(v27.score, name).toBe(v17.score);
+  };
+
+  it('F3-d: a test registered as a method call, a shared-suite helper, JSX or a slash after ++ beside it.skip makes no claim', () => {
+    for (const name of [
+      'f3d-js-deno-test-beside-skip',
+      'f3d-js-tap-test-beside-skip',
+      'f3d-js-t-test-beside-skip',
+      'f3d-js-qunit-test-beside-skip',
+      'f3d-js-shared-suite-helper-beside-skip',
+      'f3d-js-jsx-before-live-test',
+      'f3d-js-postfix-increment-before-live-test',
+    ]) {
+      expectSameAsV17(name);
+    }
+  });
+
+  it('F3-e: a TestCase with a runTest makes no claim', () => {
+    for (const name of ['f3e-py-runtest-beside-skipped-method', 'f3e-py-runtest-only-class-beside-skipped-class']) {
+      expectSameAsV17(name);
+    }
+  });
+
+  it('F3-e control: the same class with its live method named run_check, which no runner collects, is still hollow', () => {
+    const v27 = criterion('f3e-control-helper-method-not-runtest', V27, 'A1');
+    expect(share(v27)).toBe(0);
+    expect(perTestNotes(v27).map(({ summary }) => summary)).toEqual([
+      'Every test in tests/test_cache.py is skipped unconditionally (@unittest.skip), so the file cannot fail.',
+    ]);
+  });
+
+  it('F3-f: a commented-out skip, a skip in a string or docstring, a member-registered test and a helper call read as v17 reads them', () => {
+    for (const name of [
+      'f3f-py-commented-out-skip',
+      'f3f-py-skip-in-docstring-and-string',
+      'f3f-py-member-registered-test',
+      'f3f-py-helper-call',
+      'f3f-js-commented-out-skip',
+      'f3f-js-skip-in-string',
+      'f3d-js-deno-test-beside-skip',
+      'f3d-js-shared-suite-helper-beside-skip',
+    ]) {
+      expectSameAsV17(name);
+    }
+  });
+
+  it('F2 change fixtures keep their claims', () => {
+    for (const name of [
+      'f2-py-pytest-mark-skip-every-test',
+      'f2-py-unittest-skip-every-method',
+      'f2-py-skip-on-enclosing-class',
+      'f2-py-skip-held-in-module-name',
+      'f2-py-skipif-literal-true',
+      'f2-js-it-skip-every-test',
+      'f2-js-xit-xtest-every-test',
+      'f2-js-xdescribe-contains-every-test',
+    ]) {
+      expect(share(criterion(name, V27, 'A1')), name).toBe(0);
+    }
+  });
+});
+
 describe('#519 — Git LFS pointers are content Cejel did not read', () => {
   const lfs = 'a1-js-suite-as-lfs-pointers';
 
