@@ -4249,7 +4249,13 @@ function collectA4DependencyEvidence(
     const actionsWorkflows = repoFiles.filter(isGitHubActionsWorkflow);
     const inventory = checkoutInventory(checkoutPaths);
     const isSatisfied = (lockfiles: readonly string[]) => lockfiles.some((name) => knownBasenames.has(name));
-    const fromWorkflow = findLockfileRequirement(repoPath, actionsWorkflows, inventory, isSatisfied);
+    const fromWorkflow = findLockfileRequirement(
+      repoPath,
+      actionsWorkflows,
+      inventory,
+      isSatisfied,
+      useV27FalseAssuranceClosure,
+    );
     if (fromWorkflow && !fromWorkflow.unreadAction) return fromWorkflow;
     const fromTox = findToxLockfileRequirement(
       repoPath,
@@ -5212,6 +5218,22 @@ function requiringCommandMatches(
   return matches;
 }
 
+// v27 freeze change F3-a. A `&` that is not part of `&&` or of a redirection (`&>`, `>&`, `<&`,
+// `|&`): it ends the command before it and runs that command in the background. shellCommandList
+// splits only at `&&`, `||`, `;` and `|`, so the backgrounded command is a command's first words.
+const SHELL_BACKGROUND_AMPERSAND_PATTERN = /(?<![&<>|])&(?![&>])/;
+
+/**
+ * True when one of a command's words holds a background `&`, so the command its first words name
+ * runs in the background: bash and sh do not wait for it, pwsh 7 starts it as a job, and cmd runs
+ * the next command whatever it returned. Its exit status does not decide the step, so it does not
+ * show that the step requires anything. A `wait` after it changes nothing: a bare `wait` returns 0.
+ * A `&` inside a quoted argument is read as one too, which only withholds a requirement.
+ */
+function commandIsBackgrounded(words: readonly string[]): boolean {
+  return words.some((word) => SHELL_BACKGROUND_AMPERSAND_PATTERN.test(word));
+}
+
 // Characters and words after which a failing command on its own line need not end a bash -e step:
 // a pipeline or list (`|`, `&&`, `||`, `&`), a subshell, group or substitution whose status is
 // taken elsewhere, and commands that redefine, skip or trap what follows.
@@ -5277,6 +5299,10 @@ function failureStopsJobAt(contents: string, step: WorkflowRunStep, line: number
  * commands are read as if inline at its `uses:` line. Any other action Cejel does not read, used in
  * the requiring step's job before it, leaves the requirement not determined (`unreadAction`): it is
  * returned only when no workflow states a requirement that is determined.
+ *
+ * With `backgroundedIsNotRequired` (v27 freeze change F3-a), a command run in the background, with
+ * a single `&` after it (commandIsBackgrounded), states no requirement: its exit status does not
+ * decide the step. Writers are read as before.
  * Linear in the workflow: where each lockfile may be written is decided once per workflow.
  */
 function findLockfileRequirement(
@@ -5284,6 +5310,7 @@ function findLockfileRequirement(
   workflows: readonly string[],
   inventory: CheckoutInventory,
   isSatisfied: (lockfiles: readonly string[]) => boolean,
+  backgroundedIsNotRequired = false,
 ): LockfileRequirement | undefined {
   let notDetermined: LockfileRequirement | undefined;
   for (const file of workflows) {
@@ -5368,6 +5395,7 @@ function findLockfileRequirement(
       });
       if (leavesCheckout) continue;
       for (const { line, index, andEnd, words, list } of commands) {
+        if (backgroundedIsNotRequired && commandIsBackgrounded(words)) continue;
         for (const match of requiringCommandMatches(words, inventory, isSatisfied)) {
           const byJob = firstWriterLines(match);
           if (byJob === undefined) continue;
