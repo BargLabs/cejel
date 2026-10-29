@@ -365,11 +365,19 @@ describe('#517 — a workflow that publishes, releases or deploys is not CI veri
     }
   });
 
+  // Changed 2026-10-28 (v27 freeze change F3-b): the note goes on to name the trigger and the
+  // publishing jobs' environments. The PyPI workflow has two publishing jobs (the draft release and
+  // the upload).
+  const details: Readonly<Record<string, string>> = {
+    'pypi-release-ungated': 'is triggered by push to main, and neither of its 2 publishing jobs declares an environment.',
+    'npm-release-ungated': 'is triggered by push to master, and its publishing job declares no environment.',
+  };
+
   it('v27: the note and the disclosure name the publishing workflow, and never call it publish-only', () => {
     for (const [, ungated, file] of pairs) {
       const b3 = criterion(ungated, V27, 'B3');
       expect(b3.notes, ungated).toBe(
-        `1 workflow that publishes, releases or deploys with no pull-request trigger (an unconditional step runs a publish, release or deploy command or action) is not counted as CI verification, whatever else it runs: ${file}.`,
+        `1 workflow that publishes, releases or deploys with no pull-request trigger (an unconditional step runs a publish, release or deploy command or action) is not counted as CI verification, whatever else it runs: ${file}. ${file} ${details[ungated]}`,
       );
       expect(b3.notes ?? '').not.toContain('only publish');
       expect(b3.disclosures, ungated).toContain(

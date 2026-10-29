@@ -238,8 +238,10 @@ describe('#517 — a workflow that only publishes is not CI depth', () => {
     const v27 = criterion('b3-test-then-publish-workflow', V27, 'B3');
     expect(v27.score).toBeLessThan(v17.score);
     expect(metricValue(v27, 'default_branch_ci_depth')).toBe((metricValue(v17, 'default_branch_ci_depth') ?? 0) - 1);
+    // Changed 2026-10-28 (v27 freeze change F3-b): the note goes on to name the trigger and the
+    // publishing job's environment.
     expect(v27.notes).toBe(
-      '1 workflow that publishes, releases or deploys with no pull-request trigger (an unconditional step runs a publish, release or deploy command or action) is not counted as CI verification, whatever else it runs: .github/workflows/ci-release.yml.',
+      '1 workflow that publishes, releases or deploys with no pull-request trigger (an unconditional step runs a publish, release or deploy command or action) is not counted as CI verification, whatever else it runs: .github/workflows/ci-release.yml. .github/workflows/ci-release.yml is triggered by push to main, and its publishing job declares no environment.',
     );
   });
 });
@@ -507,7 +509,7 @@ describe('F3-b — v27 B3 names what triggers a publishing workflow and whether 
   it.each([
     ['f3b-publish-push-main-no-environment', 'is triggered by push to main, and its publishing job declares no environment.'],
     ['f3b-publish-push-main-environment-pypi', 'is triggered by push to main, and its publishing job declares the environment pypi.'],
-    ['f3b-publish-on-tag-push', 'is triggered by push of a tag, and its publishing job declares no environment.'],
+    ['f3b-publish-on-tag-push', 'is triggered by push of a tag its filter matches, and its publishing job declares no environment.'],
     ['f3b-publish-workflow-dispatch-only', 'is triggered by workflow_dispatch, and its publishing job declares no environment.'],
     [
       'f3b-publish-release-and-dispatch-environment-mapping',
