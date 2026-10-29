@@ -10955,6 +10955,21 @@ function pythonHeldSkipNames(code: string, statements: readonly PythonLogicalSta
 // v27 freeze change F3-e. unittest's loader and pytest both run a TestCase's `runTest` when the
 // class defines no `test*` method; a live one is a test the reader does not count.
 const PYTHON_RUN_TEST_PATTERN = /(?<!\w)runTest(?!\w)/;
+// The #610 review residual C2. unittest calls a module's `load_tests(loader, tests, pattern)` to
+// build the module's suite, which may add tests the reader does not see.
+const PYTHON_LOAD_TESTS_PATTERN = /(?<!\w)load_tests(?!\w)/;
+
+/**
+ * The #610 review residual C1: true when a decorator is one the reader knows adds no test: an
+ * unconditional skip (pythonUnconditionalSkipDecorator) or a pytest mark, which only annotates
+ * (`@pytest.mark.parametrize` beside a skip, as #610 left it). Any other decorator may register
+ * tests (`@register_test(CacheTest)` on a helper, `@add_contract_tests` on a TestCase), as
+ * `add_contract_tests(CacheTest)` may (F3-f).
+ */
+function isPythonDecoratorAddingNoTest(decorator: PythonLogicalStatement, heldSkipNames: ReadonlySet<string>): boolean {
+  const text = decorator.text.slice(1).replace(/\s+/g, '');
+  return pythonUnconditionalSkipDecorator(text, heldSkipNames) !== undefined || text.startsWith('pytest.mark.');
+}
 // v27 freeze change F3-f. Words before a `(` that is not a call.
 const PYTHON_PARENTHESIS_KEYWORDS: ReadonlySet<string> = new Set([
   'if', 'elif', 'while', 'for', 'in', 'not', 'and', 'or', 'is', 'return', 'assert', 'with', 'del', 'yield',
@@ -11016,10 +11031,15 @@ function pythonStatementMayAddTest(text: string): boolean {
  * the top level, in a top-level block or at a class body's indent may add a test
  * (pythonStatementMayAddTest, F3-f). The body of an `if __name__ == "__main__":` block is not read
  * for that, since it does not run when the tests are collected.
+ *
+ * The #610 review residuals: also no claim when the file names `load_tests` (C2), or holds a
+ * decorator, anywhere in the file, other than a skip form or a pytest mark (C1,
+ * isPythonDecoratorAddingNoTest). Comments and strings are masked first, so a decorator or
+ * `load_tests` named only there does not count.
  */
 function readEveryPythonTestSkipped(contents: string): PerTestSkipReading | undefined {
   const { code } = maskCommentsAndStrings(contents, true);
-  if (PYTHON_RUN_TEST_PATTERN.test(code)) return undefined;
+  if (PYTHON_RUN_TEST_PATTERN.test(code) || PYTHON_LOAD_TESTS_PATTERN.test(code)) return undefined;
   const statements = pythonLogicalStatements(code);
   if (statements === undefined) return undefined;
   const rawLines = contents.split('\n');
@@ -11027,6 +11047,13 @@ function readEveryPythonTestSkipped(contents: string): PerTestSkipReading | unde
     statement.lineCount === 1 && PYTHON_MAIN_GUARD_PATTERN.test(rawLines[statement.line - 1] ?? '');
   let inMainGuard = false;
   const heldSkipNames = pythonHeldSkipNames(code, statements);
+  if (
+    statements.some(
+      (statement) => statement.text.startsWith('@') && !isPythonDecoratorAddingNoTest(statement, heldSkipNames),
+    )
+  ) {
+    return undefined;
+  }
   const found: { skip: string; line: number }[] = [];
   let decorators: PythonLogicalStatement[] = [];
   // What the latest top-level statement opened: a function body (ignored: pytest does not collect
