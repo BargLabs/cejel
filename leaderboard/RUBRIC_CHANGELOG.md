@@ -22,6 +22,115 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
+## 2026-10-29 — two notes that could stop a scan from writing its report now fit the limit under every rubric; under v27 the Python per-test skip reader makes no claim beside a decorator or `load_tests`; v17-v26 byte-identical wherever a report was written; no published score moved
+
+**Status.** No identifier change. Items A and C of the last change before v27 is frozen for its
+promotion study (operator, 29 Oct). Item A changes only reports that could not be written before:
+every report main writes is byte-identical under every rubric. Item C changes v27 only. No holdout
+or calibration ran, and this entry makes no precision or recall claim.
+
+**A. Notes that fit the limit, every rubric.** The second pass of v27 freeze change F1 (below) left
+one overflow open: A2's applicability disclosure (`a2HistoryApplicabilityDisclosure`), written under
+every rubric but v27 when A2 is marked not applicable after an incomplete read of the history. 72 of
+its 255 cause combinations ran past the 1,000-character limit for one disclosure (longest 1,286). A
+scan reaching one failed validation (`too_big`, `signals[1].disclosures[0]`) and wrote no report,
+under v17 too. A disclosure that fits is unchanged. One that does not keeps its prefix and first
+cause whole, names the next causes while the whole fits with its advice, and counts the rest ("and 1
+more cause that the scan limitations name"). Only a cause a scan limitation names is ever counted:
+a shallow clone and the history secret scan's 5,000-file cap are not scan limitations, so they are
+always named in the disclosure itself (a first draft counted the cap, and in 32 combinations its
+advice did not name the file-count limit either, so the cap was named nowhere). In 4 combinations
+(no shallow clone; three or four of Cejel's own limits, a failed read, the cap and a control-character
+path) the first cause and the cap leave too little room for the whole advice, which then keeps the
+sentences that fit, in order, as v27's note does since F1: the control-character sentence is left
+out, and its cause is among those counted. The longest disclosure is now 997 characters.
+
+Every other place a note or disclosure is built by joining parts was checked again, under every
+rubric:
+- A1's note when coverage was unresolved named the first four files by path with no length check.
+  Four unresolved CI workflows with 200-character paths, or two nested `package.json` files with
+  690-character paths, took it past the 1,000-character notes limit and the scan wrote no report
+  (`signals[0].notes`). Fixed by the same rule: a note that fits is unchanged; otherwise the first
+  path stays whole, fewer paths are named, and the rest are counted ("and 1 more file"), then the
+  count alone if even one path does not fit.
+- Already bounded, unchanged: v27's failed-history A2 note and B2's two joins (F1, second pass);
+  B2's and B3's uncredited-workflow notes and disclosures, B3's publishing sentences (F3-b) and
+  unshown-check disclosure, and A2's placeholder disclosure, each fitted to its limit as it is built;
+  A2's scoring-path notes (three fixed sentences); A4's note and two disclosures (cut at 1,000
+  characters); A3's not-applicable note and A1's authenticated-absence note (fixed text and counts);
+  the content-read abstention notes (fixed text and Cejel's own metric names); the shallow-clone
+  `historyLimitations` sentences (fixed text); and the scoring merge of disclosures (at most four,
+  none joined).
+- Found and not fixed, outside this change: an evidence path may hold at most 700 characters, so a
+  repository file with a longer path that becomes A4 evidence (a nested `package.json`, for one)
+  also fails validation. It is not a note.
+
+**C1 (v27, A1, Python).** F3-f made no claim on a call, so `add_contract_tests(CacheTest)` left the
+claim standing no longer. Its decorator forms did: `@register_test(CacheTest)` on a helper function,
+and `@add_contract_tests` or `@add_contract_tests()` on the TestCase, each beside one skipped test,
+were still claimed "Every test ... is skipped unconditionally" (A1 critical 1.1 where v17 gives
+verified 1.7). Under v27 the reader now makes no claim when the file holds a decorator, at any
+indent, that is neither an unconditional skip form it already reads (`@pytest.mark.skip`,
+`@unittest.skip(...)`, `skipif`/`skipIf` with the literal `True`, a name bound once to
+`pytest.mark.skip`) nor a pytest mark (`@pytest.mark.parametrize` beside a skip keeps the claim, as
+F2 left it). Comments and strings are masked first. This costs recall: an all-skipped file that also
+uses `@pytest.fixture`, `@mock.patch` or `@staticmethod` gets no claim. A pytest mark's or a skip's
+arguments are not read for calls; that stays a stated limitation.
+
+**C2 (v27, A1, Python).** unittest calls a module's `load_tests(loader, tests, pattern)` to build its
+suite, which may add tests the reader does not see. The smaller safe choice was taken: as with
+`runTest` (F3-e), no claim when the file names `load_tests` outside comments and strings, rather
+than a stated limitation, because a stated limitation would leave a false claim standing on every
+such file.
+
+**C3.** The F3 entry below described the JavaScript reader's JSX check as "the file holds JSX (`</`
+or `/>`)". The check reads the raw text, so those two strings in a comment or a string withhold the
+claim too. The wording is corrected there; the code is unchanged.
+
+**Measured.** Main `baae3472c` and this head's code (`f6fe148c9`) scanned the same 304 checkouts, built once at fixed
+paths: the 30 behaviour-corpus specimens, all 269 false-assurance fixtures (including the 8 added
+here), and the 5 A1 checkouts of item A. Full report JSON under all eleven selectable rubrics:
+- **v17-v26:** 3,010 of 3,040 byte-identical. The other 30 are the three A1 reproductions (four
+  200-character paths; at the limit plus one character; two 690-character paths), for which main
+  wrote no report under any rubric and head writes one. The at-limit checkout and five unresolved
+  files with short paths are byte-identical.
+- **v27:** 297 of 304 identical. The 7 that differ are the same three A1 reproductions and the four
+  C1/C2 change fixtures.
+- **Unchanged:** no behaviour-corpus case changed under any rubric. Every behaviour-fingerprint pin
+  (v27 stays `sha256:dfe4e7e9ba37666f60b1ebcee4eb44917110798e9038c81eef079718db9ee7b1`) and the v17
+  scoring-surface golden are unchanged.
+
+The A2 reproduction needs three history reads to fail at once, which the test injects through its
+execGit seam (a 30-second timeout cannot be produced quickly), so it is not among the 304 checkouts.
+On main its v17 scan throws; at this head it writes a report, A2 not applicable, whose disclosure is
+958 characters: the shallow clone, the two limits and the failed read named, "and 1 more cause that
+the scan limitations name" (the control-character path), and the whole advice. Its v27 note, already
+fitted by F1, is unchanged.
+
+| Fixture | v17 (main = head) | v27 main | v27 head |
+|---|---|---|---|
+| `c1-py-register-test-decorator-on-helper`, `c1-py-add-contract-tests-class-decorator`, `c1-py-add-contract-tests-called-class-decorator`, `c2-py-load-tests` | A1 verified 1.7, 1/1, overall 1.3 unverified | A1 critical 1.1, 0/1, hollow note, 1.2 | A1 verified 1.7, 1/1, 1.3 |
+| `c1-control-only-skip-decorators`, `c1-control-parametrize-beside-skip`, `c1-control-decorator-in-comment-and-string`, `c2-control-load-tests-in-comment-and-string` (controls: still hollow) | A1 verified 1.7, 1/1, 1.3 | A1 critical 1.1, 0/1, hollow note, 1.2 | byte-identical to main |
+
+| A1 checkout | Every rubric, main | Every rubric, head |
+|---|---|---|
+| four unresolved workflows, 200-character paths | no report (`too_big`) | A1 verified 2.1, overall 1.6 at_risk; note 832 characters, three paths "and 1 more file" |
+| four paths, note exactly 1,000 characters | A1 verified 2.1, 1.6 | byte-identical |
+| the same, one character longer | no report | as the first row |
+| two nested `package.json`, 690-character paths | no report | A1 warning 1.8, overall 0.6 unverified; note 918 characters, one path "and 1 more file" |
+| five unresolved workflows, short paths | first four paths, no count | byte-identical |
+
+The v27 rises against main's v27 are false claims withdrawn; each lands exactly on v17's value, so
+nothing rises against v17. No verdict band moved.
+
+**Tests.** `a2-history-disclosure-limit.test.ts` (red first at `c4bb77b10`: 3 of 3 failed, the
+reproduction with `too_big`; the assertions that the cap and a shallow clone are never counted were
+added with `f6fe148c9`), `a1-coverage-unresolved-note-limit.test.ts` (red at `20e31098a`: the
+reproduction and the one-over case wrote no report; the 690-character case was added with the fix),
+and `false-assurance-v27.test.ts`, describe block "C1, C2" (red at `1c497348b`: the four change
+fixtures failed, the controls passed). Disabling the decorator rule fails exactly the three C1
+fixtures; disabling the `load_tests` rule fails exactly `c2-py-load-tests`.
+
 ## 2026-10-28 — v27 freeze change F3: a backgrounded lockfile command is not a CI requirement (A4); B3's publish note names the trigger and the environment; the per-test skip readers make no claim where they cannot see every test (A1); v17-v26 byte-identical; no published score moved
 
 **Status.** A change under `witan-rubric-v27-prospective-2026-10-19` only, with no identifier
@@ -58,7 +167,10 @@ yes/no, and reads the same files in the same order.
 
 **F3-d (A1, JavaScript/TypeScript).** F2's reader promised to claim "every test is skipped" only
 when it can see every test the file defines. Under v27 it now makes no claim in three more cases:
-- the file holds JSX (`</` or `/>`), whose slash it would read as a regular expression;
+- the file's raw text holds `</` or `/>` anywhere, a comment or a string included. The check is
+  meant for JSX, whose slash the reader would read as a regular expression, but it reads the text
+  before comments and strings are masked, so those two strings in a comment or string withhold the
+  claim too (wording corrected on 2026-10-29, the #610 review residual C3; the code is unchanged);
 - there is a call outside the bodies of test-case and hook calls that is not a test, suite or hook
   global, a keyword, `require` or a declaration. This covers a method that registers a test
   (`Deno.test`, `tap.test`, `t.test`, `QUnit.test`), a shared-suite helper (`behavesLikeAnAdder(sum)`)

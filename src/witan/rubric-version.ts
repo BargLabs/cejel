@@ -189,7 +189,9 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     it.skip, test.skip, xit, xtest, or inside a describe.skip/xdescribe), named in a warning,
 //     and (freeze change F3-d, F3-e, F3-f) never where the reader may not see every test: a
 //     `runTest`, a call or an attribute assignment outside function bodies (Python), JSX, or a call
-//     outside test-case and hook bodies that is not a test, suite or hook global (JavaScript);
+//     outside test-case and hook bodies that is not a test, suite or hook global (JavaScript),
+//     and (the #610 review residuals, 2026-10-29) a Python decorator anywhere in the file that is
+//     not a skip form or a pytest mark, or a Python module that names `load_tests`;
 //   - every criterion: a read of a Git LFS pointer is a content-read skip, so the criterion that
 //     read it abstains as a read failure instead of scoring the pointer text, unless its
 //     collector made a critical finding (it then scores as under v17);
