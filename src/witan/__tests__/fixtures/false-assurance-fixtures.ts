@@ -1872,6 +1872,265 @@ for (const [name, purpose, conftest] of [
   FALSE_ASSURANCE_FIXTURES_REVIEW.push({ name, issue: '#518', purpose, commits: [PY_LIBRARY, { 'tests/conftest.py': conftest }] });
 }
 
+// v27 freeze change F2 (operator decision 2026-10-28): #602 read run-wide skips (a collection hook,
+// a module-level pytestmark). A file whose every test carries its own unconditional skip still
+// counted as tests that run, and A1 stayed verified. Each change fixture skips every test in every
+// test file one way; each control keeps one test, or every test, able to run.
+const PY_CACHE_TEST = (decorator: string): string =>
+  [
+    'import pytest',
+    'from cachelib import get, put',
+    '',
+    '',
+    decorator,
+    'def test_get_default():',
+    '    assert get({}, "a", 1) == 1',
+    '',
+    '',
+    decorator,
+    'def test_put():',
+    '    c = {}',
+    '    put(c, "a", 2)',
+    '    assert c["a"] == 2',
+    '',
+  ].join('\n');
+const PY_LRU_TEST = (decorator: string): string =>
+  ['import pytest', 'from cachelib.lru import LRU', '', '', decorator, 'def test_lru_get():', '    assert LRU(2).get("x") is None', ''].join('\n');
+const PY_UNITTEST_CACHE = (classDecorator: string, methodDecorator: string): string =>
+  [
+    'import unittest',
+    '',
+    'from cachelib import get, put',
+    '',
+    '',
+    ...(classDecorator ? [classDecorator] : []),
+    'class CacheTest(unittest.TestCase):',
+    ...(methodDecorator ? [`    ${methodDecorator}`] : []),
+    '    def test_get_default(self):',
+    '        self.assertEqual(get({}, "a", 1), 1)',
+    '',
+    ...(methodDecorator ? [`    ${methodDecorator}`] : []),
+    '    def test_put(self):',
+    '        c = {}',
+    '        put(c, "a", 2)',
+    '        self.assertEqual(c["a"], 2)',
+    '',
+  ].join('\n');
+const PY_UNITTEST_LRU = (classDecorator: string, methodDecorator: string): string =>
+  [
+    'import unittest',
+    '',
+    'from cachelib.lru import LRU',
+    '',
+    '',
+    ...(classDecorator ? [classDecorator] : []),
+    'class LRUTest(unittest.TestCase):',
+    ...(methodDecorator ? [`    ${methodDecorator}`] : []),
+    '    def test_lru_get(self):',
+    '        self.assertIsNone(LRU(2).get("x"))',
+    '',
+  ].join('\n');
+const PY_PYTEST_CLASS = (decorator: string, name: string, body: readonly string[]): string =>
+  ['import pytest', 'from cachelib import get, put', 'from cachelib.lru import LRU', '', '', decorator, `class ${name}:`, ...body, ''].join('\n');
+
+const JS_VITEST_LIBRARY: Readonly<Record<string, string>> = {
+  'package.json': `${JSON.stringify(
+    {
+      name: 'mathlib',
+      version: '1.0.0',
+      type: 'module',
+      main: 'src/index.js',
+      scripts: { test: 'vitest run' },
+      devDependencies: { vitest: '^2.1.0' },
+    },
+    null,
+    2,
+  )}\n`,
+  'README.md': '# mathlib\n',
+  LICENSE: 'MIT\n',
+  'src/index.js': 'export function sum(a, b) {\n  return a + b;\n}\n',
+  'src/max.js': 'export function max(a, b) {\n  return a > b ? a : b;\n}\n',
+  'test/sum.test.js':
+    "import { describe, expect, it } from 'vitest';\nimport { sum } from '../src/index.js';\n\ndescribe('sum', () => {\n  it('adds', () => {\n    expect(sum(1, 2)).toBe(3);\n  });\n\n  it('adds negatives', () => {\n    expect(sum(-1, -2)).toBe(-3);\n  });\n});\n",
+  'test/max.test.js':
+    "import { expect, test } from 'vitest';\nimport { max } from '../src/max.js';\n\ntest('picks the larger', () => {\n  expect(max(1, 2)).toBe(2);\n});\n",
+  '.github/workflows/ci.yml':
+    'name: ci\non:\n  push:\n    branches: [main]\n  pull_request:\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - run: npm install\n      - run: npm test\n',
+};
+const JS_SUM_TEST = (describeCall: string, firstCase: string, secondCase: string): string =>
+  `import { describe, expect, it, test } from 'vitest';\nimport { sum } from '../src/index.js';\n\n${describeCall}('sum', () => {\n  ${firstCase}('adds', () => {\n    expect(sum(1, 2)).toBe(3);\n  });\n\n  ${secondCase}('adds negatives', () => {\n    expect(sum(-1, -2)).toBe(-3);\n  });\n});\n`;
+const JS_MAX_TEST = (testCall: string): string =>
+  `import { expect, it, test } from 'vitest';\nimport { max } from '../src/max.js';\n\n${testCall}('picks the larger', () => {\n  expect(max(1, 2)).toBe(2);\n});\n`;
+
+for (const [name, purpose, files] of [
+  [
+    'f2-py-pytest-mark-skip-every-test',
+    'Change: every pytest test function carries @pytest.mark.skip, with a reason in one file and without in the other.',
+    { 'tests/test_cache.py': PY_CACHE_TEST('@pytest.mark.skip(reason="flaky on CI")'), 'tests/test_lru.py': PY_LRU_TEST('@pytest.mark.skip') },
+  ],
+  [
+    'f2-py-unittest-skip-every-method',
+    'Change: every unittest test method carries @unittest.skip(...).',
+    {
+      'tests/test_cache.py': PY_UNITTEST_CACHE('', '@unittest.skip("flaky on CI")'),
+      'tests/test_lru.py': PY_UNITTEST_LRU('', '@unittest.skip("flaky on CI")'),
+    },
+  ],
+  [
+    'f2-py-skip-on-enclosing-class',
+    'Change: the enclosing class carries the skip: @pytest.mark.skip on a pytest Test class, @unittest.skip(...) on a TestCase.',
+    {
+      'tests/test_cache.py': PY_PYTEST_CLASS('@pytest.mark.skip(reason="rewrite pending")', 'TestCache', [
+        '    def test_get_default(self):',
+        '        assert get({}, "a", 1) == 1',
+        '',
+        '    def test_put(self):',
+        '        c = {}',
+        '        put(c, "a", 2)',
+        '        assert c["a"] == 2',
+      ]),
+      'tests/test_lru.py': PY_UNITTEST_LRU('@unittest.skip("rewrite pending")', ''),
+    },
+  ],
+  [
+    'f2-py-skip-held-in-module-name',
+    'Change: a module-level name bound once to pytest.mark.skip(...) decorates every test.',
+    {
+      'tests/test_cache.py': PY_CACHE_TEST('@skip_all').replace('from cachelib import get, put\n', 'from cachelib import get, put\n\nskip_all = pytest.mark.skip(reason="disabled")\n'),
+      'tests/test_lru.py': PY_LRU_TEST('@disabled').replace('from cachelib.lru import LRU\n', 'from cachelib.lru import LRU\n\ndisabled = pytest.mark.skip\n'),
+    },
+  ],
+  [
+    'f2-py-skipif-literal-true',
+    'Change: every test carries skipif with the literal condition True (pytest.mark.skipif(True, ...), unittest.skipIf(True, ...)), which skips unconditionally.',
+    {
+      'tests/test_cache.py': PY_CACHE_TEST('@pytest.mark.skipif(True, reason="disabled")'),
+      'tests/test_lru.py': PY_UNITTEST_LRU('', '@unittest.skipIf(True, "disabled")'),
+    },
+  ],
+  [
+    'f2-py-mixed-one-test-runs',
+    'Control: in tests/test_cache.py every test but one is skipped; test_put runs.',
+    { 'tests/test_cache.py': PY_CACHE_TEST('@pytest.mark.skip').replace('@pytest.mark.skip\ndef test_put', 'def test_put') },
+  ],
+  [
+    'f2-py-unskipped-class-method',
+    'Control: in tests/test_cache.py the class is not skipped and one of its methods is not, so that method runs.',
+    {
+      'tests/test_cache.py': PY_UNITTEST_CACHE('', '@unittest.skip("flaky")').replace('    @unittest.skip("flaky")\n    def test_put', '    def test_put'),
+    },
+  ],
+  [
+    'f2-py-skipif-with-condition',
+    'Control: skipif and skipUnless with a real condition are conditional.',
+    {
+      'tests/test_cache.py': PY_CACHE_TEST('@pytest.mark.skipif(sys.platform == "win32", reason="posix only")').replace('import pytest\n', 'import sys\n\nimport pytest\n'),
+      'tests/test_lru.py': PY_UNITTEST_LRU('', '@unittest.skipUnless(hasattr(__import__("os"), "fork"), "posix only")'),
+    },
+  ],
+  [
+    'f2-py-held-name-rebound',
+    'Control: the name bound to pytest.mark.skip is rebound to a timeout mark before the tests use it.',
+    {
+      'tests/test_cache.py': PY_CACHE_TEST('@mark').replace('from cachelib import get, put\n', 'from cachelib import get, put\n\nmark = pytest.mark.skip(reason="disabled")\nmark = pytest.mark.timeout(30)\n'),
+      'tests/test_lru.py': PY_LRU_TEST('@mark').replace('from cachelib.lru import LRU\n', 'from cachelib.lru import LRU\n\nmark = pytest.mark.skip(reason="disabled")\nmark = pytest.mark.timeout(30)\n'),
+    },
+  ],
+  [
+    'f2-py-test-defined-in-block',
+    'Control: every top-level test is skipped, but a test defined inside an if block runs where the condition holds.',
+    {
+      'tests/test_cache.py': `${PY_CACHE_TEST('@pytest.mark.skip')}\n\nif hasattr(__import__("os"), "fork"):\n    def test_fork_cache():\n        assert get({}, "b", 3) == 3\n`,
+    },
+  ],
+  [
+    'f2-py-class-inherits-tests',
+    'Control: every test the file shows is skipped, but an unskipped class inherits tests from a base defined elsewhere.',
+    {
+      'tests/test_cache.py': `${PY_CACHE_TEST('@pytest.mark.skip')}\n\nfrom tests.base import CacheContract\n\n\nclass TestDictCache(CacheContract):\n    def make(self):\n        return {}\n`,
+    },
+  ],
+  [
+    'f2-py-skip-under-other-decorator',
+    'Control: the skip mark sits under a decorator that may replace what it wraps, so Cejel does not read it.',
+    {
+      'tests/test_cache.py': PY_CACHE_TEST('@retry(3)\n@pytest.mark.skip').replace('import pytest\n', 'import pytest\nfrom tests.helpers import retry\n'),
+    },
+  ],
+  [
+    'f2-py-no-recognisable-tests',
+    'Control: a skipped helper and module-level assertions, but no test function or method Cejel recognises.',
+    {
+      'tests/test_cache.py': 'import pytest\nfrom cachelib import get\n\n\n@pytest.mark.skip\ndef helper():\n    return get({}, "a", 1)\n\n\nassert get({}, "a", 1) == 1\n',
+      'tests/test_lru.py': 'from cachelib.lru import LRU\n\nassert LRU(2).get("x") is None\n',
+    },
+  ],
+] as const) {
+  FALSE_ASSURANCE_FIXTURES_REVIEW.push({ name, issue: '#518', purpose, commits: [PY_LIBRARY, files] });
+}
+
+for (const [name, purpose, files] of [
+  ['f2-js-control', 'Control: a vitest suite with live assertions and no skip.', {}],
+  [
+    'f2-js-it-skip-every-test',
+    'Change: every test case is it.skip or test.skip.',
+    { 'test/sum.test.js': JS_SUM_TEST('describe', 'it.skip', 'it.skip'), 'test/max.test.js': JS_MAX_TEST('test.skip') },
+  ],
+  [
+    'f2-js-xit-xtest-every-test',
+    'Change: every test case is xit or xtest.',
+    { 'test/sum.test.js': JS_SUM_TEST('describe', 'xit', 'xit'), 'test/max.test.js': JS_MAX_TEST('xtest') },
+  ],
+  [
+    'f2-js-xdescribe-contains-every-test',
+    'Change: every test case sits in an xdescribe, or is itself it.skip.',
+    { 'test/sum.test.js': JS_SUM_TEST('xdescribe', 'it', 'it'), 'test/max.test.js': JS_MAX_TEST('it.skip') },
+  ],
+  [
+    'f2-js-describe-skip-contains-every-test',
+    'Corner: describe.skip already makes a file hollow under every rubric; the other file is it.skip.',
+    { 'test/sum.test.js': JS_SUM_TEST('describe.skip', 'it', 'it'), 'test/max.test.js': JS_MAX_TEST('it.skip') },
+  ],
+  [
+    'f2-js-mixed-one-test-runs',
+    'Control: in test/sum.test.js every test case but one is skipped; "adds negatives" runs.',
+    { 'test/sum.test.js': JS_SUM_TEST('describe', 'it.skip', 'it') },
+  ],
+  [
+    'f2-js-skipif-conditional',
+    'Control: it.skipIf(...) and test.skipIf(...) are conditional.',
+    {
+      'test/sum.test.js': JS_SUM_TEST('describe', "it.skipIf(process.platform === 'win32')", "it.skipIf(process.platform === 'win32')"),
+      'test/max.test.js': JS_MAX_TEST("test.skipIf(process.platform === 'win32')"),
+    },
+  ],
+  [
+    'f2-js-aliased-test-global',
+    'Control: every call Cejel sees is skipped, but test is aliased and the alias registers a live test.',
+    { 'test/sum.test.js': `${JS_SUM_TEST('describe', 'it.skip', 'it.skip')}\nconst check = test;\ncheck('adds zero', () => {\n  expect(sum(0, 0)).toBe(0);\n});\n` },
+  ],
+  [
+    'f2-js-quote-in-regex-literal',
+    'Control: a skipped test holds a regular expression with a quote in it; the live test after it must not be read as part of a string.',
+    {
+      'test/sum.test.js': JS_SUM_TEST('describe', 'it.skip', 'it.skip').replace(
+        '});\n});\n',
+        "});\n\n  it.skip('formats', () => {\n    expect(String(sum(1, 2))).toMatch(/['\"]?3/);\n  });\n\n  it('adds zero', () => {\n    expect(sum(0, 0)).toBe(0);\n  });\n});\n",
+      ),
+    },
+  ],
+  [
+    'f2-js-todo-beside-skips',
+    'Control: it.todo is out of scope; a file holding one is read as today, even when every other case is skipped.',
+    {
+      'test/sum.test.js': JS_SUM_TEST('describe', 'it.skip', 'it.skip').replace("});\n});\n", "});\n\n  it.todo('adds three');\n});\n"),
+      'test/max.test.js': `${JS_MAX_TEST('test.skip')}\ntest.todo('picks from three');\n`,
+    },
+  ],
+] as const) {
+  FALSE_ASSURANCE_FIXTURES_REVIEW.push({ name, issue: '#518', purpose, commits: [{ ...JS_VITEST_LIBRARY, ...files }] });
+}
+
 export const FALSE_ASSURANCE_FIXTURES: readonly FalseAssuranceFixture[] = [
   ...FALSE_ASSURANCE_FIXTURES_ISSUES,
   ...FALSE_ASSURANCE_FIXTURES_REVIEW,
