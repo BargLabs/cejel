@@ -176,7 +176,9 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     release or deploy step, whatever else it runs (from 2026-10-27: the trigger read from `on:`
 //     alone, a publishing action read on any runner, a condition that cannot be false under the
 //     triggers or is a fork guard no gate, and a local reusable workflow followed; a job's
-//     matrix is not read, so a publishing job is publishing whatever its matrix, as before);
+//     matrix is not read, so a publishing job is publishing whatever its matrix, as before; from
+//     2026-10-28, freeze change F3-b, its note also names, read from the workflow, the triggers its
+//     `on:` names and whether its publishing job declares an `environment:`, as note text only);
 //   - A1: conftest.py is not a concrete test file, and an unconditional run-wide pytest skip
 //     (a collection hook that skips or clears every item, or a module-level pytestmark skip)
 //     marks the test files in its scope hollow (from 2026-10-27 the hook's skip marker may also be
@@ -184,7 +186,10 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     (freeze change F2) so is a test file whose every test carries its own unconditional skip
 //     (Python: @pytest.mark.skip, @unittest.skip(...), skipif/skipIf with the literal True, or a
 //     name bound once to pytest.mark.skip, on the test or its class; JavaScript/TypeScript:
-//     it.skip, test.skip, xit, xtest, or inside a describe.skip/xdescribe), named in a warning;
+//     it.skip, test.skip, xit, xtest, or inside a describe.skip/xdescribe), named in a warning,
+//     and (freeze change F3-d, F3-e, F3-f) never where the reader may not see every test: a
+//     `runTest`, a call or an attribute assignment outside function bodies (Python), JSX, or a call
+//     outside test-case and hook bodies that is not a test, suite or hook global (JavaScript);
 //   - every criterion: a read of a Git LFS pointer is a content-read skip, so the criterion that
 //     read it abstains as a read failure instead of scoring the pointer text, unless its
 //     collector made a critical finding (it then scores as under v17);
@@ -195,7 +200,8 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     write the lockfile comes after it in the same job, a writer after it on its own line
 //     joined only by && included, and a pip install with --require-hashes
 //     requires its requirements file; a requirement an earlier action Cejel did not read may meet
-//     is not determined, and scores no zero);
+//     is not determined, and scores no zero; from 2026-10-28, freeze change F3-a, a command run in
+//     the background with a single `&` states no requirement);
 //   - A2 and B2: on a shallow clone, A2 abstains unless a confirmed critical secret finding
 //     stands. Since the v27 freeze change F1 (operator decision 2026-10-28) v27 follows the
 //     operator's 26/27 Oct rule for shallow clones, as every other rubric does since #604: B2
