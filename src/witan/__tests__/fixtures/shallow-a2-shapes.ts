@@ -18,7 +18,7 @@ export type ShallowA2Secret = 'in-tree' | 'deleted-in-history' | 'none';
  * clone configuration is then removed, so git treats it as complete and a read of a historical
  * blob fails (Cejel's stand-in for any failed history read: a git error, timeout or output limit).
  */
-export type A2HistoryClone = 'full' | 1 | 12 | 'blobless' | 'treeless' | 'missing-blobs';
+export type A2HistoryClone = 'full' | 1 | 3 | 12 | 'blobless' | 'treeless' | 'missing-blobs';
 
 export interface ShallowA2Shape {
   readonly secret: ShallowA2Secret;
