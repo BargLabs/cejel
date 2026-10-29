@@ -605,6 +605,44 @@ describe('F3-d, F3-e, F3-f — a per-test skip reader makes no claim when it can
   });
 });
 
+describe('C1, C2 (the #610 review residuals) — the Python per-test skip reader makes no claim beside a decorator or load_tests that may add tests (v27)', () => {
+  const perTestNotes = (score: WitanCriterionScore) =>
+    score.findings.filter(({ summary }) => summary.startsWith('Every test in '));
+  const share = (score: WitanCriterionScore): number | undefined => {
+    const found = score.metrics.find((metric) => metric.name === 'non_hollow_test_share');
+    return found?.max ? found.value / found.max : undefined;
+  };
+
+  it.each([
+    ['C1', 'c1-py-register-test-decorator-on-helper'],
+    ['C1', 'c1-py-add-contract-tests-class-decorator'],
+    ['C1', 'c1-py-add-contract-tests-called-class-decorator'],
+    ['C2', 'c2-py-load-tests'],
+  ])('%s: %s makes no claim: v27 equals v17', (_item, name) => {
+    const v17 = criterion(name, V17, 'A1');
+    const v27 = criterion(name, V27, 'A1');
+    expect(perTestNotes(v27)).toEqual([]);
+    expect(share(v27)).toBe(share(v17));
+    expect(v27.status).toBe(v17.status);
+    expect(v27.score).toBe(v17.score);
+  });
+
+  it('controls keep the claim: only skip decorators, parametrize beside a skip, and a decorator or load_tests named only in a comment or string', () => {
+    for (const [name, skip] of [
+      ['c1-control-only-skip-decorators', '@pytest.mark.skip, @pytest.mark.skipif(True), @unittest.skip'],
+      ['c1-control-parametrize-beside-skip', '@pytest.mark.skip'],
+      ['c1-control-decorator-in-comment-and-string', '@unittest.skip'],
+      ['c2-control-load-tests-in-comment-and-string', '@unittest.skip'],
+    ] as const) {
+      const v27 = criterion(name, V27, 'A1');
+      expect(share(v27), name).toBe(0);
+      expect(perTestNotes(v27).map(({ summary }) => summary), name).toEqual([
+        `Every test in tests/test_cache.py is skipped unconditionally (${skip}), so the file cannot fail.`,
+      ]);
+    }
+  });
+});
+
 describe('#519 — Git LFS pointers are content Cejel did not read', () => {
   const lfs = 'a1-js-suite-as-lfs-pointers';
 
