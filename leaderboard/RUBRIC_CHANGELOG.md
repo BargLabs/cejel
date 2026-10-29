@@ -22,6 +22,129 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
+## 2026-10-28 — v27 freeze change F3: a backgrounded lockfile command is not a CI requirement (A4); B3's publish note names the trigger and the environment; the per-test skip readers make no claim where they cannot see every test (A1); v17-v26 byte-identical; no published score moved
+
+**Status.** A change under `witan-rubric-v27-prospective-2026-10-19` only, with no identifier
+change: the third and last of the changes after which v27 is frozen and measured for promotion to
+the public default in 0.7.0 (operator decisions of 2026-10-28). v17-v26 are byte-identical to main on
+every input measured below. No holdout or calibration ran, and this entry makes no precision or
+recall claim. F3-c (A4 leaves "required" not determined after an earlier `uses:` step) stays a stated
+limitation, unchanged.
+
+**F3-a (A4).** A command followed by a single `&` runs in the background. bash and sh do not wait for
+it, pwsh 7 starts it as a job, and cmd runs the next command whatever it returned. So its exit status
+does not decide the step, and `uv sync --locked & uv run pytest` does not show that CI requires
+uv.lock. Under v27 such a command states no lockfile requirement, on any runner or shell. The `&` is
+one not part of `&&` or of a redirection (`&>`, `>&`, `<&`, `|&`); a `&` inside a quoted argument is
+read the same way, which only withholds a requirement. `cmd & wait` is not shown either: a bare `wait`
+returns 0 whatever the background job returned. `cmd & wait $!` would pass the job's status on in
+bash, but it is read the same way: the smaller safe choice, which only withholds a requirement.
+`&&`, `||`, `;`, `|` and newline handling are unchanged, and so is every command that may write the
+lockfile. Under every other rubric, A4's note still cites the line, as before.
+
+**F3-b (B3, note text only).** For a workflow B3 sets aside because it publishes, releases or deploys
+with no pull-request trigger, the note keeps its sentence whole and then adds, read from the workflow
+itself: the events its `on:` names, in order (`push` as "push to main", "push of a tag its filter
+matches", "push to a branch its filter matches", "push to any branch or tag", with "(filtered by
+path)" where a path filter applies), and whether the publishing job declares an `environment:`. An
+environment is named when it is a plain name of at most 32 characters, from a scalar, a flow mapping
+or a block mapping; a name set by an expression or of other characters is described, not quoted. A
+merge key, a duplicate key or a value the reader cannot place gives "Cejel did not read whether its
+publishing job declares an environment". Several publishing jobs are counted ("neither of its 2
+publishing jobs declares an environment"). A sentence is added for each publishing workflow the note
+lists, in order, while the note stays within its 1,000 characters. Reasons, scores, statuses, metrics,
+conditions and findings are #517's. The reader returns the publishing jobs it finds instead of a
+yes/no, and reads the same files in the same order.
+
+**F3-d (A1, JavaScript/TypeScript).** F2's reader promised to claim "every test is skipped" only
+when it can see every test the file defines. Under v27 it now makes no claim in three more cases:
+- the file holds JSX (`</` or `/>`), whose slash it would read as a regular expression;
+- there is a call outside the bodies of test-case and hook calls that is not a test, suite or hook
+  global, a keyword, `require` or a declaration. This covers a method that registers a test
+  (`Deno.test`, `tap.test`, `t.test`, `QUnit.test`), a shared-suite helper (`behavesLikeAnAdder(sum)`)
+  at the top level or in a suite's callback, and a call's or index's result;
+- a test-case call's parenthesis never closes.
+
+The masker also reads `++` and `--` as one token after which `/` divides. For the shared-suite helper
+this is the "no claim" choice, not a stated limitation. A helper is code the reader does not follow,
+and any test it registers is one the reader cannot see. That costs recall: an all-skipped file that
+also calls `vi.mock(...)` or a setup helper at the top level gets no claim.
+
+**F3-e (A1, Python).** No claim when the file names `runTest`. unittest's loader and pytest run a
+TestCase's `runTest` when the class defines no `test*` method, so a live one is a test F2 did not
+count. Reading both loaders shows that in the shape first reported, a live `runTest` beside a skipped
+`test_other` in one class, neither runner runs `runTest`, so that file was in fact hollow. A
+`runTest`-only TestCase beside a skipped one was a real false claim. Making no claim covers both and
+never asserts.
+
+**F3-f (A1, Python).** The F2 review recorded the Python reader as keeping its promise. Given the
+F3-d shapes, it did not: a live function assigned to a class as `test_put`, and a top-level helper
+called on the class, were both marked hollow. Under v27 a statement at the top level, in a top-level
+block or at a class body's indent makes no claim when it calls something or assigns to an attribute.
+A name bound to pytest's skip marker and `pytestmark = ...` are exempt, and so is the body of
+`if __name__ == "__main__":`, which does not run when tests are collected.
+
+Each reader stays linear in its input. A scratch repository (not committed) held these, each file
+under the 512,000-byte scan limit:
+- 2,000 nested `describe.skip` calls;
+- a 400,000-character blank run before a `(`;
+- a 360,000-character name before a call;
+- 50,000 `n++ / 2` lines;
+- 100,000 unclosed parentheses;
+- a 400,000-character dotted name;
+- 50,000 parenthesised statements;
+- a run line holding 100,000 `&`;
+- a publishing workflow with 2,000 jobs, each declaring an environment.
+
+It scanned in 399 ms under v27.
+
+**Measured.** Main `f183b31fa` and this head, for 291 checkouts at fixed paths: the behaviour corpus
+and every false-assurance fixture, including the 30 added here. Full report JSON under all eleven
+selectable rubrics:
+- **v17-v26:** 2,910 of 2,910 reports byte-identical to main.
+- **v27:** 208 of 291 identical. The 83 that differ:
+  - 61 existing publishing-workflow fixtures whose only difference is B3's note. In each, main's note
+    is kept as an exact prefix and one sentence follows. 59 add "push to main, and its publishing job
+    declares no environment".
+  - The 5 F3-b fixtures, likewise note only.
+  - The 4 F3-a, 9 F3-d and 4 F3-e/F3-f change fixtures below.
+- **Unchanged:** no behaviour-corpus case changed under any rubric. Every behaviour-fingerprint pin
+  and the v17 scoring-surface golden are unchanged.
+
+No verdict band moved. Status, score and the item's metric:
+
+| Fixture | v17 (main = head) | v27 main | v27 head |
+|---|---|---|---|
+| `f3a-uv-sync-backgrounded-ubuntu`, `-windows`, `-bash-login`, `-then-wait` | A4 critical 0.5, lockfile_coverage not reported, overall 1.4 | A4 critical 0.3, lockfile_coverage 0, requirement finding, 1.3 | A4 critical 0.5, not reported, no finding, 1.4 |
+| `f3a-control-uv-sync-and-run`, `f3a-control-uv-sync-redirected` (`2>&1`) | A4 critical 0.5, not reported | A4 critical 0.3, 0, requirement finding | byte-identical to main |
+| `f3b-publish-push-main-no-environment` | B3 verified 1.6, no note | B3 verified 1, publishing sentence | same, then "... is triggered by push to main, and its publishing job declares no environment." |
+| `f3b-publish-push-main-environment-pypi` | B3 verified 1.6, no note | B3 verified 1 | "... push to main, and its publishing job declares the environment pypi." |
+| `f3b-publish-on-tag-push` | B3 verified 1, no note | B3 verified 1 | "... push of a tag its filter matches, and its publishing job declares no environment." |
+| `f3b-publish-workflow-dispatch-only` | B3 verified 1, no note | B3 verified 1 | "... workflow_dispatch, and its publishing job declares no environment." |
+| `f3b-publish-release-and-dispatch-environment-mapping` | B3 verified 1, no note | B3 verified 1 | "... release and workflow_dispatch, and its publishing job declares the environment pypi." |
+| `f3d-js-deno-test-`, `-tap-test-`, `-t-test-`, `-qunit-test-beside-skip`; `f3d-js-jsx-before-live-test`, `-postfix-increment-before-live-test`, `-jsx-hides-whole-live-test`, `-postfix-increment-hides-whole-live-test` | A1 verified 2.1, 2/2, overall 1.9 | A1 warning 1.8, 1/2, hollow note, 1.9 | A1 verified 2.1, 2/2, 1.9 |
+| `f3d-js-shared-suite-helper-beside-skip` | A1 verified 2.1, 3/3, 1.9 | A1 warning 1.9, 2/3, hollow note | A1 verified 2.1, 3/3 |
+| `f3e-py-runtest-beside-skipped-method`, `f3e-py-runtest-only-class-beside-skipped-class`, `f3f-py-member-registered-test`, `f3f-py-helper-call` | A1 verified 1.7, 1/1, overall 1.3 | A1 critical 1.1, 0/1, hollow note, 1.2 | A1 verified 1.7, 1/1, 1.3 |
+| `f3e-control-helper-method-not-runtest`, `f3f-py-main-guard-keeps-claim` (controls: still hollow) | A1 verified 1.7, 1/1 | A1 critical 1.1, 0/1, hollow note | byte-identical to main |
+| `f3f-py-commented-out-skip`, `f3f-py-skip-in-docstring-and-string`, `f3f-js-commented-out-skip`, `f3f-js-skip-in-string` (controls) | as v17 | as v17 | byte-identical to main |
+
+The v27 rises against main's v27 are the false claims withdrawn. Each lands exactly on v17's value,
+so nothing rises against v17. All nine F2 change fixtures keep their claims, byte-identical to main.
+
+**Tests.** `src/witan/__tests__/false-assurance-v27.test.ts`, describe blocks "F3-a", "F3-b" and
+"F3-d, F3-e, F3-f". It was red first at `2f68de49f`: 9 of 12 failed. The 3 that passed were the F3-a
+controls, the F3-e control and the pin that F2's change fixtures keep their claims. Three fixtures were added with the fixes:
+- the two `-hides-whole-live-test` fixtures. Main's v27 marks both files hollow (A1 warning 1.8,
+  1/2). In the red commit's JSX and `++` fixtures, a call is left after the misread slash, which the
+  call rule also refuses, so those fixtures test neither the JSX rule nor the `++` reading alone;
+- `f3f-py-main-guard-keeps-claim`, which pins the `__main__` exemption.
+
+Each of the JSX rule, the `++` reading, the call rule and the `__main__` exemption was disabled in
+turn at this head, and its fixture then failed. Three existing expectations changed, because F3-b
+requires it: the publishing sentences pinned exactly in `ci-claims-followups.test.ts` (the #517
+evasions), `ci-claims-publish-and-lockfile.test.ts` and `false-assurance-v27.test.ts` now carry the
+added sentence.
+
 ## 2026-10-28 — v27 freeze change F2: a test file whose every test is unconditionally skipped is hollow under v27 (A1); v17-v26 byte-identical; no published score moved
 
 **Status.** A scoring change under `witan-rubric-v27-prospective-2026-10-19` only, with no identifier

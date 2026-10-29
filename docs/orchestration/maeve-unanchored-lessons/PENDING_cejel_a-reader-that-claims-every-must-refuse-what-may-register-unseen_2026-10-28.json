@@ -1,0 +1,44 @@
+[
+  {
+    "statement": "When a review finds that one of two parallel readers breaks a promise and says the other keeps it, test the one said to keep it with the same counter-example shapes before agreeing. A review found that the JavaScript 'every test is skipped' reader missed tests registered as a method call or through a helper, and recorded the Python reader as sound. Given the same two shapes (a test function assigned to a class attribute, and a top-level helper call that adds tests), the Python reader made the same false claim. A reader that claims a universal cannot list what registers a test; it has to refuse to claim whenever the file holds anything that might register one it cannot see: an unrecognised call, or an assignment to an attribute.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "false-assurance"
+    ],
+    "tags": [
+      "universal-claim-needs-a-closed-world",
+      "review-verdicts-are-claims-too",
+      "false-assurance"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-10-28T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 610
+    }
+  },
+  {
+    "statement": "When two guards both stop a false claim on a fixture, that fixture tests neither guard. JSX on a live test's line and a slash after a postfix ++ were each refused by a new rule (JSX withholds the claim; ++ is lexed as one token), but the review's fixtures also left a call after the misread slash, which a third rule (no claim on an unrecognised call) caught too. Deleting either new rule left every test green. Rules: give each guard a fixture that only it can stop, here a misread regular expression that ends inside the live test's last call so no call is left over, and prove it by disabling the guard and watching that fixture, and only that fixture, fail.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "testing"
+    ],
+    "tags": [
+      "overlapping-guards-hide-each-others-removal",
+      "mutation-check-each-guard",
+      "testing"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-10-28T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 610
+    }
+  }
+]

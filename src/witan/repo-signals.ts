@@ -4249,7 +4249,13 @@ function collectA4DependencyEvidence(
     const actionsWorkflows = repoFiles.filter(isGitHubActionsWorkflow);
     const inventory = checkoutInventory(checkoutPaths);
     const isSatisfied = (lockfiles: readonly string[]) => lockfiles.some((name) => knownBasenames.has(name));
-    const fromWorkflow = findLockfileRequirement(repoPath, actionsWorkflows, inventory, isSatisfied);
+    const fromWorkflow = findLockfileRequirement(
+      repoPath,
+      actionsWorkflows,
+      inventory,
+      isSatisfied,
+      useV27FalseAssuranceClosure,
+    );
     if (fromWorkflow && !fromWorkflow.unreadAction) return fromWorkflow;
     const fromTox = findToxLockfileRequirement(
       repoPath,
@@ -5212,6 +5218,22 @@ function requiringCommandMatches(
   return matches;
 }
 
+// v27 freeze change F3-a. A `&` that is not part of `&&` or of a redirection (`&>`, `>&`, `<&`,
+// `|&`): it ends the command before it and runs that command in the background. shellCommandList
+// splits only at `&&`, `||`, `;` and `|`, so the backgrounded command is a command's first words.
+const SHELL_BACKGROUND_AMPERSAND_PATTERN = /(?<![&<>|])&(?![&>])/;
+
+/**
+ * True when one of a command's words holds a background `&`, so the command its first words name
+ * runs in the background: bash and sh do not wait for it, pwsh 7 starts it as a job, and cmd runs
+ * the next command whatever it returned. Its exit status does not decide the step, so it does not
+ * show that the step requires anything. A `wait` after it changes nothing: a bare `wait` returns 0.
+ * A `&` inside a quoted argument is read as one too, which only withholds a requirement.
+ */
+function commandIsBackgrounded(words: readonly string[]): boolean {
+  return words.some((word) => SHELL_BACKGROUND_AMPERSAND_PATTERN.test(word));
+}
+
 // Characters and words after which a failing command on its own line need not end a bash -e step:
 // a pipeline or list (`|`, `&&`, `||`, `&`), a subshell, group or substitution whose status is
 // taken elsewhere, and commands that redefine, skip or trap what follows.
@@ -5277,6 +5299,10 @@ function failureStopsJobAt(contents: string, step: WorkflowRunStep, line: number
  * commands are read as if inline at its `uses:` line. Any other action Cejel does not read, used in
  * the requiring step's job before it, leaves the requirement not determined (`unreadAction`): it is
  * returned only when no workflow states a requirement that is determined.
+ *
+ * With `backgroundedIsNotRequired` (v27 freeze change F3-a), a command run in the background, with
+ * a single `&` after it (commandIsBackgrounded), states no requirement: its exit status does not
+ * decide the step. Writers are read as before.
  * Linear in the workflow: where each lockfile may be written is decided once per workflow.
  */
 function findLockfileRequirement(
@@ -5284,6 +5310,7 @@ function findLockfileRequirement(
   workflows: readonly string[],
   inventory: CheckoutInventory,
   isSatisfied: (lockfiles: readonly string[]) => boolean,
+  backgroundedIsNotRequired = false,
 ): LockfileRequirement | undefined {
   let notDetermined: LockfileRequirement | undefined;
   for (const file of workflows) {
@@ -5368,6 +5395,7 @@ function findLockfileRequirement(
       });
       if (leavesCheckout) continue;
       for (const { line, index, andEnd, words, list } of commands) {
+        if (backgroundedIsNotRequired && commandIsBackgrounded(words)) continue;
         for (const match of requiringCommandMatches(words, inventory, isSatisfied)) {
           const byJob = firstWriterLines(match);
           if (byJob === undefined) continue;
@@ -6296,19 +6324,29 @@ function collectB3CiDisciplineEvidence(
   // release or deploy step is not counted either, whatever else it runs (publishingWorkflowReasons).
   // Making a release workflow run on every push, without its human gate, must not raise B3.
   // Decided once per workflow, under both depth signals, since each depends on the reading.
+  // v27 freeze change F3-b: the same reading also says, for B3's note, what triggers each such
+  // publishing workflow and whether its publishing job declares an environment.
+  const publishingDetails = new Map<string, string>();
+  const rootPublishingDetails = new Map<string, string>();
   const uncreditedWorkflows: ReadonlyMap<string, UncreditedCiWorkflowReason> = useV27FalseAssuranceClosure
     ? withContentReadSignals('B3', ['ci_script_depth', 'default_branch_ci_depth'], () =>
         publishingWorkflowReasons(
           repoPath,
           workflows,
           uncreditedCiWorkflows(repoPath, workflows, ownPublishOnlyInventory(repoFiles)),
+          publishingDetails,
         ),
       )
     : new Map();
   const uncreditedRootWorkflows: ReadonlyMap<string, UncreditedCiWorkflowReason> =
     useV27FalseAssuranceClosure && mono
       ? withContentReadSignals('B3', ['ci_script_depth', 'default_branch_ci_depth'], () =>
-          publishingWorkflowReasons(mono.root, rootWorkflows, uncreditedCiWorkflows(mono.root, rootWorkflows, null)),
+          publishingWorkflowReasons(
+            mono.root,
+            rootWorkflows,
+            uncreditedCiWorkflows(mono.root, rootWorkflows, null),
+            rootPublishingDetails,
+          ),
         )
       : new Map();
   const countsAsCi = (uncredited: ReadonlyMap<string, UncreditedCiWorkflowReason>) => (file: string) =>
@@ -6317,6 +6355,12 @@ function collectB3CiDisciplineEvidence(
   const b3Uncredited: ReadonlyMap<string, UncreditedCiWorkflowReason> = new Map([
     ...uncreditedWorkflows,
     ...[...uncreditedRootWorkflows].map(([file, reason]) => [`${file} at the monorepo root`, reason] as const),
+  ]);
+  const b3PublishingDetails: ReadonlyMap<string, string> = new Map([
+    ...[...publishingDetails].map(([file, detail]) => [file, `${file} ${detail}`] as const),
+    ...[...rootPublishingDetails].map(
+      ([file, detail]) => [`${file} at the monorepo root`, `${file} at the monorepo root ${detail}`] as const,
+    ),
   ]);
   const { defaultBranchCiCount, defaultBranchCiWorkflows, rootDefaultBranchCiWorkflows } = withContentReadSignal(
     'B3',
@@ -6519,7 +6563,7 @@ function collectB3CiDisciplineEvidence(
             : undefined,
       ),
     ],
-    ...(b3Uncredited.size > 0 ? { notes: b3UncreditedWorkflowsNote(b3Uncredited) } : {}),
+    ...(b3Uncredited.size > 0 ? { notes: b3UncreditedWorkflowsNote(b3Uncredited, b3PublishingDetails) } : {}),
     ...b3Disclosures(unshownCheckWorkflows, ...b3UncreditedDisclosures(b3Uncredited)),
   };
 }
@@ -6649,16 +6693,27 @@ function isPublishingCommand(input: readonly string[]): boolean {
  *     step or its job that can be false under the triggers.
  * The claim is only that such a step exists; the workflow may also run checks, and is not counted
  * because it publishes with no pull-request gate. Anything the readers cannot place keeps it counted.
+ *
+ * v27 freeze change F3-b: for each workflow added as 'publishes', `details` gets the clause B3's
+ * note adds after its path (publishingWorkflowDetail).
  */
 function publishingWorkflowReasons(
   root: string,
   workflows: readonly string[],
   uncredited: ReadonlyMap<string, UncreditedCiWorkflowReason>,
+  details: Map<string, string>,
 ): Map<string, UncreditedCiWorkflowReason> {
   const reasons = new Map<string, UncreditedCiWorkflowReason>();
   for (const file of workflows) {
-    const reason = uncredited.get(file) ?? (isPublishingWorkflow(root, file) ? 'publishes' : undefined);
-    if (reason) reasons.set(file, reason);
+    const known = uncredited.get(file);
+    if (known) {
+      reasons.set(file, known);
+      continue;
+    }
+    const detail = publishingWorkflowDetail(root, file);
+    if (detail === undefined) continue;
+    reasons.set(file, 'publishes');
+    details.set(file, detail);
   }
   return reasons;
 }
@@ -6979,17 +7034,29 @@ function workflowJobs(contents: string, isGuardLine: (line: string) => boolean):
  * sits on it or its job. A job's matrix is not read: a publishing job is publishing whatever its
  * matrix, as before #517's follow-ups (#517 v3: refusing a job whose matrix reads `fromJSON`, in
  * the whole file or only in the publishing job, raised B3 above the previous v27).
+ *
+ * Returns what each publishing job declares as its environment (v27 freeze change F3-b), in file
+ * order, or an empty list when the workflow does not publish on every run. The jobs are those of
+ * the first file that publishes: this workflow, or else the first reusable workflow followed, read
+ * in the same order as before, so the files read are the same.
  */
-function publishesOnEveryRun(root: string, contents: string, context: WorkflowTriggerContext, depth: number): boolean {
-  if (YAML_LINE_BREAK_NOT_SPLIT_PATTERN.test(contents)) return false;
+function publishingJobsOnEveryRun(
+  root: string,
+  contents: string,
+  context: WorkflowTriggerContext,
+  depth: number,
+): PublishingJobEnvironment[] {
+  if (YAML_LINE_BREAK_NOT_SPLIT_PATTERN.test(contents)) return [];
   const isGuardLine = (line: string) => isStepOrJobGuard(line) && !isAlwaysTrueIfLine(line, context);
   const jobs = workflowJobs(contents, isGuardLine);
   const mayRun = (step: WorkflowRunStep) => !step.conditional && step.job !== -1;
+  // The `steps:` line of each job that runs a publishing step.
+  const publishingStepsKeys = new Set<number>();
   for (const step of githubActionsUsesSteps(contents, isGuardLine)) {
     if (!mayRun(step)) continue;
     const value = unquoteYamlScalar(beforeShellComment(step.lines[0]?.text ?? ''));
     const at = value.indexOf('@');
-    if (at > 0 && PUBLISHING_ACTIONS.has(value.slice(0, at).toLowerCase())) return true;
+    if (at > 0 && PUBLISHING_ACTIONS.has(value.slice(0, at).toLowerCase())) publishingStepsKeys.add(step.job);
   }
   if (runsOnlyOnHostedBashRunners(contents)) {
     for (const step of githubActionsRunSteps(contents, isGuardLine)) {
@@ -6998,38 +7065,269 @@ function publishesOnEveryRun(root: string, contents: string, context: WorkflowTr
         shellCommands(text).map((words) => ({ words })),
       );
       if (stepShellIsConditional(step, commands)) continue;
-      if (commands.some(({ words }) => isPublishingCommand(words))) return true;
+      if (commands.some(({ words }) => isPublishingCommand(words))) publishingStepsKeys.add(step.job);
     }
   }
-  if (depth >= REUSABLE_WORKFLOW_MAX_DEPTH) return false;
+  if (publishingStepsKeys.size > 0) {
+    const lines = contents.split(/\r?\n/);
+    const indents = lines.map(lineIndent);
+    const inBlockScalar = blockScalarBodyLines(lines, indents);
+    return [...publishingStepsKeys]
+      .sort((left, right) => left - right)
+      .map((stepsKey) => {
+        const job = jobs.find(({ start, end }) => start < stepsKey && stepsKey < end);
+        return job ? jobEnvironment(lines, indents, inBlockScalar, job) : { kind: 'unread' };
+      });
+  }
+  if (depth >= REUSABLE_WORKFLOW_MAX_DEPTH) return [];
   for (const { target, conditional } of jobs) {
     if (target === undefined || conditional) continue;
     const local = LOCAL_REUSABLE_WORKFLOW_PATTERN.exec(target);
     if (!local) continue;
     const calledPath = join(root, local[1] ?? '');
     if (!isRegularFile(calledPath)) continue;
-    if (publishesOnEveryRun(root, readRepoText(calledPath, 'utf8'), context, depth + 1)) return true;
+    const called = publishingJobsOnEveryRun(root, readRepoText(calledPath, 'utf8'), context, depth + 1);
+    if (called.length > 0) return called;
   }
-  return false;
+  return [];
 }
 
-function isPublishingWorkflow(root: string, file: string): boolean {
-  if (!isGitHubActionsWorkflow(file)) return false;
+/**
+ * For a workflow B3 sets aside as publishing (v27, #517), the clause its note adds after the
+ * workflow's path (v27 freeze change F3-b): what triggers it, read from its `on:`
+ * (publishingTriggerText), and whether its publishing job declares an `environment:`
+ * (publishingEnvironmentText). Undefined when the workflow is not such a workflow; the test is
+ * #517's, unchanged.
+ */
+function publishingWorkflowDetail(root: string, file: string): string | undefined {
+  if (!isGitHubActionsWorkflow(file)) return undefined;
   const fullPath = join(root, file);
-  if (!isRegularFile(fullPath)) return false;
+  if (!isRegularFile(fullPath)) return undefined;
   const contents = readRepoText(fullPath, 'utf8');
-  if (YAML_LINE_BREAK_NOT_SPLIT_PATTERN.test(contents)) return false;
+  if (YAML_LINE_BREAK_NOT_SPLIT_PATTERN.test(contents)) return undefined;
   // The trigger is read from the one top-level `on:` key, never from words elsewhere in the file
   // (#517): a second `on:` is not placed.
-  if (contents.split(/\r?\n/).filter((line) => WORKFLOW_ON_KEY_PATTERN.test(line)).length !== 1) return false;
+  if (contents.split(/\r?\n/).filter((line) => WORKFLOW_ON_KEY_PATTERN.test(line)).length !== 1) return undefined;
   const triggers = githubWorkflowTriggers(contents);
-  if (triggers === null || triggers.size === 0 || triggers.has('workflow_call')) return false;
-  if ([...triggers].some((name) => PULL_REQUEST_TRIGGER_NAMES.has(name))) return false;
+  if (triggers === null || triggers.size === 0 || triggers.has('workflow_call')) return undefined;
+  if ([...triggers].some((name) => PULL_REQUEST_TRIGGER_NAMES.has(name))) return undefined;
   const context: WorkflowTriggerContext = {
     triggers,
     pushBranches: triggers.has('push') ? githubPushBranchFilter(contents) : null,
   };
-  return publishesOnEveryRun(root, contents, context, 0);
+  const environments = publishingJobsOnEveryRun(root, contents, context, 0);
+  if (environments.length === 0) return undefined;
+  return `is triggered by ${publishingTriggerText(contents, triggers)}, and ${publishingEnvironmentText(environments)}.`;
+}
+
+// ---- v27 freeze change F3-b: what a publishing workflow's note names ---------------------------
+
+/** What a publishing job declares as its `environment:`, as read from the job's own keys. */
+type PublishingJobEnvironment =
+  | { readonly kind: 'none' }
+  | { readonly kind: 'named'; readonly name: string }
+  | { readonly kind: 'unnamed' }
+  | { readonly kind: 'unread' };
+
+// A branch or environment name B3's note quotes: short, of plain characters, with no expression.
+// Any other name is described without being quoted.
+const PUBLISHING_NOTE_NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,31}$/;
+const PUBLISHING_NOTE_BRANCH_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._/-]{0,31}$/;
+const ENVIRONMENT_KEY_PATTERN = /^[ \t]*environment:([^]*)$/;
+const YAML_MERGE_KEY_PATTERN = /^[ \t]*<<[ \t]*:/;
+const YAML_MAPPING_KEY_PATTERN = /^[ \t]*([A-Za-z_][\w-]*)[ \t]*:([^]*)$/;
+const FLOW_MAPPING_NAME_PATTERN = /^\{(?:[^{}]*,)?[ \t]*name[ \t]*:[ \t]*([^,{}]*?)[ \t]*(?:,[^{}]*)?\}$/;
+
+/** `items` joined as a reader lists them: `a`, `a and b`, `a, b and c` (or `or`). */
+function joinWords(items: readonly string[], last: 'and' | 'or'): string {
+  if (items.length <= 1) return items[0] ?? '';
+  return `${items.slice(0, -1).join(', ')} ${last} ${items[items.length - 1]}`;
+}
+
+/** An environment's name as written: quoted when it is a plain name, otherwise described. */
+function environmentNamed(written: string): PublishingJobEnvironment {
+  const name = unquoteYamlScalar(written);
+  if (name === '') return { kind: 'unread' };
+  return PUBLISHING_NOTE_NAME_PATTERN.test(name) ? { kind: 'named', name } : { kind: 'unnamed' };
+}
+
+/**
+ * The `environment:` a job declares among its own keys, read by indentation: a name, a flow mapping
+ * with a `name:`, or a block mapping whose `name:` sits at its first indent. 'none' only when no key
+ * at the job's key indent is `environment:` and none is a YAML merge key, which could bring one in;
+ * anything the reader cannot place is 'unread'. Linear in the job's lines.
+ */
+function jobEnvironment(
+  lines: readonly string[],
+  indents: readonly number[],
+  inBlockScalar: readonly boolean[],
+  job: WorkflowJob,
+): PublishingJobEnvironment {
+  const structural = (index: number) => {
+    const raw = lines[index] ?? '';
+    return !inBlockScalar[index] && raw.trim() !== '' && !raw.trimStart().startsWith('#');
+  };
+  const header = lines[job.start] ?? '';
+  if (stripYamlComment(header.slice(header.indexOf(':') + 1)).trim() !== '') return { kind: 'unread' };
+  let keyIndent = -1;
+  let found: PublishingJobEnvironment | undefined;
+  for (let index = job.start + 1; index < job.end; index += 1) {
+    if (!structural(index)) continue;
+    const indent = indents[index] ?? 0;
+    if (keyIndent === -1) keyIndent = indent;
+    if (indent < keyIndent) return { kind: 'unread' };
+    if (indent !== keyIndent) continue;
+    const raw = lines[index] ?? '';
+    if (YAML_MERGE_KEY_PATTERN.test(raw)) return { kind: 'unread' };
+    const environment = ENVIRONMENT_KEY_PATTERN.exec(raw);
+    if (!environment) continue;
+    if (found) return { kind: 'unread' };
+    const value = stripYamlComment(environment[1] ?? '').trim();
+    if (value.startsWith('{')) {
+      const name = FLOW_MAPPING_NAME_PATTERN.exec(value)?.[1];
+      found = name === undefined ? { kind: 'unread' } : environmentNamed(name);
+    } else if (value !== '') {
+      found = /^[[&*|>!%@`]/.test(value) ? { kind: 'unread' } : environmentNamed(value);
+    } else {
+      // A block mapping: its `name:` at the mapping's first indent.
+      let mappingIndent = -1;
+      let name: string | undefined;
+      for (let next = index + 1; next < job.end; next += 1) {
+        if (!structural(next)) continue;
+        const nextIndent = indents[next] ?? 0;
+        if (nextIndent <= keyIndent) break;
+        if (mappingIndent === -1) mappingIndent = nextIndent;
+        if (nextIndent !== mappingIndent) continue;
+        const key = YAML_MAPPING_KEY_PATTERN.exec(lines[next] ?? '');
+        if (!key) {
+          name = undefined;
+          break;
+        }
+        if (key[1] === 'name') name = stripYamlComment(key[2] ?? '').trim();
+      }
+      found = name === undefined || /^[[{&*|>!%@`]/.test(name) ? { kind: 'unread' } : environmentNamed(name);
+    }
+  }
+  return found ?? { kind: 'none' };
+}
+
+/** What B3's note says about the environments of a publishing workflow's publishing jobs. */
+function publishingEnvironmentText(environments: readonly PublishingJobEnvironment[]): string {
+  if (environments.length === 1) {
+    const only = environments[0] ?? { kind: 'unread' };
+    switch (only.kind) {
+      case 'none':
+        return 'its publishing job declares no environment';
+      case 'named':
+        return `its publishing job declares the environment ${only.name}`;
+      case 'unnamed':
+        return 'its publishing job declares an environment whose name Cejel does not quote';
+      default:
+        return 'Cejel did not read whether its publishing job declares an environment';
+    }
+  }
+  const count = (kind: PublishingJobEnvironment['kind']) => environments.filter((entry) => entry.kind === kind).length;
+  const declare = (n: number) => (n === 1 ? 'declares' : 'declare');
+  const names = [...new Set(environments.flatMap((entry) => (entry.kind === 'named' ? [entry.name] : [])))];
+  if (count('none') === environments.length) {
+    return `${environments.length === 2 ? 'neither' : 'none'} of its ${environments.length} publishing jobs declares an environment`;
+  }
+  if (count('named') === environments.length && names.length === 1) {
+    return `each of its ${environments.length} publishing jobs declares the environment ${names[0]}`;
+  }
+  const parts = [
+    ...(count('none') > 0 ? [`${count('none')} ${declare(count('none'))} no environment`] : []),
+    ...(count('named') > 0
+      ? [`${count('named')} ${declare(count('named'))} the environment${names.length === 1 ? '' : 's'} ${joinWords(names, 'and')}`]
+      : []),
+    ...(count('unnamed') > 0
+      ? [`${count('unnamed')} ${declare(count('unnamed'))} an environment whose name Cejel does not quote`]
+      : []),
+    ...(count('unread') > 0 ? [`for ${count('unread')} Cejel did not read whether one is declared`] : []),
+  ];
+  return `of its ${environments.length} publishing jobs, ${joinWords(parts, 'and')}`;
+}
+
+/**
+ * The setting keys under a workflow's `push:` trigger (`branches`, `tags`, `paths`, ...), read by
+ * indentation as githubPushBranchFilter reads them; empty when `push` has no settings (`on: push`,
+ * a list of names, `push:` with nothing under it, `push: {}`). Null when the reader cannot place
+ * them. Linear in the file.
+ */
+function githubPushSettingKeys(contents: string): ReadonlySet<string> | null {
+  const lines = contents.split(/\r?\n/);
+  const isContent = (line: string) => line.trim() !== '' && !line.trimStart().startsWith('#');
+  const onIndex = lines.findIndex((line) => WORKFLOW_ON_KEY_PATTERN.test(line));
+  if (onIndex === -1) return null;
+  const onLine = lines[onIndex] ?? '';
+  if (stripYamlComment(onLine.slice(onLine.indexOf(':') + 1)).trim() !== '') return new Set();
+  let triggerIndent = -1;
+  let pushIndex = -1;
+  let sequence = false;
+  let end = lines.length;
+  for (let index = onIndex + 1; index < lines.length; index += 1) {
+    const raw = lines[index] ?? '';
+    if (!isContent(raw)) continue;
+    const indent = lineIndent(raw);
+    if (triggerIndent === -1) {
+      triggerIndent = indent;
+      sequence = /^[ \t]*-[ \t]/.test(raw);
+      if (sequence) return new Set();
+    }
+    if (indent === 0 || indent < triggerIndent) {
+      end = index;
+      break;
+    }
+    if (indent === triggerIndent && /^[ \t]*push:/.test(raw)) {
+      if (pushIndex !== -1) return null;
+      pushIndex = index;
+    }
+  }
+  if (pushIndex === -1) return null;
+  const pushValue = stripYamlComment((lines[pushIndex] ?? '').replace(/^[ \t]*push:/, '')).trim();
+  if (pushValue !== '') return pushValue === '{}' || pushValue === 'null' || pushValue === '~' ? new Set() : null;
+  const keys = new Set<string>();
+  let settingsIndent = -1;
+  for (let index = pushIndex + 1; index < end; index += 1) {
+    const raw = lines[index] ?? '';
+    if (!isContent(raw)) continue;
+    const indent = lineIndent(raw);
+    if (indent <= triggerIndent) break;
+    if (settingsIndent === -1) settingsIndent = indent;
+    if (indent < settingsIndent) return null;
+    if (indent !== settingsIndent || /^[ \t]*-[ \t]/.test(raw)) continue;
+    const key = PUSH_FILTER_KEY_PATTERN.exec(stripYamlComment(raw).trimEnd());
+    if (!key) return null;
+    keys.add(key[1] ?? '');
+  }
+  return keys;
+}
+
+/** What starts a push-triggered publishing workflow, from its `push:` settings. */
+function pushTriggerText(contents: string): string {
+  const keys = githubPushSettingKeys(contents);
+  if (keys === null) return 'push';
+  const byPath = keys.has('paths') || keys.has('paths-ignore') ? ' (filtered by path)' : '';
+  const branches = githubPushBranchFilter(contents);
+  if (branches !== null) {
+    return branches.every((branch) => PUBLISHING_NOTE_BRANCH_PATTERN.test(branch))
+      ? `push to ${joinWords(branches, 'or')}${byPath}`
+      : `push to ${branches.length === 1 ? 'one named branch' : `${branches.length} named branches`}${byPath}`;
+  }
+  const branchFilter = keys.has('branches') || keys.has('branches-ignore');
+  const tagFilter = keys.has('tags') || keys.has('tags-ignore');
+  if (branchFilter && tagFilter) return `push to a branch or of a tag its filters match${byPath}`;
+  if (branchFilter) return `push to a branch its filter matches${byPath}`;
+  if (tagFilter) return `push of a tag its filter matches${byPath}`;
+  return `push to any branch or tag${byPath}`;
+}
+
+/** A publishing workflow's triggers, in the order its `on:` names them, `push` described. */
+function publishingTriggerText(contents: string, triggers: ReadonlySet<string>): string {
+  return joinWords(
+    [...triggers].map((name) => (name === 'push' ? pushTriggerText(contents) : name)),
+    'and',
+  );
 }
 
 /**
@@ -7120,8 +7418,11 @@ export function uncreditedCiWorkflowDisclosure(
   return `${prefix}${items.length} workflow${items.length === 1 ? '' : 's'}.`;
 }
 
-function b3UncreditedWorkflowsNote(uncredited: ReadonlyMap<string, UncreditedCiWorkflowReason>): string {
-  return uncreditedCiWorkflowNote(uncredited, 'CI verification');
+function b3UncreditedWorkflowsNote(
+  uncredited: ReadonlyMap<string, UncreditedCiWorkflowReason>,
+  publishingDetails: ReadonlyMap<string, string>,
+): string {
+  return uncreditedCiWorkflowNote(uncredited, 'CI verification', undefined, publishingDetails);
 }
 
 /**
@@ -7133,11 +7434,16 @@ function b3UncreditedWorkflowsNote(uncredited: ReadonlyMap<string, UncreditedCiW
  * pass), the note above is used where it fits the budget. Otherwise each sentence lists fewer
  * paths and then says how many more ("a, b and 2 more"), then lists none (each sentence already
  * states its count), then the count alone.
+ *
+ * With `publishingDetails` (B3 under v27, freeze change F3-b), the note above is kept whole as a
+ * prefix, and after it comes one sentence for each publishing workflow it lists, in order, while
+ * the whole fits: the workflow's path and what publishingWorkflowDetail read.
  */
 function uncreditedCiWorkflowNote(
   uncredited: ReadonlyMap<string, UncreditedCiWorkflowReason>,
   notCountedAs: string,
   budget?: number,
+  publishingDetails?: ReadonlyMap<string, string>,
 ): string {
   if (budget !== undefined) {
     const unbudgeted = uncreditedCiWorkflowNote(uncredited, notCountedAs);
@@ -7173,7 +7479,15 @@ function uncreditedCiWorkflowNote(
   const limit = budget ?? CRITERION_NOTES_MAX_LENGTH;
   for (const shown of [4, 3, 2, 1, 0]) {
     const note = sentences(shown);
-    if (note.length <= limit || (budget === undefined && shown === 0)) return note;
+    if (note.length <= limit || (budget === undefined && shown === 0)) {
+      let detailed = note;
+      for (const file of publishing.slice(0, shown)) {
+        const detail = publishingDetails?.get(file);
+        if (detail === undefined || detailed.length + 1 + detail.length > limit) break;
+        detailed = `${detailed} ${detail}`;
+      }
+      return detailed;
+    }
   }
   return `${uncreditedCiWorkflowCondition(uncredited.size)} as ${notCountedAs}.`;
 }
@@ -10562,6 +10876,58 @@ function pythonHeldSkipNames(code: string, statements: readonly PythonLogicalSta
   return held;
 }
 
+// v27 freeze change F3-e. unittest's loader and pytest both run a TestCase's `runTest` when the
+// class defines no `test*` method; a live one is a test the reader does not count.
+const PYTHON_RUN_TEST_PATTERN = /(?<!\w)runTest(?!\w)/;
+// v27 freeze change F3-f. Words before a `(` that is not a call.
+const PYTHON_PARENTHESIS_KEYWORDS: ReadonlySet<string> = new Set([
+  'if', 'elif', 'while', 'for', 'in', 'not', 'and', 'or', 'is', 'return', 'assert', 'with', 'del', 'yield',
+  'lambda', 'await', 'except', 'raise', 'from', 'import', 'case', 'match', 'else',
+]);
+const PYTHON_ASSIGNMENT_OPERATOR_PATTERN = /^(?:[-+*/%&|^@]|\/\/|\*\*|<<|>>)?=(?!=)/;
+// `if __name__ == "__main__":`, as written: its body runs only when the file is run as a script.
+const PYTHON_MAIN_GUARD_PATTERN =
+  /^if[ \t]+(?:__name__[ \t]*==[ \t]*(['"])__main__\1|(['"])__main__\2[ \t]*==[ \t]*__name__)[ \t]*:[ \t]*(?:#.*)?\r?$/;
+
+/**
+ * True when a statement, free of comments and string contents, calls something: a `(` after a name
+ * that is not one of PYTHON_PARENTHESIS_KEYWORDS, or after a `)` or `]`. Plain backward scanning
+ * from each `(`, linear in the statement.
+ */
+function pythonStatementCalls(text: string): boolean {
+  for (let open = text.indexOf('('); open !== -1; open = text.indexOf('(', open + 1)) {
+    let end = open - 1;
+    while (end >= 0 && (text[end] === ' ' || text[end] === '\t')) end -= 1;
+    const before = text[end] ?? '';
+    if (before === ')' || before === ']') return true;
+    if (!/\w/.test(before)) continue;
+    let start = end;
+    while (start > 0 && /\w/.test(text[start - 1] ?? '')) start -= 1;
+    const word = text.slice(start, end + 1);
+    if (!/^[0-9]/.test(word) && !PYTHON_PARENTHESIS_KEYWORDS.has(word)) return true;
+  }
+  return false;
+}
+
+/** True when a statement assigns to an attribute (`CacheTest.test_put = check`, `a.b += 1`). */
+function pythonAssignsAttribute(text: string): boolean {
+  let end = 0;
+  while (end < text.length && /[\w.]/.test(text[end] ?? '')) end += 1;
+  const target = text.slice(0, end);
+  return /^[A-Za-z_]/.test(target) && target.includes('.') && PYTHON_ASSIGNMENT_OPERATOR_PATTERN.test(text.slice(end).trimStart());
+}
+
+/**
+ * True when a statement read outside any function body may add a test the reader does not see
+ * (v27 freeze change F3-f): it calls something (a helper that adds tests to a class or module,
+ * `setattr`, `globals()`) or assigns to an attribute (a test method set on a class). A name bound to
+ * pytest's skip marker (pythonHeldSkipNames) and `pytestmark = ...` add no test and are not read so.
+ */
+function pythonStatementMayAddTest(text: string): boolean {
+  if (PYTEST_SKIP_MARKER_BINDING_PATTERN.test(text) || /^pytestmark[ \t]*=/.test(text)) return false;
+  return pythonStatementCalls(text) || pythonAssignsAttribute(text);
+}
+
 /**
  * Every test function and test method in a Python test file, read where pytest and unittest
  * collect them: `def test*` at the module's top level, and `def test*` at the first indent of a
@@ -10569,11 +10935,21 @@ function pythonHeldSkipNames(code: string, statements: readonly PythonLogicalSta
  * made. Also no claim when the file defines a test elsewhere (inside a block, a nested class) or may
  * bind one another way (an import, an assignment), or a class that may inherit tests is not itself
  * skipped. Linear in the file.
+ *
+ * v27 freeze change F3: also no claim when the file names `runTest` (F3-e), or when a statement at
+ * the top level, in a top-level block or at a class body's indent may add a test
+ * (pythonStatementMayAddTest, F3-f). The body of an `if __name__ == "__main__":` block is not read
+ * for that, since it does not run when the tests are collected.
  */
 function readEveryPythonTestSkipped(contents: string): PerTestSkipReading | undefined {
   const { code } = maskCommentsAndStrings(contents, true);
+  if (PYTHON_RUN_TEST_PATTERN.test(code)) return undefined;
   const statements = pythonLogicalStatements(code);
   if (statements === undefined) return undefined;
+  const rawLines = contents.split('\n');
+  const isMainGuard = (statement: PythonLogicalStatement) =>
+    statement.lineCount === 1 && PYTHON_MAIN_GUARD_PATTERN.test(rawLines[statement.line - 1] ?? '');
+  let inMainGuard = false;
   const heldSkipNames = pythonHeldSkipNames(code, statements);
   const found: { skip: string; line: number }[] = [];
   let decorators: PythonLogicalStatement[] = [];
@@ -10631,10 +11007,11 @@ function readEveryPythonTestSkipped(contents: string): PerTestSkipReading | unde
     if (PYTHON_BLOCK_STATEMENT_PATTERN.test(text)) {
       if (inClass) return false;
       opened = 'block';
-      return !namesPythonTestIdentifier(text);
+      inMainGuard = isMainGuard(statement);
+      return !namesPythonTestIdentifier(text) && (inMainGuard || !pythonStatementMayAddTest(text));
     }
     if (!inClass) opened = 'none';
-    return !namesPythonTestIdentifier(text);
+    return !namesPythonTestIdentifier(text) && !pythonStatementMayAddTest(text);
   };
   for (const statement of statements) {
     if (statement.indent === 0) {
@@ -10644,7 +11021,11 @@ function readEveryPythonTestSkipped(contents: string): PerTestSkipReading | unde
     }
     if (opened === 'def') continue;
     if (opened === 'block') {
-      if (/^(?:@|class\b|(?:async[ \t]+)?def\b)/.test(statement.text) || namesPythonTestIdentifier(statement.text)) {
+      if (
+        /^(?:@|class\b|(?:async[ \t]+)?def\b)/.test(statement.text) ||
+        namesPythonTestIdentifier(statement.text) ||
+        (!inMainGuard && pythonStatementMayAddTest(statement.text))
+      ) {
         return undefined;
       }
       continue;
@@ -10721,6 +11102,12 @@ function maskJavaScriptLiterals(contents: string): string | undefined {
       while (/[\w$]/.test(contents[end] ?? '')) end += 1;
       previous = JS_REGEX_PRECEDING_KEYWORDS.has(contents.slice(index, end)) ? '(' : 'x';
       index = end;
+    } else if ((character === '+' || character === '-') && next === character) {
+      // `++` and `--` (v27 freeze change F3-d): a `/` after either divides. After a postfix one it
+      // follows a value; after a prefix one a regular expression is not an operand JavaScript
+      // accepts. Read one at a time, `runs++ / 2` opened a regular expression at the slash.
+      previous = 'x';
+      index += 2;
     } else {
       if (/[0-9)\]]/.test(character)) previous = 'x';
       else if (!/\s/.test(character)) previous = character;
@@ -10740,6 +11127,43 @@ const JS_TEST_CASE_GLOBALS = new Set(['it', 'test', 'specify', 'fit', 'xit', 'xt
 const JS_TEST_GLOBAL_BINDING_PATTERN =
   /\bimport\s+(?:type\s+)?(?:[A-Za-z_$][\w$]*\s*(?:,\s*)?)?(?:\{[^{}]*\}\s*|\*\s*as\s+[A-Za-z_$][\w$]*\s*)?from\b|\b(?:const|let|var)\s*\{[^{}]*\}\s*=\s*require\s*\(/g;
 
+// v27 freeze change F3-d. Hook calls: their callbacks run around tests and register none.
+const JS_TEST_HOOK_CALL_PATTERN = /(?<![\w$.])(?:beforeEach|afterEach|beforeAll|afterAll|before|after)\s*\(/g;
+// JSX closes every element with `</` or `/>`. The masker would read the slash as a regular
+// expression that can hide a live call (`<p>hi</p>; it('adds', ...)`).
+const JSX_CLOSING_PATTERN = /<\/|\/>/;
+// Words before a `(` that does not call a function the file defines or imports: keywords that take
+// a parenthesis, a function expression (`function (`, `async (`), and `require(`.
+const JS_PARENTHESIS_KEYWORDS: ReadonlySet<string> = new Set([
+  'if', 'for', 'while', 'switch', 'catch', 'with', 'return', 'typeof', 'void', 'await', 'yield', 'in', 'of',
+  'instanceof', 'delete', 'throw', 'case', 'do', 'else', 'function', 'async', 'require',
+]);
+
+/**
+ * True when the `(` at `open` in masked code calls something: a name that is not one of
+ * JS_PARENTHESIS_KEYWORDS and is not being declared (`function name(`), a member (`Deno.test(`,
+ * `t.test(`), or a call's or index's result (`)(`, `](`, a generic `>(`). Plain backward scanning
+ * over the words just before it.
+ */
+function isJavaScriptCallParenthesis(code: string, open: number): boolean {
+  let end = open - 1;
+  while (end >= 0 && /\s/.test(code[end] ?? '')) end -= 1;
+  const before = code[end] ?? '';
+  if (before === ')' || before === ']') return true;
+  if (before === '>') return code[end - 1] !== '=';
+  if (!/[\w$]/.test(before)) return false;
+  let start = end;
+  while (start > 0 && /[\w$]/.test(code[start - 1] ?? '')) start -= 1;
+  const word = code.slice(start, end + 1);
+  let previous = start - 1;
+  while (previous >= 0 && /\s/.test(code[previous] ?? '')) previous -= 1;
+  if (code[previous] === '.') return true;
+  if (/^[0-9]/.test(word) || JS_PARENTHESIS_KEYWORDS.has(word)) return false;
+  // A declaration, `function name(` or `function* name(`.
+  while (previous >= 0 && /[\s*]/.test(code[previous] ?? '')) previous -= 1;
+  return code.slice(Math.max(0, previous - 7), previous + 1) !== 'function' || /[\w$]/.test(code[previous - 8] ?? '');
+}
+
 /** The skip a call applies to itself or to what its callback registers, as Cejel names it. */
 function javaScriptUnconditionalSkip(name: string, members: string): string | undefined {
   if (name === 'xit' || name === 'xtest' || name === 'xdescribe' || name === 'xcontext') return members === '' ? name : undefined;
@@ -10755,8 +11179,16 @@ function javaScriptUnconditionalSkip(name: string, members: string): string | un
  * global is named without being called (an alias, a property), or any call is a `.todo`, which stays out of
  * scope and keeps its reading. `skipIf`, `runIf` and every other member are not skips. Linear in
  * the file.
+ *
+ * v27 freeze change F3-d: also no claim where a live test may sit where the reader cannot see it.
+ * That is any JSX (JSX_CLOSING_PATTERN), and any call outside the bodies of test-case and hook calls
+ * that is not a test, suite or hook global, a keyword, `require` or a declaration
+ * (isJavaScriptCallParenthesis). Such a call may register tests: a method (`Deno.test`, `tap.test`,
+ * `t.test`, `QUnit.test`) or a helper (`behavesLikeAnAdder(sum)`), at the top level or in a suite's
+ * callback.
  */
 function readEveryJavaScriptTestSkipped(contents: string): PerTestSkipReading | undefined {
+  if (JSX_CLOSING_PATTERN.test(contents)) return undefined;
   const masked = maskJavaScriptLiterals(contents);
   if (masked === undefined) return undefined;
   const code = masked.replace(JS_TEST_GLOBAL_BINDING_PATTERN, (binding) => ' '.repeat(binding.length));
@@ -10775,6 +11207,10 @@ function readEveryJavaScriptTestSkipped(contents: string): PerTestSkipReading | 
   const openSuites: { open: number; close: number; skip: string }[] = [];
   const sources = new Map<number, string>();
   let cases = 0;
+  // F3-d: the `(` of each test, suite and hook call, and how many test-case or hook bodies cover
+  // each offset (a running sum over `bodies`).
+  const knownCalls = new Set<number>();
+  const bodies = new Int32Array(code.length + 1);
   for (const match of code.matchAll(JS_TEST_GLOBAL_PATTERN)) {
     const name = match[1] ?? '';
     const at = match.index ?? 0;
@@ -10785,11 +11221,17 @@ function readEveryJavaScriptTestSkipped(contents: string): PerTestSkipReading | 
       if (JS_TEST_CASE_GLOBALS.has(name)) return undefined;
       continue;
     }
+    const open = at + match[0].length - 1;
+    knownCalls.add(open);
     const members = (match[2] ?? '').replace(/\s+/g, '');
     if (/\.todo(?![\w$])/.test(members)) return undefined;
     const skip = javaScriptUnconditionalSkip(name, members);
     if (JS_TEST_CASE_GLOBALS.has(name)) {
       cases += 1;
+      const close = closeOf[open] ?? -1;
+      if (close === -1) return undefined;
+      bodies[open] = (bodies[open] ?? 0) + 1;
+      bodies[close + 1] = (bodies[close + 1] ?? 0) - 1;
       const suite = openSuites[0];
       if (skip !== undefined) sources.set(at, skip);
       else if (suite !== undefined) sources.set(suite.open, suite.skip);
@@ -10797,12 +11239,25 @@ function readEveryJavaScriptTestSkipped(contents: string): PerTestSkipReading | 
       continue;
     }
     if (skip === undefined) continue;
-    const open = at + match[0].length - 1;
     const close = closeOf[open] ?? -1;
     if (close === -1) return undefined;
     openSuites.push({ open, close, skip });
   }
   if (cases === 0) return undefined;
+  for (const match of code.matchAll(JS_TEST_HOOK_CALL_PATTERN)) {
+    const open = (match.index ?? 0) + match[0].length - 1;
+    const close = closeOf[open] ?? -1;
+    if (close === -1) return undefined;
+    knownCalls.add(open);
+    bodies[open] = (bodies[open] ?? 0) + 1;
+    bodies[close + 1] = (bodies[close + 1] ?? 0) - 1;
+  }
+  let insideBodies = 0;
+  for (let index = 0; index < code.length; index += 1) {
+    insideBodies += bodies[index] ?? 0;
+    if (code[index] !== '(' || insideBodies > 0 || knownCalls.has(index)) continue;
+    if (isJavaScriptCallParenthesis(code, index)) return undefined;
+  }
   const ordered = [...sources.entries()].sort(([left], [right]) => left - right);
   const first = ordered[0]?.[0] ?? 0;
   return {

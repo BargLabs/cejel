@@ -224,8 +224,11 @@ describe('#520 — v17 reports lockfile_coverage as not computed for #597 requir
 });
 
 describe('#517 — removing the gate does not raise v27 B3, whichever evasion is used', () => {
+  // Changed 2026-10-28 (v27 freeze change F3-b): the sentence is unchanged and stays a prefix; after
+  // it the note names what triggers the workflow and whether its publishing job declares an
+  // environment. Every evasion here is #517's workflow on every push to main with its gate removed.
   const publishingSentence = (file: string) =>
-    `1 workflow that publishes, releases or deploys with no pull-request trigger (an unconditional step runs a publish, release or deploy command or action) is not counted as CI verification, whatever else it runs: ${file}.`;
+    `1 workflow that publishes, releases or deploys with no pull-request trigger (an unconditional step runs a publish, release or deploy command or action) is not counted as CI verification, whatever else it runs: ${file}. ${file} is triggered by push to main, and its publishing job declares no environment.`;
 
   for (const [name, , files] of EVASIONS) {
     it(`v27: ${name}`, () => {
