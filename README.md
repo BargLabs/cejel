@@ -181,20 +181,24 @@ The npm package is scoped as `@cejel/cejel`; its executable remains the short co
     min-score: "2.5"   # optional: fail the build below this
 ```
 
-`actions/checkout` fetches one commit by default. On a shallow clone, A2 and B2 see only that
-commit, and the certificate says so under "History limitations".
-Under the prospective v27 rubric (`--rubric-pin witan-rubric-v27-prospective-2026-10-19`), a
-shallow clone goes further. A2 abstains unless a confirmed critical secret finding stands, including
-where it would otherwise be marked not applicable, since that decision also rests on earlier
-commits. It abstains the same way on any clone where one of its reads of earlier commits failed:
+`actions/checkout` fetches one commit by default, so clone in full with `fetch-depth: 0`. On a
+shallow clone the criteria that read commit history see only the commits it holds: A2's scans of
+earlier commits for `.env` files and credentials read only those, and B2 withholds its
+pull-request merge ratio, or abstains where nothing else is left to score it on, saying why in its
+note. The certificate says so under "History limitations".
+Under the opt-in prospective v27 rubric (`--rubric-pin witan-rubric-v27-prospective-2026-10-19`;
+v17 remains the default), A2 abstains on a shallow clone unless a confirmed critical secret finding
+stands, including where it would otherwise be marked not applicable, since that decision also rests
+on earlier commits. That abstention is left out of the composite, but the verdict is capped at the
+band the composite reaches with it counted as 0.
+A2 also abstains under v27 on any clone where one of its reads of earlier commits failed:
 for example on a partial clone made with `--filter`, which `fetch-depth: 0` and no `filter` avoid,
 or where a read stops at one of Cejel's own limits: an output limit or the history secret scan's
 cap of 5,000 historical files, which happen on some large complete histories and which a re-scan
 of the same repository does not lift (#567), or the 30-second timeout, which a re-scan may lift.
 It also abstains when it leaves a credential-shaped path in history unread because the path's name
-contains control characters, and when git itself cannot be run on the scanning host. B2 abstains,
-where it would be scored, when fewer than 12 commits are visible. Each of these abstentions counts
-as 0 in the composite, so they can lower the v27 score.
+contains control characters, and when git itself cannot be run on the scanning host. Each of these
+abstentions counts as 0 in the composite, so they can lower the v27 score.
 
 For an executed public example that binds a release artifact to the same commit named by its
 Cejel certificate, see [Certified releases with GitHub build provenance](./docs/certified-release-example.md).
@@ -500,7 +504,10 @@ secrets.
 ```
 
 Check out with `fetch-depth: 0`: the default depth of 1 truncates the history A2 and B2 read, and
-the certificate then lists a history limitation.
+the certificate then lists a history limitation. On a shallow clone A2's scans of earlier commits
+read only the commits present and B2 withholds its pull-request merge ratio, each with its reason;
+under the opt-in `witan-rubric-v27-prospective-2026-10-19` rubric, A2 abstains and the verdict is
+capped where A2 could not be read.
 
 ## Use with Claude
 
