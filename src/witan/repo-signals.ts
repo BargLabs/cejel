@@ -10876,6 +10876,58 @@ function pythonHeldSkipNames(code: string, statements: readonly PythonLogicalSta
   return held;
 }
 
+// v27 freeze change F3-e. unittest's loader and pytest both run a TestCase's `runTest` when the
+// class defines no `test*` method; a live one is a test the reader does not count.
+const PYTHON_RUN_TEST_PATTERN = /(?<!\w)runTest(?!\w)/;
+// v27 freeze change F3-f. Words before a `(` that is not a call.
+const PYTHON_PARENTHESIS_KEYWORDS: ReadonlySet<string> = new Set([
+  'if', 'elif', 'while', 'for', 'in', 'not', 'and', 'or', 'is', 'return', 'assert', 'with', 'del', 'yield',
+  'lambda', 'await', 'except', 'raise', 'from', 'import', 'case', 'match', 'else',
+]);
+const PYTHON_ASSIGNMENT_OPERATOR_PATTERN = /^(?:[-+*/%&|^@]|\/\/|\*\*|<<|>>)?=(?!=)/;
+// `if __name__ == "__main__":`, as written: its body runs only when the file is run as a script.
+const PYTHON_MAIN_GUARD_PATTERN =
+  /^if[ \t]+(?:__name__[ \t]*==[ \t]*(['"])__main__\1|(['"])__main__\2[ \t]*==[ \t]*__name__)[ \t]*:[ \t]*(?:#.*)?\r?$/;
+
+/**
+ * True when a statement, free of comments and string contents, calls something: a `(` after a name
+ * that is not one of PYTHON_PARENTHESIS_KEYWORDS, or after a `)` or `]`. Plain backward scanning
+ * from each `(`, linear in the statement.
+ */
+function pythonStatementCalls(text: string): boolean {
+  for (let open = text.indexOf('('); open !== -1; open = text.indexOf('(', open + 1)) {
+    let end = open - 1;
+    while (end >= 0 && (text[end] === ' ' || text[end] === '\t')) end -= 1;
+    const before = text[end] ?? '';
+    if (before === ')' || before === ']') return true;
+    if (!/\w/.test(before)) continue;
+    let start = end;
+    while (start > 0 && /\w/.test(text[start - 1] ?? '')) start -= 1;
+    const word = text.slice(start, end + 1);
+    if (!/^[0-9]/.test(word) && !PYTHON_PARENTHESIS_KEYWORDS.has(word)) return true;
+  }
+  return false;
+}
+
+/** True when a statement assigns to an attribute (`CacheTest.test_put = check`, `a.b += 1`). */
+function pythonAssignsAttribute(text: string): boolean {
+  let end = 0;
+  while (end < text.length && /[\w.]/.test(text[end] ?? '')) end += 1;
+  const target = text.slice(0, end);
+  return /^[A-Za-z_]/.test(target) && target.includes('.') && PYTHON_ASSIGNMENT_OPERATOR_PATTERN.test(text.slice(end).trimStart());
+}
+
+/**
+ * True when a statement read outside any function body may add a test the reader does not see
+ * (v27 freeze change F3-f): it calls something (a helper that adds tests to a class or module,
+ * `setattr`, `globals()`) or assigns to an attribute (a test method set on a class). A name bound to
+ * pytest's skip marker (pythonHeldSkipNames) and `pytestmark = ...` add no test and are not read so.
+ */
+function pythonStatementMayAddTest(text: string): boolean {
+  if (PYTEST_SKIP_MARKER_BINDING_PATTERN.test(text) || /^pytestmark[ \t]*=/.test(text)) return false;
+  return pythonStatementCalls(text) || pythonAssignsAttribute(text);
+}
+
 /**
  * Every test function and test method in a Python test file, read where pytest and unittest
  * collect them: `def test*` at the module's top level, and `def test*` at the first indent of a
@@ -10883,11 +10935,21 @@ function pythonHeldSkipNames(code: string, statements: readonly PythonLogicalSta
  * made. Also no claim when the file defines a test elsewhere (inside a block, a nested class) or may
  * bind one another way (an import, an assignment), or a class that may inherit tests is not itself
  * skipped. Linear in the file.
+ *
+ * v27 freeze change F3: also no claim when the file names `runTest` (F3-e), or when a statement at
+ * the top level, in a top-level block or at a class body's indent may add a test
+ * (pythonStatementMayAddTest, F3-f). The body of an `if __name__ == "__main__":` block is not read
+ * for that, since it does not run when the tests are collected.
  */
 function readEveryPythonTestSkipped(contents: string): PerTestSkipReading | undefined {
   const { code } = maskCommentsAndStrings(contents, true);
+  if (PYTHON_RUN_TEST_PATTERN.test(code)) return undefined;
   const statements = pythonLogicalStatements(code);
   if (statements === undefined) return undefined;
+  const rawLines = contents.split('\n');
+  const isMainGuard = (statement: PythonLogicalStatement) =>
+    statement.lineCount === 1 && PYTHON_MAIN_GUARD_PATTERN.test(rawLines[statement.line - 1] ?? '');
+  let inMainGuard = false;
   const heldSkipNames = pythonHeldSkipNames(code, statements);
   const found: { skip: string; line: number }[] = [];
   let decorators: PythonLogicalStatement[] = [];
@@ -10945,10 +11007,11 @@ function readEveryPythonTestSkipped(contents: string): PerTestSkipReading | unde
     if (PYTHON_BLOCK_STATEMENT_PATTERN.test(text)) {
       if (inClass) return false;
       opened = 'block';
-      return !namesPythonTestIdentifier(text);
+      inMainGuard = isMainGuard(statement);
+      return !namesPythonTestIdentifier(text) && (inMainGuard || !pythonStatementMayAddTest(text));
     }
     if (!inClass) opened = 'none';
-    return !namesPythonTestIdentifier(text);
+    return !namesPythonTestIdentifier(text) && !pythonStatementMayAddTest(text);
   };
   for (const statement of statements) {
     if (statement.indent === 0) {
@@ -10958,7 +11021,11 @@ function readEveryPythonTestSkipped(contents: string): PerTestSkipReading | unde
     }
     if (opened === 'def') continue;
     if (opened === 'block') {
-      if (/^(?:@|class\b|(?:async[ \t]+)?def\b)/.test(statement.text) || namesPythonTestIdentifier(statement.text)) {
+      if (
+        /^(?:@|class\b|(?:async[ \t]+)?def\b)/.test(statement.text) ||
+        namesPythonTestIdentifier(statement.text) ||
+        (!inMainGuard && pythonStatementMayAddTest(statement.text))
+      ) {
         return undefined;
       }
       continue;

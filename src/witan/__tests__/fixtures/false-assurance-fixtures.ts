@@ -2354,6 +2354,11 @@ for (const [name, purpose, files] of [
       'tests/test_cache.py': `${PY_SKIPPED_CACHE_CLASS.replace('from cachelib import get, put\n', 'from cachelib import get, put\nfrom tests.contracts import add_contract_tests\n')}\n\nadd_contract_tests(CacheTest)\n`,
     },
   ],
+  [
+    'f3f-py-main-guard-keeps-claim',
+    'Corner: every test method is skipped and the file ends with `if __name__ == "__main__": unittest.main()`, whose body does not run when the tests are collected, so the file is still hollow.',
+    { 'tests/test_cache.py': `${PY_SKIPPED_CACHE_CLASS}\n\nif __name__ == "__main__":\n    unittest.main()\n` },
+  ],
 ] as const) {
   FALSE_ASSURANCE_FIXTURES_REVIEW.push({ name, issue: '#518', purpose, commits: [PY_LIBRARY, { ...files, 'tests/test_lru.py': null }] });
 }

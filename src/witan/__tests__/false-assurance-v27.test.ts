@@ -588,8 +588,9 @@ describe('F3-d, F3-e, F3-f — a per-test skip reader makes no claim when it can
     }
   });
 
-  it('F2 change fixtures keep their claims', () => {
+  it('F2 change fixtures keep their claims, and so does an all-skipped file ending in a __main__ guard', () => {
     for (const name of [
+      'f3f-py-main-guard-keeps-claim',
       'f2-py-pytest-mark-skip-every-test',
       'f2-py-unittest-skip-every-method',
       'f2-py-skip-on-enclosing-class',
