@@ -110,6 +110,26 @@ describe('the #606 review audit: A1\'s unresolved-coverage note never stops a sc
     }
   });
 
+  it('two nested package.json files with 690-character paths: the first path stays whole and the second is counted', () => {
+    // An evidence path may hold at most 700 characters (WitanEvidencePointerSchema), so this is
+    // about the longest path a scan reaches this note with.
+    const deep = (index: number) => {
+      const directories = Array.from({ length: 13 }, (_, level) => `p${index}d${level}`.padEnd(50, 'x')).join('/');
+      return `${directories}/${'y'.repeat(690 - directories.length - '/package.json'.length - 1)}/package.json`;
+    };
+    const paths = [deep(1), deep(2)];
+    expect(paths.map((path) => path.length)).toEqual([690, 690]);
+    const dir = makeRepo([]);
+    for (const path of paths) {
+      mkdirSync(dirname(join(dir, path)), { recursive: true });
+      writeFileSync(join(dir, path), JSON.stringify({ name: 'deep', version: '1.0.0', scripts: { test: 'custom-test-wrapper --coverage 88' } }));
+      execFileSync('git', ['add', path], { cwd: dir });
+    }
+    for (const rubricVersion of [V17, V27]) {
+      expect(a1Notes(dir, rubricVersion), rubricVersion).toBe(`${LEAD}${paths[0]} and 1 more file${TAIL}`);
+    }
+  });
+
   it('control: more than four unresolved files whose note fits keeps today\'s wording, the first four paths and no count', () => {
     const paths = [1, 2, 3, 4, 5].map((index) => workflowPath(index, 40));
     const notes = a1Notes(makeRepo(paths), V17);

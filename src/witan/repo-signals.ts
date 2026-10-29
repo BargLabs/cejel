@@ -2475,9 +2475,30 @@ function collectA1TestIntegrityEvidence(
     ],
     notes:
       coverageFiles.length === 0 && coverageAnalysis.unresolvedFiles.length > 0
-        ? `A1 is detected from real test files, test runner configuration, and optional coverage configuration. Coverage command reachability or flag ownership was unresolved in ${coverageAnalysis.unresolvedFiles.slice(0, 4).join(', ')}; the no-coverage absence claim was withheld.`
+        ? a1CoverageUnresolvedNote(coverageAnalysis.unresolvedFiles)
         : 'A1 is detected from real test files, test runner configuration, and optional coverage configuration.',
   };
+}
+
+/**
+ * A1's note when coverage was unresolved: the first four files, by path. #606 review audit: with
+ * long paths it ran past CRITERION_NOTES_MAX_LENGTH and the scan wrote no report, under every
+ * rubric. A note that fits is unchanged; one that does not names fewer paths, the first always
+ * whole, and says how many more.
+ */
+function a1CoverageUnresolvedNote(unresolvedFiles: readonly string[]): string {
+  const note = (paths: string) =>
+    `A1 is detected from real test files, test runner configuration, and optional coverage configuration. Coverage command reachability or flag ownership was unresolved in ${paths}; the no-coverage absence claim was withheld.`;
+  const whole = note(unresolvedFiles.slice(0, 4).join(', '));
+  if (whole.length <= CRITERION_NOTES_MAX_LENGTH) return whole;
+  const count = unresolvedFiles.length;
+  for (let shown = Math.min(count, 4) - 1; shown > 0; shown -= 1) {
+    const more = count - shown;
+    const shortened = note(`${unresolvedFiles.slice(0, shown).join(', ')} and ${more} more file${more === 1 ? '' : 's'}`);
+    if (shortened.length <= CRITERION_NOTES_MAX_LENGTH) return shortened;
+  }
+  // A single path can be longer than the room left (git allows it): the files are then counted.
+  return note(`${count} file${count === 1 ? '' : 's'}`);
 }
 
 function buildA1AuthenticatedAbsenceSignal(
