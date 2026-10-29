@@ -2362,6 +2362,111 @@ for (const [name, purpose, files] of [
 ] as const) {
   FALSE_ASSURANCE_FIXTURES_REVIEW.push({ name, issue: '#518', purpose, commits: [PY_LIBRARY, { ...files, 'tests/test_lru.py': null }] });
 }
+// The #610 review residuals (v27, the last change before the freeze). C1: a decorator may register
+// tests the reader does not see, as `add_contract_tests(CacheTest)` (f3f-py-helper-call) may. C2:
+// unittest runs a module's `load_tests`, which may add tests the reader does not see.
+const PY_CONTRACT_IMPORT = 'from cachelib import get, put\nfrom tests.contracts import add_contract_tests, register_test\n';
+for (const [name, purpose, files] of [
+  [
+    'c1-py-register-test-decorator-on-helper',
+    'Change: the class\'s one method is skipped, but `@register_test(CacheTest)` on a helper function may add it to the class as a live test.',
+    {
+      'tests/test_cache.py': `${PY_SKIPPED_CACHE_CLASS.replace('from cachelib import get, put\n', PY_CONTRACT_IMPORT)}\n\n@register_test(CacheTest)\ndef check_put(self):\n    c = {}\n    put(c, "a", 2)\n    self.assertEqual(c["a"], 2)\n`,
+    },
+  ],
+  [
+    'c1-py-add-contract-tests-class-decorator',
+    'Change: every method of the TestCase is skipped, but `@add_contract_tests` on the class may add live test methods to it.',
+    { 'tests/test_cache.py': PY_SKIPPED_CACHE_CLASS.replace('from cachelib import get, put\n', PY_CONTRACT_IMPORT).replace('class CacheTest', '@add_contract_tests\nclass CacheTest') },
+  ],
+  [
+    'c1-py-add-contract-tests-called-class-decorator',
+    'Change: as above, with the decorator called: `@add_contract_tests()`.',
+    { 'tests/test_cache.py': PY_SKIPPED_CACHE_CLASS.replace('from cachelib import get, put\n', PY_CONTRACT_IMPORT).replace('class CacheTest', '@add_contract_tests()\nclass CacheTest') },
+  ],
+  [
+    'c1-control-only-skip-decorators',
+    'Control: every decorator in the file is a skip form (`@pytest.mark.skip`, `@unittest.skip`, `@pytest.mark.skipif(True, ...)`), so every test is skipped.',
+    {
+      'tests/test_cache.py': [
+        'import unittest',
+        '',
+        'import pytest',
+        'from cachelib import get, put',
+        '',
+        '',
+        '@pytest.mark.skip',
+        'def test_get_default():',
+        '    assert get({}, "a", 1) == 1',
+        '',
+        '',
+        '@pytest.mark.skipif(True, reason="cache backend not ready")',
+        'def test_put():',
+        '    c = {}',
+        '    put(c, "a", 2)',
+        '    assert c["a"] == 2',
+        '',
+        '',
+        'class CacheTest(unittest.TestCase):',
+        '    @unittest.skip("flaky on CI")',
+        '    def test_get_missing(self):',
+        '        self.assertIsNone(get({}, "a"))',
+        '',
+      ].join('\n'),
+    },
+  ],
+  [
+    'c1-control-parametrize-beside-skip',
+    'Control: `@pytest.mark.parametrize` above and below a skip, which only annotate the skipped tests, so every test is skipped.',
+    {
+      'tests/test_cache.py': [
+        'import pytest',
+        'from cachelib import get, put',
+        '',
+        '',
+        '@pytest.mark.parametrize("key", ["a", "b"])',
+        '@pytest.mark.skip',
+        'def test_get_default(key):',
+        '    assert get({}, key, 1) == 1',
+        '',
+        '',
+        '@pytest.mark.skip',
+        '@pytest.mark.parametrize("value", [1, 2])',
+        'def test_put(value):',
+        '    c = {}',
+        '    put(c, "a", value)',
+        '    assert c["a"] == value',
+        '',
+      ].join('\n'),
+    },
+  ],
+  [
+    'c1-control-decorator-in-comment-and-string',
+    'Control: `@register_test` and `@add_contract_tests` appear only in a comment, a docstring and a string, so every test is skipped.',
+    {
+      'tests/test_cache.py': `"""Cache tests.\n\n@add_contract_tests\nclass CacheTest:\n"""\n${PY_SKIPPED_CACHE_CLASS.replace('from cachelib import get, put\n', 'from cachelib import get, put\n\n# @register_test(CacheTest) once added a live test here.\nREASON = "@register_test(CacheTest)"\n')}`,
+    },
+  ],
+  [
+    'c2-py-load-tests',
+    'Change: the class\'s one method is skipped, but the module defines `load_tests`, which unittest runs and which may add live tests.',
+    {
+      'tests/test_cache.py': `${PY_SKIPPED_CACHE_CLASS}\n\ndef load_tests(loader, tests, pattern):\n    tests.addTests(loader.loadTestsFromName("tests.contracts"))\n    return tests\n`,
+    },
+  ],
+  [
+    'c2-control-load-tests-in-comment-and-string',
+    'Control: `load_tests` appears only in a comment and a string, so every test is skipped.',
+    {
+      'tests/test_cache.py': PY_SKIPPED_CACHE_CLASS.replace(
+        'from cachelib import get, put\n',
+        'from cachelib import get, put\n\n# No load_tests here: the contracts run from their own module.\nNOTE = "load_tests"\n',
+      ),
+    },
+  ],
+] as const) {
+  FALSE_ASSURANCE_FIXTURES_REVIEW.push({ name, issue: '#518', purpose, commits: [PY_LIBRARY, { ...files, 'tests/test_lru.py': null }] });
+}
 for (const [name, purpose, files] of [
   [
     'f3f-js-commented-out-skip',

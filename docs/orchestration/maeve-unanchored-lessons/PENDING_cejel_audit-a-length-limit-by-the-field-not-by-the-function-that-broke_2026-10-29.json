@@ -1,0 +1,24 @@
+[
+  {
+    "statement": "A length limit fixed on one code path is not fixed on its siblings, and trimming must not hide what it drops. #606 fitted one v27 note to the 1000-character schema limit; the same join stayed in A2's every-rubric disclosure (72 of 255 cause sets overflowed, so a v17 scan wrote no report), and auditing by schema field, not by the broken function, found a producer no one had listed: A1's note joined four file paths unchecked. The first trim then counted the history file cap as 'N more causes', though no scan limitation names it, so it was named nowhere. Rules: audit every producer of the limited field and classify its variable parts as bounded by the tool's own vocabulary or by repository content such as paths; when trimming, count only items the reader can find elsewhere and name the rest; check each shortened form's claim, not only its length.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "false-assurance"
+    ],
+    "tags": [
+      "schema-limit",
+      "sibling-paths",
+      "truncation-disclosure",
+      "audit-by-field"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-10-29T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 611
+    }
+  }
+]

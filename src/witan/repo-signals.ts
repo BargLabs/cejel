@@ -2475,9 +2475,30 @@ function collectA1TestIntegrityEvidence(
     ],
     notes:
       coverageFiles.length === 0 && coverageAnalysis.unresolvedFiles.length > 0
-        ? `A1 is detected from real test files, test runner configuration, and optional coverage configuration. Coverage command reachability or flag ownership was unresolved in ${coverageAnalysis.unresolvedFiles.slice(0, 4).join(', ')}; the no-coverage absence claim was withheld.`
+        ? a1CoverageUnresolvedNote(coverageAnalysis.unresolvedFiles)
         : 'A1 is detected from real test files, test runner configuration, and optional coverage configuration.',
   };
+}
+
+/**
+ * A1's note when coverage was unresolved: the first four files, by path. #606 review audit: with
+ * long paths it ran past CRITERION_NOTES_MAX_LENGTH and the scan wrote no report, under every
+ * rubric. A note that fits is unchanged; one that does not names fewer paths, the first always
+ * whole, and says how many more.
+ */
+function a1CoverageUnresolvedNote(unresolvedFiles: readonly string[]): string {
+  const note = (paths: string) =>
+    `A1 is detected from real test files, test runner configuration, and optional coverage configuration. Coverage command reachability or flag ownership was unresolved in ${paths}; the no-coverage absence claim was withheld.`;
+  const whole = note(unresolvedFiles.slice(0, 4).join(', '));
+  if (whole.length <= CRITERION_NOTES_MAX_LENGTH) return whole;
+  const count = unresolvedFiles.length;
+  for (let shown = Math.min(count, 4) - 1; shown > 0; shown -= 1) {
+    const more = count - shown;
+    const shortened = note(`${unresolvedFiles.slice(0, shown).join(', ')} and ${more} more file${more === 1 ? '' : 's'}`);
+    if (shortened.length <= CRITERION_NOTES_MAX_LENGTH) return shortened;
+  }
+  // A single path can be longer than the room left (git allows it): the files are then counted.
+  return note(`${count} file${count === 1 ? '' : 's'}`);
 }
 
 function buildA1AuthenticatedAbsenceSignal(
@@ -5947,9 +5968,20 @@ const historySecretScanCapName = () =>
 const readNoHistory = (incompleteness: A2HistoryIncompleteness) =>
   incompleteness.gitUnavailable === true || incompleteness.repositoryUnopenable === true;
 
-/** The detected causes, in Cejel's own words, joined into one clause. */
-function a2HistoryIncompletenessCauses(incompleteness: A2HistoryIncompleteness): string {
+/**
+ * One detected cause: its clause, whether it is a failed git read (the clause the last of which
+ * carries "(the scan limitations name each failed read)"), and whether a scan limitation names it.
+ */
+interface A2HistoryCause {
+  readonly text: string;
+  readonly failedRead: boolean;
+  readonly inScanLimitations: boolean;
+}
+
+/** The detected causes, in Cejel's own words and order. */
+function a2HistoryIncompletenessCauseList(incompleteness: A2HistoryIncompleteness): A2HistoryCause[] {
   if (readNoHistory(incompleteness)) {
+    // Expected absences of git or of a repository add no scan limitation.
     return [
       ...(incompleteness.gitUnavailable
         ? ['git could not be run on the scanning host, so Cejel read none of the commit history']
@@ -5957,34 +5989,66 @@ function a2HistoryIncompletenessCauses(incompleteness: A2HistoryIncompleteness):
       ...(incompleteness.repositoryUnopenable
         ? ['a .git entry is present but git could not open it as a repository, so Cejel read none of the commit history']
         : []),
-    ].join(', and ');
+    ].map((text) => ({ text, failedRead: false, inScanLimitations: false }));
   }
-  const causes = [
+  return [
     ...(incompleteness.shallow
-      ? ["this clone is shallow, so Cejel's scans of earlier commits read only the commits it holds"]
+      ? [{ text: "this clone is shallow, so Cejel's scans of earlier commits read only the commits it holds", failedRead: false, inScanLimitations: false }]
       : []),
     ...(incompleteness.limitHits.length > 0
       ? [
-          `some of Cejel's reads of earlier commits stopped at Cejel's own ${incompleteness.limitHits.join(' and ')}`,
+          {
+            text: `some of Cejel's reads of earlier commits stopped at Cejel's own ${incompleteness.limitHits.join(' and ')}`,
+            failedRead: true,
+            inScanLimitations: true,
+          },
         ]
       : []),
-    ...(incompleteness.otherFailure ? ['Cejel could not read part of the commit history'] : []),
+    ...(incompleteness.otherFailure
+      ? [{ text: 'Cejel could not read part of the commit history', failedRead: true, inScanLimitations: true }]
+      : []),
+    // The cap is not a git failure, so no scan limitation names it (A2HistoryIncompleteness).
+    ...(incompleteness.blobCapHit
+      ? [
+          {
+            text: `Cejel's scan of earlier commits for credential-shaped values stopped at its own ${historySecretScanCapName()}`,
+            failedRead: false,
+            inScanLimitations: false,
+          },
+        ]
+      : []),
+    ...(incompleteness.controlCharacterSkip
+      ? [
+          {
+            text: "Cejel left a credential-shaped path in the commit history unread because its name contains control characters (the scan limitations say so)",
+            failedRead: false,
+            inScanLimitations: true,
+          },
+        ]
+      : []),
   ];
-  const named =
-    incompleteness.limitHits.length > 0 || incompleteness.otherFailure
-      ? ' (the scan limitations name each failed read)'
-      : '';
-  const cap = incompleteness.blobCapHit
-    ? [`Cejel's scan of earlier commits for credential-shaped values stopped at its own ${historySecretScanCapName()}`]
-    : [];
-  const controlCharacters = incompleteness.controlCharacterSkip
-    ? [
-        "Cejel left a credential-shaped path in the commit history unread because its name contains control characters (the scan limitations say so)",
-      ]
-    : [];
-  return [`${causes.join(', and ')}${named}`, ...cap, ...controlCharacters]
-    .filter((part) => part !== '')
-    .join(', and ');
+}
+
+/**
+ * The detected causes, in Cejel's own words, joined into one clause. With `shown` (#606 review),
+ * the first `shown` causes are named, and so is every cause no scan limitation names (a shallow
+ * clone, the history secret scan's file cap), which would otherwise be named nowhere; the rest, each
+ * one a scan limitation names, are counted ("and 2 more causes that the scan limitations name").
+ */
+function a2HistoryIncompletenessCauses(incompleteness: A2HistoryIncompleteness, shown?: number): string {
+  const causes = a2HistoryIncompletenessCauseList(incompleteness);
+  const isNamed = (cause: A2HistoryCause, index: number) =>
+    shown === undefined || index < shown || !cause.inScanLimitations;
+  const named = causes.filter(isNamed);
+  const lastFailedRead = named.map(({ failedRead }) => failedRead).lastIndexOf(true);
+  const clauses = named.map(({ text }, index) =>
+    index === lastFailedRead ? `${text} (the scan limitations name each failed read)` : text,
+  );
+  const counted = causes.length - named.length;
+  if (counted > 0) {
+    clauses.push(`${counted} more ${counted === 1 ? 'cause' : 'causes'} that the scan limitations name`);
+  }
+  return clauses.join(', and ');
 }
 
 /**
@@ -6098,12 +6162,25 @@ function v27A2HistoryAbstention(
  * Cejel detected, with the re-scan advice each one admits.
  */
 export function a2HistoryApplicabilityDisclosure(incompleteness: A2HistoryIncompleteness): string {
-  return (
-    `${WITAN_A2_HISTORY_APPLICABILITY_PREFIX}: ${a2HistoryIncompletenessCauses(incompleteness)}. ` +
+  const lead = (shown?: number) =>
+    `${WITAN_A2_HISTORY_APPLICABILITY_PREFIX}: ${a2HistoryIncompletenessCauses(incompleteness, shown)}. ` +
     "Marking A2 not applicable rests in part on Cejel's scans of earlier commits for .env files and " +
     'credential-shaped values, so a complete read of the history may make A2 applicable and give it ' +
-    `a score. ${a2HistoryIncompletenessAdvice(incompleteness)}`
-  );
+    'a score.';
+  const advice = a2HistoryIncompletenessAdvice(incompleteness);
+  const sentence = (shown?: number) => `${lead(shown)} ${advice}`;
+  // #606 review: with many causes at once the disclosure ran past CRITERION_DISCLOSURE_MAX_LENGTH and
+  // the scan wrote no report, under every rubric but v27. The prefix and the first cause stay whole;
+  // the next causes are named while the whole fits, and the rest are counted. If even the first
+  // cause alone leaves too little room, the advice keeps the sentences that fit, in order.
+  const whole = sentence();
+  if (whole.length <= CRITERION_DISCLOSURE_MAX_LENGTH) return whole;
+  for (let shown = a2HistoryIncompletenessCauseList(incompleteness).length - 1; shown > 0; shown -= 1) {
+    if (sentence(shown).length <= CRITERION_DISCLOSURE_MAX_LENGTH) return sentence(shown);
+  }
+  const first = lead(1);
+  const kept = a2HistoryIncompletenessAdvice(incompleteness, CRITERION_DISCLOSURE_MAX_LENGTH - first.length - 1);
+  return kept === '' ? first : `${first} ${kept}`;
 }
 
 // #442, where B2 has no PR-trace evidence to score without the ratio: B2 abstains, left out of the
@@ -10879,6 +10956,21 @@ function pythonHeldSkipNames(code: string, statements: readonly PythonLogicalSta
 // v27 freeze change F3-e. unittest's loader and pytest both run a TestCase's `runTest` when the
 // class defines no `test*` method; a live one is a test the reader does not count.
 const PYTHON_RUN_TEST_PATTERN = /(?<!\w)runTest(?!\w)/;
+// The #610 review residual C2. unittest calls a module's `load_tests(loader, tests, pattern)` to
+// build the module's suite, which may add tests the reader does not see.
+const PYTHON_LOAD_TESTS_PATTERN = /(?<!\w)load_tests(?!\w)/;
+
+/**
+ * The #610 review residual C1: true when a decorator is one the reader knows adds no test: an
+ * unconditional skip (pythonUnconditionalSkipDecorator) or a pytest mark, which only annotates
+ * (`@pytest.mark.parametrize` beside a skip, as #610 left it). Any other decorator may register
+ * tests (`@register_test(CacheTest)` on a helper, `@add_contract_tests` on a TestCase), as
+ * `add_contract_tests(CacheTest)` may (F3-f).
+ */
+function isPythonDecoratorAddingNoTest(decorator: PythonLogicalStatement, heldSkipNames: ReadonlySet<string>): boolean {
+  const text = decorator.text.slice(1).replace(/\s+/g, '');
+  return pythonUnconditionalSkipDecorator(text, heldSkipNames) !== undefined || text.startsWith('pytest.mark.');
+}
 // v27 freeze change F3-f. Words before a `(` that is not a call.
 const PYTHON_PARENTHESIS_KEYWORDS: ReadonlySet<string> = new Set([
   'if', 'elif', 'while', 'for', 'in', 'not', 'and', 'or', 'is', 'return', 'assert', 'with', 'del', 'yield',
@@ -10940,10 +11032,15 @@ function pythonStatementMayAddTest(text: string): boolean {
  * the top level, in a top-level block or at a class body's indent may add a test
  * (pythonStatementMayAddTest, F3-f). The body of an `if __name__ == "__main__":` block is not read
  * for that, since it does not run when the tests are collected.
+ *
+ * The #610 review residuals: also no claim when the file names `load_tests` (C2), or holds a
+ * decorator, anywhere in the file, other than a skip form or a pytest mark (C1,
+ * isPythonDecoratorAddingNoTest). Comments and strings are masked first, so a decorator or
+ * `load_tests` named only there does not count.
  */
 function readEveryPythonTestSkipped(contents: string): PerTestSkipReading | undefined {
   const { code } = maskCommentsAndStrings(contents, true);
-  if (PYTHON_RUN_TEST_PATTERN.test(code)) return undefined;
+  if (PYTHON_RUN_TEST_PATTERN.test(code) || PYTHON_LOAD_TESTS_PATTERN.test(code)) return undefined;
   const statements = pythonLogicalStatements(code);
   if (statements === undefined) return undefined;
   const rawLines = contents.split('\n');
@@ -10951,6 +11048,13 @@ function readEveryPythonTestSkipped(contents: string): PerTestSkipReading | unde
     statement.lineCount === 1 && PYTHON_MAIN_GUARD_PATTERN.test(rawLines[statement.line - 1] ?? '');
   let inMainGuard = false;
   const heldSkipNames = pythonHeldSkipNames(code, statements);
+  if (
+    statements.some(
+      (statement) => statement.text.startsWith('@') && !isPythonDecoratorAddingNoTest(statement, heldSkipNames),
+    )
+  ) {
+    return undefined;
+  }
   const found: { skip: string; line: number }[] = [];
   let decorators: PythonLogicalStatement[] = [];
   // What the latest top-level statement opened: a function body (ignored: pytest does not collect
