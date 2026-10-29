@@ -5947,9 +5947,20 @@ const historySecretScanCapName = () =>
 const readNoHistory = (incompleteness: A2HistoryIncompleteness) =>
   incompleteness.gitUnavailable === true || incompleteness.repositoryUnopenable === true;
 
-/** The detected causes, in Cejel's own words, joined into one clause. */
-function a2HistoryIncompletenessCauses(incompleteness: A2HistoryIncompleteness): string {
+/**
+ * One detected cause: its clause, whether it is a failed git read (the clause the last of which
+ * carries "(the scan limitations name each failed read)"), and whether a scan limitation names it.
+ */
+interface A2HistoryCause {
+  readonly text: string;
+  readonly failedRead: boolean;
+  readonly inScanLimitations: boolean;
+}
+
+/** The detected causes, in Cejel's own words and order. */
+function a2HistoryIncompletenessCauseList(incompleteness: A2HistoryIncompleteness): A2HistoryCause[] {
   if (readNoHistory(incompleteness)) {
+    // Expected absences of git or of a repository add no scan limitation.
     return [
       ...(incompleteness.gitUnavailable
         ? ['git could not be run on the scanning host, so Cejel read none of the commit history']
@@ -5957,34 +5968,65 @@ function a2HistoryIncompletenessCauses(incompleteness: A2HistoryIncompleteness):
       ...(incompleteness.repositoryUnopenable
         ? ['a .git entry is present but git could not open it as a repository, so Cejel read none of the commit history']
         : []),
-    ].join(', and ');
+    ].map((text) => ({ text, failedRead: false, inScanLimitations: false }));
   }
-  const causes = [
+  return [
     ...(incompleteness.shallow
-      ? ["this clone is shallow, so Cejel's scans of earlier commits read only the commits it holds"]
+      ? [{ text: "this clone is shallow, so Cejel's scans of earlier commits read only the commits it holds", failedRead: false, inScanLimitations: false }]
       : []),
     ...(incompleteness.limitHits.length > 0
       ? [
-          `some of Cejel's reads of earlier commits stopped at Cejel's own ${incompleteness.limitHits.join(' and ')}`,
+          {
+            text: `some of Cejel's reads of earlier commits stopped at Cejel's own ${incompleteness.limitHits.join(' and ')}`,
+            failedRead: true,
+            inScanLimitations: true,
+          },
         ]
       : []),
-    ...(incompleteness.otherFailure ? ['Cejel could not read part of the commit history'] : []),
+    ...(incompleteness.otherFailure
+      ? [{ text: 'Cejel could not read part of the commit history', failedRead: true, inScanLimitations: true }]
+      : []),
+    // The cap is not a git failure, so no scan limitation names it (A2HistoryIncompleteness).
+    ...(incompleteness.blobCapHit
+      ? [
+          {
+            text: `Cejel's scan of earlier commits for credential-shaped values stopped at its own ${historySecretScanCapName()}`,
+            failedRead: false,
+            inScanLimitations: false,
+          },
+        ]
+      : []),
+    ...(incompleteness.controlCharacterSkip
+      ? [
+          {
+            text: "Cejel left a credential-shaped path in the commit history unread because its name contains control characters (the scan limitations say so)",
+            failedRead: false,
+            inScanLimitations: true,
+          },
+        ]
+      : []),
   ];
-  const named =
-    incompleteness.limitHits.length > 0 || incompleteness.otherFailure
-      ? ' (the scan limitations name each failed read)'
-      : '';
-  const cap = incompleteness.blobCapHit
-    ? [`Cejel's scan of earlier commits for credential-shaped values stopped at its own ${historySecretScanCapName()}`]
-    : [];
-  const controlCharacters = incompleteness.controlCharacterSkip
-    ? [
-        "Cejel left a credential-shaped path in the commit history unread because its name contains control characters (the scan limitations say so)",
-      ]
-    : [];
-  return [`${causes.join(', and ')}${named}`, ...cap, ...controlCharacters]
-    .filter((part) => part !== '')
-    .join(', and ');
+}
+
+/**
+ * The detected causes, in Cejel's own words, joined into one clause. With `shown` (#606 review),
+ * only the first `shown` causes are named, and the rest are counted ("and 2 more causes"), pointing
+ * to the scan limitations only where every cause counted is one they name.
+ */
+function a2HistoryIncompletenessCauses(incompleteness: A2HistoryIncompleteness, shown?: number): string {
+  const causes = a2HistoryIncompletenessCauseList(incompleteness);
+  const named = causes.slice(0, shown ?? causes.length);
+  const lastFailedRead = named.map(({ failedRead }) => failedRead).lastIndexOf(true);
+  const clauses = named.map(({ text }, index) =>
+    index === lastFailedRead ? `${text} (the scan limitations name each failed read)` : text,
+  );
+  const counted = causes.slice(named.length);
+  if (counted.length > 0) {
+    clauses.push(
+      `${counted.length} more ${counted.length === 1 ? 'cause' : 'causes'}${counted.every(({ inScanLimitations }) => inScanLimitations) ? ' that the scan limitations name' : ''}`,
+    );
+  }
+  return clauses.join(', and ');
 }
 
 /**
@@ -6098,12 +6140,25 @@ function v27A2HistoryAbstention(
  * Cejel detected, with the re-scan advice each one admits.
  */
 export function a2HistoryApplicabilityDisclosure(incompleteness: A2HistoryIncompleteness): string {
-  return (
-    `${WITAN_A2_HISTORY_APPLICABILITY_PREFIX}: ${a2HistoryIncompletenessCauses(incompleteness)}. ` +
+  const lead = (shown?: number) =>
+    `${WITAN_A2_HISTORY_APPLICABILITY_PREFIX}: ${a2HistoryIncompletenessCauses(incompleteness, shown)}. ` +
     "Marking A2 not applicable rests in part on Cejel's scans of earlier commits for .env files and " +
     'credential-shaped values, so a complete read of the history may make A2 applicable and give it ' +
-    `a score. ${a2HistoryIncompletenessAdvice(incompleteness)}`
-  );
+    'a score.';
+  const advice = a2HistoryIncompletenessAdvice(incompleteness);
+  const sentence = (shown?: number) => `${lead(shown)} ${advice}`;
+  // #606 review: with many causes at once the disclosure ran past CRITERION_DISCLOSURE_MAX_LENGTH and
+  // the scan wrote no report, under every rubric but v27. The prefix and the first cause stay whole;
+  // the next causes are named while the whole fits, and the rest are counted. If even the first
+  // cause alone leaves too little room, the advice keeps the sentences that fit, in order.
+  const whole = sentence();
+  if (whole.length <= CRITERION_DISCLOSURE_MAX_LENGTH) return whole;
+  for (let shown = a2HistoryIncompletenessCauseList(incompleteness).length - 1; shown > 0; shown -= 1) {
+    if (sentence(shown).length <= CRITERION_DISCLOSURE_MAX_LENGTH) return sentence(shown);
+  }
+  const first = lead(1);
+  const kept = a2HistoryIncompletenessAdvice(incompleteness, CRITERION_DISCLOSURE_MAX_LENGTH - first.length - 1);
+  return kept === '' ? first : `${first} ${kept}`;
 }
 
 // #442, where B2 has no PR-trace evidence to score without the ratio: B2 abstains, left out of the
