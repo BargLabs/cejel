@@ -221,11 +221,27 @@ if (process.env.MCP_OCI_DIGEST && !/^sha256:[a-f0-9]{64}$/.test(process.env.MCP_
 requireEqual(ociPackage.transport?.type, 'stdio', 'OCI transport');
 
 requireIncludes(dockerfile, `ARG VERSION=${publishedVersions.oci}`, 'Dockerfile default version');
-requireIncludes(
-  readme,
-  `ghcr.io/barglabs/cejel:${packageManifest.version}`,
-  'README release OCI version',
-);
+// A release candidate (X.Y.Z-rc.N) publishes no OCI image, so its README keeps naming the newest
+// final release's image, and its release commit cannot edit the README: check-prerelease-commit in
+// scripts/release-version.mjs refuses any file scripts/bump-release-version.mjs does not write, so
+// README.md is byte-identical to the main commit the candidate is cut from. For a prerelease only,
+// the two README release-OCI checks below are relaxed by name and reported, and the README must not
+// name the candidate's image, which never exists.
+const prerelease = packageManifest.version.includes('-');
+const relaxedForPrerelease = [];
+function requireReadmeReleaseOci(haystack, field) {
+  if (prerelease) {
+    relaxedForPrerelease.push(field);
+    return;
+  }
+  requireIncludes(haystack, `ghcr.io/barglabs/cejel:${packageManifest.version}`, field);
+}
+if (prerelease && readme.includes(`ghcr.io/barglabs/cejel:${packageManifest.version}`)) {
+  throw new Error(
+    `README names ghcr.io/barglabs/cejel:${packageManifest.version}, an image a release candidate never publishes.`,
+  );
+}
+requireReadmeReleaseOci(readme, 'README release OCI version');
 if (
   packageManifest.version !== publishedVersions.oci &&
   readme.includes(`ghcr.io/barglabs/cejel:${publishedVersions.oci}`)
@@ -588,11 +604,7 @@ const openClawSection = readme.slice(
   openClawSectionStart,
   openClawSectionEnd < 0 ? undefined : openClawSectionEnd,
 );
-requireIncludes(
-  openClawSection,
-  `ghcr.io/barglabs/cejel:${packageManifest.version}`,
-  'README OpenClaw release OCI version',
-);
+requireReadmeReleaseOci(openClawSection, 'README OpenClaw release OCI version');
 requireIncludes(
   readme,
   'does **not** watch, intercept,',
@@ -785,3 +797,8 @@ process.stdout.write(
   `Distribution metadata agrees on npm v${packageManifest.version}, MCP Registry v${publishedVersions.mcpRegistry}, and OCI v${publishedVersions.oci} for ${packageManifest.mcpName}.\n`,
 );
 process.stdout.write(`Validated explicit permissions blocks in ${workflows.length} GitHub workflows.\n`);
+if (relaxedForPrerelease.length > 0) {
+  process.stdout.write(
+    `prerelease ${packageManifest.version}: relaxed ${relaxedForPrerelease.join(', ')} (a release candidate publishes no image; its README is main's, byte for byte).\n`,
+  );
+}

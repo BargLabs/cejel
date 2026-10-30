@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { appendFileSync, cpSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { appendFileSync, cpSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
@@ -242,12 +242,13 @@ test("the command line prints the accepted commit and refuses with the rule's me
 
 // ------------------------------------------------------------ the publish gate (publish-npm.yml)
 // The main-ancestry part of the "Require an exact, dispatched, unpublished release tag" step, run as
-// written in the workflow: from its `git fetch` of origin/main to the `esac` that closes the choice
-// between a final version and a release candidate.
+// written in the workflow: from its `git fetch` of origin/main to the `esac`, at the fetch's
+// indentation, that closes the choice between a final version and a release candidate.
 function mainAncestryGate() {
   const lines = readFileSync(join(REPO, '.github/workflows/publish-npm.yml'), 'utf8').split('\n');
   const start = lines.findIndex((line) => line.trim() === 'git fetch --quiet origin main:refs/remotes/origin/main');
-  const end = lines.findIndex((line, index) => index > start && line.trim() === 'esac');
+  const indent = start >= 0 ? lines[start].slice(0, lines[start].length - lines[start].trimStart().length) : '';
+  const end = lines.findIndex((line, index) => index > start && line === `${indent}esac`);
   assert.ok(start >= 0 && end > start, 'publish-npm.yml chooses the release-commit rule by version, between the origin/main fetch and an esac');
   return lines.slice(start, end + 1).join('\n');
 }
@@ -280,6 +281,32 @@ test('the gate runs the rule as it is on origin/main, so a release commit cannot
   const result = runGate(work, RC, commit);
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /scripts\/release-version\.mjs: the commit changes it and the bump does not/);
+});
+
+test('the gate refuses when the rule exits 0 without its verdict line', () => {
+  const { work } = scratchRepo();
+  git(work, 'switch', '-q', 'main');
+  // The real module with its command-line entry removed: every export intact, so the bump still
+  // runs, but run as a command it exits 0 and prints nothing.
+  const silent = readFileSync(CLI, 'utf8').replace(/\n(?:\/\/[^\n]*\n)*if \(process\.argv\[1\][\s\S]*$/, '\n');
+  assert.ok(!silent.includes('main(process.argv'), 'the command-line entry was removed');
+  writeFileSync(join(work, 'scripts/release-version.mjs'), silent);
+  commitAll(work, 'a rule that says nothing');
+  git(work, 'push', '-q', 'origin', 'main');
+  git(work, 'fetch', '-q', 'origin');
+  git(work, 'switch', '-q', '-C', `release/${RC}`, 'origin/main');
+  const result = runGate(work, RC, bumpCommit(work));
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /the prerelease rule gave no verdict for v0\.7\.0-rc\.1/);
+});
+
+test('the command line runs through a symlinked directory, as the gate runs a copy from a temp directory', () => {
+  const base = realpathSync(mkdtempSync(join(tmpdir(), 'cejel-rule-link-')));
+  mkdirSync(join(base, 'real'));
+  cpSync(CLI, join(base, 'real', 'release-version.mjs'));
+  symlinkSync(join(base, 'real'), join(base, 'link'));
+  const out = execFileSync(process.execPath, [join(base, 'link', 'release-version.mjs'), 'dist-tag', '0.7.0-rc.1'], { encoding: 'utf8' });
+  assert.equal(out, 'next\n');
 });
 
 test('the gate keeps the ancestry check for a final version', () => {

@@ -16,17 +16,25 @@
 # dist-tags.latest is byte-identical to its value at preflight and the tarball's gitHead is the
 # tag's commit, and from GitHub that releases/latest has not moved. A final release runs as before.
 #
+# A release candidate is tagged from origin/release/<version>, a branch holding one bump commit on
+# main that is never merged, so main never carries an rc version (docs/release-process.md,
+# "Prerelease"). Preflight accepts that commit only when `scripts/release-version.mjs
+# check-prerelease-commit` holds (one commit, its parent on origin/main, its changes exactly what
+# scripts/bump-release-version.mjs writes), and stage 2 tags it. A final release tags origin/main.
+#
 # Resumable: each stage reads the current state and skips itself when the state already shows it
 # done. It never edits a repository file and never runs `git commit`. Tools: bash, git, gh, jq,
-# curl (plus crane if present). No model, no network beyond GitHub, the npm registry, ghcr.io and
-# the MCP registry. Every gh call carries --repo so the shell's directory does not matter.
+# curl (plus crane if present, and node for a release candidate's rule). No model, no network
+# beyond GitHub, the npm registry, ghcr.io and the MCP registry. Every gh call carries --repo so the
+# shell's directory does not matter.
 #
 # Stated limits (workflow inputs make these unverifiable from outside; no workflow was edited):
 #   - A workflow_dispatch run's inputs are not exposed by `gh run list`, so a verify-only run and
 #     a publishing run of the same workflow are distinguished only by the state they leave behind
 #     (registry, ghcr). A resumed run therefore reports "latest successful run on the tag".
 #   - Preflight reads the release commit: the tag's commit when the tag already exists on origin
-#     (so a finished release can be re-read after main moves on), else origin/main.
+#     (so a finished release can be re-read after main moves on), else origin/release/<version>
+#     for a release candidate, else origin/main.
 #   - Workflow-only npm publication is operator policy, not a registry guarantee (0.4.9).
 #
 # Test seams (env): RELEASE_POLL_INTERVAL (default 20 s), RELEASE_POLL_MAX (default 600 s),
@@ -38,6 +46,7 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="BargLabs/cejel"
 REMOTE="origin"
 NPM_PKG="@cejel/cejel"
@@ -276,8 +285,12 @@ stage1() {
   REMOTE_TAG_SHA="$(awk -v r="refs/tags/$TAG^{}" '$2==r{print $1}' <<<"$tag_lines")"
   [ -n "$REMOTE_TAG_SHA" ] || REMOTE_TAG_SHA="$(awk -v r="refs/tags/$TAG" '$2==r{print $1}' <<<"$tag_lines")"
   MAIN_SHA="$main_sha"
-  RELEASE_SHA="${REMOTE_TAG_SHA:-$main_sha}"
-  say "  release commit: $RELEASE_SHA ($([ -n "$REMOTE_TAG_SHA" ] && echo "from existing tag $TAG" || echo "origin/main"))"
+  if [ "$PRERELEASE" = 1 ]; then
+    prerelease_release_commit
+  else
+    RELEASE_SHA="${REMOTE_TAG_SHA:-$main_sha}"
+    say "  release commit: $RELEASE_SHA ($([ -n "$REMOTE_TAG_SHA" ] && echo "from existing tag $TAG" || echo "origin/main"))"
+  fi
 
   local bad="" got
   got="$(git show "$RELEASE_SHA:package.json" | jq -r .version)"; [ "$got" = "$VERSION" ] || bad+=" package.json.version=$got"
@@ -312,6 +325,38 @@ stage1() {
   say "  preflight ok"
 }
 
+# A release candidate's release commit: the tag's commit once the tag exists on origin (the release
+# branch, if still there, must agree), else origin/release/<version>. Either way the prerelease rule
+# (scripts/release-version.mjs check-prerelease-commit) must hold for it before anything else is read.
+prerelease_release_commit() {
+  local branch="$REMOTE/release/$VERSION" branch_sha verdict
+  branch_sha="$(git rev-parse --verify -q "$branch^{commit}")" || branch_sha=""
+  if [ -n "$REMOTE_TAG_SHA" ]; then
+    [ -z "$branch_sha" ] || [ "$branch_sha" = "$REMOTE_TAG_SHA" ] \
+      || die "$branch is $branch_sha, but $TAG on $REMOTE points at $REMOTE_TAG_SHA; the tag is immutable, so the branch is the one to fix"
+    RELEASE_SHA="$REMOTE_TAG_SHA"
+    say "  release commit: $RELEASE_SHA (from existing tag $TAG)"
+  else
+    # Printed, never run (this script never commits or pushes a branch); the commit command is the
+    # one the bump prints, naming exactly the files it wrote.
+    [ -n "$branch_sha" ] || die "no $branch. A release candidate is tagged from a branch release/$VERSION holding one bump commit on main, never merged (docs/release-process.md, \"Prerelease (release candidate)\"). Create it, then re-run:
+  \$ git fetch $REMOTE
+  \$ git switch -c release/$VERSION $REMOTE/main
+  \$ node scripts/bump-release-version.mjs $VERSION
+  \$ pnpm run validate:distribution
+  \$ <the commit command the bump printed>
+  \$ git push $REMOTE release/$VERSION"
+    RELEASE_SHA="$branch_sha"
+    say "  release commit: $RELEASE_SHA ($branch)"
+  fi
+  verdict="$(node "$SCRIPT_DIR/release-version.mjs" check-prerelease-commit "$VERSION" "$RELEASE_SHA" "$REMOTE/main" 2>&1)" \
+    || die "$RELEASE_SHA may not be released as $VERSION: $verdict"
+  case "$verdict" in
+    "$RELEASE_SHA may be released as $VERSION: "*) say "  $verdict" ;;
+    *) die "the prerelease rule gave no verdict for $RELEASE_SHA: '$verdict'" ;;
+  esac
+}
+
 gh_latest_release() { gh_r release view --json tagName --jq .tagName; } # no tag argument: the repository's latest release
 
 # What a user gets by default, read before anything moves; stages 5 and 13 require both unchanged.
@@ -335,6 +380,7 @@ gh_latest_unchanged() { # gh_latest_unchanged <stage>
 
 # ---------------------------------------------------------------- stage 2
 stage2() {
+  if [ "$PRERELEASE" = 1 ]; then stage2_prerelease; return; fi
   if [ -n "$REMOTE_TAG_SHA" ]; then
     if [ "$REMOTE_TAG_SHA" != "$MAIN_SHA" ]; then
       # A finished release is allowed to sit behind a moved main; a tag off main's history is not.
@@ -353,6 +399,24 @@ stage2() {
   [ "$got" = "$MAIN_SHA" ] || die "after push, $TAG on $REMOTE is '$got', expected $MAIN_SHA"
   [ "$(git rev-parse "$TAG^{commit}")" = "$MAIN_SHA" ] || die "local $TAG does not peel to $MAIN_SHA"
   REMOTE_TAG_SHA="$MAIN_SHA"; RELEASE_SHA="$MAIN_SHA"
+}
+
+# A release candidate's tag is off main by design: it names the release-branch commit preflight
+# checked with the prerelease rule, never origin/main.
+stage2_prerelease() {
+  if [ -n "$REMOTE_TAG_SHA" ]; then
+    done_ 2 tag "$TAG on $REMOTE -> $REMOTE_TAG_SHA, the release commit preflight checked (one bump commit on main)"
+    return
+  fi
+  confirm 2 "git tag -s $TAG $RELEASE_SHA -m \"cejel $VERSION\" && git push $REMOTE refs/tags/$TAG" "no $TAG on $REMOTE; $REMOTE/release/$VERSION = $RELEASE_SHA, one bump commit on main (checked at preflight); preflight green"
+  act git tag -s "$TAG" "$RELEASE_SHA" -m "cejel $VERSION"
+  act git push "$REMOTE" "refs/tags/$TAG"
+  [ "$DRY_RUN" = 1 ] && return 0
+  local got; got="$(git ls-remote --tags "$REMOTE" "refs/tags/$TAG^{}" | awk '{print $1}')"
+  [ -n "$got" ] || got="$(git ls-remote --tags "$REMOTE" "refs/tags/$TAG" | awk '{print $1}')"
+  [ "$got" = "$RELEASE_SHA" ] || die "after push, $TAG on $REMOTE is '$got', expected $RELEASE_SHA"
+  [ "$(git rev-parse "$TAG^{commit}")" = "$RELEASE_SHA" ] || die "local $TAG does not peel to $RELEASE_SHA"
+  REMOTE_TAG_SHA="$RELEASE_SHA"
 }
 
 # ---------------------------------------------------------------- stage 3
