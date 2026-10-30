@@ -66,6 +66,77 @@ up to 12 s more for each unreadable currency log.
 
 The sections below stay authoritative; the script references them and does not restate them.
 
+## Prerelease (release candidate)
+
+*Added 30 October 2026.*
+
+A release candidate is `X.Y.Z-rc.N` with N of at least 1; the driver, the bump script and
+`publish-npm.yml` accept that and `X.Y.Z`, nothing else (`scripts/release-version.mjs` holds the
+grammar). A release candidate is for installing by exact version, `npx -y @cejel/cejel@X.Y.Z-rc.N`.
+It moves nothing a user gets by default.
+
+**What moves:** the tag `vX.Y.Z-rc.N`; a GitHub release on it, flagged prerelease, never marked
+latest, with no binaries; and npm, under the dist-tag `next`. `publish-npm.yml` takes no tag input:
+it derives `next` for a release candidate and `latest` for a final version from `package.json`'s
+version, and refuses, before `npm publish`, a release candidate bound for `latest` or a final
+version bound for `next`.
+
+**What never moves:** npm `dist-tags.latest`; GitHub's `releases/latest`; the release binaries; the
+OCI image and the MCP Registry entry; the Homebrew tap; the `v1` Action tag; and the site record.
+The driver runs stages 1-3, 5-7 and 13 only, and prints `skipped: prerelease` with the reason for
+stages 4 and 8-12 and for the site record. It refuses `--from` any of those stages.
+
+**What the driver reads back.** Preflight records `dist-tags.latest` and `releases/latest`. After
+stage 5, `releases/latest` must be unchanged. After stage 7, and again at stage 13, the registry
+must show `dist-tags.next` equal to the version, `dist-tags.latest` byte-identical (as compact JSON)
+to its preflight value, and a tarball `gitHead` equal to the tag's commit. The handback records the
+tarball integrity. A resumed run reads the preflight values after earlier stages ran. It therefore
+also requires `latest` to be a final version and `releases/latest` to be another release's tag: a
+resume cannot prove "unchanged since the first run", only "not this release".
+
+**Currency.** `verify-release-currency` with no `--version` (the weekly and `workflow_run` runs)
+verifies the newest published final release. It never picks a prerelease or a draft, so publishing a
+release candidate never makes it compare `latest` against the candidate.
+
+**What the bump commit changes on `main`.** The bump moves every release-identity field to the
+release candidate, exactly as it does for a final version, and `validate:distribution` requires the
+README's OCI examples to name the same version. Until the final release lands, `main` therefore
+carries:
+
+- the Claude plugin's `.mcp.json` pin, which the marketplace entry `./plugins/cejel` serves from
+  `main`;
+- `published-versions.json`. The currency check's `published-versions.json` surface reads it from
+  `main`, so that surface fails for the newest final release until the final release is cut;
+- README OCI examples naming `ghcr.io/barglabs/cejel:X.Y.Z-rc.N`, a tag a release candidate never
+  publishes.
+
+These belong to the bump, not to the publish, and decide whether a release candidate is cut from
+`main` as it stands.
+
+**Commands, from a clean `main`.** First the bump pull request:
+
+```bash
+git switch main
+git pull --ff-only
+git switch -c release/X.Y.Z-rc.N
+node scripts/bump-release-version.mjs X.Y.Z-rc.N
+pnpm run validate:distribution
+```
+
+Make the manual follow-ups it lists. `CHANGELOG.md` needs a `## [X.Y.Z-rc.N]` section and an empty
+`[Unreleased]`. Commit the files explicitly, push, open the pull request and merge it after review.
+Then, on `main` at the merged bump:
+
+```bash
+git switch main
+git pull --ff-only
+scripts/release.sh X.Y.Z-rc.N --dry-run
+scripts/release.sh X.Y.Z-rc.N
+```
+
+The real run stops three times for `yes`: stage 2 (tag push), stage 5 (publish the GitHub
+prerelease) and stage 7 (npm publish under `next`).
+
 ## Required claim-retirement step
 
 *Added 12 August 2026.*
