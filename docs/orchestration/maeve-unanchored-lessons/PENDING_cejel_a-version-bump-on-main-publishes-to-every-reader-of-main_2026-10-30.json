@@ -1,0 +1,24 @@
+[
+  {
+    "statement": "A prerelease path that holds every publish step still moves defaults if the version bump lands on the default branch, because the bump commit is itself a publication to every surface that reads that branch. Making the release driver skip the binaries, the image, the registry, the tap and the floating tag for a release candidate left three defaults moving with the bump alone: a plugin marketplace that serves its plugin from main pinned the candidate, a currency surface that reads a channel record at main went red for the newest final release, and a distribution validator required the README to name an image tag that a candidate never publishes. Rule: before claiming a prerelease moves nothing by default, list every reader of the default branch (marketplaces, verifiers reading ref=main, validators that force prose to match the version), not only the publish steps, and name each one that the bump moves.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "release"
+    ],
+    "tags": [
+      "prerelease",
+      "default-branch-readers",
+      "release-identity-bump",
+      "distribution-defaults"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-10-30T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 616
+    }
+  }
+]
