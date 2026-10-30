@@ -82,9 +82,10 @@ version, and refuses, before `npm publish`, a release candidate bound for `lates
 version bound for `next`.
 
 **What never moves:** npm `dist-tags.latest`; GitHub's `releases/latest`; the release binaries; the
-OCI image and the MCP Registry entry; the Homebrew tap; the `v1` Action tag; and the site record.
-The driver runs stages 1-3, 5-7 and 13 only, and prints `skipped: prerelease` with the reason for
-stages 4 and 8-12 and for the site record. It refuses `--from` any of those stages.
+OCI image and the MCP Registry entry; the Homebrew tap; the `v1` Action tag; the site record; and
+`main`, which never carries a release candidate's version. The driver runs stages 1-3, 5-7 and 13
+only, and prints `skipped: prerelease` with the reason for stages 4 and 8-12 and for the site
+record. It refuses `--from` any of those stages.
 
 **What the driver reads back.** Preflight records `dist-tags.latest` and `releases/latest`. After
 stage 5, `releases/latest` must be unchanged. After stage 7, and again at stage 13, the registry
@@ -98,44 +99,79 @@ resume cannot prove "unchanged since the first run", only "not this release".
 verifies the newest published final release. It never picks a prerelease or a draft, so publishing a
 release candidate never makes it compare `latest` against the candidate.
 
-**What the bump commit changes on `main`.** The bump moves every release-identity field to the
-release candidate, exactly as it does for a final version, and `validate:distribution` requires the
-README's OCI examples to name the same version. Until the final release lands, `main` therefore
-carries:
+**`main` never carries a release candidate's version.** A version bump on `main` publishes to every
+reader of `main`, not only through the publish steps. If a release candidate's bump landed there:
 
-- the Claude plugin's `.mcp.json` pin, which the marketplace entry `./plugins/cejel` serves from
-  `main`;
-- `published-versions.json`. The currency check's `published-versions.json` surface reads it from
-  `main`, so that surface fails for the newest final release until the final release is cut;
-- README OCI examples naming `ghcr.io/barglabs/cejel:X.Y.Z-rc.N`, a tag a release candidate never
-  publishes.
+- the Claude plugin's marketplace entry `./plugins/cejel` serves `.mcp.json`'s pin from `main`, so
+  plugin installs would launch the release candidate;
+- the currency check's `published-versions.json` surface reads that file at `main`, so it would fail
+  for the newest final release until the final release is cut;
+- the README would have to name `ghcr.io/barglabs/cejel:X.Y.Z-rc.N`, an image a release candidate
+  never publishes.
 
-These belong to the bump, not to the publish, and decide whether a release candidate is cut from
-`main` as it stands.
+So a release candidate is built from a branch `release/X.Y.Z-rc.N` that holds only the bump and is
+never merged: no pull request, no merge. `main` stays at the last final version, and the final
+release is bumped on `main` from that version, as before.
 
-**Commands, from a clean `main`.** First the bump pull request:
+**The one rule for the release commit.** `scripts/release-version.mjs check-prerelease-commit
+<version> <commit> [<main-ref>]` accepts a commit as release candidate `<version>` only when:
+
+1. the version is `X.Y.Z-rc.N`. A final version is refused: it is released only from a commit on
+   `origin/main`, and that rule is unchanged;
+2. the commit has exactly one parent, and that parent is `origin/main` or an ancestor of it;
+3. `scripts/bump-release-version.mjs <version>`, as it is at the parent, run on the parent's tree,
+   reproduces the commit's tree byte for byte;
+4. so the commit changes no other file. The bump's own edits are the only allowance; there is no
+   second list.
+
+Any other file, any byte of difference, a missing bump edit, a second commit, a merge, or a parent
+off `main` is refused, and the refusal names the file or the cause. The rule reproduces the bump
+through a scratch index and checkout, so it moves no ref and touches no working tree.
+
+- **The driver.** `scripts/release.sh X.Y.Z-rc.N` takes the release commit from
+  `origin/release/X.Y.Z-rc.N`. Once the tag exists it takes the tag's commit, and the branch, if it
+  is still there, must agree. It runs the rule at preflight and tags that commit at stage 2. Without
+  the branch it refuses and prints the commands below. A final version still tags `origin/main`.
+- **The publish gate.** `publish-npm.yml` keeps its ancestry check for a final version. For a
+  release candidate it runs the rule instead, using `origin/main`'s copy of
+  `scripts/release-version.mjs`, so a release commit cannot bring its own rule. It requires the
+  rule's verdict line, so a run that prints nothing refuses. The workflow file itself is read from
+  the tag. Like the ancestry check, this guards against a wrong or unreviewed tag; it does not stop
+  someone who can push a tag carrying an edited workflow.
+
+**Nothing to edit by hand.** For a release candidate the bump also makes the edits its gates need,
+so the byte check covers them:
+
+- a dateless `## [X.Y.Z-rc.N]` heading under an emptied `[Unreleased]` in `CHANGELOG.md`, which the
+  driver's preflight requires. It has no date so the gate can reproduce it on any later day;
+- the GitLab include tag and `CEJEL_VERSION` in `ci/gitlab/cejel.gitlab-ci.yml` and
+  `docs/gitlab-ci.md`, which `pnpm test` pins to `package.json`'s version.
+
+It does not edit the README. A release candidate publishes no image or binary, so its README keeps
+naming the newest final release. `validate:distribution` relaxes its two README OCI-version checks
+for a prerelease, prints which it relaxed, and refuses a README that names the candidate's image.
+`src/__tests__/index.test.ts`'s report pin holds for a release candidate: the report must match the
+pinned final release byte for byte once `toolVersion` is set back. No hand edit is needed, and the
+byte check refuses one.
+
+**Commands, from a clean checkout.** The bump prints the commit command with exactly the files it
+wrote; today those are the nine below.
 
 ```bash
-git switch main
-git pull --ff-only
-git switch -c release/X.Y.Z-rc.N
+git fetch origin
+git switch -c release/X.Y.Z-rc.N origin/main
 node scripts/bump-release-version.mjs X.Y.Z-rc.N
 pnpm run validate:distribution
-```
-
-Make the manual follow-ups it lists. `CHANGELOG.md` needs a `## [X.Y.Z-rc.N]` section and an empty
-`[Unreleased]`. Commit the files explicitly, push, open the pull request and merge it after review.
-Then, on `main` at the merged bump:
-
-```bash
-git switch main
-git pull --ff-only
+git commit -m "release X.Y.Z-rc.N" -- package.json server.json published-versions.json Dockerfile plugins/cejel/.claude-plugin/plugin.json plugins/cejel/.mcp.json CHANGELOG.md ci/gitlab/cejel.gitlab-ci.yml docs/gitlab-ci.md
+git push origin release/X.Y.Z-rc.N
 scripts/release.sh X.Y.Z-rc.N --dry-run
 scripts/release.sh X.Y.Z-rc.N
 ```
 
-The real run stops three times for `yes`: stage 2 (tag push), stage 5 (publish the GitHub
-prerelease) and stage 7 (npm publish under `next`).
+Push the branch, then stop: no pull request, and never merge it. The real run stops three times
+for `yes`: stage 2 (tag push), stage 5 (publish the GitHub prerelease) and stage 7 (npm publish
+under `next`). A further candidate, `X.Y.Z-rc.N+1`, gets its own branch from `origin/main`, with
+the same commands.
 
 ## Required claim-retirement step
 
@@ -348,8 +384,9 @@ disclosed live-registry lag.
    `plugins/cejel/.claude-plugin/plugin.json` version and the `@cejel/cejel` version pinned in
    `plugins/cejel/.mcp.json`, all in the same commit — never as a follow-up.
    `node scripts/bump-release-version.mjs <version>` moves all of these together (it refuses
-   and writes nothing if any field is not where it expects) and lists the prose mentions that
-   remain a reviewed manual edit. The release driver's preflight refuses a release whose plugin
+   and writes nothing if any field is not where it expects) and, for a final version, lists the
+   prose mentions that remain a reviewed manual edit (a release candidate has none; see
+   "Prerelease (release candidate)"). The release driver's preflight refuses a release whose plugin
    manifest or pinned version disagrees, and the currency check's `Claude plugin` surface
    re-reads all three at the tag.
 2. Run `pnpm run validate:distribution` against that commit **before** tagging it. A clean run
