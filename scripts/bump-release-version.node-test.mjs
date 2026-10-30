@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict';
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { execFileSync, spawnSync } from 'node:child_process';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-import { bumpReleaseVersion } from './bump-release-version.mjs';
+import { bumpReleaseVersion, PRERELEASE_FILES } from './bump-release-version.mjs';
 import {
   disagreeingFields,
   PLUGIN_MANIFEST_PATH,
@@ -15,12 +16,14 @@ import {
 
 const REPO = fileURLToPath(new URL('..', import.meta.url));
 const FILES = ['package.json', 'server.json', 'published-versions.json', 'Dockerfile', PLUGIN_MANIFEST_PATH, PLUGIN_MCP_CONFIG_PATH];
+// What a release candidate's bump also writes, so its release commit needs no hand edit.
+const RC_FILES = ['CHANGELOG.md', 'ci/gitlab/cejel.gitlab-ci.yml', 'docs/gitlab-ci.md'];
 
 // A copy of the real release-identity files, so the test fails if their shape drifts from the
 // patterns the bump script expects.
 function copyOfRepo() {
   const root = mkdtempSync(join(tmpdir(), 'cejel-bump-'));
-  for (const path of FILES) {
+  for (const path of [...FILES, ...RC_FILES, 'README.md']) {
     mkdirSync(dirname(join(root, path)), { recursive: true });
     cpSync(join(REPO, path), join(root, path));
   }
@@ -99,4 +102,88 @@ test('refuses a prerelease that is not -rc.N with N >= 1, and a leading v, writi
     assert.throws(() => bumpReleaseVersion({ root, to }), /MAJOR\.MINOR\.PATCH or MAJOR\.MINOR\.PATCH-rc\.N/, to);
   }
   assert.deepEqual(FILES.map((path) => read(root, path)), before);
+});
+
+// A release candidate's commit may hold only what the bump writes (check-prerelease-commit in
+// scripts/release-version.mjs), so every edit its gates need is the bump's, or none is needed.
+test('a release candidate also moves the CHANGELOG heading and the GitLab include, so its commit needs no hand edit', () => {
+  const root = copyOfRepo();
+  const from = readJson(root, 'package.json').version;
+  const result = bumpReleaseVersion({ root, to: '9.9.9-rc.1' });
+  assert.deepEqual(PRERELEASE_FILES, RC_FILES);
+  assert.deepEqual(result.files, [...FILES, ...RC_FILES]);
+  assert.equal(
+    read(root, 'CHANGELOG.md'),
+    read(REPO, 'CHANGELOG.md').replace('\n## [Unreleased]\n', '\n## [Unreleased]\n\n## [9.9.9-rc.1]\n'),
+  );
+  const gitlab = read(root, 'ci/gitlab/cejel.gitlab-ci.yml');
+  assert.ok(gitlab.includes('CEJEL_VERSION: "9.9.9-rc.1"') && gitlab.includes('/cejel/v9.9.9-rc.1/ci/gitlab/'), gitlab);
+  for (const path of ['ci/gitlab/cejel.gitlab-ci.yml', 'docs/gitlab-ci.md']) {
+    assert.equal(read(root, path).replaceAll('9.9.9-rc.1', from), read(REPO, path), path);
+  }
+  assert.equal(read(root, 'README.md'), read(REPO, 'README.md'), 'a release candidate publishes no image, so README.md stays');
+});
+
+test('a final version still leaves the CHANGELOG, GitLab and README edits to the reviewed manual follow-ups', () => {
+  const root = copyOfRepo();
+  assert.deepEqual(bumpReleaseVersion({ root, to: '9.9.9' }).files, FILES);
+  for (const path of [...RC_FILES, 'README.md']) assert.equal(read(root, path), read(REPO, path), path);
+});
+
+test('a release candidate refuses and writes nothing when the CHANGELOG has no [Unreleased] heading', () => {
+  const root = copyOfRepo();
+  writeFileSync(join(root, 'CHANGELOG.md'), read(root, 'CHANGELOG.md').replace('## [Unreleased]', '## Unreleased'));
+  const before = [...FILES, ...RC_FILES].map((path) => read(root, path));
+  assert.throws(() => bumpReleaseVersion({ root, to: '9.9.9-rc.1' }), /nothing was written[\s\S]*CHANGELOG\.md/);
+  assert.deepEqual([...FILES, ...RC_FILES].map((path) => read(root, path)), before);
+});
+
+const BUMP_CLI = fileURLToPath(new URL('./bump-release-version.mjs', import.meta.url));
+
+test('the command line lists the manual follow-ups for a final version and none for a release candidate', () => {
+  const rc = execFileSync(process.execPath, [BUMP_CLI, '9.9.9-rc.1', '--root', copyOfRepo()], { encoding: 'utf8' });
+  assert.match(rc, /nothing to edit by hand/);
+  assert.doesNotMatch(rc, /still manual/);
+  const final = execFileSync(process.execPath, [BUMP_CLI, '9.9.9', '--root', copyOfRepo()], { encoding: 'utf8' });
+  assert.match(final, /still manual, then run pnpm run validate:distribution/);
+});
+
+// validate:distribution, run from a copy of every tracked file (it reads files beside itself).
+function copyOfTrackedTree() {
+  const root = mkdtempSync(join(tmpdir(), 'cejel-validate-'));
+  const tracked = execFileSync('git', ['ls-files', '-z'], { cwd: REPO, encoding: 'utf8' }).split('\0').filter(Boolean);
+  for (const path of tracked) {
+    if (!existsSync(join(REPO, path))) continue;
+    mkdirSync(dirname(join(root, path)), { recursive: true });
+    cpSync(join(REPO, path), join(root, path));
+  }
+  return root;
+}
+
+const validate = (root) => spawnSync(process.execPath, [join(root, 'scripts/validate-distribution-metadata.mjs')], { encoding: 'utf8' });
+
+test('validate:distribution passes a release candidate whose README names the newest final image, and says what it relaxed', () => {
+  const root = copyOfTrackedTree();
+  bumpReleaseVersion({ root, to: '9.9.9-rc.1' });
+  const result = validate(root);
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /prerelease 9\.9\.9-rc\.1: relaxed README release OCI version, README OpenClaw release OCI version/);
+});
+
+test('validate:distribution refuses a release candidate whose README names the candidate image', () => {
+  const root = copyOfTrackedTree();
+  const from = readJson(root, 'package.json').version;
+  bumpReleaseVersion({ root, to: '9.9.9-rc.1' });
+  writeFileSync(join(root, 'README.md'), read(root, 'README.md').replace(`ghcr.io/barglabs/cejel:${from}`, 'ghcr.io/barglabs/cejel:9.9.9-rc.1'));
+  const result = validate(root);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /README names ghcr\.io\/barglabs\/cejel:9\.9\.9-rc\.1, an image a release candidate never publishes/);
+});
+
+test('validate:distribution still requires a final version README to name its own image', () => {
+  const root = copyOfTrackedTree();
+  bumpReleaseVersion({ root, to: '9.9.9' });
+  const result = validate(root);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /README release OCI version must include "ghcr\.io\/barglabs\/cejel:9\.9\.9"/);
 });
