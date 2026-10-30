@@ -349,8 +349,8 @@ prerelease_release_commit() {
     RELEASE_SHA="$branch_sha"
     say "  release commit: $RELEASE_SHA ($branch)"
   fi
-  verdict="$(node "$SCRIPT_DIR/release-version.mjs" check-prerelease-commit "$VERSION" "$RELEASE_SHA" "$REMOTE/main" 2>&1)" \
-    || die "$RELEASE_SHA may not be released as $VERSION: $verdict"
+  verdict="$(node "$SCRIPT_DIR/release-version.mjs" check-prerelease-commit "$VERSION" "$RELEASE_SHA" "$REMOTE/main" 2>"$WORK/rule.err")" \
+    || die "$RELEASE_SHA may not be released as $VERSION: $(cat "$WORK/rule.err")"
   case "$verdict" in
     "$RELEASE_SHA may be released as $VERSION: "*) say "  $verdict" ;;
     *) die "the prerelease rule gave no verdict for $RELEASE_SHA: '$verdict'" ;;
