@@ -24,6 +24,10 @@ import {
 // Regression tests for the two post-merge review passes of #525 (input binding, report format
 // 1.7). Each block names the finding it pins; every one of them failed on the merge commit.
 
+// Fake GitLab tokens, assembled at runtime so no token-shaped literal sits in the source.
+const FAKE_GITLAB_TOKEN = ['glpat', 'S3CR3TT0KEN0123456789'].join('-');
+const FAKE_GITLAB_TOKEN_SHORT = ['glpat', 'TOKEN0123'].join('-');
+
 const repo = makeConformanceRepo();
 const ONE_HOUR_AFTER = '2026-10-01T13:00:00Z';
 
@@ -89,7 +93,7 @@ function writeInput(body: string, name = 'input.sarif'): string {
 const MATCHING_URI = `https://${CONFORMANCE_SUBJECT_REPOSITORY}.git`;
 
 describe('finding: credentials in an un-normalizable repository identity are never recorded', () => {
-  const SECRET = 'glpat-S3CR3TT0KEN0123456789';
+  const SECRET = FAKE_GITLAB_TOKEN;
   const forms = [
     `https://gitlab-ci-token:${SECRET}@10.20.30.40/group/repo.git`, // IP host
     `https://oauth2:${SECRET}@gitlab/group/repo`, // single-label host
@@ -183,7 +187,10 @@ describe('finding: a declared repository that is not a string is withheld, not a
 });
 
 describe('finding: an identity whose path keeps an `@` is withheld', () => {
-  it.each(['https://ci.bot:1234/glpat-TOKEN0123@gitlab.com/g/r', 'git@gitlab.com:glpat-TOKEN0123@x/r'])(
+  it.each([
+    `https://ci.bot:1234/${FAKE_GITLAB_TOKEN_SHORT}@gitlab.com/g/r`,
+    `git@gitlab.com:${FAKE_GITLAB_TOKEN_SHORT}@x/r`,
+  ])(
     'refuses to normalize %s',
     (uri) => {
       expect(normalizeRepositoryIdentity(uri)).toBeUndefined();
