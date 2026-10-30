@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import {
   createLiveReaders,
+  latestReleaseVersion,
   LEADERBOARD_URL,
   MCP_REGISTRY_TIMEOUT_MS,
   parseLeaderboardRecord,
@@ -490,4 +491,25 @@ test('MCP Registry: a wrong version fails on the first read without a retry', as
 
 test('MCP Registry: the timeout is the named 45 second constant', () => {
   assert.equal(MCP_REGISTRY_TIMEOUT_MS, 45_000);
+});
+
+test('the release it verifies by default is the newest final release: prereleases and drafts are ignored', async () => {
+  const releases = [
+    { tag_name: 'v0.7.0-rc.2', draft: false, prerelease: true },
+    { tag_name: 'v0.7.0-rc.1', draft: false, prerelease: false },
+    { tag_name: 'v0.7.0', draft: true, prerelease: false },
+    { tag_name: 'v0.6.10', draft: false, prerelease: false },
+    { tag_name: 'v0.6.9', draft: false, prerelease: true },
+    { tag_name: 'v0.6.8', draft: false, prerelease: false },
+  ];
+  assert.equal(await latestReleaseVersion({ readReleases: async () => releases }), '0.6.10');
+  assert.equal(await latestReleaseVersion({ readReleases: async () => releases.slice(3).reverse() }), '0.6.10');
+});
+
+test('with no final release to pick, the default refuses rather than verifying a prerelease', async () => {
+  const releases = [
+    { tag_name: 'v0.7.0-rc.1', draft: false, prerelease: true },
+    { tag_name: 'v0.7.0', draft: true, prerelease: false },
+  ];
+  await assert.rejects(latestReleaseVersion({ readReleases: async () => releases }), /no published final release/);
 });

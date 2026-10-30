@@ -72,3 +72,31 @@ test('refuses a non-semver target and a no-op move', () => {
   assert.throws(() => bumpReleaseVersion({ root, to: 'v9.9.9' }), /MAJOR\.MINOR\.PATCH/);
   assert.throws(() => bumpReleaseVersion({ root, to: readJson(root, 'package.json').version }), /already at/);
 });
+
+test('a release candidate moves every field the same way, and the final version moves them on from it', () => {
+  const root = copyOfRepo();
+  const from = readJson(root, 'package.json').version;
+  for (const to of ['9.9.9-rc.1', '9.9.9']) {
+    bumpReleaseVersion({ root, to });
+    const fields = releaseVersionFields({
+      packageManifest: readJson(root, 'package.json'),
+      pluginManifest: readJson(root, PLUGIN_MANIFEST_PATH),
+      mcpConfig: readJson(root, PLUGIN_MCP_CONFIG_PATH),
+    });
+    assert.deepEqual(disagreeingFields(fields, to), [], to);
+    assert.equal(readJson(root, 'server.json').version, to);
+    assert.equal(readJson(root, 'server.json').packages[0].identifier, `ghcr.io/barglabs/cejel:${to}`);
+    assert.deepEqual(readJson(root, 'published-versions.json'), { mcpRegistry: to, oci: to });
+    assert.ok(read(root, 'Dockerfile').includes(`\nARG VERSION=${to}\n`), `Dockerfile at ${to}`);
+    for (const path of FILES) assert.equal(read(root, path).replaceAll(to, from), read(REPO, path), `${path} at ${to}`);
+  }
+});
+
+test('refuses a prerelease that is not -rc.N with N >= 1, and a leading v, writing nothing', () => {
+  const root = copyOfRepo();
+  const before = FILES.map((path) => read(root, path));
+  for (const to of ['9.9.9-rc', '9.9.9-rc.0', '9.9.9-beta.1', 'v9.9.9-rc.1']) {
+    assert.throws(() => bumpReleaseVersion({ root, to }), /MAJOR\.MINOR\.PATCH or MAJOR\.MINOR\.PATCH-rc\.N/, to);
+  }
+  assert.deepEqual(FILES.map((path) => read(root, path)), before);
+});

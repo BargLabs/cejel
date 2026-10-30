@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: Semver to verify; defaults to the latest published GitHub release
+        description: Semver to verify; defaults to the newest published final GitHub release (never a prerelease)
         required: false
         type: string
       commit:
