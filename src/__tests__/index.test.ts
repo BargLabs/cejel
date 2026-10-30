@@ -488,13 +488,25 @@ describe('runWitanFreeCli (zero-config end-to-end)', () => {
     // Re-pinned for 0.6.8: only the version bump reaches this fixture (the 0.6.7 pin still held on
     // the release candidate before the bump). Setting toolVersion back to "0.6.7" in place
     // reproduces the 0.6.7 pin (b2c72a7b...) byte for byte.
-    expect(createHash('sha256').update(firstReportJson).digest('hex')).toBe(
+    // A release candidate (X.Y.Z-rc.N) is tagged from a release branch whose one commit must be
+    // exactly scripts/bump-release-version.mjs's output on main (docs/release-process.md,
+    // "Prerelease"), so it cannot re-pin this test. Its report must instead equal the pinned final
+    // release's report byte for byte once toolVersion is set back to PINNED_TOOL_VERSION in place:
+    // the version bump is the only change a release candidate can carry. A final release re-pins
+    // as before and moves PINNED_TOOL_VERSION with the pin.
+    const PINNED_TOOL_VERSION = '0.6.8';
+    const releaseCandidate = /^\d+\.\d+\.\d+-rc\.[1-9]\d*$/.test(
+      String((firstReport as { toolVersion?: string }).toolVersion),
+    );
+    const pinnedReport = releaseCandidate ? { ...firstReport, toolVersion: PINNED_TOOL_VERSION } : firstReport;
+    const pinnedReportJson = releaseCandidate ? JSON.stringify(pinnedReport, null, 2) : firstReportJson;
+    expect(createHash('sha256').update(pinnedReportJson).digest('hex')).toBe(
       'e2ac3b8e18db3b189c7b441a85cb168dffdd98be18b211e48fce8ff7f4a7ce98',
     );
     expect((firstReport as { rubricBehaviourFingerprint?: string }).rubricBehaviourFingerprint).toBe(
       'sha256:5cd48f8c642300ae8736a09d4a24ce3a4f8885f6e099b5f27f99d950e0c944b4',
     );
-    expect((firstReport as { toolVersion?: string }).toolVersion).toBe('0.6.8');
+    expect((pinnedReport as { toolVersion?: string }).toolVersion).toBe(PINNED_TOOL_VERSION);
     const at067 = { ...firstReport, toolVersion: '0.6.7' } as typeof firstReport;
     expect(
       createHash('sha256').update(JSON.stringify(at067, null, 2)).digest('hex'),

@@ -76,6 +76,12 @@ case "$1" in
   rev-parse)
     case "$2" in
       origin/main) cat "$S/main_sha" ;;
+      --verify)
+        # rev-parse --verify -q <ref>^{commit}: a release branch resolves only when the test staged one.
+        case "$4" in
+          origin/release/*) if [ -s "$S/release_branch_sha" ]; then cat "$S/release_branch_sha"; else exit 1; fi ;;
+          *) echo "unhandled rev-parse $*" >&2; exit 1 ;;
+        esac ;;
       *'^{commit}') cat "$S/tag_sha" ;;
       *) echo "unhandled rev-parse $2" >&2; exit 1 ;;
     esac ;;
@@ -93,7 +99,11 @@ case "$1" in
       *:*) f="${2#*:}"; [ -f "$S/files/$f" ] && cat "$S/files/$f" || { echo "no $2" >&2; exit 1; } ;;
     esac ;;
   merge-base) [ "$(cat "$S/ancestor")" = 1 ] ;;
-  tag|push) exit 0 ;;
+  push)
+    # The tag on origin after a tag push, when the test staged one.
+    if [ -s "$S/tag_after_push" ]; then cp "$S/tag_after_push" "$S/tag_sha"; fi
+    exit 0 ;;
+  tag) exit 0 ;;
   *) echo "unhandled git $*" >&2; exit 1 ;;
 esac
 SHIM
@@ -197,7 +207,23 @@ case "$url" in
   *) echo "unhandled curl $url" >&2; exit 1 ;;
 esac
 SHIM
-chmod +x "$BIN"/git "$BIN"/gh "$BIN"/curl
+# The prerelease rule (release-version.mjs check-prerelease-commit) reads the repository with git,
+# which is shimmed here, so its verdict is staged: $S/rule_refuse holds the refusal it prints. Every
+# other node call runs the real node.
+cat >"$BIN/node" <<'SHIM'
+#!/usr/bin/env bash
+S="$FAKE_STATE"
+case " $* " in
+  *" check-prerelease-commit "*)
+    echo "node $*" >>"$S/calls.log"
+    if [ -s "$S/rule_refuse" ]; then cat "$S/rule_refuse" >&2; exit 1; fi
+    echo "$4 may be released as $3: one commit on main, reproduced by the bump"
+    exit 0 ;;
+esac
+exec "$REAL_NODE" "$@"
+SHIM
+REAL_NODE="$(command -v node)"
+chmod +x "$BIN"/git "$BIN"/gh "$BIN"/curl "$BIN"/node
 
 sha_of() { if command -v sha256sum >/dev/null 2>&1; then sha256sum "$1" | awk '{print $1}'; elif command -v shasum >/dev/null 2>&1; then shasum -a 256 "$1" | awk '{print $1}'; else openssl dgst -sha256 "$1" | awk '{print $NF}'; fi; }
 
@@ -259,7 +285,7 @@ new_state() {
 # run_release <state dir> <stdin text> [args...] -> sets OUT, RC
 run_release() {
   local S="$1" input="$2"; shift 2
-  OUT="$(printf '%s\n' "$input" | FAKE_STATE="$S" PATH="$BIN:$PATH" RELEASE_SKIP_VALIDATE=1 RELEASE_POLL_INTERVAL=0 RELEASE_POLL_MAX=0 RELEASE_CURRENCY_WAIT=0 RELEASE_RUN_FIND_SLEEP=0 RELEASE_MCP_RETRY_DELAY=0 \
+  OUT="$(printf '%s\n' "$input" | FAKE_STATE="$S" REAL_NODE="$REAL_NODE" PATH="$BIN:$PATH" RELEASE_SKIP_VALIDATE=1 RELEASE_POLL_INTERVAL=0 RELEASE_POLL_MAX=0 RELEASE_CURRENCY_WAIT=0 RELEASE_RUN_FIND_SLEEP=0 RELEASE_MCP_RETRY_DELAY=0 \
     bash "$TARGET" "${RUN_V:-$V}" "$@" 2>&1)"; RC=$?
 }
 mutations() { grep -cE '^(git (tag|push)|gh (release (create|edit)|workflow run))' "$1/calls.log" || true; }
@@ -543,10 +569,11 @@ npm_rc() {
 NPM_RC_OK="$(npm_rc 0.6.8 "$RC_V" "$TAGSHA")"
 PRERELEASE_SKIPPED=("4 (binaries)" "8 (distribution-verify)" "9 (distribution-publish)" "10 (homebrew)" "11 (currency)" "12 (action-major-tag)")
 
-# new_rc_state <dir>: a finished 0.7.0-rc.1 prerelease (tag, published prerelease, npm under next);
-# latest stays on 0.6.8 everywhere and v1 on another commit.
+# new_rc_state <dir>: a finished 0.7.0-rc.1 prerelease (tag, published prerelease, npm under next),
+# tagged from origin/release/0.7.0-rc.1; latest stays on 0.6.8 everywhere and v1 on another commit.
 new_rc_state() {
   local S="$1" f; new_state "$S"
+  echo "$TAGSHA" >"$S/release_branch_sha"
   for f in package.json server.json published-versions.json Dockerfile plugins/cejel/.claude-plugin/plugin.json plugins/cejel/.mcp.json; do
     sed -i.bak "s/0\.4\.11/$RC_V/g" "$S/files/$f"; rm -f "$S/files/$f.bak"
   done
@@ -666,6 +693,75 @@ RUN_V="$RC_V" run_release "$S" "" --dry-run
 S="$TEST_TMP/s31"; new_rc_state "$S"; npm_rc "$RC_V" "$RC_V" "$TAGSHA" >"$S/npm.json"
 RUN_V="$RC_V" run_release "$S" "" --dry-run
 [ "$RC" != 0 ] && has "REFUSE" && has 'npm dist-tags.latest is "0.7.0-rc.1"'; check "prerelease: latest already on a prerelease refuses at preflight" $? "rc=$RC: $OUT"
+
+# ============================= release branch (release/X.Y.Z-rc.N, never merged) =============================
+RCBRANCH="eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+rule_calls() { grep -F "check-prerelease-commit" "$1/calls.log" || true; }
+
+# 32. a fresh release candidate takes its release commit from origin/release/<version>, checks it with
+# the rule at preflight and tags that commit, not origin/main.
+S="$TEST_TMP/s32"; new_rc_state "$S"; rm -f "$S/tag_sha" "$S/release.json"; echo "$NPM_RC_BEFORE" >"$S/npm.json"; echo "$RCBRANCH" >"$S/release_branch_sha"
+RUN_V="$RC_V" run_release "$S" "" --dry-run
+[ "$RC" = 0 ] && has "release commit: $RCBRANCH (origin/release/$RC_V)" && has "would run: git tag -s v$RC_V $RCBRANCH"
+check "release branch: the release commit is origin/release/<version>, and stage 2 tags it" $? "rc=$RC: $OUT"
+! has "git tag -s v$RC_V $MAINSHA"; check "release branch: stage 2 does not tag origin/main" $? "$OUT"
+rule_calls "$S" | grep -qE "check-prerelease-commit $RC_V $RCBRANCH origin/main\$"
+check "release branch: preflight checks the branch commit with the rule against origin/main" $? "$(cat "$S/calls.log")"
+has "$RCBRANCH may be released as $RC_V"; check "release branch: preflight prints the rule's verdict" $? "$OUT"
+[ "$(mutations "$S")" = 0 ]; check "release branch: dry-run performs no mutating call" $? "$(cat "$S/calls.log")"
+
+# 33. no release branch: refuse at preflight and print the commands that create it.
+S="$TEST_TMP/s33"; new_rc_state "$S"; rm -f "$S/tag_sha" "$S/release.json" "$S/release_branch_sha"; echo "$NPM_RC_BEFORE" >"$S/npm.json"
+RUN_V="$RC_V" run_release "$S" "" --dry-run
+[ "$RC" != 0 ] && has "REFUSE" && has "no origin/release/$RC_V"; check "release branch absent: refuse at preflight" $? "rc=$RC: $OUT"
+has "git switch -c release/$RC_V origin/main" && has "node scripts/bump-release-version.mjs $RC_V" && has "git push origin release/$RC_V"
+check "release branch absent: the refusal prints the commands that create it" $? "$OUT"
+! has "STAGE 2 IS IRREVERSIBLE" && [ -z "$(rule_calls "$S")" ] && [ "$(mutations "$S")" = 0 ]
+check "release branch absent: nothing tagged, the rule never run" $? "$(cat "$S/calls.log")"
+
+# 34. the rule refuses the branch commit: refuse at preflight with the rule's message, before any tag.
+S="$TEST_TMP/s34"; new_rc_state "$S"; rm -f "$S/tag_sha" "$S/release.json"; echo "$NPM_RC_BEFORE" >"$S/npm.json"; echo "$RCBRANCH" >"$S/release_branch_sha"
+echo "$RCBRANCH is not the bump to $RC_V on $MAINSHA: README.md: the commit changes it and the bump does not" >"$S/rule_refuse"
+RUN_V="$RC_V" run_release "$S" "" --dry-run
+[ "$RC" != 0 ] && has "REFUSE" && has "README.md: the commit changes it and the bump does not" && ! has "STAGE 2 IS IRREVERSIBLE"
+check "release branch: a commit the rule refuses stops at preflight with the rule's message" $? "rc=$RC: $OUT"
+
+# 35. a final version still takes its release commit from origin/main and never runs the prerelease rule.
+S="$TEST_TMP/s35"; new_state "$S"; rm -f "$S/tag_sha" "$S/v1_sha" "$S/release.json" "$S/oci_digest" "$S/mcp.json"; echo "$NPM_NONE" >"$S/npm.json"; echo "$RCBRANCH" >"$S/release_branch_sha"
+run_release "$S" "" --dry-run
+[ "$RC" = 0 ] && has "release commit: $MAINSHA (origin/main)" && has "would run: git tag -s v$V $MAINSHA"
+check "final: the release commit is still origin/main, and stage 2 tags it" $? "rc=$RC: $OUT"
+[ -z "$(rule_calls "$S")" ]; check "final: the prerelease rule is never run" $? "$(cat "$S/calls.log")"
+
+# 36. a finished release candidate is off main by design: stage 2 reads done, where a final version's
+# off-main tag refuses (test 3); preflight checks the tag's commit with the rule.
+S="$TEST_TMP/s36"; new_rc_state "$S"; echo 0 >"$S/ancestor"
+RUN_V="$RC_V" run_release "$S" "" --dry-run
+[ "$RC" = 0 ] && has "stage 2 (tag): already done"; check "finished prerelease off main: stage 2 reads done" $? "rc=$RC: $OUT"
+rule_calls "$S" | grep -qE "check-prerelease-commit $RC_V $TAGSHA origin/main\$"; check "finished prerelease: the rule checks the tag's commit" $? "$(cat "$S/calls.log")"
+S="$TEST_TMP/s36b"; new_rc_state "$S"; echo "the rule refused" >"$S/rule_refuse"
+RUN_V="$RC_V" run_release "$S" "" --dry-run
+[ "$RC" != 0 ] && has "REFUSE" && has "the rule refused"; check "finished prerelease: a tag commit the rule refuses stops at preflight" $? "rc=$RC: $OUT"
+
+# 37. the tag and the release branch disagree: refuse at preflight. A deleted branch is fine: the tag holds.
+S="$TEST_TMP/s37"; new_rc_state "$S"; echo "$RCBRANCH" >"$S/release_branch_sha"
+RUN_V="$RC_V" run_release "$S" "" --dry-run
+[ "$RC" != 0 ] && has "REFUSE" && has "origin/release/$RC_V is $RCBRANCH, but v$RC_V on origin points at $TAGSHA"
+check "release branch and tag disagree: refuse at preflight" $? "rc=$RC: $OUT"
+S="$TEST_TMP/s37b"; new_rc_state "$S"; rm -f "$S/release_branch_sha"
+RUN_V="$RC_V" run_release "$S" "" --dry-run
+[ "$RC" = 0 ] && has "release commit: $TAGSHA (from existing tag v$RC_V)"; check "release branch deleted after the release: the tag holds" $? "rc=$RC: $OUT"
+
+# 38. a real run from the release branch: stage 2 tags the branch commit and reads the pushed tag back.
+S="$TEST_TMP/s38"; rc_publish_state "$S"; rm -f "$S/tag_sha"; echo "$RCBRANCH" >"$S/release_branch_sha"; echo "$RCBRANCH" >"$S/tag_after_push"
+npm_rc 0.6.8 "$RC_V" "$RCBRANCH" >"$S/npm_after_publish.json"
+RUN_V="$RC_V" run_release "$S" $'yes\nyes\nyes'
+[ "$RC" = 0 ] && has "HANDBACK" && grep -qF "git tag -s v$RC_V $RCBRANCH" "$S/calls.log"
+check "release branch real run: tags the branch commit and completes" $? "rc=$RC: $OUT"
+S="$TEST_TMP/s38b"; rc_publish_state "$S"; rm -f "$S/tag_sha"; echo "$RCBRANCH" >"$S/release_branch_sha"; echo "$MAINSHA" >"$S/tag_after_push"
+RUN_V="$RC_V" run_release "$S" $'yes\nyes\nyes'
+[ "$RC" != 0 ] && has "after push, v$RC_V on origin is '$MAINSHA', expected $RCBRANCH"
+check "release branch real run: a pushed tag on another commit refuses" $? "rc=$RC: $OUT"
 
 # 20. the driver's surface count is the verifier's: adding a surface to one without the other fails here.
 n_verifier="$(node -e 'const src = require("fs").readFileSync(process.argv[1], "utf8"); console.log(/const SURFACES = \[([\s\S]*?)\];/.exec(src)[1].match(/'"'"'[^'"'"']+'"'"'/g).length)' "$SCRIPT_DIR/verify-release-currency.mjs")"

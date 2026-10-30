@@ -8,21 +8,30 @@
 // driver (scripts/release.sh) never edits files and refuses at preflight if any field disagrees.
 //
 // Every edit is a single exact-text replacement that must match exactly once; if any file does
-// not, nothing is written. Prose that names the version (README release statements, the GitLab
-// include, the report pin in src/__tests__/index.test.ts) stays a reviewed manual edit and is
-// listed at the end. Run `pnpm run validate:distribution` afterwards.
+// not, nothing is written. For a final version, prose that names the version (README release
+// statements, the GitLab include, the report pin in src/__tests__/index.test.ts) stays a reviewed
+// manual edit and is listed at the end. Run `pnpm run validate:distribution` afterwards.
 //
 // <version> is X.Y.Z or a release candidate X.Y.Z-rc.N (N >= 1), the grammar in
 // scripts/release-version.mjs. A release candidate moves every field below exactly as a final
 // version does: each is a semver string or an OCI tag, and both hold X.Y.Z-rc.N, so no field
 // needs a refusal of its own.
+//
+// A release candidate is tagged from a branch release/X.Y.Z-rc.N whose one commit must be exactly
+// this script's output on a main commit (check-prerelease-commit in scripts/release-version.mjs),
+// so it can carry no hand edit. For a release candidate the script therefore also makes the edits
+// its gates need (PRERELEASE_EDITS): the CHANGELOG heading release.sh's preflight requires and the
+// GitLab include `pnpm test` pins to package.json's version. The CHANGELOG heading has no date, so
+// the publish gate can reproduce the commit on any later day. The README is not edited: a release
+// candidate publishes no image or binary, so its README keeps naming the newest final release, and
+// validate:distribution relaxes its two README OCI-version checks for a prerelease by name.
 
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { PLUGIN_MANIFEST_PATH, PLUGIN_MCP_CONFIG_PATH } from './claude-plugin-versions.mjs';
-import { RELEASE_VERSION } from './release-version.mjs';
+import { isPrerelease, RELEASE_VERSION } from './release-version.mjs';
 
 const escape = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -37,6 +46,17 @@ const EDITS = [
   [PLUGIN_MANIFEST_PATH, (from, to) => [`\n  "version": "${from}",\n`, `\n  "version": "${to}",\n`]],
   [PLUGIN_MCP_CONFIG_PATH, (from, to) => [`"@cejel/cejel@${from}"`, `"@cejel/cejel@${to}"`]],
 ];
+
+/** A release candidate's further edits, made after EDITS and in the same all-or-nothing step. */
+const PRERELEASE_EDITS = [
+  ['CHANGELOG.md', (from, to) => ['\n## [Unreleased]\n', `\n## [Unreleased]\n\n## [${to}]\n`]],
+  ['ci/gitlab/cejel.gitlab-ci.yml', (from, to) => [`/BargLabs/cejel/v${from}/ci/gitlab/`, `/BargLabs/cejel/v${to}/ci/gitlab/`]],
+  ['ci/gitlab/cejel.gitlab-ci.yml', (from, to) => [`CEJEL_VERSION: "${from}"`, `CEJEL_VERSION: "${to}"`]],
+  ['docs/gitlab-ci.md', (from, to) => [`/BargLabs/cejel/v${from}/ci/gitlab/`, `/BargLabs/cejel/v${to}/ci/gitlab/`]],
+  ['docs/gitlab-ci.md', (from, to) => [`default: '${from}'`, `default: '${to}'`]],
+];
+
+export const PRERELEASE_FILES = [...new Set(PRERELEASE_EDITS.map(([path]) => path))];
 
 export const MANUAL_FOLLOW_UPS = [
   'README.md release statements (SmartScreen, distribution note, Docker and openclaw examples)',
@@ -54,7 +74,7 @@ export function bumpReleaseVersion({ root, to }) {
 
   const contents = new Map();
   const problems = [];
-  for (const [path, build] of EDITS) {
+  for (const [path, build] of isPrerelease(to) ? [...EDITS, ...PRERELEASE_EDITS] : EDITS) {
     const text = contents.get(path) ?? readFileSync(join(root, path), 'utf8');
     const [oldText, newText] = build(from, to);
     const count = (text.match(new RegExp(escape(oldText), 'g')) ?? []).length;
@@ -82,6 +102,13 @@ function main(argv) {
   }
   const { from, files } = bumpReleaseVersion({ root, to });
   process.stdout.write(`moved ${from} -> ${to} in: ${files.join(', ')}\n`);
+  if (isPrerelease(to)) {
+    process.stdout.write(
+      `a release candidate has nothing to edit by hand (docs/release-process.md, "Prerelease"); run pnpm run validate:distribution, then commit exactly these files on release/${to}:\n` +
+        `  git commit -m "release ${to}" -- ${files.join(' ')}\n`,
+    );
+    return;
+  }
   process.stdout.write(`still manual, then run pnpm run validate:distribution:\n  - ${MANUAL_FOLLOW_UPS.join('\n  - ')}\n`);
 }
 
