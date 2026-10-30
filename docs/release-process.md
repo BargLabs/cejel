@@ -155,7 +155,8 @@ pinned final release byte for byte once `toolVersion` is set back. No hand edit 
 byte check refuses one.
 
 **Commands, from a clean checkout.** The bump prints the commit command with exactly the files it
-wrote; today those are the nine below.
+wrote; today those are the nine below. The `check-prerelease-commit` line runs the rule locally
+before the push; preflight and the publish gate run it again.
 
 ```bash
 git fetch origin
@@ -163,6 +164,7 @@ git switch -c release/X.Y.Z-rc.N origin/main
 node scripts/bump-release-version.mjs X.Y.Z-rc.N
 pnpm run validate:distribution
 git commit -m "release X.Y.Z-rc.N" -- package.json server.json published-versions.json Dockerfile plugins/cejel/.claude-plugin/plugin.json plugins/cejel/.mcp.json CHANGELOG.md ci/gitlab/cejel.gitlab-ci.yml docs/gitlab-ci.md
+node scripts/release-version.mjs check-prerelease-commit X.Y.Z-rc.N HEAD origin/main
 git push origin release/X.Y.Z-rc.N
 scripts/release.sh X.Y.Z-rc.N --dry-run
 scripts/release.sh X.Y.Z-rc.N
