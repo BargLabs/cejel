@@ -14,6 +14,9 @@ import {
 
 // CLI regression tests for the post-merge review passes of #525. Each failed on the merge commit.
 
+// A fake GitLab token, assembled at runtime so no token-shaped literal sits in the source.
+const FAKE_GITLAB_TOKEN = ['glpat', 'S3CR3TT0KEN0123456789'].join('-');
+
 async function captureCli(args: readonly string[]): Promise<{
   exitCode: number;
   stdout: string;
@@ -77,7 +80,7 @@ describe('an ingested ruleId naming an Object.prototype member', () => {
 
 describe('credentials in an un-normalizable repository identity', () => {
   it('reach none of report.json, certificate.html, summary.json or the terminal', async () => {
-    const secret = 'glpat-S3CR3TT0KEN0123456789';
+    const secret = FAKE_GITLAB_TOKEN;
     const repo = makeConformanceRepo();
     const input = join(mkdtempSync(join(tmpdir(), 'cejel-cred-in-')), 'scan.sarif');
     writeFileSync(
