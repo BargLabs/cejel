@@ -1,0 +1,25 @@
+[
+  {
+    "statement": "A publish gate that read its checker's exit status as the verdict accepted a commit the checker refuses, because the checker never ran. The gate ran a copy of the checker script from a temp directory. On a host where that directory is a symlink (macOS /var), the script's own entry guard compared import.meta.url, which is a real path, with argv[1], which is not. The comparison failed, main was skipped, and the process exited 0 with no output. The gate test that expected a refusal caught it before merge; a test that only checked the accepting case had passed. The same guard made a reproduction step write nothing. Rule: a gate must require the checker's positive verdict line, not only exit 0; an entry guard must compare real paths; a reproduction that writes nothing is a failure, not a match; and every gate needs a refusing test, run from the path shape the gate really uses.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "release"
+    ],
+    "tags": [
+      "fail-open",
+      "exit-status-is-not-a-verdict",
+      "symlinked-temp-dir",
+      "entry-guard",
+      "publish-gate"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-10-30T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 617
+    }
+  }
+]
