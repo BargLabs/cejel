@@ -11,14 +11,18 @@
 // not, nothing is written. Prose that names the version (README release statements, the GitLab
 // include, the report pin in src/__tests__/index.test.ts) stays a reviewed manual edit and is
 // listed at the end. Run `pnpm run validate:distribution` afterwards.
+//
+// <version> is X.Y.Z or a release candidate X.Y.Z-rc.N (N >= 1), the grammar in
+// scripts/release-version.mjs. A release candidate moves every field below exactly as a final
+// version does: each is a semver string or an OCI tag, and both hold X.Y.Z-rc.N, so no field
+// needs a refusal of its own.
 
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { PLUGIN_MANIFEST_PATH, PLUGIN_MCP_CONFIG_PATH } from './claude-plugin-versions.mjs';
-
-const SEMVER = /^\d+\.\d+\.\d+$/;
+import { RELEASE_VERSION } from './release-version.mjs';
 
 const escape = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -42,7 +46,9 @@ export const MANUAL_FOLLOW_UPS = [
 ];
 
 export function bumpReleaseVersion({ root, to }) {
-  if (!SEMVER.test(to ?? '')) throw new Error(`version must be MAJOR.MINOR.PATCH; got ${to}`);
+  if (!RELEASE_VERSION.test(to ?? '')) {
+    throw new Error(`version must be MAJOR.MINOR.PATCH or MAJOR.MINOR.PATCH-rc.N (N >= 1); got ${to}`);
+  }
   const from = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).version;
   if (from === to) throw new Error(`package.json is already at ${to}; nothing to move`);
 

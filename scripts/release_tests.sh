@@ -84,7 +84,7 @@ case "$1" in
     for ref in "$@"; do
       case "$ref" in
         refs/tags/v1) [ -s "$S/v1_sha" ] && printf '%s\trefs/tags/v1\n' "$(cat "$S/v1_sha")" ;;
-        refs/tags/v0.4.11^{}) [ -s "$S/tag_sha" ] && printf '%s\t%s\n' "$(cat "$S/tag_sha")" "$ref" ;;
+        refs/tags/*'^{}') [ -s "$S/tag_sha" ] && printf '%s\t%s\n' "$(cat "$S/tag_sha")" "$ref" ;;
       esac
     done
     exit 0 ;;
@@ -109,7 +109,11 @@ for ((i=0; i<${#args[@]}; i++)); do
 done
 emit() { if [ -n "$jqf" ]; then jq -r "$jqf" "$1"; else cat "$1"; fi; }
 case "$1 $2" in
-  "release view") if [ -f "$S/release.json" ]; then emit "$S/release.json"; else echo "release not found" >&2; exit 1; fi ;;
+  "release view")
+    # Without a tag argument gh shows the repository's latest release ($S/latest_release.json).
+    if [[ "${3:-}" == --* ]]; then
+      if [ -f "$S/latest_release.json" ]; then emit "$S/latest_release.json"; else echo "release not found" >&2; exit 1; fi
+    elif [ -f "$S/release.json" ]; then emit "$S/release.json"; else echo "release not found" >&2; exit 1; fi ;;
   "release download")
     for ((i=0; i<${#args[@]}; i++)); do [ "${args[$i]}" = "--dir" ] && d="${args[$((i+1))]}"; done
     cp "$S"/assets/* "$d"/ ;;
@@ -121,9 +125,17 @@ case "$1 $2" in
           jq '. + [{databaseId:99999999999,createdAt:"2099-06-01T00:00:00Z",event:"workflow_dispatch",status:"completed"}]' "$S/runlist.json" >"$S/rl.tmp" && mv "$S/rl.tmp" "$S/runlist.json"
           cp "$S/dispatch_runlog.txt" "$S/runlog_99999999999.txt"
         fi ;;
+      *" publish-npm.yml "*" verify_only=false "*)
+        # The registry after a publish, when the test staged one.
+        [ -f "$S/npm_after_publish.json" ] && cp "$S/npm_after_publish.json" "$S/npm.json" ;;
     esac
     exit 0 ;;
-  "release create"|"release edit") exit 0 ;;
+  "release create") exit 0 ;;
+  "release edit")
+    # The release and the repository's latest release after the edit, when the test staged them.
+    [ -f "$S/release_after_edit.json" ] && cp "$S/release_after_edit.json" "$S/release.json"
+    [ -f "$S/latest_release_after_edit.json" ] && cp "$S/latest_release_after_edit.json" "$S/latest_release.json"
+    exit 0 ;;
   "run list")
     # Like GitHub's filtered listing on a bad moment: the first N publish-npm.yml listings
     # ($S/runlist_empty) answer []. Scoped to that workflow so no other stage's lookup absorbs them.
@@ -248,7 +260,7 @@ new_state() {
 run_release() {
   local S="$1" input="$2"; shift 2
   OUT="$(printf '%s\n' "$input" | FAKE_STATE="$S" PATH="$BIN:$PATH" RELEASE_SKIP_VALIDATE=1 RELEASE_POLL_INTERVAL=0 RELEASE_POLL_MAX=0 RELEASE_CURRENCY_WAIT=0 RELEASE_RUN_FIND_SLEEP=0 RELEASE_MCP_RETRY_DELAY=0 \
-    bash "$TARGET" "$V" "$@" 2>&1)"; RC=$?
+    bash "$TARGET" "${RUN_V:-$V}" "$@" 2>&1)"; RC=$?
 }
 mutations() { grep -cE '^(git (tag|push)|gh (release (create|edit)|workflow run))' "$1/calls.log" || true; }
 has() { grep -qF -- "$1" <<<"$OUT"; }
@@ -517,6 +529,143 @@ run_release "$S" "" --dry-run
 S="$TEST_TMP/s19d"; new_state "$S"; echo '{"mcpServers":{"cejel":{"command":"npx","args":["-y","--package=@cejel/cejel@0.4.11","cejel-mcp"]}}}' >"$S/files/plugins/cejel/.mcp.json"
 run_release "$S" "" --dry-run
 [ "$RC" != 0 ] && has ".mcp.json.@cejel/cejel=<not npx -y @cejel/cejel@X mcp>"; check "plugin: the old --package launch form refuses at preflight" $? "rc=$RC: $OUT"
+
+# ============================= prerelease (X.Y.Z-rc.N) =============================
+RC_V="0.7.0-rc.1"
+NPM_USER='"_npmUser":{"name":"GitHub Actions","email":"npm-oidc-no-reply@github.com"}'
+PROV='"attestations":{"provenance":{"predicateType":"https://slsa.dev/provenance/v1"}}'
+NPM_RC_BEFORE='{"dist-tags":{"latest":"0.6.8"},"versions":{"0.6.8":{}}}'
+# npm_rc <latest> <next> <gitHead>: the registry holding the release candidate.
+npm_rc() {
+  printf '{"dist-tags":{"latest":"%s","next":"%s"},"versions":{"0.6.8":{},"%s":{"gitHead":"%s",%s,"dist":{"integrity":"sha512-rcintegrity==",%s}}}}' \
+    "$1" "$2" "$RC_V" "$3" "$NPM_USER" "$PROV"
+}
+NPM_RC_OK="$(npm_rc 0.6.8 "$RC_V" "$TAGSHA")"
+PRERELEASE_SKIPPED=("4 (binaries)" "8 (distribution-verify)" "9 (distribution-publish)" "10 (homebrew)" "11 (currency)" "12 (action-major-tag)")
+
+# new_rc_state <dir>: a finished 0.7.0-rc.1 prerelease (tag, published prerelease, npm under next);
+# latest stays on 0.6.8 everywhere and v1 on another commit.
+new_rc_state() {
+  local S="$1" f; new_state "$S"
+  for f in package.json server.json published-versions.json Dockerfile plugins/cejel/.claude-plugin/plugin.json plugins/cejel/.mcp.json; do
+    sed -i.bak "s/0\.4\.11/$RC_V/g" "$S/files/$f"; rm -f "$S/files/$f.bak"
+  done
+  printf '# Changelog\n\n## [Unreleased]\n\n## [%s] - 2026-10-30\n- x\n' "$RC_V" >"$S/files/CHANGELOG.md"
+  echo "cccccccccccccccccccccccccccccccccccccccc" >"$S/v1_sha"
+  rm -rf "$S/assets" "$S/oci_digest" "$S/mcp.json"
+  echo '{"isDraft":false,"isPrerelease":true,"assets":[]}' >"$S/release.json"
+  echo '{"tagName":"v0.6.8","isPrerelease":false}' >"$S/latest_release.json"
+  echo "$NPM_RC_OK" >"$S/npm.json"
+  { echo "+ @cejel/cejel@$RC_V"; echo "Provenance statement published to transparency log: https://search.sigstore.dev/?logIndex=456"; } >"$S/runlog.txt"
+}
+
+# 21. the driver accepts X.Y.Z-rc.N (N >= 1) and refuses every other prerelease shape and a leading v.
+for bad in 0.7.0-rc 0.7.0-rc.0 0.7.0-beta.1 v0.7.0-rc.1 0.7.0-rc.1+b; do
+  S="$TEST_TMP/s21-$bad"; new_rc_state "$S"
+  RUN_V="$bad" run_release "$S" "" --dry-run
+  [ "$RC" = 2 ] && has "X.Y.Z or X.Y.Z-rc.N" && [ ! -s "$S/calls.log" ]
+  check "prerelease: the driver refuses '$bad' before any read" $? "rc=$RC: $OUT"
+done
+
+# 22. a finished prerelease, dry run: stages 2 3 5 6 7 read as done, 4 and 8-12 print skipped: prerelease,
+# stage 13 reads npm and GitHub back, and nothing touches v1, the binaries, distribution or currency.
+S="$TEST_TMP/s22"; new_rc_state "$S"
+RUN_V="$RC_V" run_release "$S" "" --dry-run
+[ "$RC" = 0 ]; check "prerelease: dry-run on a finished prerelease exits 0" $? "rc=$RC: $OUT"
+for st in "2 (tag)" "3 (draft-release)" "5 (publish-release)" "6 (npm-verify)" "7 (npm-publish)"; do
+  has "stage $st: already done"; check "prerelease: stage $st reads as already done" $? "$OUT"
+done
+for st in "${PRERELEASE_SKIPPED[@]}"; do
+  has "stage $st: skipped: prerelease"; check "prerelease: stage $st prints skipped: prerelease" $? "$OUT"
+done
+has "site record: skipped: prerelease"; check "prerelease: the site record step prints skipped: prerelease" $? "$OUT"
+has "published, flagged prerelease" && has "releases/latest unchanged: v0.6.8"; check "prerelease: the GitHub release is a prerelease and releases/latest is unchanged" $? "$OUT"
+has "dist-tags.next = $RC_V" && has 'dist-tags.latest unchanged ("0.6.8")' && has "gitHead $TAGSHA = the tag commit"
+check "prerelease: stage 13 reads next, latest and gitHead back from the registry" $? "$OUT"
+has "tarball integrity:    sha512-rcintegrity=="; check "prerelease: the handback records the tarball integrity" $? "$OUT"
+! grep -qE 'release-binaries|publish-distribution|verify-release-currency|refs/tags/v1|ghcr|modelcontextprotocol' "$S/calls.log"
+check "prerelease: no binaries, distribution, currency, v1, OCI or MCP read or dispatch" $? "$(cat "$S/calls.log")"
+[ "$(mutations "$S")" = 0 ]; check "prerelease: dry-run performs no mutating call" $? "$(cat "$S/calls.log")"
+
+# 23. a fresh prerelease, dry run: three irreversible prompts (2 5 7); the draft and the published
+# release are flagged prerelease, and stage 5 never marks it latest.
+S="$TEST_TMP/s23"; new_rc_state "$S"; rm -f "$S/tag_sha" "$S/release.json"; echo "$NPM_RC_BEFORE" >"$S/npm.json"
+RUN_V="$RC_V" run_release "$S" "" --dry-run
+blocks="$(grep -o 'STAGE [0-9]* IS IRREVERSIBLE' <<<"$OUT" | sed -E 's/STAGE ([0-9]+).*/\1/' | tr '\n' ' ')"
+[ "$RC" = 0 ] && [ "$blocks" = "2 5 7 " ]; check "prerelease dry-run: irreversible blocks for stages 2 5 7 only" $? "rc=$RC blocks=$blocks: $OUT"
+has "would run: gh release create v$RC_V --repo BargLabs/cejel --draft --prerelease"; check "prerelease dry-run: the draft is created flagged prerelease" $? "$OUT"
+has "about to run : gh release edit v$RC_V --repo BargLabs/cejel --draft=false --prerelease --latest=false"
+check "prerelease dry-run: stage 5 publishes it as a prerelease, never latest" $? "$OUT"
+for st in "${PRERELEASE_SKIPPED[@]}"; do
+  has "stage $st: skipped: prerelease"; check "prerelease dry-run: stage $st prints skipped: prerelease" $? "$OUT"
+done
+[ "$(mutations "$S")" = 0 ]; check "prerelease dry-run: no mutating call" $? "$(cat "$S/calls.log")"
+
+# 24. --from a stage a prerelease does not run is refused; --from 13 is not; a final release still takes --from 9.
+for from in 4 8 9 10 11 12; do
+  S="$TEST_TMP/s24-$from"; new_rc_state "$S"
+  RUN_V="$RC_V" run_release "$S" "" --dry-run --from "$from"
+  [ "$RC" != 0 ] && has "REFUSE" && has "--from $from: a prerelease does not run stage $from"
+  check "prerelease: --from $from is refused" $? "rc=$RC: $OUT"
+done
+S="$TEST_TMP/s24-13"; new_rc_state "$S"
+RUN_V="$RC_V" run_release "$S" "" --dry-run --from 13
+[ "$RC" = 0 ]; check "prerelease: --from 13 runs" $? "rc=$RC: $OUT"
+S="$TEST_TMP/s24-final"; new_state "$S"
+run_release "$S" "" --dry-run --from 9
+[ "$RC" = 0 ] && has "stage 9 (distribution-publish): already done"; check "final: --from 9 still runs" $? "rc=$RC: $OUT"
+
+# rc_publish_state <dir>: tag pushed, draft prerelease, npm without the release candidate; the
+# staged registry and releases/latest after the publish and the edit are clean unless a test changes them.
+rc_publish_state() {
+  local S="$1"; new_rc_state "$S"
+  echo '{"isDraft":true,"isPrerelease":true,"assets":[]}' >"$S/release.json"
+  echo '{"isDraft":false,"isPrerelease":true,"assets":[]}' >"$S/release_after_edit.json"
+  echo "$NPM_RC_BEFORE" >"$S/npm.json"; echo "$NPM_RC_OK" >"$S/npm_after_publish.json"
+}
+
+# 25. a real prerelease run from a draft: publishes the release as a prerelease and npm under next,
+# then verifies both from the world.
+S="$TEST_TMP/s25"; rc_publish_state "$S"
+RUN_V="$RC_V" run_release "$S" $'yes\nyes'
+[ "$RC" = 0 ] && has "HANDBACK" && has "dist-tags.next = $RC_V"; check "prerelease real run: publishes and verifies from the registry" $? "rc=$RC: $OUT"
+grep -qF -- "gh release edit v$RC_V --repo BargLabs/cejel --draft=false --prerelease --latest=false" "$S/calls.log"
+check "prerelease real run: the release edit flags prerelease and not latest" $? "$(cat "$S/calls.log")"
+
+# 26. the post-publish check fails when latest moved.
+S="$TEST_TMP/s26"; rc_publish_state "$S"; npm_rc "$RC_V" "$RC_V" "$TAGSHA" >"$S/npm_after_publish.json"
+RUN_V="$RC_V" run_release "$S" $'yes\nyes'
+[ "$RC" != 0 ] && has "REFUSE" && has 'dist-tags.latest moved: "0.6.8" before the run, "0.7.0-rc.1" now'
+check "prerelease: npm latest moved by the publish refuses" $? "rc=$RC: $OUT"
+
+# 27. the post-publish check fails when next is not the version.
+S="$TEST_TMP/s27"; rc_publish_state "$S"; npm_rc 0.6.8 0.6.9-rc.1 "$TAGSHA" >"$S/npm_after_publish.json"
+RUN_V="$RC_V" run_release "$S" $'yes\nyes'
+[ "$RC" != 0 ] && has "REFUSE" && has 'dist-tags.next is "0.6.9-rc.1", expected "0.7.0-rc.1"'
+check "prerelease: npm next not the version refuses" $? "rc=$RC: $OUT"
+
+# 28. the post-publish check fails when the tarball's gitHead is not the tag's commit.
+S="$TEST_TMP/s28"; rc_publish_state "$S"; npm_rc 0.6.8 "$RC_V" "$MAINSHA" >"$S/npm_after_publish.json"
+RUN_V="$RC_V" run_release "$S" $'yes\nyes'
+[ "$RC" != 0 ] && has "REFUSE" && has "gitHead is \"$MAINSHA\", expected the tag commit $TAGSHA"
+check "prerelease: a gitHead other than the tag commit refuses" $? "rc=$RC: $OUT"
+
+# 29. publishing the GitHub prerelease must not move releases/latest.
+S="$TEST_TMP/s29"; rc_publish_state "$S"; echo "{\"tagName\":\"v$RC_V\",\"isPrerelease\":true}" >"$S/latest_release_after_edit.json"
+RUN_V="$RC_V" run_release "$S" $'yes\nyes'
+[ "$RC" != 0 ] && has "REFUSE" && has "stage 5: releases/latest is v$RC_V, was v0.6.8 before the run"
+check "prerelease: releases/latest moved by stage 5 refuses" $? "rc=$RC: $OUT"
+! grep -q 'verify_only' "$S/calls.log"; check "prerelease: nothing reaches npm after releases/latest moved" $? "$(cat "$S/calls.log")"
+
+# 30. a release candidate's GitHub release published without the prerelease flag refuses.
+S="$TEST_TMP/s30"; new_rc_state "$S"; echo '{"isDraft":false,"isPrerelease":false,"assets":[]}' >"$S/release.json"
+RUN_V="$RC_V" run_release "$S" "" --dry-run
+[ "$RC" != 0 ] && has "REFUSE" && has "published and not flagged prerelease"; check "prerelease: a full GitHub release for an rc refuses" $? "rc=$RC: $OUT"
+
+# 31. a registry where the release candidate already holds latest refuses at preflight, before any action.
+S="$TEST_TMP/s31"; new_rc_state "$S"; npm_rc "$RC_V" "$RC_V" "$TAGSHA" >"$S/npm.json"
+RUN_V="$RC_V" run_release "$S" "" --dry-run
+[ "$RC" != 0 ] && has "REFUSE" && has 'npm dist-tags.latest is "0.7.0-rc.1"'; check "prerelease: latest already on a prerelease refuses at preflight" $? "rc=$RC: $OUT"
 
 # 20. the driver's surface count is the verifier's: adding a surface to one without the other fails here.
 n_verifier="$(node -e 'const src = require("fs").readFileSync(process.argv[1], "utf8"); console.log(/const SURFACES = \[([\s\S]*?)\];/.exec(src)[1].match(/'"'"'[^'"'"']+'"'"'/g).length)' "$SCRIPT_DIR/verify-release-currency.mjs")"

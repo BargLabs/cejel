@@ -7,6 +7,15 @@
 #   2 tag push, 5 publish the GitHub release, 7 npm publish, 9 distribution publish, 12 move v1.
 # The count is five: stages 2, 5, 7, 9 and 12 are the irreversible ones, and only they are gated.
 #
+# <version> is X.Y.Z (a final release) or X.Y.Z-rc.N with N >= 1 (a release candidate; the grammar
+# is scripts/release-version.mjs's). A release candidate moves nothing a user gets by default: it
+# runs stages 1-3, 5-7 and 13 only. Its GitHub release is flagged prerelease and never latest, npm
+# publishes it under `next` (publish-npm.yml derives the tag from the version), and stages 4 and
+# 8-12 (binaries, distribution, Homebrew, currency, v1) and the site record print `skipped:
+# prerelease`. Stage 13 then reads back from the registry that dist-tags.next is the version,
+# dist-tags.latest is byte-identical to its value at preflight and the tarball's gitHead is the
+# tag's commit, and from GitHub that releases/latest has not moved. A final release runs as before.
+#
 # Resumable: each stage reads the current state and skips itself when the state already shows it
 # done. It never edits a repository file and never runs `git commit`. Tools: bash, git, gh, jq,
 # curl (plus crane if present). No model, no network beyond GitHub, the npm registry, ghcr.io and
@@ -61,9 +70,22 @@ while [ $# -gt 0 ]; do
   shift
 done
 
-[[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "usage: $0 <semver, no leading v> [--dry-run] [--from <stage>]" >&2; exit 2; }
+[[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-rc\.[1-9][0-9]*)?$ ]] || { echo "usage: $0 <X.Y.Z or X.Y.Z-rc.N (N >= 1), no leading v> [--dry-run] [--from <stage>]" >&2; exit 2; }
 [[ "$FROM_STAGE" =~ ^[0-9]+$ ]] || { echo "--from needs a stage number" >&2; exit 2; }
 TAG="v${VERSION}"
+PRERELEASE=0; [[ "$VERSION" == *-rc.* ]] && PRERELEASE=1
+
+# prerelease_skip <stage>: why a release candidate does not run <stage>; nothing for a stage it runs.
+prerelease_skip() {
+  case "$1" in
+    4) echo "no binaries are built or attached to a prerelease" ;;
+    8) echo "it only gates stage 9, which a prerelease skips" ;;
+    9) echo "no OCI image and no MCP Registry entry for a prerelease" ;;
+    10) echo "the Homebrew tap stays on the newest final release" ;;
+    11) echo "the currency check reads the newest final release, which a prerelease does not move" ;;
+    12) echo "v1 stays on the newest final release" ;;
+  esac
+}
 
 WORK="$(mktemp -d)"
 cleanup() {
@@ -76,11 +98,17 @@ say()  { echo "[release $VERSION] $*"; }
 die()  { echo "[release $VERSION] REFUSE: $*" >&2; exit 1; }
 # Refused rather than clamped: zero tries would turn every lookup into "nothing found" unread.
 [[ "$RUN_LIST_TRIES" =~ ^[1-9][0-9]*$ ]] || die "RELEASE_RUN_LIST_TRIES must be a whole number of at least 1 (got '$RUN_LIST_TRIES')"
+# Refused rather than rounded to the next stage a prerelease runs: the operator named a stage that does not happen.
+if [ "$PRERELEASE" = 1 ] && [ -n "$(prerelease_skip "$FROM_STAGE")" ]; then
+  die "--from $FROM_STAGE: a prerelease does not run stage $FROM_STAGE ($(prerelease_skip "$FROM_STAGE")); it runs stages 1-3, 5-7 and 13"
+fi
 done_() { say "stage $1 ($2): already done -- $3"; }
 
 # Facts gathered for the handback.
 RELEASE_SHA=""; RUN_BINARIES=""; RUN_NPM=""; RUN_DIST=""; RUN_CURRENCY=""
 OCI_DIGEST=""; MCP_STATE="not read"; TLOG_URL=""; GIT_HEAD=""; CURRENCY_STATE=""
+# Prerelease only: the defaults read at preflight, which the run must leave as they were.
+NPM_LATEST_BEFORE=""; GH_LATEST_BEFORE=""; NPM_INTEGRITY=""
 
 # ---------------------------------------------------------------- action wrappers
 # Every state-changing command goes through act / irreversible, so --dry-run can suppress it and
@@ -121,6 +149,7 @@ npm_has_version() {
 # Prints the problems with the registry entry for $VERSION; empty output means all postconditions hold.
 npm_problems() {
   local j; j="$(registry_json)" || { echo "registry unreadable"; return; }
+  if [ "$PRERELEASE" = 1 ]; then npm_problems_prerelease "$j"; return; fi
   jq -r --arg v "$VERSION" --arg u "$NPM_USER_EXPECTED" '
     (.versions[$v]) as $e
     | if $e == null then "version absent"
@@ -133,6 +162,30 @@ npm_problems() {
           else "dist-tags.latest is " + ((.["dist-tags"].latest // "none")|tojson) end )
       end' <<<"$j"
 }
+
+# A release candidate's postconditions: the same publisher and provenance, dist-tags.next is the
+# version, dist-tags.latest is byte-identical (as JSON text) to its value at preflight, and the
+# tarball's gitHead is the tag's commit.
+npm_problems_prerelease() { # npm_problems_prerelease <registry json>
+  jq -r --arg v "$VERSION" --arg u "$NPM_USER_EXPECTED" --arg sha "$RELEASE_SHA" --arg before "$NPM_LATEST_BEFORE" '
+    (.versions[$v]) as $e
+    | if $e == null then "version absent"
+      else
+        ( if ($e._npmUser | ((.name // "") + " <" + (.email // "") + ">")) == $u then empty
+          else "_npmUser is " + ($e._npmUser|tojson) + ", expected exactly " + ($u|tojson) end ),
+        ( if ($e.dist.attestations.provenance // null) != null then empty
+          else "dist.attestations has no provenance predicate" end ),
+        ( if (.["dist-tags"].next // "") == $v then empty
+          else "dist-tags.next is " + ((.["dist-tags"].next // "none")|tojson) + ", expected " + ($v|tojson) end ),
+        ( (.["dist-tags"].latest | tojson) as $now
+          | if $now == $before then empty
+            else "dist-tags.latest moved: " + $before + " before the run, " + $now + " now" end ),
+        ( if ($e.gitHead // "") == $sha then empty
+          else "gitHead is " + (($e.gitHead // "none")|tojson) + ", expected the tag commit " + $sha end )
+      end' <<<"$1"
+}
+
+npm_latest_json() { registry_json | jq -c '.["dist-tags"].latest'; }
 
 registry_gitHead() { registry_json | jq -r --arg v "$VERSION" '.versions[$v].gitHead // ""'; }
 
@@ -255,7 +308,29 @@ stage1() {
     (cd "$PREFLIGHT_WT" && pnpm install --frozen-lockfile >/dev/null && pnpm run validate:distribution) \
       || die "pnpm run validate:distribution failed at $RELEASE_SHA"
   fi
+  [ "$PRERELEASE" = 1 ] && read_prerelease_baseline
   say "  preflight ok"
+}
+
+gh_latest_release() { gh_r release view --json tagName --jq .tagName; } # no tag argument: the repository's latest release
+
+# What a user gets by default, read before anything moves; stages 5 and 13 require both unchanged.
+# A resumed run reads them after the earlier stages ran, so it also requires latest to be a final
+# version other than this one: a resume cannot prove "unchanged" across runs, only "not this".
+read_prerelease_baseline() {
+  NPM_LATEST_BEFORE="$(npm_latest_json)" || die "registry unreadable; cannot record dist-tags.latest before the run"
+  case "$NPM_LATEST_BEFORE" in
+    \"*-*\"|null|"") die "npm dist-tags.latest is $NPM_LATEST_BEFORE before the run; a prerelease run needs latest on a final version" ;;
+  esac
+  GH_LATEST_BEFORE="$(gh_latest_release 2>"$WORK/err")" || die "could not read the latest GitHub release: $(cat "$WORK/err")"
+  [ -n "$GH_LATEST_BEFORE" ] && [ "$GH_LATEST_BEFORE" != "$TAG" ] || die "releases/latest is '$GH_LATEST_BEFORE' before the run; a prerelease run needs it on a final release"
+  say "  prerelease: npm dist-tag next; GitHub release flagged prerelease. Must not move: dist-tags.latest $NPM_LATEST_BEFORE, releases/latest $GH_LATEST_BEFORE"
+}
+
+gh_latest_unchanged() { # gh_latest_unchanged <stage>
+  local now; now="$(gh_latest_release 2>"$WORK/err")" || die "stage $1: could not read the latest GitHub release: $(cat "$WORK/err")"
+  [ "$now" = "$GH_LATEST_BEFORE" ] || die "stage $1: releases/latest is $now, was $GH_LATEST_BEFORE before the run"
+  say "  releases/latest unchanged: $now"
 }
 
 # ---------------------------------------------------------------- stage 2
@@ -294,6 +369,12 @@ release_view() { # prints "draft|prerelease" or nothing when no release exists
 stage3() {
   local st; st="$(release_view)"
   if [ -n "$st" ]; then done_ 3 draft-release "release on $TAG exists (isDraft|isPrerelease = $st)"; return; fi
+  if [ "$PRERELEASE" = 1 ]; then
+    act gh release create "$TAG" --repo "$REPO" --draft --prerelease --verify-tag --title "$TAG" --notes "cejel $VERSION (release candidate)"
+    [ "$DRY_RUN" = 1 ] && return 0
+    [ "$(release_view)" = "true|true" ] || die "after create, $TAG is not a draft prerelease"
+    return 0
+  fi
   act gh release create "$TAG" --repo "$REPO" --draft --verify-tag --title "$TAG" --notes "cejel $VERSION"
   [ "$DRY_RUN" = 1 ] && return 0
   [ "$(release_view)" = "true|false" ] || die "after create, $TAG is not a draft release"
@@ -363,6 +444,7 @@ stage4() {
 
 # ---------------------------------------------------------------- stage 5
 stage5() {
+  if [ "$PRERELEASE" = 1 ]; then stage5_prerelease; return; fi
   local st; st="$(release_view)"
   if [ -z "$st" ]; then
     [ "$DRY_RUN" = 1 ] || die "no release on $TAG"
@@ -376,6 +458,23 @@ stage5() {
   irreversible 5 "draft release $TAG, twelve assets verified" -- gh release edit "$TAG" --repo "$REPO" --draft=false
   [ "$DRY_RUN" = 1 ] && return 0
   [ "$(release_view)" = "false|false" ] || die "after edit, $TAG is not published/non-prerelease"
+}
+
+# A release candidate's GitHub release: published flagged prerelease and never marked latest, with
+# no binaries (stage 4 is skipped). releases/latest is read back afterwards, not assumed.
+stage5_prerelease() {
+  local st; st="$(release_view)"
+  case "$st" in
+    "false|true") done_ 5 publish-release "published, flagged prerelease" ;;
+    "false|false") die "$TAG is published and not flagged prerelease; a release candidate is never a full release" ;;
+    *)
+      [ -n "$st" ] || [ "$DRY_RUN" = 1 ] || die "no release on $TAG"
+      irreversible 5 "draft release $TAG (isDraft|isPrerelease = ${st:-none yet in this dry run}); releases/latest is $GH_LATEST_BEFORE and must not move" -- gh release edit "$TAG" --repo "$REPO" --draft=false --prerelease --latest=false
+      [ "$DRY_RUN" = 1 ] && return 0
+      [ "$(release_view)" = "false|true" ] || die "after edit, $TAG is not a published prerelease"
+      ;;
+  esac
+  gh_latest_unchanged 5
 }
 
 # ---------------------------------------------------------------- stage 6 / 7
@@ -404,12 +503,17 @@ stage7() {
     [ -z "$p" ] || die "registry holds $VERSION but: $(tr '\n' ';' <<<"$p")"
     RUN_NPM="${RUN_NPM:-$(find_npm_publish_run)}"
     finish_npm
-    done_ 7 npm-publish "registry entry verified (provenance, publisher, latest tag)"
+    if [ "$PRERELEASE" = 1 ]; then
+      done_ 7 npm-publish "registry entry verified (provenance, publisher, next tag, latest unchanged, gitHead)"
+    else
+      done_ 7 npm-publish "registry entry verified (provenance, publisher, latest tag)"
+    fi
     return
   fi
-  local id
+  local id tagged=""
+  [ "$PRERELEASE" = 1 ] && tagged="; the workflow derives dist-tag next from the version, latest stays $NPM_LATEST_BEFORE"
   confirm 7 "gh workflow run publish-npm.yml --repo $REPO --ref $TAG -f release_tag=$TAG -f verify_only=false" \
-    "verify-only run succeeded this session or earlier; registry has no $VERSION"
+    "verify-only run succeeded this session or earlier; registry has no $VERSION$tagged"
   id="$(dispatch_and_watch publish-npm.yml -f "release_tag=$TAG" -f verify_only=false)"
   [ "$DRY_RUN" = 1 ] && return 0
   RUN_NPM="$id"
@@ -453,6 +557,10 @@ finish_npm() {
   grep -qF "+ $NPM_PKG@$VERSION" <<<"$log" || die "run $RUN_NPM log has no '+ $NPM_PKG@$VERSION' line"
   TLOG_URL="$(grep -Eo 'https://search\.sigstore\.dev/[^ ]+' <<<"$log" | head -1 || true)"
   say "  npm run $RUN_NPM; gitHead ${GIT_HEAD:-none}; transparency log: ${TLOG_URL:-<not found in run log>}"
+  if [ "$PRERELEASE" = 1 ]; then
+    NPM_INTEGRITY="$(registry_json | jq -r --arg v "$VERSION" '.versions[$v].dist.integrity // ""')" || die "registry unreadable"
+    say "  tarball integrity ${NPM_INTEGRITY:-<none in the registry entry>}"
+  fi
 }
 
 # ---------------------------------------------------------------- stage 8 / 9
@@ -655,6 +763,7 @@ stage12_print_consumer() {
 # after the operator's tap bump and site record, so on a first pass it may refuse: do those, then
 # re-run with --from 13 (every earlier stage re-reads and reports done).
 stage13() {
+  if [ "$PRERELEASE" = 1 ]; then stage13_prerelease; return; fi
   say "stage 13 (final currency: $CURRENCY_SURFACES of $CURRENCY_SURFACES)"
   local id
   if [ "$DRY_RUN" = 1 ]; then
@@ -671,8 +780,26 @@ $CUR_FAIL_LINES"
   say "  fresh currency run $id: $CURRENCY_SURFACES of $CURRENCY_SURFACES -- release complete"
 }
 
+# A release candidate is complete when the registry and GitHub, read now, show it published under
+# next and every default where it was at preflight.
+stage13_prerelease() {
+  say "stage 13 (prerelease: npm and GitHub read back)"
+  if [ "$DRY_RUN" = 1 ] && ! npm_has_version; then
+    say "  [dry-run] would require dist-tags.next = $VERSION, dist-tags.latest = $NPM_LATEST_BEFORE, gitHead = the tag commit, $TAG a published prerelease and releases/latest = $GH_LATEST_BEFORE"
+    return 0
+  fi
+  local p; p="$(npm_problems)"
+  [ -z "$p" ] || die "stage 13: $(tr '\n' ';' <<<"$p")"
+  [ "$(release_view)" = "false|true" ] || die "stage 13: $TAG is not a published prerelease"
+  gh_latest_unchanged 13
+  GIT_HEAD="$(registry_gitHead)"
+  NPM_INTEGRITY="$(registry_json | jq -r --arg v "$VERSION" '.versions[$v].dist.integrity // ""')" || die "registry unreadable"
+  say "  dist-tags.next = $VERSION; dist-tags.latest unchanged ($NPM_LATEST_BEFORE); gitHead $GIT_HEAD = the tag commit -- release candidate complete"
+}
+
 # ---------------------------------------------------------------- handback
 handback() {
+  if [ "$PRERELEASE" = 1 ]; then handback_prerelease; return; fi
   cat <<EOF
 
 ================ HANDBACK for cejel-site current-release.mjs ================
@@ -694,6 +821,24 @@ The site record is written by a human under cejel-site's DEPLOY.md. This script 
 EOF
 }
 
+handback_prerelease() {
+  cat <<EOF
+
+================ HANDBACK: release candidate $VERSION ================
+version:              $VERSION (npm dist-tag next)
+release commit:       $RELEASE_SHA
+gitHead (npm):        ${GIT_HEAD:-<not read>}
+tarball integrity:    ${NPM_INTEGRITY:-<not read>}
+dist-tags.latest:     $NPM_LATEST_BEFORE (read at preflight; must be unchanged)
+GitHub release:       $TAG, flagged prerelease; releases/latest $GH_LATEST_BEFORE (must be unchanged)
+npm run:              ${RUN_NPM:-<not recorded>}
+transparency log:     ${TLOG_URL:-<not read>}
+skipped: prerelease   binaries, OCI image, MCP Registry, Homebrew tap, currency, v1, site record
+=============================================================================
+Installed only by exact version: npx -y @cejel/cejel@$VERSION
+EOF
+}
+
 # ---------------------------------------------------------------- main
 # --from is a convenience only: stages before it still run their reads, so no precondition is skipped.
 run_stage() { # run_stage <n> <fn>
@@ -701,7 +846,17 @@ run_stage() { # run_stage <n> <fn>
   "$2"
 }
 
+STAGE_NAMES=(- preflight tag draft-release binaries publish-release npm-verify npm-publish distribution-verify distribution-publish homebrew currency action-major-tag final)
+
 [ "$DRY_RUN" = 1 ] && say "DRY RUN: reads execute, no tag/release/workflow/push is performed"
+[ "$PRERELEASE" = 1 ] && say "PRERELEASE $VERSION: runs stages 1-3, 5-7 and 13; nothing a user gets by default moves"
 stage1
-for n in 2 3 4 5 6 7 8 9 10 11 12 13; do run_stage "$n" "stage$n"; done
+for n in 2 3 4 5 6 7 8 9 10 11 12 13; do
+  if [ "$PRERELEASE" = 1 ] && [ -n "$(prerelease_skip "$n")" ]; then
+    say "stage $n (${STAGE_NAMES[$n]}): skipped: prerelease -- $(prerelease_skip "$n")"
+    continue
+  fi
+  run_stage "$n" "stage$n"
+done
+[ "$PRERELEASE" = 1 ] && say "site record: skipped: prerelease -- cejel-site's current-release record stays on the newest final release"
 handback

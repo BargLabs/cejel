@@ -682,13 +682,28 @@ export async function verifyReleaseCurrency({
   return { version, commit: releaseCommit, results };
 }
 
-export async function latestReleaseVersion() {
-  const release = await ghApi(`repos/${REPOSITORY}/releases/latest`, 'GitHub release');
-  const match = /^v(.+)$/.exec(release?.tag_name || '');
-  if (release?.draft !== false || !match || !SEMVER.test(match[1])) {
-    throw new Error(`latest GitHub release returned an invalid tag or draft state: ${release?.tag_name}`);
-  }
-  return match[1];
+const FINAL_RELEASE_TAG = /^v(\d+\.\d+\.\d+)$/;
+
+async function readReleaseList() {
+  const releases = await commandJson(
+    'gh',
+    ['api', `repos/${REPOSITORY}/releases?per_page=100`, '--jq', '[.[] | {tag_name, draft, prerelease}]'],
+    'GitHub releases',
+  );
+  if (!Array.isArray(releases)) throw new Error('GitHub releases query did not return a list');
+  return releases;
+}
+
+// The version a run without --version verifies: the newest published final release. A prerelease
+// (flagged prerelease, or tagged vX.Y.Z-rc.N) and a draft are never picked, so publishing a
+// release candidate cannot make the weekly or workflow_run check compare `latest` against it.
+export async function latestReleaseVersion({ readReleases = readReleaseList } = {}) {
+  const finals = (await readReleases())
+    .filter((release) => release?.draft === false && release?.prerelease === false)
+    .map((release) => FINAL_RELEASE_TAG.exec(release?.tag_name || '')?.[1])
+    .filter(Boolean);
+  if (finals.length === 0) throw new Error('GitHub lists no published final release (vX.Y.Z, not draft, not prerelease)');
+  return newestSemver(finals);
 }
 
 function parseArgs(argv) {

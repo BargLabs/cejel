@@ -137,6 +137,14 @@ jobs:
             exit 1
           fi
 
+      - name: Derive the npm dist-tag from the version
+        id: dist_tag
+        run: |
+          package_version="$(node -p "require('./package.json').version")"
+          dist_tag="$(node scripts/release-version.mjs dist-tag "$package_version")"
+          echo "$package_version publishes under dist-tag $dist_tag"
+          echo "dist_tag=$dist_tag" >>"$GITHUB_OUTPUT"
+
       - name: Require npm CLI with trusted-publishing support
         run: |
           npm install --global npm@11.5.1
@@ -152,8 +160,18 @@ jobs:
 
       - name: Publish with npm provenance
         if: ${{ inputs.verify_only == false }}
-        run: npm publish --access public --provenance
+        env:
+          DIST_TAG: ${{ steps.dist_tag.outputs.dist_tag }}
+        run: |
+          package_version="$(node -p "require('./package.json').version")"
+          node scripts/release-version.mjs check-dist-tag "$package_version" "$DIST_TAG"
+          npm publish --access public --provenance --tag "$DIST_TAG"
 
       - name: Confirm verify-only run
         if: ${{ inputs.verify_only }}
-        run: echo "verify_only=true; npm publish was skipped"
+        env:
+          DIST_TAG: ${{ steps.dist_tag.outputs.dist_tag }}
+        run: |
+          package_version="$(node -p "require('./package.json').version")"
+          node scripts/release-version.mjs check-dist-tag "$package_version" "$DIST_TAG"
+          echo "verify_only=true; npm publish was skipped (it would publish under $DIST_TAG)"
