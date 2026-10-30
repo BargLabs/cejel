@@ -16,6 +16,8 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.7.0-rc.1]
+
 ### Changed
 
 - **Prospective v27: B2 and B3 stop crediting CI workflows not shown to run a check (#527, #535).**
