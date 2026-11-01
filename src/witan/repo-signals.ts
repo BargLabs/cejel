@@ -2073,8 +2073,11 @@ function collectA1TestIntegrityEvidence(
     repoFiles,
     reviewableSourceProof ? WITAN_RUBRIC_VERSION_V17 : undefined,
   );
+  // Read only where a Python test-shaped file exists: every rule they govern reads Python files.
   const pytestSettings = useV27FalseAssuranceClosure
-    ? readPytestCollectionSettings(repoPath, repoFiles)
+    ? v17TestFiles.some((file) => /\.py$/.test(file))
+      ? readPytestCollectionSettings(repoPath, repoFiles)
+      : PYTEST_DEFAULT_COLLECTION_SETTINGS
     : undefined;
   const allTestFiles =
     pytestSettings !== undefined && !pytestSettings.setsPythonFiles
@@ -10520,7 +10523,12 @@ interface PytestCollectionSettings {
   readonly disablesSkipping: boolean;
 }
 
-const PYTEST_SETTINGS_FILE_PATTERN = /(^|\/)(?:pytest\.ini|\.pytest\.ini|pyproject\.toml|tox\.ini|setup\.cfg)$/;
+const PYTEST_DEFAULT_COLLECTION_SETTINGS: PytestCollectionSettings = Object.freeze({
+  setsPythonFiles: false,
+  setsTestNames: false,
+  disablesSkipping: false,
+});
+const PYTEST_SETTINGS_FILE_PATTERN =/(^|\/)(?:pytest\.ini|\.pytest\.ini|pyproject\.toml|tox\.ini|setup\.cfg)$/;
 const PYTEST_PYTHON_FILES_SETTING_PATTERN = /\bpython_files\b/;
 const PYTEST_TEST_NAMES_SETTING_PATTERN = /\bpython_(?:functions|classes)\b/;
 const PYTEST_SKIPPING_DISABLED_PATTERN = /\bno:skipping\b/;
