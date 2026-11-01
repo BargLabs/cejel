@@ -9,7 +9,11 @@ import type {
 
 import { escapeMarkdownInline } from '../presentation-safety.js';
 
-import { isWitanNoMeasurementAbstention, renderWitanAbstentionLabel } from './abstention.js';
+import {
+  isWitanHistoryAbstentionLabel,
+  isWitanNoMeasurementAbstention,
+  renderWitanAbstentionLabel,
+} from './abstention.js';
 import {
   EXTERNAL_FINDINGS_DISPLAY_LIMIT,
   type WitanExternalFinding,
@@ -85,13 +89,16 @@ export function renderWitanMarkdownReport(
   const contributingSources = externalSourceSummaries.map(renderSourceProvenanceLabel);
   const externalFindings = collectExternalFindings(report.consumedSignals ?? []);
   const noMeasurementAbstention = isWitanNoMeasurementAbstention(report);
+  // v27's shallow-clone and unknown-depth abstentions: the source is there, the history withheld it.
+  const abstentionLabel = report.verdict === 'insufficient_source' ? renderWitanAbstentionLabel(report) : undefined;
+  const historyAbstention = abstentionLabel !== undefined && isWitanHistoryAbstentionLabel(abstentionLabel);
   const relyingPartySummary = buildRelyingPartySummary(report);
   const verdictExplanation = buildVerdictExplanation(report);
   const verdictCapSentence = formatVerdictCapSentence(report);
   const summaryScoreLines =
     report.verdict === 'insufficient_source'
       ? [
-          `- Headline scores: not issued (${noMeasurementAbstention ? 'insufficient evidence' : 'insufficient source'}).`,
+          `- Headline scores: not issued (${historyAbstention ? (abstentionLabel ?? '').toLowerCase() : noMeasurementAbstention ? 'insufficient evidence' : 'insufficient source'}).`,
           ...coverageLines,
           ...naSummaryLines,
           ...insufficientDataSummaryLines,
@@ -128,7 +135,9 @@ export function renderWitanMarkdownReport(
       : []),
     ...(report.verdict === 'insufficient_source'
       ? [
-          `- Verdict: ${renderWitanAbstentionLabel(report)} to certify — ${report.insufficientSourceReason}`,
+          historyAbstention
+            ? `- Verdict: ${abstentionLabel} — ${report.insufficientSourceReason}`
+            : `- Verdict: ${renderWitanAbstentionLabel(report)} to certify — ${report.insufficientSourceReason}`,
         ]
       : []),
     '',
@@ -197,7 +206,9 @@ export function renderWitanMarkdownReport(
     ...(report.verdict === 'insufficient_source'
       ? [
           '',
-          noMeasurementAbstention
+          historyAbstention
+            ? '_This scan has no headline score or verdict because of the commit history it read, not for want of source. Per-criterion measurements below are shown as read; they are not a headline score or verdict on the product._'
+            : noMeasurementAbstention
             ? '_This repo has insufficient measurable evidence to certify. Per-criterion gaps below are not a headline score or verdict on the product._'
             : '_This repo has insufficient source to certify. Per-criterion measurements below describe only the surface Cejel could read; they are not a headline score or verdict on the product._',
         ]

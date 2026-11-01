@@ -239,8 +239,9 @@ export type WitanContentReadSkipReason = z.infer<typeof WitanContentReadSkipReas
 // Since the operator's decision of 2026-10-27 B2 withholds only that ratio there and abstains with
 // this reason only when it has no PR-trace evidence to score without it. The v27 freeze change F1
 // (operator decision 2026-10-28) extends both to v27: its B2 takes the same path, and its A2
-// abstention on a shallow clone, where no history read failed, carries this reason too. It is
-// never a content-read skip, so contentReadSummary does not count it.
+// abstention on a shallow clone, where no history read failed, carried this reason too until the
+// operator's ruling of 1 Nov, under which a v27 shallow clone has no composite. It is never a
+// content-read skip, so contentReadSummary does not count it.
 export const WitanInsufficientDataReasonSchema = z.enum([
   ...WitanContentReadSkipReasonSchema.options,
   'shallow_history',
@@ -275,7 +276,8 @@ export const WitanCriterionSignalSchema = z
     // 'shallow_history' (#442) is excluded the same way: a shallow clone must not lower the
     // history score, so B2 states the window it did not read instead of scoring what it did
     // (where it has no PR-trace evidence to score without the ratio; otherwise it withholds only
-    // the ratio and is scored), and v27's A2 (F1, 2026-10-28) states the history it did not read.
+    // the ratio and is scored). v27's A2 carried it from F1 (2026-10-28) until the operator's
+    // ruling of 1 Nov, under which a v27 shallow clone gets no composite and no verdict.
     insufficientDataReason: WitanInsufficientDataReasonSchema.optional(),
   })
   .strict()
@@ -592,11 +594,14 @@ const WitanReportCommonSchema = z.object({
 
 // Additive-optional (report format 1.9; v27 freeze change F1, second pass, operator decision
 // 2026-10-28, option C). Under witan-rubric-v27-prospective-2026-10-19 only: on a shallow clone A2
-// abstains with reason 'shallow_history' and is left out of the composite, and the verdict is
+// abstained with reason 'shallow_history' and was left out of the composite, and the verdict was
 // capped at the band the composite would reach with that abstention counted as 0. Present only
 // when the cap lowered the band: `verdict` is then that lower band, `uncappedVerdict` the band of
 // `overallScore`, and `scoreWithAbstentionAsZero` the composite that set the cap. `overallScore`
 // itself is never capped. Absent everywhere else, including where the cap would not lower it.
+// No longer produced (operator ruling of 1 Nov): a v27 shallow clone now gets no composite and no
+// verdict (WITAN_V27_SHALLOW_HISTORY_REASON in history-depth.ts). The field stays readable, with
+// its check below, so a report a 0.7.0-rc.1 build wrote with it still verifies.
 export const WitanVerdictCapSchema = z
   .object({
     criterionId: z.literal('A2'),
@@ -714,7 +719,9 @@ export const WITAN_ATTESTATION_PREDICATE_TYPE = 'https://cejel.dev/attestations/
 // disclosures may also say that A2 was marked not applicable on incomplete commit history.
 // 1.9 (v27 freeze change F1, second pass): report.json gained optional verdictCap, present only on a
 // witan-rubric-v27-prospective-2026-10-19 scan of a shallow clone whose verdict the A2 cap lowered
-// (WitanVerdictCapSchema). A report without it is byte-identical to a 1.8 one.
+// (WitanVerdictCapSchema). A report without it is byte-identical to a 1.8 one. Since the operator's
+// ruling of 1 Nov no build writes it (a v27 shallow clone abstains instead, with no new field); it
+// is still accepted on read.
 export const WITAN_REPORT_FORMAT_VERSION = '1.9' as const;
 
 export const WitanAttestationOutcomeSchema = z.discriminatedUnion('status', [

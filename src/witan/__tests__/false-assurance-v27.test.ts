@@ -781,23 +781,22 @@ describe('#442 — history Cejel did not read is not scored', () => {
   });
 
   // v27 freeze change F1 (operator decision 2026-10-28): until then A2 and B2 both abstained here as
-  // read failures kept in the composite at 0, so process_trust fell below v17's. Now B2 is v17's
-  // (the ratio withheld, scored on the checked-out files) and A2's abstention leaves the composite.
-  it('v27: A2 abstains out of the composite, B2 withholds only its ratio as under v17, and the disclosure says so', () => {
+  // read failures kept in the composite at 0, so process_trust fell below v17's. F1 made B2 v17's
+  // (the ratio withheld, scored on the checked-out files) and left A2's abstention out of the
+  // composite. Operator ruling of 1 Nov: the report now has no composite and no verdict at all.
+  it('v27: A2 abstains, B2 withholds only its ratio as under v17, the report has no composite or verdict, and the disclosure says so', () => {
     const a2 = criterion(shallow, V27, 'A2');
     expect(a2.status).toBe('insufficient_data');
     expect(a2.score).toBe(0);
     expect(a2.notes).toMatch(/^A2 abstained: this repository is a shallow clone/);
     expect(criterion(shallow, V27, 'B2')).toEqual(criterion(shallow, V17, 'B2'));
     expect(report(shallow, V27).historyLimitations).toEqual([SHALLOW_HISTORY_V27_ABSTENTION]);
-    expect(SHALLOW_HISTORY_V27_ABSTENTION).toContain('left out of the composite rather than counted as 0');
-    expect(report(shallow, V27).processTrustScore).toBe(report(shallow, V17).processTrustScore);
-    const scoredCodeTrust = report(shallow, V27).criteria.filter(
-      ({ category, status }) => category === 'code_trust' && status !== 'not_applicable' && status !== 'insufficient_data',
-    );
-    expect(report(shallow, V27).codeTrustScore).toBe(
-      Math.round((scoredCodeTrust.reduce((sum, { score }) => sum + score, 0) / scoredCodeTrust.length) * 10) / 10,
-    );
+    expect(SHALLOW_HISTORY_V27_ABSTENTION).toContain('gets no composite score and no verdict');
+    expect(SHALLOW_HISTORY_V27_ABSTENTION).not.toContain('left out of the composite rather than counted as 0');
+    expect(report(shallow, V27).verdict).toBe('insufficient_source');
+    expect(report(shallow, V27).codeTrustScore).toBeNull();
+    expect(report(shallow, V27).processTrustScore).toBeNull();
+    expect(report(shallow, V17).processTrustScore).not.toBeNull();
   });
 
   it('v27: a full clone scores exactly as v17 does', () => {
@@ -1735,16 +1734,25 @@ describe('no score, status or composite rises from v17 to v27 on any fixture', (
   // ({ A2, shallow-history, kept } and { B2, shallow-history, kept }). Now B2 withholds only its
   // ratio, exactly as v17 does on this clone, and A2's abstention is left out of the composite: no
   // abstention is introduced against v17, and both history criteria pass the full-clone comparison.
-  it('F1: on the shallow clone v27 introduces no abstention against v17, and A2 and B2 follow the full-clone rule', () => {
-    const result = checkNoRise(
-      report('history-shallow-clone', V17),
-      report('history-shallow-clone', V27),
-      fullCloneReport('history-shallow-clone'),
-    );
+  // Operator ruling of 1 Nov: under v27 a shallow clone gets no composite and no verdict. The
+  // checker reads that as an abstention, not as a rise or a drop: no composite is compared, and
+  // A2 and B2 are still compared with the full clone and every other criterion with v17.
+  it('on the shallow clone v27 gives no composite and no verdict, which checkNoRise reads as an abstention, not a rise or a drop', () => {
+    const after = report('history-shallow-clone', V27);
+    expect(after.verdict).toBe('insufficient_source');
+    expect(after.overallScore).toBeNull();
+    const result = checkNoRise(report('history-shallow-clone', V17), after, fullCloneReport('history-shallow-clone'));
     expect(result.problems).toEqual([]);
+    expect(result.shallowHistoryAbstention).toBe(true);
+    expect(result.fallenComposites).toEqual([]);
     expect(result.introducedAbstentions).toEqual([]);
     expect(criterion('history-shallow-clone', V27, 'B2')).toEqual(criterion('history-shallow-clone', V17, 'B2'));
     expect(criterion('history-shallow-clone', V27, 'A2').status).toBe('insufficient_data');
+  });
+
+  it('a full clone is still compared composite by composite: its results carry no shallow-history abstention', () => {
+    const result = checkNoRise(report('history-shallow-clone', V17), fullCloneReport('history-shallow-clone')!);
+    expect(result.shallowHistoryAbstention).toBe(false);
   });
 
   it('F1: a shallow report compared without its full clone is a problem, not a pass', () => {

@@ -388,3 +388,30 @@ counted-as-0 composite. The cost is that a clean repository's shallow verdict ca
 its full clone's. `leaderboard/RUBRIC_CHANGELOG.md` (the same entry) has the measurement. This
 addendum records the decision as the implementing agent received it; it does not answer the
 question above about the first two rulings.
+
+## Operator ruling (2026-11-01): under v27 a shallow clone gets no composite and no verdict
+
+**The ruling, as the implementing agent received it** (the operator's ruling of 1 Nov, recorded in
+the goal card that carried it, not quoted from the operator directly): under
+`witan-rubric-v27-prospective-2026-10-19`, a shallow clone gets no composite and no verdict. Cejel
+says so, and says how to fetch the history. Nothing is asserted from one commit, and nothing is
+lowered because of how the runner fetched.
+
+**Why.** F1 took A2's shallow-only abstention out of the composite, and its second pass capped the
+verdict. Taking a criterion out of an average moves the average toward the remaining criteria, so
+the composite fell wherever A2 scored above the rest and rose wherever A2 scored below them. Either
+way the shallow composite could differ from the same commit's full-clone composite because of how
+the runner fetched, and the operator's 26 Oct rule forbids lowering it.
+
+**What it replaces.** For v27 only, it replaces F1's composite treatment of A2 (the
+`shallow_history` reason on A2's abstention) and the second pass's verdict cap (the addendum above).
+The report abstains instead: verdict `insufficient_source`, every headline score null, and an
+`insufficientSourceReason` that names `shallow_history` and tells the reader to run
+`git fetch --unshallow` (or check out with full history, for example `fetch-depth: 0` in
+`actions/checkout`) and scan again. Each criterion's reading is still computed and shown. B2's
+withheld ratio and the per-criterion shallow notes of A2 and B2 are unchanged. Every other rubric,
+v17 included, is unchanged, and so is v27 on a full clone. For v27's shallow-only case this settles
+the question the 2026-10-28 note left open: the first two rulings' "kept at 0 in the composite" no
+longer arises, because there is no composite. A2's abstention after a failed history read on a
+clone that is not shallow is still a read failure kept at 0, as those rulings set.
+`leaderboard/RUBRIC_CHANGELOG.md` (2026-11-01 entry) has the measurement.

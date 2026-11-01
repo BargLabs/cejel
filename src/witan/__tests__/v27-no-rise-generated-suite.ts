@@ -138,6 +138,9 @@ export function describeGeneratedNoRiseShard(index: number): void {
     shallowA2LeftOut: 0,
     shallowB2RatioWithheld: 0,
     shallowB2LeftOut: 0,
+    // Operator ruling of 1 Nov: shallow shapes whose v27 report abstained with the shallow-history
+    // reason (no composite, no verdict).
+    shallowAbstained: 0,
     compositesFallen: 0,
     // The names of the shape tests whose bodies ran, checked after the describe against an
     // independent recomputation of the shard, so a filter or skip cannot drop shapes silently.
@@ -167,8 +170,8 @@ export function describeGeneratedNoRiseShard(index: number): void {
           if (shape.history === 'shallow') {
             seen.shallowShapes += 1;
             // The shape is live (F1): v27 abstains on A2 wherever v17 scored it below critical (a
-            // confirmed critical finding keeps A2 scored), only because the clone is shallow (left
-            // out of the composite) unless a content read failed first; and withholds B2's ratio
+            // confirmed critical finding keeps A2 scored), only because the clone is shallow (the
+            // report has no composite since the ruling of 1 Nov) unless a content read failed first; and withholds B2's ratio
             // wherever v17 scored B2 (v17 withholds it too, since #604).
             const v17A2 = before.criteria.find((criterion) => criterion.id === 'A2')!;
             const v27A2 = after.criteria.find((criterion) => criterion.id === 'A2')!;
@@ -197,7 +200,14 @@ export function describeGeneratedNoRiseShard(index: number): void {
           if (a1.status !== 'insufficient_data' && a1.status !== 'not_applicable') seen.a1ScoredUnderV27.add(coreKey(shape));
           for (const id of result.fallenCriteria) seen.fallen.set(id, (seen.fallen.get(id) ?? 0) + 1);
           seen.compositesFallen += result.fallenComposites.length;
-          seen.abstentions.push(...result.introducedAbstentions.map((abstention) => ({ ...abstention, shape: name })));
+          // Operator ruling of 1 Nov: a shallow shape's v27 report has no composite, so an
+          // abstention v27 introduces there has no denominator to check. It is still classified
+          // (checkNoRise reports an unrecognised one); it is counted apart from the denominator check.
+          if (result.shallowHistoryAbstention) {
+            seen.shallowAbstained += 1;
+          } else {
+            seen.abstentions.push(...result.introducedAbstentions.map((abstention) => ({ ...abstention, shape: name })));
+          }
         } finally {
           cleanup();
         }
@@ -222,6 +232,8 @@ export function describeGeneratedNoRiseShard(index: number): void {
         expect(pairs, pair).toContain(pair);
       }
       expect(seen.shallowShapes).toBeGreaterThan(0);
+      // Every shallow shape abstained under v27 (no composite, no verdict).
+      expect(seen.shallowAbstained).toBe(seen.shallowShapes);
       expect(seen.shallowA2LeftOut).toBeGreaterThan(0);
       expect(seen.shallowB2RatioWithheld).toBeGreaterThan(0);
       // A hollow suite (A1) and a publish-only workflow (B3) lose credit somewhere.

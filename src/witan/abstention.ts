@@ -1,5 +1,12 @@
 import type { WitanReport } from './schemas.js';
 
+import {
+  HISTORY_DEPTH_UNKNOWN_INSTRUCTION,
+  SHALLOW_HISTORY_FETCH_INSTRUCTION,
+  isWitanV27HistoryDepthUnknownAbstention,
+  isWitanV27ShallowHistoryAbstention,
+} from './history-depth.js';
+
 // The report schema is byte-pinned by an unrelated commercial evidence contract, so v48 cannot
 // add a second machine verdict beside `insufficient_source`. This exact reason is the stable
 // discriminator presentation layers use to distinguish a real source tree with zero measurable
@@ -109,6 +116,48 @@ export function isWitanNoMeasurementAbstention(report: WitanReport): boolean {
   );
 }
 
-export function renderWitanAbstentionLabel(report: WitanReport): string {
-  return isWitanNoMeasurementAbstention(report) ? 'Insufficient evidence' : 'Insufficient source';
+/**
+ * Every label an abstained report is presented under. 'Insufficient source' and 'Insufficient
+ * evidence' say there was nothing to rate. The two 'Unrated' labels (witan-rubric-v27 only) say the
+ * source was there and the headline was withheld because of the history the scan read: a shallow
+ * clone, or a checkout whose history depth could not be read. The machine verdict is
+ * insufficient_source for all four.
+ */
+export const WITAN_ABSTENTION_LABELS = [
+  'Insufficient source',
+  'Insufficient evidence',
+  'Unrated: shallow clone',
+  'Unrated: history depth unknown',
+] as const;
+export type WitanAbstentionLabel = (typeof WITAN_ABSTENTION_LABELS)[number];
+
+export function isWitanAbstentionLabel(label: string): label is WitanAbstentionLabel {
+  return (WITAN_ABSTENTION_LABELS as readonly string[]).includes(label);
+}
+
+export function renderWitanAbstentionLabel(report: WitanReport): WitanAbstentionLabel {
+  if (isWitanNoMeasurementAbstention(report)) return 'Insufficient evidence';
+  if (isWitanV27ShallowHistoryAbstention(report)) return 'Unrated: shallow clone';
+  if (isWitanV27HistoryDepthUnknownAbstention(report)) return 'Unrated: history depth unknown';
+  return 'Insufficient source';
+}
+
+/** True for the two labels whose abstention is about the history the scan read, not the source. */
+export function isWitanHistoryAbstentionLabel(label: string): boolean {
+  return label === 'Unrated: shallow clone' || label === 'Unrated: history depth unknown';
+}
+
+/**
+ * The one-line headline an abstained certificate leads with: '<label> to certify.' where there was
+ * nothing to rate, and '<label> — no composite score and no verdict.' where the history withheld it.
+ */
+export function renderWitanAbstentionHeadline(label: WitanAbstentionLabel): string {
+  return isWitanHistoryAbstentionLabel(label) ? `${label} — no composite score and no verdict.` : `${label} to certify.`;
+}
+
+/** The instruction a history abstention's reason ends with, for surfaces that show only one line. */
+export function witanHistoryAbstentionInstruction(label: WitanAbstentionLabel): string | undefined {
+  if (label === 'Unrated: shallow clone') return SHALLOW_HISTORY_FETCH_INSTRUCTION;
+  if (label === 'Unrated: history depth unknown') return HISTORY_DEPTH_UNKNOWN_INSTRUCTION;
+  return undefined;
 }

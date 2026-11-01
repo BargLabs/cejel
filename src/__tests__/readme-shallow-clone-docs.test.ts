@@ -4,9 +4,10 @@ import { describe, expect, it } from 'vitest';
 
 // The README tells a reader to clone in full and says, in plain words, what a shallow clone does to
 // the criteria that read commit history, under the default rubric and under the opt-in v27 rubric.
-// v27's shallow-clone behaviour changed with its freeze change F1 (2026-10-28): its shallow-only A2
-// abstention leaves the composite, the verdict is capped where A2 could not be read, and B2 withholds
-// only its ratio. The README must not say otherwise, and must not call v27 the default.
+// v27's shallow-clone behaviour changed with its freeze change F1 (2026-10-28), and again with the
+// operator's ruling of 1 Nov: under v27 a shallow clone gets no composite score and no verdict, and
+// the scan says how to fetch the history. The README must not say otherwise, and must not call v27
+// the default.
 
 const README = readFileSync(new URL('../../README.md', import.meta.url), 'utf8');
 const V27 = 'witan-rubric-v27-prospective-2026-10-19';
@@ -37,20 +38,26 @@ describe('README: clone in full, and what a shallow clone does', () => {
     expect(text).toContain('History limitations');
   });
 
-  it('says that under the opt-in v27 rubric a shallow scan\'s verdict is capped where A2 could not be read', () => {
+  // Operator ruling of 1 Nov: under v27 a shallow clone gets no composite and no verdict, and Cejel
+  // says how to fetch the history. The F1 verdict cap this replaces is gone.
+  it('says that under the opt-in v27 rubric a shallow clone gets no composite and no verdict, and how to fetch the history', () => {
     const v27Paragraphs = shallowParagraphs().filter((paragraph) => paragraph.includes(V27));
     expect(v27Paragraphs.length).toBeGreaterThanOrEqual(2);
     for (const paragraph of v27Paragraphs) {
       const text = paragraph.replace(/\s+/g, ' ');
       expect(text).toMatch(/opt-in/);
-      expect(text).toMatch(/verdict (?:is )?capped/);
+      expect(text).toMatch(/shallow (?:clone|checkout) gets no composite score and no verdict/);
+      expect(text).toContain('git fetch --unshallow');
+      expect(text).toContain('fetch-depth: 0');
     }
   });
 
-  it('does not call v27 the default, and drops the pre-F1 claims about v27 on a shallow clone', () => {
+  it('does not call v27 the default, and drops the superseded claims about v27 on a shallow clone', () => {
     const text = README.replace(/\s+/g, ' ');
     expect(text).not.toMatch(/v27[^.]*\bis the default\b/i);
     expect(text).not.toMatch(/\bdefault\b[^.]*\bv27\b/i);
     expect(text).not.toContain('B2 abstains, where it would be scored, when fewer than 12 commits are visible');
+    expect(text).not.toMatch(/verdict (?:is )?capped/);
+    expect(text).not.toMatch(/left out of the composite, but the verdict/);
   });
 });

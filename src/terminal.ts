@@ -8,6 +8,12 @@ import {
   inputBindingHeadline,
 } from './witan/input-binding-presentation.js';
 import type { WitanReport } from './witan/index.js';
+import {
+  type WitanAbstentionLabel,
+  isWitanAbstentionLabel,
+  renderWitanAbstentionHeadline,
+  witanHistoryAbstentionInstruction,
+} from './witan/abstention.js';
 import { stripTerminalControls } from './presentation-safety.js';
 import {
   buildRelyingPartySummary,
@@ -30,8 +36,14 @@ export function renderMinScoreAbstentionFailure(
   summary: WitanCliSummary,
   minScore: number,
 ): string {
-  if (summary.verdict !== 'Insufficient source' && summary.verdict !== 'Insufficient evidence') {
+  if (!isWitanAbstentionLabel(summary.verdict)) {
     throw new Error('A minimum-score abstention message requires an abstained Cejel summary.');
+  }
+  // A history abstention (v27): the source is there, so the message must not say it is missing,
+  // and under --quiet this is the only line the run prints, so it carries the instruction.
+  const instruction = witanHistoryAbstentionInstruction(summary.verdict);
+  if (instruction !== undefined) {
+    return `Cejel: cannot evaluate the required minimum ${minScore.toFixed(1)}/4.0 because the scan is ${summary.verdict.toLowerCase()}, with no composite score and no verdict. ${instruction}\n`;
   }
   return `Cejel: cannot evaluate the required minimum ${minScore.toFixed(1)}/4.0 because this repository has ${summary.verdict.toLowerCase()}.\n`;
 }
@@ -63,8 +75,7 @@ export { stripTerminalControls } from './presentation-safety.js';
 /** Concise, human-readable terminal certificate for `npx @cejel/cejel .` — the full report lives
  * in the written HTML/JSON files; this is the at-a-glance summary. */
 export function renderTerminalCertificate(summary: WitanCliSummary, report?: WitanReport): string {
-  const abstained =
-    summary.verdict === 'Insufficient source' || summary.verdict === 'Insufficient evidence';
+  const abstained = isWitanAbstentionLabel(summary.verdict);
   if (
     !abstained &&
     (summary.overallScore === null ||
@@ -78,7 +89,7 @@ export function renderTerminalCertificate(summary: WitanCliSummary, report?: Wit
     ? [
         `Cejel Trust Certificate — ${stripTerminalControls(summary.productDisplayName)}`,
         '',
-        `${summary.verdict} to certify.`,
+        renderWitanAbstentionHeadline(summary.verdict as WitanAbstentionLabel),
         `  ${summary.insufficientSourceReason === undefined ? 'No ratable source or measurable evidence was found.' : stripTerminalControls(summary.insufficientSourceReason)}`,
         '',
       ]
@@ -124,7 +135,9 @@ export function renderTerminalCertificate(summary: WitanCliSummary, report?: Wit
 
   if (summary.historyLimitations?.length) {
     lines.push(
-      'HISTORY LIMITATION — scored as usual, but some criteria read truncated history:',
+      abstained
+        ? 'HISTORY LIMITATION — some criteria read truncated history:'
+        : 'HISTORY LIMITATION — scored as usual, but some criteria read truncated history:',
       ...summary.historyLimitations.map((limitation) => `  - ${stripTerminalControls(limitation)}`),
       '',
     );

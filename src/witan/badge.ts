@@ -1,6 +1,6 @@
 import type { WitanReport } from './schemas.js';
 
-import { isWitanNoMeasurementAbstention } from './abstention.js';
+import { isWitanHistoryAbstentionLabel, isWitanNoMeasurementAbstention, renderWitanAbstentionLabel } from './abstention.js';
 import { renderReportVerdict } from './html.js';
 
 // The free-CLI / GitHub Action growth-loop artifact (goal: witan_free_cli_badge). Both
@@ -23,6 +23,8 @@ const VERDICT_COLOR: Record<string, string> = {
   Unverified: 'red',
   'Insufficient source': 'lightgrey',
   'Insufficient evidence': 'lightgrey',
+  'Unrated: shallow clone': 'lightgrey',
+  'Unrated: history depth unknown': 'lightgrey',
 };
 
 // Hex fills for the static SVG, keyed the same way as VERDICT_COLOR's named shields.io colors.
@@ -33,6 +35,8 @@ const VERDICT_SVG_FILL: Record<string, string> = {
   Unverified: '#d64545',
   'Insufficient source': '#8c8c8c',
   'Insufficient evidence': '#8c8c8c',
+  'Unrated: shallow clone': '#8c8c8c',
+  'Unrated: history depth unknown': '#8c8c8c',
 };
 
 // Insufficient-source repos (docs, binary, generated, non-cohesive, unrecognised-language, or
@@ -43,6 +47,12 @@ const VERDICT_SVG_FILL: Record<string, string> = {
 function badgeMessage(report: WitanReport, verdict: string): string {
   if ((report.scanLimitations?.length ?? 0) > 0) return 'unrated: limited evidence';
   if (isWitanNoMeasurementAbstention(report)) return 'unrated: no measurable evidence';
+  // v27 on a shallow clone (operator ruling of 1 Nov), or where the history depth could not be
+  // read: the source is there; its history was not. The badge says what the certificate says.
+  if (report.verdict === 'insufficient_source') {
+    const label = renderWitanAbstentionLabel(report);
+    if (isWitanHistoryAbstentionLabel(label)) return label.toLowerCase();
+  }
   if (report.verdict === 'insufficient_source') return 'unrated: no source';
   return `${formatScore(report.overallScore)}/4.0 ${verdict.toLowerCase()}`;
 }

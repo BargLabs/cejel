@@ -205,23 +205,33 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     is not determined, and scores no zero; from 2026-10-28, freeze change F3-a, a command run in
 //     the background with a single `&` states no requirement);
 //   - A2 and B2: on a shallow clone, A2 abstains unless a confirmed critical secret finding
-//     stands. Since the v27 freeze change F1 (operator decision 2026-10-28) v27 follows the
-//     operator's 26/27 Oct rule for shallow clones, as every other rubric does since #604: B2
+//     stands. Since the v27 freeze change F1 (operator decision 2026-10-28) B2 follows the
+//     operator's 26/27 Oct rule for shallow clones, as under every other rubric since #604: it
 //     withholds only its pull-request merge ratio when fewer commits are visible than its window
-//     reads, and is scored on the checked-out files, or abstains out of the composite where none
-//     of them is credited; A2's shallow-only abstention is left out of the composite (reason
-//     shallow_history). A2's abstention after a failed history read is still a read failure.
-//     F1's second pass (operator decision 2026-10-28, option C): where A2's shallow-only
-//     abstention leaves the composite, the verdict band is capped at the band the composite
-//     would reach with it counted as 0 (report.verdictCap where that lowers it); the composite
-//     itself is not capped, and the cap never raises a band.
+//     reads, and is scored on the checked-out files, or abstains where none of them is credited.
+//     A2's abstention after a failed history read is a read failure. F1 also left A2's
+//     shallow-only abstention out of the composite (reason shallow_history), and its second pass
+//     capped the verdict at the band the composite would reach with it counted as 0. Both are
+//     removed by the operator's ruling of 1 Nov: taking A2 out of the average moved the composite
+//     toward the other criteria, so it could fall below the same commit's full-clone composite.
+//   - a shallow clone (operator ruling of 1 Nov): the scan gives no composite and no verdict. The
+//     report abstains (verdict insufficient_source, every headline score null) with the reason
+//     WITAN_V27_SHALLOW_HISTORY_REASON (history-depth.ts), which names shallow_history and tells
+//     the reader to run git fetch --unshallow (or check out with full history, for example
+//     fetch-depth: 0 in actions/checkout) and scan again. Each criterion is still read and shown,
+//     with A2's and B2's shallow notes. The exit status is an abstained verdict's. No report
+//     carries verdictCap any more. A full clone is unaffected. Where git cannot report the depth,
+//     readHistoryDepth reads it from the repository's .git files, and where those cannot settle it
+//     the report abstains the same way with WITAN_V27_HISTORY_DEPTH_UNKNOWN_REASON; a directory
+//     with no .git entry is scored as before.
 // Every other abstention is a read failure, kept in the composite at 0, and each other change only
 // lowers a metric, adds a zero-valued one or adds a finding, which can only cap a score (A1's non-hollow share stays measured over v17's test
 // list, so excluding conftest.py cannot shrink its denominator). So on a full clone no score,
 // status, composite or verdict can rise against v17 for the same commit (against the earlier v27,
-// A4 rises where that zero is withdrawn). On a shallow clone v27's history criteria are compared
-// with the same commit's full clone, not with v17 on the truncated input; everything else is
-// compared with v17 as on a full clone (src/witan/__tests__/v27-no-rise.ts). The measured
+// A4 rises where that zero is withdrawn). On a shallow clone there is no composite or verdict to
+// rise or fall; v27's history criteria are compared with the same commit's full clone, not with
+// v17 on the truncated input, and every other criterion with v17 as on a full clone
+// (src/witan/__tests__/v27-no-rise.ts). The measured
 // before/after is in
 // leaderboard/RUBRIC_CHANGELOG.md and docs/reviews/v27-false-assurance-closure-2026-10-19.md.
 // The name collides with the unrelated `useV27Detectors` detector-generation flag in

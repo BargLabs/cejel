@@ -8,6 +8,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { WitanCriterionScore, WitanReport } from '../schemas.js';
 
 import { WITAN_V27_A2_FAILED_HISTORY_NOTE_PREFIX } from '../abstention.js';
+import { isWitanV27HistoryDepthUnknownAbstention } from '../history-depth.js';
 import { scoreRepoWithPublicCejel } from '../public-scan.js';
 import { type A2HistoryIncompleteness, v27A2FailedHistoryNote } from '../repo-signals.js';
 import { WITAN_RUBRIC_VERSION_V17, WITAN_RUBRIC_VERSION_V27 } from '../rubric-version.js';
@@ -174,8 +175,13 @@ function score(repoPath: string, rubricVersion: string): WitanReport {
 
 const a2 = (report: WitanReport): WitanCriterionScore => report.criteria.find(({ id }) => id === 'A2')!;
 
-/** v17 and v27 on one repository: the no-rise property holds and A2 is a failed-history abstention. */
-function expectFailedHistoryNoRise(repoPath: string, marker: string): void {
+/**
+ * v17 and v27 on one repository: the no-rise property holds and A2 is a failed-history abstention.
+ * With depthUnknown, git could not open the repository and its files did not show the history
+ * depth either, so v27 withholds the composite and the verdict (WITAN_V27_HISTORY_DEPTH_UNKNOWN_REASON):
+ * A2 is still classified as a failed-history abstention, but there is no denominator to check.
+ */
+function expectFailedHistoryNoRise(repoPath: string, marker: string, depthUnknown = false): void {
   const before = score(repoPath, WITAN_RUBRIC_VERSION_V17);
   const after = score(repoPath, WITAN_RUBRIC_VERSION_V27);
   expect(a2(after).status).toBe('insufficient_data');
@@ -184,8 +190,12 @@ function expectFailedHistoryNoRise(repoPath: string, marker: string): void {
   expect(result.problems).toEqual([]);
   expect(lostFindings(before, after)).toEqual([]);
   expect(result.introducedAbstentions.filter(({ id }) => id === 'A2')).toEqual([
-    { id: 'A2', kind: 'failed-history', denominator: 'kept' },
+    { id: 'A2', kind: 'failed-history', denominator: depthUnknown ? 'unchecked' : 'kept' },
   ]);
+  expect(isWitanV27HistoryDepthUnknownAbstention(after)).toBe(depthUnknown);
+  expect(result.historyDepthUnknownAbstention).toBe(depthUnknown);
+  if (depthUnknown) expect(after.overallScore).toBeNull();
+  else expect(after.overallScore).not.toBeNull();
 }
 
 const canDenyReadAccess = platform() !== 'win32' && process.getuid?.() !== 0;
@@ -265,13 +275,13 @@ describe('#560 failed-history abstentions on real scans pass the no-rise propert
   it('a .git entry git cannot open: a dangling .git symlink', () => {
     const copy = withoutGit(repos.full);
     symlinkSync(join(copy, 'gone', '.git'), join(copy, '.git'));
-    expectFailedHistoryNoRise(copy, 'a .git entry is present but git could not open it as a repository');
+    expectFailedHistoryNoRise(copy, 'a .git entry is present but git could not open it as a repository', true);
   });
 
   it.skipIf(!canDenyReadAccess)('a .git entry git cannot open: an unreadable .git directory', () => {
     chmodSync(join(repos.full, '.git'), 0o000);
     try {
-      expectFailedHistoryNoRise(repos.full, 'a .git entry is present but git could not open it as a repository');
+      expectFailedHistoryNoRise(repos.full, 'a .git entry is present but git could not open it as a repository', true);
     } finally {
       chmodSync(join(repos.full, '.git'), 0o755);
     }

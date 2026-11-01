@@ -1,7 +1,11 @@
 import type { WitanCriterionScore, WitanReport } from '../schemas.js';
 
 import { WITAN_V27_A2_FAILED_HISTORY_NOTE_PREFIX } from '../abstention.js';
-import { SHALLOW_HISTORY_V27_ABSTENTION } from '../history-depth.js';
+import {
+  SHALLOW_HISTORY_V27_ABSTENTION,
+  isWitanV27HistoryDepthUnknownAbstention,
+  isWitanV27ShallowHistoryAbstention,
+} from '../history-depth.js';
 
 // THE NO-RISE PROPERTY (#531), shared by the curated and the generated v27 tests.
 //
@@ -38,6 +42,13 @@ import { SHALLOW_HISTORY_V27_ABSTENTION } from '../history-depth.js';
 // may differ from v17's through the history criteria, by that rule, and through nothing else
 // without falling. Until F1 the shallow-clone abstentions of A2 and B2 were a read-failure class
 // held at 0 and compared with v17 like any other.
+//
+// SHALLOW CLONES SINCE THE OPERATOR'S RULING OF 1 NOV. v27 gives a shallow clone no composite and
+// no verdict (WITAN_V27_SHALLOW_HISTORY_REASON). That reading is an abstention, not a rise or a
+// drop: no composite is compared and none counts as fallen (NoRiseResult.shallowHistoryAbstention).
+// Every criterion is still compared as above. A shallow v27 report that gives a composite is a
+// problem. Full clones are compared exactly as before. The same holds where v27 could not read the
+// history depth (WITAN_V27_HISTORY_DEPTH_UNKNOWN_REASON; NoRiseResult.historyDepthUnknownAbstention).
 //
 // lostFindings, beside it, requires every v17 finding to survive under v27 at the same or a higher
 // severity, with the removals v27 makes by rule enumerated there.
@@ -78,6 +89,16 @@ export interface NoRiseResult {
   /** Criteria whose score fell, and composites that fell: what the generated tests count for liveness. */
   readonly fallenCriteria: string[];
   readonly fallenComposites: string[];
+  /**
+   * True when v27's report is of a shallow clone and abstained with the shallow-history reason
+   * (operator ruling of 1 Nov): no composite was compared, since there is none to compare.
+   */
+  readonly shallowHistoryAbstention: boolean;
+  /**
+   * True when v27's report abstained because the history depth could not be read
+   * (WITAN_V27_HISTORY_DEPTH_UNKNOWN_REASON): as for a shallow clone, no composite was compared.
+   */
+  readonly historyDepthUnknownAbstention: boolean;
 }
 
 function roundScore(score: number): number {
@@ -171,17 +192,41 @@ export const READ_FAILURE_CLASSES = [
  * else with v17 as on a full clone, against withV27HistoryCriteria(before, after).
  */
 export function checkNoRise(before: WitanReport, after: WitanReport, fullClone?: WitanReport): NoRiseResult {
-  if (!isV27ShallowReport(after)) return checkNoRiseAgainst(before, after);
+  if (!isV27ShallowReport(after)) {
+    // v27 withholds the composite and the verdict where it could not read the history depth (git
+    // missing, or unable to open the repository, and the files did not settle it). That is an
+    // abstention like the shallow clone's: no composite is compared, every criterion still is.
+    const depthUnknown = isWitanV27HistoryDepthUnknownAbstention(after);
+    return { ...checkNoRiseAgainst(before, after, !depthUnknown), historyDepthUnknownAbstention: depthUnknown };
+  }
   if (!fullClone) {
     return {
       problems: ["v27's report is of a shallow clone and no full clone of the same commit was given"],
       introducedAbstentions: [],
       fallenCriteria: [],
       fallenComposites: [],
+      shallowHistoryAbstention: isWitanV27ShallowHistoryAbstention(after),
+      historyDepthUnknownAbstention: false,
     };
   }
-  const result = checkNoRiseAgainst(withV27HistoryCriteria(before, after), after);
-  return { ...result, problems: [...result.problems, ...checkShallowHistoryAgainstFullClone(fullClone, after)] };
+  // Operator ruling of 1 Nov: v27 gives a shallow clone no composite and no verdict. That is an
+  // abstention, not a rise or a drop, so no composite is compared (v17's scored composites against
+  // v27's nulls would otherwise be item (b)'s problem). Every criterion is still compared: A2 and
+  // B2 with the full clone, the rest with v17. A v27 shallow report with a verdict is no longer
+  // produced, and is a problem. (One that abstains for a structural reason, such as no ratable
+  // source, carries that reason instead and is compared as before.)
+  const abstained = isWitanV27ShallowHistoryAbstention(after);
+  const result = checkNoRiseAgainst(withV27HistoryCriteria(before, after), after, !abstained);
+  return {
+    ...result,
+    problems: [
+      ...result.problems,
+      ...(after.verdict === 'insufficient_source' ? [] : ["v27's report is of a shallow clone and gives a composite and a verdict"]),
+      ...checkShallowHistoryAgainstFullClone(fullClone, after),
+    ],
+    shallowHistoryAbstention: abstained,
+    historyDepthUnknownAbstention: false,
+  };
 }
 
 /**
@@ -307,14 +352,15 @@ export function checkShallowHistoryAgainstFullClone(full: WitanReport, shallow: 
   return problems;
 }
 
-function checkNoRiseAgainst(before: WitanReport, after: WitanReport): NoRiseResult {
+function checkNoRiseAgainst(before: WitanReport, after: WitanReport, compareComposites = true): NoRiseResult {
   const problems: string[] = [];
   const fallenCriteria: string[] = [];
   const fallenComposites: string[] = [];
   const introduced = new Map<string, { kind: IntroducedAbstention['kind']; denominator: IntroducedAbstention['denominator'] }>();
 
-  // Composites: a rise, or (b) a scored composite that becomes null.
-  for (const key of NO_RISE_COMPOSITES) {
+  // Composites: a rise, or (b) a scored composite that becomes null. Skipped only for v27's
+  // shallow-history abstention (checkNoRise).
+  for (const key of compareComposites ? NO_RISE_COMPOSITES : []) {
     if (rises(before[key], after[key])) problems.push(`${key} rose: ${String(before[key])} -> ${String(after[key])}`);
     else if (isScore(before[key]) && !isScore(after[key])) {
       problems.push(`${key} was scored under v17 (${String(before[key])}) and is null under v27`);
@@ -416,6 +462,8 @@ function checkNoRiseAgainst(before: WitanReport, after: WitanReport): NoRiseResu
     introducedAbstentions: [...introduced].map(([id, value]) => ({ id, ...value })),
     fallenCriteria,
     fallenComposites,
+    shallowHistoryAbstention: false,
+    historyDepthUnknownAbstention: false,
   };
 }
 

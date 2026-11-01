@@ -18,6 +18,23 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- **Prospective v27: a shallow clone gets no composite score and no verdict** (operator ruling of
+  1 Nov). Under `witan-rubric-v27-prospective-2026-10-19` a scan of a shallow clone abstains
+  (`insufficient_source`, null headline scores) and says what to do: run `git fetch --unshallow`
+  (or check out with full history, for example `fetch-depth: 0` in `actions/checkout`), then scan
+  again. Each criterion is still read and shown. With `--min-score` the scan fails, as any
+  abstention does. This replaces 0.7.0-rc.1's treatment, which left A2's shallow-clone abstention
+  out of the composite and capped the verdict (`verdictCap`); the composite could then fall below,
+  or rise above, the same commit's full-clone composite. No build writes `verdictCap` any more; a
+  report that carries it still verifies. v17, the default, and every other rubric are unchanged, as
+  is v27 on a full clone. The measurement is in `leaderboard/RUBRIC_CHANGELOG.md` (2026-11-01).
+  Where git cannot report the depth (git missing from PATH, or unable to open the repository), v27
+  reads it from the repository's `.git` files, and where those do not settle it either, abstains
+  the same way with reason `history_depth_unknown`, instead of scoring the checkout as a complete
+  clone. The certificates, `summary.json` and the badge label these abstentions "Unrated: shallow
+  clone" and "Unrated: history depth unknown", not "Insufficient source", and the `--min-score`
+  failure message carries the instruction to fetch the history.
+
 - **Prospective v27: B2 and B3 stop crediting CI workflows not shown to run a check (#527, #535).**
   This meets condition 3 of the accepted ruling on #526 through its no-check half. On 2026-10-22
   the operator ruled the branch half out of condition 3 ("yes to both recommendations", recorded on

@@ -50,7 +50,8 @@ Stable in report format v1:
   `scanLimitations` it does not make the badge unrated or `--min-score` refuse, and a gate must not
   treat its absence as proof of complete history on reports older than 1.5. The field stays
   display-only under every rubric. Under `witan-rubric-v27-prospective-2026-10-19` the A2 and B2
-  collectors themselves abstain on a shallow clone, and the sentence says so; under v17 and v18-v26
+  collectors themselves abstain on a shallow clone, and the sentence says so, and the report
+  abstains from a composite and a verdict (see the shallow-clone entry below); under v17 and v18-v26
   the sentence and the scoring are unchanged. Since #556, A2's v27 abstention also covers a shallow
   clone where A2 would otherwise be marked not applicable, and the v27 sentence says so. Under v27 A2
   also abstains when one of its history reads failed (on a partial clone, for example) or its
@@ -114,10 +115,29 @@ Stable in report format v1:
   A2's applicability was decided on complete history; `historyLimitations` and `scanLimitations` say
   what Cejel detected about the history it read. Under `witan-rubric-v27-prospective-2026-10-19`
   A2 abstains in that case instead and the sentence is not written.
+- shallow clone under `witan-rubric-v27-prospective-2026-10-19` (operator ruling of 1 Nov): the
+  report abstains. `verdict` is `insufficient_source`, the headline scores are null, and
+  `insufficientSourceReason` is a fixed sentence that names `shallow_history` and ends with the
+  instruction to run `git fetch --unshallow` (or check out with full history, for example
+  `fetch-depth: 0` in `actions/checkout`) and scan again. That exact sentence is the
+  discriminator; no field is added. `criteria` still holds every criterion's reading. A
+  `--min-score` gate fails it as it fails any abstention. Under every other rubric a shallow clone
+  is scored as before. Where git cannot report the depth (git missing from PATH, or unable to open
+  the repository) and a `.git` entry is visible, the depth is read from the repository's files: a
+  `shallow` file in its git directory, or in the common directory of a linked worktree, means a
+  shallow clone. Where neither git nor the files settle it, the report abstains the same way with a
+  second fixed sentence, which names `history_depth_unknown` and ends with the instruction to make
+  git able to open the repository, run `git fetch --unshallow` if it is a shallow clone, and scan
+  again; that sentence is its discriminator. A directory with no `.git` entry is scored as before.
+  The presentation surfaces (terminal text, `summary.json`, the certificates and the badge) label
+  these two abstentions "Unrated: shallow clone" and "Unrated: history depth unknown", not
+  "Insufficient source"; the machine `verdict` stays `insufficient_source`.
 - verdict cap: `verdictCap` (report format 1.9), under `witan-rubric-v27-prospective-2026-10-19`
-  only. On a shallow clone A2 abstains with reason `shallow_history` and is left out of the
-  composite; the verdict is then capped at the band the composite would reach with that abstention
-  counted as 0. `verdictCap` is present only when the cap lowered the band, and holds
+  only, written by 0.7.0-rc.1 and no build since: the shallow-clone abstention above replaced it.
+  It stays in the schema so such a report still verifies. On a shallow clone A2 abstained with
+  reason `shallow_history` and was left out of the composite; the verdict was then capped at the
+  band the composite would reach with that abstention counted as 0. `verdictCap` is present only
+  when the cap lowered the band, and holds
   `criterionId` (`A2`), `reason` (`shallow_history`), `uncappedVerdict` (the band of
   `overallScore`) and `scoreWithAbstentionAsZero` (the composite that set the cap). When it is
   present, `verdict` is the band of `scoreWithAbstentionAsZero`, strictly below `uncappedVerdict`,

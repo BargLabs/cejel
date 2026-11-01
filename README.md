@@ -187,11 +187,18 @@ earlier commits for `.env` files and credentials read only those, and B2 withhol
 pull-request merge ratio, or abstains where nothing else is left to score it on, saying why in its
 note. The certificate says so under "History limitations".
 Under the opt-in prospective v27 rubric (`--rubric-pin witan-rubric-v27-prospective-2026-10-19`;
-v17 remains the default), A2 abstains on a shallow clone unless a confirmed critical secret finding
-stands, including where it would otherwise be marked not applicable, since that decision also rests
-on earlier commits. That abstention is left out of the composite, but the verdict is capped at the
-band the composite reaches with it counted as 0.
-A2 also abstains under v27 on any clone where one of its reads of earlier commits failed:
+v17 remains the default), a shallow clone gets no composite score and no verdict. The scan abstains
+(`insufficient_source`), still reads and shows each criterion, and says what to do: run
+`git fetch --unshallow` (or check out with full history, for example `fetch-depth: 0` in
+`actions/checkout`), then scan again. The certificate and the badge read "Unrated: shallow clone".
+With `--min-score` an abstained scan fails the check, as any abstention does, and the message says
+how to fetch the history. If git cannot report the depth (git is not installed, or cannot open the
+repository), Cejel reads it from the repository's `.git` files; if those do not settle it either,
+the scan abstains the same way as "Unrated: history depth unknown". Among the criteria shown, A2 abstains on a shallow clone unless a confirmed
+critical secret finding stands, including where it would otherwise be marked not applicable, since
+that decision also rests on earlier commits.
+
+On a clone that is not shallow, A2 abstains under v27 where one of its reads of earlier commits failed:
 for example on a partial clone made with `--filter`, which `fetch-depth: 0` and no `filter` avoid,
 or where a read stops at one of Cejel's own limits: an output limit or the history secret scan's
 cap of 5,000 historical files, which happen on some large complete histories and which a re-scan
@@ -505,9 +512,11 @@ secrets.
 
 Check out with `fetch-depth: 0`: the default depth of 1 truncates the history A2 and B2 read, and
 the certificate then lists a history limitation. On a shallow clone A2's scans of earlier commits
-read only the commits present and B2 withholds its pull-request merge ratio, each with its reason;
-under the opt-in `witan-rubric-v27-prospective-2026-10-19` rubric, A2 abstains and the verdict is
-capped where A2 could not be read.
+read only the commits present and B2 withholds its pull-request merge ratio, each with its reason.
+The Action does not pin a rubric, so it scores under the default. Under the opt-in
+`witan-rubric-v27-prospective-2026-10-19` rubric a shallow checkout gets no composite score and no
+verdict: the scan abstains and says to run `git fetch --unshallow` (or check out with full history,
+for example `fetch-depth: 0` in `actions/checkout`), then scan again.
 
 ## Use with Claude
 

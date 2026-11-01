@@ -1,0 +1,24 @@
+[
+  {
+    "statement": "A boolean probe that returns false when its command fails turns 'could not tell' into 'no', and a safety rule keyed on it then fails open. v27's shallow-clone abstention keyed on isShallowRepository, which returned result.ok && stdout === 'true'; with git removed from PATH a depth-1 clone was scored (at_risk, 1.8, against 2.3 for its full clone) and passed --min-score 1, and a .git entry git could not open scored the same way. The review that found it had first passed the abstention on clones where git worked. Fix: a three-valued reading (shallow, complete, not a repository, unknown) with a file-level fallback, and the rule withholds on unknown. Rule: before gating on a probe, list what it returns when the probe itself fails, and make that answer the safe one.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "false-assurance"
+    ],
+    "tags": [
+      "fail-open",
+      "pass-by-absence",
+      "probe-failure",
+      "shallow-clone"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-11-01T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 619
+    }
+  }
+]
