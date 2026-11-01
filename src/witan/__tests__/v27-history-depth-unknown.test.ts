@@ -8,7 +8,13 @@ import type { WitanReport } from '../schemas.js';
 
 import { buildWitanCliSummary } from '../../summary.js';
 import { renderWitanBadgeEndpoint } from '../badge.js';
-import { WITAN_V27_SHALLOW_HISTORY_REASON } from '../history-depth.js';
+import {
+  HISTORY_DEPTH_UNKNOWN_INSTRUCTION,
+  WITAN_V27_HISTORY_DEPTH_UNKNOWN_REASON,
+  WITAN_V27_SHALLOW_HISTORY_REASON,
+  isWitanV27HistoryDepthUnknownAbstention,
+  readHistoryDepth,
+} from '../history-depth.js';
 import { WITAN_RUBRIC_VERSION_V17, WITAN_RUBRIC_VERSION_V27 } from '../rubric-version.js';
 import { buildMatrixOrigin, cloneRepository, git, scanRepository } from './fixtures/shallow-history-matrix.js';
 
@@ -77,6 +83,8 @@ function expectHistoryDepthUnknown(report: WitanReport, label: string): void {
   expect(report.codeTrustScore, label).toBeNull();
   expect(report.processTrustScore, label).toBeNull();
   expect(isHistoryDepthUnknown(report), label).toBe(true);
+  expect(reasonOf(report), label).toBe(WITAN_V27_HISTORY_DEPTH_UNKNOWN_REASON);
+  expect(isWitanV27HistoryDepthUnknownAbstention(report), label).toBe(true);
   // The reason says what to do: get git working on the repository, fetch the history, scan again.
   expect(reasonOf(report), label).toContain('git rev-parse --is-shallow-repository');
   expect(reasonOf(report), label).toContain('git fetch --unshallow');
@@ -175,5 +183,36 @@ describe('every other rubric is unchanged on the same checkouts', () => {
       expectScored(report, label);
       expect(reasonOf(report), label).toBeUndefined();
     }
+  });
+});
+
+describe('readHistoryDepth', () => {
+  it('reads git where git answers, and the files where it cannot', () => {
+    expect(readHistoryDepth(repos.full)).toBe('complete');
+    expect(readHistoryDepth(repos.shallow)).toBe('shallow');
+    expect(readHistoryDepth(repos.shallowWorktree)).toBe('shallow');
+    expect(readHistoryDepth(repos.shallowCorruptHead)).toBe('shallow');
+    expect(readHistoryDepth(repos.noRepository)).toBe('not_a_repository');
+    withoutGitOnPath(() => {
+      expect(readHistoryDepth(repos.full)).toBe('complete');
+      expect(readHistoryDepth(repos.shallow)).toBe('shallow');
+      expect(readHistoryDepth(repos.shallowWorktree)).toBe('shallow');
+      expect(readHistoryDepth(repos.noRepository)).toBe('not_a_repository');
+    });
+  });
+
+  it('is unknown, never complete, where the git directory cannot be located or read', () => {
+    const dangling = withoutGit(repos.full);
+    symlinkSync(join(dangling, 'gone', '.git'), join(dangling, '.git'));
+    expect(readHistoryDepth(dangling)).toBe('unknown');
+    const emptyPointer = withoutGit(repos.full);
+    writeFileSync(join(emptyPointer, '.git'), 'gitdir: \n');
+    expect(readHistoryDepth(emptyPointer)).toBe('unknown');
+  });
+
+  it('the unknown-depth reason ends with the instruction', () => {
+    expect(WITAN_V27_HISTORY_DEPTH_UNKNOWN_REASON.endsWith(HISTORY_DEPTH_UNKNOWN_INSTRUCTION)).toBe(true);
+    expect(WITAN_V27_HISTORY_DEPTH_UNKNOWN_REASON).toContain('(reason: history_depth_unknown)');
+    expect(WITAN_V27_HISTORY_DEPTH_UNKNOWN_REASON.length).toBeLessThanOrEqual(2000);
   });
 });

@@ -1,3 +1,4 @@
+import type { WitanAbstentionLabel } from './witan/abstention.js';
 import type { WitanReport } from './witan/index.js';
 
 import {
@@ -32,8 +33,7 @@ export interface WitanCliSummary {
     | 'Conditional'
     | 'At risk'
     | 'Unverified'
-    | 'Insufficient source'
-    | 'Insufficient evidence';
+    | WitanAbstentionLabel;
   findingCount: number;
   topFindings: WitanCliFinding[];
   /** Distinct external-tool sources folded into the score, e.g. ["sarif:codex-security",

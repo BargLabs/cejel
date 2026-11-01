@@ -169,17 +169,26 @@ function isGitMetadataEntry(path: string): boolean {
  * "this is not one" (#560).
  */
 export function hasVisibleGitMetadata(repoPath: string): boolean {
+  return findVisibleGitMetadata(repoPath) !== undefined;
+}
+
+/**
+ * The path of the `.git` entry hasVisibleGitMetadata finds (the nearest one, within the same
+ * discovery bounds), or undefined when there is none. A filesystem check only; it runs no git.
+ */
+export function findVisibleGitMetadata(repoPath: string): string | undefined {
   let current: string;
   try {
     current = realpathSync(repoPath);
   } catch {
-    return false;
+    return undefined;
   }
   for (;;) {
-    if (discoveryCeiling !== undefined && current === discoveryCeiling) return false;
-    if (isGitMetadataEntry(join(current, '.git'))) return true;
+    if (discoveryCeiling !== undefined && current === discoveryCeiling) return undefined;
+    const entry = join(current, '.git');
+    if (isGitMetadataEntry(entry)) return entry;
     const parent = dirname(current);
-    if (parent === current) return false;
+    if (parent === current) return undefined;
     current = parent;
   }
 }

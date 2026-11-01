@@ -72,7 +72,7 @@ import {
   isExpectedGitAbsence,
   type GitExecResult,
 } from './git-exec.js';
-import { WITAN_V27_SHALLOW_HISTORY_REASON, isShallowRepository } from './history-depth.js';
+import { isShallowRepository, v27HistoryDepthAbstentionReason } from './history-depth.js';
 import { stripBom } from './json-safe.js';
 import {
   WITAN_RUBRIC_VERSION_V9,
@@ -829,11 +829,13 @@ function buildWitanInputFromRepoUntracked(
   // Operator ruling of 1 Nov (v27 only): a shallow clone gets no composite and no verdict. The
   // signals above are still collected, so each criterion's reading is computed and shown; only the
   // headline abstains. A structural reason the repository cannot be rated at all comes first, since
-  // fetching the history would not change it. Every other rubric is untouched.
+  // fetching the history would not change it. Every other rubric is untouched. Where git cannot
+  // report the depth, the repository's files decide it, and where they cannot either, v27 withholds
+  // too (WITAN_V27_HISTORY_DEPTH_UNKNOWN_REASON): an unanswered question is never read as "complete".
   const insufficientSourceReason =
     ignoredTargetReason ??
     archetype.insufficientSourceReason ??
-    (usesV27Closure && isShallowRepository(options.repoPath) ? WITAN_V27_SHALLOW_HISTORY_REASON : undefined);
+    (usesV27Closure ? v27HistoryDepthAbstentionReason(options.repoPath) : undefined);
 
   return {
     productSlug: options.productSlug,

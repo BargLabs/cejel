@@ -54,6 +54,27 @@ full-clone composite, which the operator's 26 Oct rule forbids, and could also r
   schema so a report 0.7.0-rc.1 wrote with it still verifies.
 - **Disclosure.** v27's display-only `historyLimitations` sentence now says a shallow clone gets no
   composite score and no verdict, and ends with the same instruction (958 characters).
+- **When git cannot report the depth** (review of this change). `git rev-parse
+  --is-shallow-repository` fails when git is missing from PATH or cannot open the repository, and a
+  failure read as "complete", so a shallow clone was scored there. Under v27 the depth now comes
+  from `readHistoryDepth` (`src/witan/history-depth.ts`): git's answer where it gives one; where it
+  does not and a `.git` entry is visible, the repository's files (a `shallow` file in the git
+  directory, or in the common directory of a linked worktree, means a shallow clone; a readable git
+  directory without one means a complete clone). Where neither settles it, the report abstains the
+  same way with `WITAN_V27_HISTORY_DEPTH_UNKNOWN_REASON` (reason `history_depth_unknown`), which
+  ends with an instruction to make git able to open the repository, fetch the history if it is
+  shallow, and scan again. A directory with no `.git` entry is scored as before. Where git answers,
+  the depth is git's answer, as before, so every checkout measured below is unaffected. Every other
+  rubric keeps reading git's answer alone. Two cases this moves under v27 were scored before: a
+  `.git` entry git cannot open whose files do not show the depth (a dangling `.git` symlink, an
+  unreadable `.git` directory, a `.git` file naming a missing directory) now abstains; A2 there is
+  still the failed-history read failure it was.
+- **Labels** (review of this change). The terminal and HTML certificates, the Markdown report and
+  `summary.json` labelled the abstention "Insufficient source", which says there was nothing to
+  rate. They now read "Unrated: shallow clone" (or "Unrated: history depth unknown"), as the badge
+  does, and the `--min-score` failure message names it and carries the instruction, since under
+  `--quiet` it is the only line a run prints. The terminal's history-limitation heading no longer
+  says "scored as usual" on an abstained scan. The machine verdict stays `insufficient_source`.
 
 **The no-rise property** (`src/witan/__tests__/v27-no-rise.ts`). On a full clone it is unchanged.
 On a shallow clone v27 has no composite and no verdict, which `checkNoRise` reads as an abstention,
@@ -72,7 +93,10 @@ paths, under all eleven selectable rubrics: #604's matrix (twelve repositories, 
   On main, 52 of those 77 composites were below their full clone's, 11 above, and 5 verdicts carried
   `verdictCap`.
 
-No behaviour-fingerprint pin moves: the fingerprint corpus holds no shallow clone. Two
+No behaviour-fingerprint pin moves: the fingerprint corpus holds no shallow clone, so the
+fingerprint does not tell a report this build wrote on a shallow clone from one 0.7.0-rc.1 wrote.
+Adding a shallow clone to the corpus would move every selectable rubric's fingerprint, v17's
+included, with no v17 behaviour change, so it is left to a change of its own. Two
 scoring-surface pins in `src/witan/__tests__/disclosure-gaps.test.ts` move, both v27 and both
 shallow clones (`b3-master-target-depth-1-clone` and `b3-master-target-ci-fetch`), to
 `60df49109d311c52a2181677bf9df7f84de7257cc6a08eeaf81f7e45f7e5d2a0`, the abstention. Only those v27

@@ -190,8 +190,11 @@ Under the opt-in prospective v27 rubric (`--rubric-pin witan-rubric-v27-prospect
 v17 remains the default), a shallow clone gets no composite score and no verdict. The scan abstains
 (`insufficient_source`), still reads and shows each criterion, and says what to do: run
 `git fetch --unshallow` (or check out with full history, for example `fetch-depth: 0` in
-`actions/checkout`), then scan again. With `--min-score` an abstained scan fails the check, as any
-abstention does. Among the criteria shown, A2 abstains on a shallow clone unless a confirmed
+`actions/checkout`), then scan again. The certificate and the badge read "Unrated: shallow clone".
+With `--min-score` an abstained scan fails the check, as any abstention does, and the message says
+how to fetch the history. If git cannot report the depth (git is not installed, or cannot open the
+repository), Cejel reads it from the repository's `.git` files; if those do not settle it either,
+the scan abstains the same way as "Unrated: history depth unknown". Among the criteria shown, A2 abstains on a shallow clone unless a confirmed
 critical secret finding stands, including where it would otherwise be marked not applicable, since
 that decision also rests on earlier commits.
 

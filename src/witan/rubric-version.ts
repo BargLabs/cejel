@@ -220,7 +220,10 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     the reader to run git fetch --unshallow (or check out with full history, for example
 //     fetch-depth: 0 in actions/checkout) and scan again. Each criterion is still read and shown,
 //     with A2's and B2's shallow notes. The exit status is an abstained verdict's. No report
-//     carries verdictCap any more. A full clone is unaffected.
+//     carries verdictCap any more. A full clone is unaffected. Where git cannot report the depth,
+//     readHistoryDepth reads it from the repository's .git files, and where those cannot settle it
+//     the report abstains the same way with WITAN_V27_HISTORY_DEPTH_UNKNOWN_REASON; a directory
+//     with no .git entry is scored as before.
 // Every other abstention is a read failure, kept in the composite at 0, and each other change only
 // lowers a metric, adds a zero-valued one or adds a finding, which can only cap a score (A1's non-hollow share stays measured over v17's test
 // list, so excluding conftest.py cannot shrink its denominator). So on a full clone no score,

@@ -134,7 +134,7 @@ describe('v27 on a shallow clone: no composite, no verdict, and how to fetch the
     expect(SHALLOW_HISTORY_V27_ABSTENTION.length).toBeLessThanOrEqual(1000);
   });
 
-  it('each criterion is still read and shown: the shallow v27 criteria are the ones v27 read before the ruling', () => {
+  it('each criterion is still read and shown: at least one is measured, and A2 keeps its per-criterion shallow note', () => {
     for (const scan of scans.filter((entry) => entry.rubric === V27 && entry.shallow)) {
       const report = scan.report;
       expect(report.criteria.length, scan.label).toBeGreaterThanOrEqual(11);
@@ -150,10 +150,11 @@ describe('v27 on a shallow clone: no composite, no verdict, and how to fetch the
   it('the report, the CLI output and the certificate each carry the instruction', () => {
     const report = find('data layer secret-deleted depth 1', V27);
     const terminal = renderTerminalCertificate(buildWitanCliSummary(report), report);
-    expect(terminal).toContain(`Insufficient source to certify.\n  ${WITAN_V27_SHALLOW_HISTORY_REASON}\n`);
+    expect(terminal).toContain(`Unrated: shallow clone — no composite score and no verdict.\n  ${WITAN_V27_SHALLOW_HISTORY_REASON}\n`);
+    expect(terminal).not.toMatch(/insufficient source/i);
     expect(terminal).not.toMatch(/Overall: /);
     const markdown = renderWitanMarkdownReport(report);
-    expect(markdown).toContain(`- Verdict: Insufficient source to certify — ${WITAN_V27_SHALLOW_HISTORY_REASON}`);
+    expect(markdown).toContain(`- Verdict: Unrated: shallow clone — ${WITAN_V27_SHALLOW_HISTORY_REASON}`);
     expect(markdown).not.toMatch(/Verdict capped/);
     const html = renderWitanHtmlReport(report);
     expect(html).toContain(SHALLOW_HISTORY_FETCH_INSTRUCTION);
@@ -170,7 +171,7 @@ describe('v27 on a shallow clone: no composite, no verdict, and how to fetch the
       expect(
         await runWitanFreeCli(['scan', shallow, '--out', out('gated'), '--quiet', '--rubric-pin', V27, '--min-score', '0']),
       ).toBe(1);
-      expect(stderr.mock.calls.map(([chunk]) => String(chunk)).join('')).toMatch(/abstain|insufficient/i);
+      expect(stderr.mock.calls.map(([chunk]) => String(chunk)).join('')).toContain(SHALLOW_HISTORY_FETCH_INSTRUCTION);
       // v17 on the same clone keeps its verdict and passes a zero threshold.
       expect(await runWitanFreeCli(['scan', shallow, '--out', out('v17'), '--quiet', '--min-score', '0'])).toBe(0);
     } finally {
