@@ -22,6 +22,59 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
+## 2026-11-01 — under v27 a shallow clone gets no composite and no verdict, and says how to fetch the history; F1's composite exclusion of A2 and the verdict cap are removed; v17-v26 byte-identical; v27 full clones byte-identical; no published score moved
+
+**Status.** A scoring change under `witan-rubric-v27-prospective-2026-10-19` only, with no
+identifier change. It reaches only shallow clones. No holdout or calibration ran, and this entry
+makes no precision or recall claim. The default stays v17.
+
+**Why.** The operator's ruling of 1 Nov, replacing v27 freeze change F1's composite treatment for
+v27 (ADR-0001, "Operator ruling (2026-11-01)"). F1 left A2's shallow-only abstention out of the
+composite, and its second pass capped the verdict. Taking a criterion out of an average moves the
+average toward the other criteria, so a shallow composite could fall below the same commit's
+full-clone composite, which the operator's 26 Oct rule forbids, and could also rise above it.
+
+**Change.**
+
+- **The report abstains.** When the rubric is v27 and the scanned checkout is shallow
+  (`git rev-parse --is-shallow-repository`), `buildWitanInputFromRepo` sets the report's
+  `insufficientSourceReason` to `WITAN_V27_SHALLOW_HISTORY_REASON` (475 characters), after any
+  structural reason the repository cannot be rated at all. The report's `verdict` is
+  `insufficient_source` and its headline scores are null. The reason names `shallow_history` and
+  ends with one instruction: "The scan read a shallow clone: run git fetch --unshallow (or check out
+  with full history, for example fetch-depth: 0 in actions/checkout), then scan again." It reaches
+  `report.json`, the terminal output and the certificates through the existing abstention path. The
+  exit status is the existing one for an abstained verdict: 0, or 1 with `--min-score`. The badge
+  reads "unrated: shallow clone". No report field is added: the exact sentence is the discriminator,
+  as for the no-measurement abstention.
+- **Each criterion is still read and shown,** with A2's and B2's shallow notes and B2's withheld
+  ratio as before.
+- **Removed.** A2's `shallow_history` reason under v27 (F1's composite exclusion) and the verdict
+  cap (F1's second pass). No report this build writes carries `verdictCap`; the field stays in the
+  schema so a report 0.7.0-rc.1 wrote with it still verifies.
+- **Disclosure.** v27's display-only `historyLimitations` sentence now says a shallow clone gets no
+  composite score and no verdict, and ends with the same instruction (958 characters).
+
+**The no-rise property** (`src/witan/__tests__/v27-no-rise.ts`). On a full clone it is unchanged.
+On a shallow clone v27 has no composite and no verdict, which `checkNoRise` reads as an abstention,
+not a rise or a drop. Every criterion is still compared: A2 and B2 with the same commit's full
+clone, every other criterion with v17. The curated fixtures and all six generated shards pass. In
+the shards, every shallow shape abstains.
+
+**Measured.** Main `206074f1f` and this head scanned the same 104 synthetic checkouts, at fixed
+paths, under all eleven selectable rubrics: #604's matrix (twelve repositories, full and depths 1,
+5, 11 and 12), the cache-library pair, the two data-layer repositories at full, 1 and 12, and
+#556's twelve shapes at full, 1 and 12.
+
+- v17-v26: 1,040 of 1,040 reports byte-identical to main.
+- v27, full clones: 27 of 27 reports byte-identical to main.
+- v27, shallow clones: 77 of 77 abstain. In all 77 the `criteria` array is byte-identical to main.
+  On main, 52 of those 77 composites were below their full clone's, 11 above, and 5 verdicts carried
+  `verdictCap`.
+
+No behaviour-fingerprint pin moves: the fingerprint corpus holds no shallow clone. No published
+score moved: the board is scored under v17.
+
 ## 2026-10-29 — two notes that could stop a scan from writing its report now fit the limit under every rubric; under v27 the Python per-test skip reader makes no claim beside a decorator or `load_tests`; v17-v26 byte-identical wherever a report was written; no published score moved
 
 **Status.** No identifier change. Items A and C of the last change before v27 is frozen for its
