@@ -9,6 +9,9 @@ import { scoreRepoWithPublicCejel } from '../public-scan.js';
 import { WITAN_RUBRIC_VERSION_V17, WITAN_RUBRIC_VERSION_V27 } from '../rubric-version.js';
 import {
   COUNTED,
+  EDGE_COUNTED,
+  EDGE_EXCLUDED,
+  EDGE_FIXTURES,
   EXCLUDED,
   PUBLISHING_WITH_CHECKS_FIXTURES,
   publishingFile,
@@ -27,6 +30,8 @@ import { checkNoRise, lostFindings } from './v27-no-rise.js';
 const V17 = WITAN_RUBRIC_VERSION_V17;
 const V27 = WITAN_RUBRIC_VERSION_V27;
 
+const ALL = [...PUBLISHING_WITH_CHECKS_FIXTURES, ...EDGE_FIXTURES];
+
 const repos = new Map<string, string>();
 const reports = new Map<string, WitanReport>();
 
@@ -36,7 +41,7 @@ function report(name: string, rubricVersion: string): WitanReport {
   if (cached) return cached;
   let repo = repos.get(name);
   if (!repo) {
-    const found = PUBLISHING_WITH_CHECKS_FIXTURES.find((entry) => entry.name === name);
+    const found = ALL.find((entry) => entry.name === name);
     if (!found) throw new Error(`unknown fixture ${name}`);
     repo = buildFalseAssuranceFixture(found);
     repos.set(name, repo);
@@ -72,10 +77,11 @@ const COUNTED_DETAILS: Readonly<Record<string, string>> = {
   'npm-test-in-needed-job': 'is triggered by push to main, and its publishing job declares no environment.',
   'npm-test-in-transitively-needed-job': 'is triggered by push to main, and its publishing job declares no environment.',
   'pytest-before-twine-on-tag': 'is triggered by push of a tag its filter matches, and its publishing job declares no environment.',
+  'reusable-publish-needs-test': 'is triggered by push to main, and its publishing job declares no environment.',
 };
 
 describe('v27 (#517 correction) — a publishing workflow that checks before it publishes is counted', () => {
-  for (const [name] of COUNTED) {
+  for (const [name] of [...COUNTED, ...EDGE_COUNTED]) {
     it(`v27 counts ${name}, as v17 does`, () => {
       const file = publishingFile(name);
       const b3 = criterion(name, V27, 'B3');
@@ -94,7 +100,7 @@ describe('v27 (#517 correction) — a publishing workflow that checks before it 
 });
 
 describe('v27 (#517 correction) — a publishing workflow with no check before its publish step is still excluded', () => {
-  for (const [name] of EXCLUDED) {
+  for (const [name] of [...EXCLUDED, ...EDGE_EXCLUDED]) {
     it(`v27 excludes ${name}, with the note and disclosure unchanged`, () => {
       const file = publishingFile(name);
       const b3 = criterion(name, V27, 'B3');
@@ -112,7 +118,7 @@ describe('v27 (#517 correction) — a publishing workflow with no check before i
 
 describe('B2 and B3 agree about every workflow here (#527)', () => {
   it('B2 credits every publishing workflow, under v27 as under v17', () => {
-    for (const { name } of PUBLISHING_WITH_CHECKS_FIXTURES) {
+    for (const { name } of ALL) {
       const b2 = criterion(name, V27, 'B2');
       expect(b2, name).toEqual(criterion(name, V17, 'B2'));
       expect(b2.notes ?? '', name).not.toContain(publishingFile(name));
@@ -120,7 +126,7 @@ describe('B2 and B3 agree about every workflow here (#527)', () => {
   });
 
   it('a workflow B3 counts under this correction is one B2 credits: neither leaves it uncredited', () => {
-    for (const [name] of COUNTED) {
+    for (const [name] of [...COUNTED, ...EDGE_COUNTED]) {
       const file = publishingFile(name);
       for (const id of ['B2', 'B3']) {
         const score = criterion(name, V27, id);
@@ -133,7 +139,7 @@ describe('B2 and B3 agree about every workflow here (#527)', () => {
 
 describe('no rise against v17 on these fixtures', () => {
   it('no score, status or composite rises, and no v17 finding is lost', () => {
-    for (const { name } of PUBLISHING_WITH_CHECKS_FIXTURES) {
+    for (const { name } of ALL) {
       const before = report(name, V17);
       const after = report(name, V27);
       expect(checkNoRise(before, after).problems, name).toEqual([]);

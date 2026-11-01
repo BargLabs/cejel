@@ -148,6 +148,53 @@ export const EXCLUDED: readonly Shape[] = [
   ],
 ];
 
+// Edge cases of the check reading, added after the v17 pin was written; they are compared with v17
+// by the no-rise test only, and are not in b3-publishing-with-checks-v17.json.
+const CALLED_PYPI = `name: pypi\non:\n  workflow_call:\njobs:\n  upload:\n    runs-on: ubuntu-latest\n    permissions:\n      id-token: write\n    steps:\n      - uses: actions/checkout@v4\n      - run: pip install build\n      - run: python -m build\n      - uses: pypa/gh-action-pypi-publish@release/v1\n`;
+const PY_TEST_JOB = '  test:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - run: pip install -e . pytest\n      - run: pytest\n';
+
+export const EDGE_COUNTED: readonly Shape[] = [
+  [
+    'reusable-publish-needs-test',
+    'Counted: the publishing job calls a reusable workflow in this repository and needs a job that runs pytest.',
+    {
+      ...PY_BASE,
+      [PUBLISH]: `name: publish\n${PUSH_MAIN}jobs:\n${PY_TEST_JOB}  release:\n    needs: test\n    uses: ./.github/workflows/pypi.yaml\n    secrets: inherit\n`,
+      '.github/workflows/pypi.yaml': CALLED_PYPI,
+    },
+  ],
+];
+
+export const EDGE_EXCLUDED: readonly Shape[] = [
+  [
+    'reusable-publish-test-not-needed',
+    'Excluded: the job calling the publishing reusable workflow does not need the test job.',
+    {
+      ...PY_BASE,
+      [PUBLISH]: `name: publish\n${PUSH_MAIN}jobs:\n${PY_TEST_JOB}  release:\n    uses: ./.github/workflows/pypi.yaml\n    secrets: inherit\n`,
+      '.github/workflows/pypi.yaml': CALLED_PYPI,
+    },
+  ],
+  [
+    'pip-install-pytest-is-not-a-check',
+    'Excluded: `pip install pytest` names a test runner as an argument; it installs, it does not check.',
+    {
+      ...PY_BASE,
+      [PUBLISH]: `name: publish\n${PUSH_MAIN}jobs:\n  release:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - run: pip install build twine pytest\n      - run: python -m build\n      - run: twine upload dist/*\n`,
+    },
+  ],
+  [
+    'tsc-alias-is-not-a-check',
+    'Excluded: `tsc-alias` rewrites paths; only a command named exactly `tsc` is a type check.',
+    { ...JS_BASE, [RELEASE]: oneJobRelease(`      - run: npm ci\n      - run: npx tsc-alias\n${NPM_PUBLISH}`) },
+  ],
+  [
+    'npm-test-if-present',
+    'Excluded: `npm test --if-present` runs nothing when the script is missing.',
+    { ...JS_BASE, [RELEASE]: oneJobRelease(`      - run: npm ci\n      - run: npm test --if-present\n${NPM_PUBLISH}`) },
+  ],
+];
+
 function fixture(name: string, purpose: string, files: Record<string, string>): FalseAssuranceFixture {
   return { name, issue: '#517', purpose, commits: [files] };
 }
@@ -156,9 +203,13 @@ export const PUBLISHING_WITH_CHECKS_FIXTURES: readonly FalseAssuranceFixture[] =
   ([name, purpose, files]) => fixture(name, purpose, files),
 );
 
+export const EDGE_FIXTURES: readonly FalseAssuranceFixture[] = [...EDGE_COUNTED, ...EDGE_EXCLUDED].map(
+  ([name, purpose, files]) => fixture(name, purpose, files),
+);
+
 /** The publishing workflow each fixture adds. */
 export const publishingFile = (name: string): string => {
-  const shape = [...COUNTED, ...EXCLUDED].find(([entry]) => entry === name);
+  const shape = [...COUNTED, ...EXCLUDED, ...EDGE_COUNTED, ...EDGE_EXCLUDED].find(([entry]) => entry === name);
   const files = Object.keys(shape?.[2] ?? {});
   return [RELEASE, PUBLISH, DOCS].find((file) => files.includes(file)) ?? '';
 };
