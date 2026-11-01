@@ -195,6 +195,11 @@ export function main() {
   // (including this composite action's) with no explicit passthrough in action.yml. Forwarded
   // as-is; never fabricated when absent (e.g. a local `node run.mjs` invocation).
   const runAttemptRaw = process.env.GITHUB_RUN_ATTEMPT?.trim();
+  // The optional rubric-pin input. Empty or absent forwards nothing, so the CLI takes its
+  // calibrated default exactly as before this input existed. A non-empty value is forwarded
+  // as-is and validated only by the CLI's own rubric-pin check — no second list of rubric ids
+  // lives here — so an unknown id fails this step with the CLI's message.
+  const rubricPinRaw = process.env.WITAN_RUBRIC_PIN?.trim();
   const exportDir = resolve(process.env.WITAN_EXPORT_DIR?.trim() || '.cejel');
   let outDir;
   try {
@@ -212,6 +217,7 @@ export function main() {
     const cliArgs = [cliEntry, resolve(repoPath), '--out-dir', outDir];
     if (minScoreRaw) cliArgs.push('--min-score', minScoreRaw);
     if (runAttemptRaw) cliArgs.push('--run-attempt', runAttemptRaw);
+    if (rubricPinRaw) cliArgs.push('--rubric-pin', rubricPinRaw);
 
     let cliFailed = false;
     try {

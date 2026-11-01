@@ -16,6 +16,18 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **GitHub Action: an optional `rubric-pin` input.** A workflow that runs Cejel through the Action
+  can now opt in to a non-default rubric, for example `witan-rubric-v27-prospective-2026-10-19`,
+  with the same value the CLI takes as `--rubric-pin`. Both the root and the nested `action/`
+  manifests carry it, default empty. The Action forwards `--rubric-pin` only when the input is
+  non-empty, so an empty or absent input leaves the CLI invocation, the report and every output as
+  they were. The CLI's own check validates the value; an unknown id fails the step with its message.
+  A prospective pin carries no precision or recall claim. v17 remains the default. When pinning
+  v27, check out with `fetch-depth: 0`: v27 reads the commit history, so a shallow checkout gets no full
+  v27 result, and the Action stays offline and fetches nothing.
+
 ### Changed
 
 - **Prospective v27: a shallow clone gets no composite score and no verdict** (operator ruling of

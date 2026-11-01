@@ -756,6 +756,30 @@ requireIncludes(
   'Insufficient evidence).',
   'nested Action evidence abstention verdict',
 );
+// The optional rubric-pin input: both manifests declare it empty by default and pass it to
+// run.mjs through WITAN_RUBRIC_PIN, which forwards --rubric-pin only when it is non-empty
+// (exercised end to end in src/__tests__/action-runner.test.ts).
+for (const [name, manifest] of [
+  ['root', rootAction],
+  ['nested', nestedAction],
+]) {
+  requireIncludes(manifest, "\n  rubric-pin:\n", `${name} Action rubric-pin input`);
+  requireIncludes(
+    manifest,
+    "fetch-depth: 0. v27 reads the commit history, so a shallow clone gets no full v27 result.\n    required: false\n    default: ''\n",
+    `${name} Action rubric-pin empty default`,
+  );
+  requireIncludes(
+    manifest,
+    '        WITAN_RUBRIC_PIN: ${{ inputs.rubric-pin }}\n',
+    `${name} Action rubric-pin passthrough`,
+  );
+}
+requireIncludes(
+  actionRunner,
+  "if (rubricPinRaw) cliArgs.push('--rubric-pin', rubricPinRaw);",
+  'Action rubric-pin forwarded only when non-empty',
+);
 if (rootAction === nestedAction) {
   throw new Error('Root and nested Action manifests must use distinct relative paths.');
 }

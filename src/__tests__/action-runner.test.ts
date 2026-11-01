@@ -11,9 +11,15 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { describe, expect, it } from 'vitest';
+
+import { WITAN_V27_A2_FAILED_HISTORY_NOTE_PREFIX } from '../witan/abstention.js';
+import {
+  buildCacheLibraryOrigin,
+  cloneRepository,
+} from '../witan/__tests__/fixtures/shallow-history-matrix.js';
 
 const ACTION_RUNNER_URL = pathToFileURL(
   fileURLToPath(new URL('../../action/run.mjs', import.meta.url)),
@@ -436,4 +442,248 @@ describe('GitHub Action run-attempt forwarding', () => {
       rmSync(fixtureRoot, { recursive: true, force: true });
     }
   });
+});
+
+// The Action's optional rubric-pin input (action.yml -> WITAN_RUBRIC_PIN). run.mjs forwards a
+// non-empty value to the CLI as --rubric-pin and forwards nothing otherwise; the CLI's own
+// assertSelectableRubricVersion is the only list of accepted ids. These cases run the REAL CLI
+// (src/index.ts through tsx, so no build is needed) behind a dist/index.js shim that records the
+// argv run.mjs passed it.
+const PACKAGE_ROOT = fileURLToPath(new URL('../..', import.meta.url));
+const TSX_CLI = join(PACKAGE_ROOT, 'node_modules', 'tsx', 'dist', 'cli.mjs');
+const CLI_SOURCE = join(PACKAGE_ROOT, 'src', 'index.ts');
+const V17 = 'witan-rubric-v17-2026-07-24';
+const V27 = 'witan-rubric-v27-prospective-2026-10-19';
+
+function makeRealCliActionRunner(fixtureRoot: string): string {
+  const runnerPath = join(fixtureRoot, 'action', 'run.mjs');
+  mkdirSync(join(fixtureRoot, 'action'), { recursive: true });
+  mkdirSync(join(fixtureRoot, 'dist'), { recursive: true });
+  copyFileSync(ACTION_RUNNER_PATH, runnerPath);
+  writeFileSync(
+    join(fixtureRoot, 'dist', 'index.js'),
+    `import { spawnSync } from 'node:child_process';
+import { writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+const args = process.argv.slice(2);
+writeFileSync(join(dirname(fileURLToPath(import.meta.url)), 'argv.json'), JSON.stringify(args));
+const result = spawnSync(process.execPath, [${JSON.stringify(TSX_CLI)}, ${JSON.stringify(CLI_SOURCE)}, ...args], { stdio: 'inherit' });
+process.exit(result.status ?? 1);
+`,
+  );
+  return runnerPath;
+}
+
+function writeSmallRepository(repoPath: string): void {
+  mkdirSync(join(repoPath, 'src'), { recursive: true });
+  writeFileSync(join(repoPath, 'src', 'index.ts'), 'export const answer = 42;\n');
+}
+
+interface ActionRun {
+  readonly status: number | null;
+  readonly stderr: string;
+  readonly argv: string[] | undefined;
+  readonly githubOutput: string;
+  readonly stepSummary: string;
+  readonly exportDir: string;
+}
+
+function runAction(
+  fixtureRoot: string,
+  runnerPath: string,
+  repoPath: string,
+  label: string,
+  rubricPin: string | undefined,
+): ActionRun {
+  const runDir = join(fixtureRoot, `run-${label}`);
+  const runnerTemp = join(runDir, 'runner-temp');
+  const exportDir = join(runDir, 'export');
+  const githubOutputPath = join(runDir, 'github-output.txt');
+  const stepSummaryPath = join(runDir, 'step-summary.md');
+  mkdirSync(runnerTemp, { recursive: true });
+  writeFileSync(githubOutputPath, '');
+  writeFileSync(stepSummaryPath, '');
+  const argvPath = join(dirname(runnerPath), '..', 'dist', 'argv.json');
+  rmSync(argvPath, { force: true });
+
+  // Never inherit an ambient pin or run attempt (this suite may itself run inside an Action job).
+  const {
+    WITAN_RUBRIC_PIN: _pin,
+    GITHUB_RUN_ATTEMPT: _attempt,
+    ...ambientEnv
+  } = process.env;
+  // main() is imported rather than run.mjs spawned directly: run.mjs's entry-point check compares
+  // a realpath'd import.meta.url with argv[1], which differ under a symlinked temp root.
+  const invocation = `import { main } from ${JSON.stringify(pathToFileURL(runnerPath).href)}; main();`;
+  const result = spawnSync(process.execPath, ['--input-type=module', '--eval', invocation], {
+    cwd: repoPath,
+    encoding: 'utf8',
+    env: {
+      ...ambientEnv,
+      GITHUB_OUTPUT: githubOutputPath,
+      GITHUB_STEP_SUMMARY: stepSummaryPath,
+      GITHUB_WORKSPACE: repoPath,
+      RUNNER_TEMP: runnerTemp,
+      WITAN_EXPORT_DIR: exportDir,
+      WITAN_REPO_PATH: repoPath,
+      ...(rubricPin === undefined ? {} : { WITAN_RUBRIC_PIN: rubricPin }),
+    },
+  });
+  return {
+    status: result.status,
+    stderr: result.stderr,
+    argv: existsSync(argvPath) ? (JSON.parse(readFileSync(argvPath, 'utf8')) as string[]) : undefined,
+    githubOutput: readFileSync(githubOutputPath, 'utf8'),
+    stepSummary: readFileSync(stepSummaryPath, 'utf8'),
+    exportDir,
+  };
+}
+
+function readReport(run: ActionRun): { rubricVersion: string } & Record<string, unknown> {
+  return JSON.parse(readFileSync(join(run.exportDir, 'report.json'), 'utf8')) as {
+    rubricVersion: string;
+  } & Record<string, unknown>;
+}
+
+/** An artifact's bytes with its per-invocation timestamp and this run's own paths blanked. */
+function comparableArtifact(run: ActionRun, name: string): string {
+  return readFileSync(join(run.exportDir, name), 'utf8')
+    .replace(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z/g, '<timestamp>')
+    .replace(/(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]* \d{1,2}, \d{4}/g, '<date>')
+    .replaceAll(run.exportDir, '<export>');
+}
+
+/** The argv run.mjs gives the CLI, with the fresh runner-temporary out-dir blanked. */
+function comparableArgv(argv: string[] | undefined): string[] {
+  if (!argv) throw new Error('the CLI was not invoked');
+  const outDirIndex = argv.indexOf('--out-dir');
+  return argv.map((value, index) => (index === outDirIndex + 1 ? '<out-dir>' : value));
+}
+
+function outputsOf(run: ActionRun): Map<string, string> {
+  return parseGithubOutputs(run.githubOutput);
+}
+
+describe('GitHub Action rubric-pin input', () => {
+  it('forwards a v27 pin to the CLI as --rubric-pin, and the report names v27 as its rubric', () => {
+    const fixtureRoot = mkdtempSync(join(tmpdir(), 'cejel-action-rubric-pin-v27-'));
+    try {
+      const runnerPath = makeRealCliActionRunner(fixtureRoot);
+      const repoPath = join(fixtureRoot, 'repo');
+      writeSmallRepository(repoPath);
+
+      const run = runAction(fixtureRoot, runnerPath, repoPath, 'v27', V27);
+
+      expect(run.stderr).not.toContain('unrecognized rubric version');
+      expect(run.status).toBe(0);
+      expect(comparableArgv(run.argv)).toEqual([repoPath, '--out-dir', '<out-dir>', '--rubric-pin', V27]);
+      expect(readReport(run).rubricVersion).toBe(V27);
+      expect(outputsOf(run).get('verdict')).toBe(
+        (JSON.parse(readFileSync(join(run.exportDir, 'summary.json'), 'utf8')) as { verdict: string })
+          .verdict,
+      );
+    } finally {
+      rmSync(fixtureRoot, { recursive: true, force: true });
+    }
+  }, 120_000);
+
+  it('passes no --rubric-pin when the input is empty or unset, and every artifact and output matches', () => {
+    const fixtureRoot = mkdtempSync(join(tmpdir(), 'cejel-action-rubric-pin-default-'));
+    try {
+      const runnerPath = makeRealCliActionRunner(fixtureRoot);
+      const repoPath = join(fixtureRoot, 'repo');
+      writeSmallRepository(repoPath);
+
+      const unset = runAction(fixtureRoot, runnerPath, repoPath, 'unset', undefined);
+      const empty = runAction(fixtureRoot, runnerPath, repoPath, 'empty', '');
+      const blank = runAction(fixtureRoot, runnerPath, repoPath, 'blank', '  ');
+
+      // Today's invocation, exactly: the repository and the fresh out-dir, nothing else.
+      for (const run of [unset, empty, blank]) {
+        expect(run.status).toBe(0);
+        expect(comparableArgv(run.argv)).toEqual([repoPath, '--out-dir', '<out-dir>']);
+        expect(readReport(run).rubricVersion).toBe(V17);
+      }
+
+      for (const name of readdirSync(unset.exportDir)) {
+        const reference = comparableArtifact(unset, name);
+        expect(comparableArtifact(empty, name), name).toBe(reference);
+        expect(comparableArtifact(blank, name), name).toBe(reference);
+      }
+      expect(readdirSync(empty.exportDir).sort()).toEqual(readdirSync(unset.exportDir).sort());
+      expect(empty.stepSummary).toBe(unset.stepSummary);
+      expect(blank.stepSummary).toBe(unset.stepSummary);
+      const reference = outputsOf(unset);
+      for (const run of [empty, blank]) {
+        const outputs = outputsOf(run);
+        expect([...outputs.keys()]).toEqual([...reference.keys()]);
+        for (const [name, value] of reference) {
+          expect(outputs.get(name), name).toBe(name === 'artifact-dir' ? run.exportDir : value);
+        }
+      }
+    } finally {
+      rmSync(fixtureRoot, { recursive: true, force: true });
+    }
+  }, 180_000);
+
+  it('fails the step with the CLI\'s own message on an unknown rubric id, and publishes nothing', () => {
+    const fixtureRoot = mkdtempSync(join(tmpdir(), 'cejel-action-rubric-pin-unknown-'));
+    try {
+      const runnerPath = makeRealCliActionRunner(fixtureRoot);
+      const repoPath = join(fixtureRoot, 'repo');
+      writeSmallRepository(repoPath);
+
+      const run = runAction(fixtureRoot, runnerPath, repoPath, 'unknown', 'witan-rubric-v99-unknown');
+
+      expect(run.status).not.toBe(0);
+      expect(run.stderr).toContain('Cejel: unrecognized rubric version: "witan-rubric-v99-unknown". Accepted values: ');
+      expect(run.githubOutput).toBe('');
+      expect(run.stepSummary).toBe('');
+      expect(existsSync(join(run.exportDir, 'report.json'))).toBe(false);
+    } finally {
+      rmSync(fixtureRoot, { recursive: true, force: true });
+    }
+  }, 120_000);
+
+  it('passes a v27 shallow-clone result through unchanged: A2 abstains for the shallow history, and the outputs are the CLI\'s', () => {
+    const fixtureRoot = mkdtempSync(join(tmpdir(), 'cejel-action-rubric-pin-shallow-'));
+    const origin = buildCacheLibraryOrigin();
+    const clone = cloneRepository(origin, 1);
+    try {
+      const runnerPath = makeRealCliActionRunner(fixtureRoot);
+
+      const run = runAction(fixtureRoot, runnerPath, clone, 'shallow-v27', V27);
+
+      expect(run.status).toBe(0);
+      const report = readReport(run) as {
+        rubricVersion: string;
+        criteria: { id: string; status: string; notes?: string }[];
+        verdictCap?: { criterionId: string; reason: string };
+      };
+      expect(report.rubricVersion).toBe(V27);
+      // Every history read succeeds on this fixture, so A2's abstention is the shallow-only one
+      // (a failed read would carry the failed-history note prefix).
+      const a2 = report.criteria.find((criterion) => criterion.id === 'A2');
+      expect(a2?.status).toBe('insufficient_data');
+      expect((a2?.notes ?? '').startsWith(WITAN_V27_A2_FAILED_HISTORY_NOTE_PREFIX)).toBe(false);
+      if (report.verdictCap) {
+        expect(report.verdictCap).toMatchObject({ criterionId: 'A2', reason: 'shallow_history' });
+      }
+
+      const summary = JSON.parse(readFileSync(join(run.exportDir, 'summary.json'), 'utf8')) as {
+        overallScore: number | null;
+        verdict: string;
+      };
+      const outputs = outputsOf(run);
+      expect(outputs.get('verdict')).toBe(summary.verdict);
+      expect(outputs.get('score')).toBe(
+        typeof summary.overallScore === 'number' ? summary.overallScore.toFixed(1) : '',
+      );
+    } finally {
+      rmSync(fixtureRoot, { recursive: true, force: true });
+      rmSync(origin, { recursive: true, force: true });
+      rmSync(dirname(clone), { recursive: true, force: true });
+    }
+  }, 180_000);
 });
