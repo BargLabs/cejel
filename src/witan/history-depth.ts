@@ -1,3 +1,5 @@
+import type { WitanReport } from './schemas.js';
+
 import { execGit } from './git-exec.js';
 
 /**
@@ -24,31 +26,58 @@ export const SHALLOW_HISTORY_LIMITATION =
   'record in the checked-out files. Re-scan a full clone (for actions/checkout, set fetch-depth: 0).';
 
 /**
+ * The one plain instruction a v27 scan of a shallow clone carries, in its abstention reason (so in
+ * report.json, the CLI output and the certificate) and in its history disclosure.
+ */
+export const SHALLOW_HISTORY_FETCH_INSTRUCTION =
+  'The scan read a shallow clone: run git fetch --unshallow (or check out with full history, for ' +
+  'example fetch-depth: 0 in actions/checkout), then scan again.';
+
+/**
+ * Operator ruling of 1 Nov, replacing the v27 freeze change F1's composite treatment for v27: under
+ * witan-rubric-v27-prospective-2026-10-19 a shallow clone gets no composite and no verdict. This is
+ * the report's insufficientSourceReason for that abstention, and its exact text is the stable
+ * discriminator (isWitanV27ShallowHistoryAbstention), as WITAN_NO_MEASUREMENT_REASON is for its own
+ * abstention: no report field is added. Each criterion's reading is still computed and shown. F1
+ * left A2's shallow-only abstention out of the composite and capped the verdict; taking A2 out of
+ * an average moves the average toward the other criteria, so the composite could fall below the
+ * same commit's full-clone composite, which the operator's 26 Oct rule forbids.
+ */
+export const WITAN_V27_SHALLOW_HISTORY_REASON =
+  'Under witan-rubric-v27-prospective-2026-10-19 Cejel gives no composite score and no verdict for a ' +
+  'shallow clone (reason: shallow_history). A2 and B2 read commit history, and a composite over a ' +
+  "truncated history could fall below the same commit's composite over its full history. Each " +
+  "criterion's reading is still shown. " +
+  SHALLOW_HISTORY_FETCH_INSTRUCTION;
+
+/**
  * The same disclosure under witan-rubric-v27-prospective-2026-10-19, which does not score history
  * it did not read (#442). The sentence states what that rubric did instead. #556: A2's
  * not-applicable decision also rests on its history scans, so on a shallow clone A2 abstains there
  * too; the sentence no longer says a not-applicable criterion stays not applicable. B2 has no
  * not-applicable result: with no tree evidence it is unmeasured, whatever the history.
- * v27 freeze change F1 (operator decision 2026-10-28, the operator's 26/27 Oct rule: a shallow clone
- * must not lower the history score): B2 withholds only its ratio, as under every other rubric, and
- * abstains out of the composite only where no credited PR-trace file remains; A2's shallow-only
- * abstention carries the 'shallow_history' reason and leaves the composite. A2's abstention after a
- * failed history read (#556, #560) is still a read failure at 0, with its own note. Until F1 this
- * sentence said each shallow-clone abstention counts as 0, with the self-imposed content-read
- * exception; neither applies to a shallow-only abstention now.
+ * v27 freeze change F1 (operator decision 2026-10-28): B2 withholds only its ratio, as under every
+ * other rubric, or abstains where no credited PR-trace file remains. Operator ruling of 1 Nov: the
+ * scan gives no composite and no verdict (WITAN_V27_SHALLOW_HISTORY_REASON), so this sentence no
+ * longer says how an abstention enters the composite; until then it said A2's shallow-only
+ * abstention was left out of the composite and a failed-read one counted as 0.
  */
 export const SHALLOW_HISTORY_V27_ABSTENTION =
   'This repository is a shallow clone (git rev-parse --is-shallow-repository reports true), so its ' +
   'commit history is truncated. A2 (credentials and .env files in earlier commits) and B2 (pull-request ' +
-  'merge ratio over recent commits) read history. Under this rubric A2 abstains unless a confirmed ' +
+  'merge ratio over recent commits) read history. Under this rubric a shallow clone gets no composite ' +
+  'score and no verdict; each criterion is still read and shown. A2 abstains unless a confirmed ' +
   'critical secret finding stands, including where it would otherwise be marked not applicable, ' +
-  'because that decision also rests on its scans of earlier commits. Where A2 abstains only because ' +
-  'the clone is shallow, it is left out of the composite rather than counted as 0; if a history read ' +
-  'also failed, as its note then says, it counts as 0. B2, where it would be ' +
-  'scored, leaves that ratio out when fewer commits are visible than it reads and is scored on the ' +
-  'CI workflows it credits, pull-request template and review-gate record in the checked-out files, ' +
-  'or abstains out of the composite where none of those remains. ' +
-  'Re-scan a full clone (for actions/checkout, set fetch-depth: 0).';
+  'because that decision also rests on its scans of earlier commits. B2, where it would be scored, ' +
+  'leaves that ratio out when fewer commits are visible than it reads and is scored on the CI ' +
+  'workflows it credits, pull-request template and review-gate record in the checked-out files, or ' +
+  'abstains where none of those remains. ' +
+  SHALLOW_HISTORY_FETCH_INSTRUCTION;
+
+/** A v27 report that abstained because the scanned checkout is a shallow clone. */
+export function isWitanV27ShallowHistoryAbstention(report: WitanReport): boolean {
+  return report.verdict === 'insufficient_source' && report.insufficientSourceReason === WITAN_V27_SHALLOW_HISTORY_REASON;
+}
 
 /** True when `repoPath` is a shallow clone. False when it is complete or not a git repository. */
 export function isShallowRepository(repoPath: string): boolean {

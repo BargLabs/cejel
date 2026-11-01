@@ -277,9 +277,10 @@ describe("#556: the issue's shape (a secret-bearing .env committed, deleted, the
   });
 
   // v27 freeze change F1 (operator decision 2026-10-28): on the shallow clones (depth 1 and 12) A2's
-  // abstention, with the same note, now leaves the composite (reason shallow_history). Until then
-  // it was kept at 0 there too. The failed reads below are unchanged.
-  it('v27: A2 abstains on every incomplete clone; on a shallow clone it leaves the composite, after a failed read it is kept at 0', () => {
+  // abstention, with the same note, left the composite (reason shallow_history). Until then it was
+  // kept at 0 there too. Operator ruling of 1 Nov: a v27 shallow clone has no composite at all. The
+  // failed reads below are unchanged.
+  it('v27: A2 abstains on every incomplete clone; a shallow clone has no composite, after a failed read A2 is kept at 0', () => {
     for (const clone of INCOMPLETE) {
       const scored = report(shape, clone, V27);
       const criterion = a2(scored);
@@ -303,27 +304,32 @@ describe("#556: the issue's shape (a secret-bearing .env committed, deleted, the
         WITAN_A2_HISTORY_APPLICABILITY_PREFIX,
       );
       // Failed reads are kept in the denominator: code_trust is reproduced with A2 at 0 and not
-      // without it. Shallow clones leave A2 out: code_trust is reproduced without it.
+      // without it. Shallow clones have no composite (ruling of 1 Nov).
       expect(
         scored.criteria
           .filter(({ category, status }) => category === 'code_trust' && status === 'insufficient_data')
           .map(({ id }) => id),
         name,
       ).toEqual(['A2']);
-      const { kept, dropped } = codeTrustWithAndWithoutA2(scored);
-      expect(kept, name).not.toBe(dropped);
-      expect(scored.codeTrustScore, name).toBe(FAILED_READS.includes(clone) ? kept : dropped);
+      if (FAILED_READS.includes(clone)) {
+        const { kept, dropped } = codeTrustWithAndWithoutA2(scored);
+        expect(kept, name).not.toBe(dropped);
+        expect(scored.codeTrustScore, name).toBe(kept);
+      } else {
+        expect(scored.verdict, name).toBe('insufficient_source');
+        expect(scored.codeTrustScore, name).toBeNull();
+      }
     }
   });
 
   // F1 changed this for the shallow clones. The complete clone's A2 is critical on the secret its
   // history scan reads in an earlier commit; a shallow clone holds no such commit, so A2 abstains
-  // there and, since F1, leaves the composite, and code_trust and the overall come out ABOVE the
-  // complete clone's: exactly the complete clone's composites with A2 left out. This is the one
-  // shallow-clone rise F1's measurement rule does not admit (it admits a rise only through B2's
-  // withheld ratio), and it is reported for the operator's decision in the PR that made it. Before
-  // F1 every incomplete clone scored below the complete clone. The failed reads still do.
-  it("v27: no failed-read clone's composites or A2 score exceed the complete clone's; a shallow clone's composites are the complete clone's without A2", () => {
+  // there and, under F1, left the composite, and code_trust and the overall came out ABOVE the
+  // complete clone's: exactly the complete clone's composites with A2 left out. Before F1 every
+  // incomplete clone scored below the complete clone. The failed reads still do. Operator ruling of
+  // 1 Nov: a v27 shallow clone has no composite, so it neither rises above nor falls below the
+  // complete clone; it abstains.
+  it("v27: no failed-read clone's composites or A2 score exceed the complete clone's; a shallow clone has no composites", () => {
     const full = report(shape, 'full', V27);
     for (const clone of FAILED_READS) {
       const incomplete = report(shape, clone, V27);
@@ -335,10 +341,11 @@ describe("#556: the issue's shape (a secret-bearing .env committed, deleted, the
     }
     for (const clone of SHALLOW) {
       const incomplete = report(shape, clone, V27);
-      expect(incomplete.codeTrustScore, String(clone)).toBe(codeTrustWithoutA2(full));
-      expect(incomplete.processTrustScore, String(clone)).toBe(full.processTrustScore);
-      expect(incomplete.codeTrustScore as number, String(clone)).toBeGreaterThan(full.codeTrustScore as number);
-      expect([full.overallScore, incomplete.overallScore], String(clone)).toEqual([1.8, 2]);
+      expect(incomplete.verdict, String(clone)).toBe('insufficient_source');
+      for (const composite of COMPOSITES) expect(incomplete[composite], `${clone} ${composite}`).toBeNull();
+      // The rise F1 produced here, for the record: the complete clone's code_trust without A2.
+      expect(codeTrustWithoutA2(full), String(clone)).toBeGreaterThan(full.codeTrustScore as number);
+      expect(full.overallScore, String(clone)).toBe(1.8);
     }
   });
 
@@ -351,12 +358,13 @@ describe("#556: the issue's shape (a secret-bearing .env committed, deleted, the
       for (const composite of COMPOSITES) {
         expect(rises(before[composite], after[composite]), `${clone} ${composite}`).toBe(false);
       }
-      // F1: on the shallow clones v17 marks A2 not applicable and v27's abstention leaves the
-      // composite, so code_trust is equal; after a failed read v27 keeps A2 at 0, so it is lower.
+      // After a failed read v27 keeps A2 at 0, so code_trust is lower. On the shallow clones v27 has
+      // no composite (ruling of 1 Nov; under F1 it equalled v17's, which marks A2 not applicable).
       if (FAILED_READS.includes(clone)) {
         expect(after.codeTrustScore as number, String(clone)).toBeLessThan(before.codeTrustScore as number);
       } else {
-        expect(after.codeTrustScore, String(clone)).toBe(before.codeTrustScore);
+        expect(after.codeTrustScore, String(clone)).toBeNull();
+        expect(before.codeTrustScore, String(clone)).not.toBeNull();
       }
     }
   });
@@ -496,37 +504,35 @@ describe('#556: which history-read outcomes count as a failed read', () => {
 
 // The property (#556, #560): under v27, for every generated A2 shape, a clone whose history Cejel
 // read incompletely (truncated or failed) never scores above the complete clone, on the composites or
-// A2, except (since the v27 freeze change F1) the listed shallow clones whose composites rise by A2
-// alone leaving the composite. 12 shapes (secret in the tree / deleted in history / none; data layer yes/no; crypto surface
+// A2. 12 shapes (secret in the tree / deleted in history / none; data layer yes/no; crypto surface
 // yes/no) x 5 incomplete clones against the full clone. Deterministic: fixed commits, no randomness.
-describe('#556 property: under v27 a truncated or failed history read never scores above the complete clone, but for the listed A2-left-out shallow rises (F1)', () => {
-  // v27 freeze change F1 (operator decision 2026-10-28): on a shallow clone A2's abstention leaves
-  // the composite, so where the complete clone's A2 is critical on a secret only an earlier commit
-  // holds, the shallow clone's composites rise above the complete clone's by A2 alone. Those rises
-  // are listed here exactly, so any other fails; each is the complete clone's composite with A2 left
-  // out. They are reported for the operator's decision in the PR that made them.
-  const SHALLOW_RISES_BY_A2_LEFT_OUT = ['deleted-in-history', 'deleted-in-history+crypto', 'deleted-in-history+data', 'deleted-in-history+data+crypto']
-    .flatMap((shape) => [1, 12].flatMap((clone) => [`secret-${shape} ${clone}: overallScore`, `secret-${shape} ${clone}: codeTrustScore`]))
-    .sort();
-
+//
+// Under the v27 freeze change F1 (2026-10-28) A2's shallow-only abstention left the composite, and
+// this property listed the 8 shallow composites that rose above the complete clone's by A2 alone
+// (the deleted-in-history shapes at depth 1 and 12) and the 4 it lowered (the no-secret shapes with
+// a crypto surface, where the complete clone's A2 scored above code_trust's other criteria). The
+// operator's ruling of 1 Nov removes both: a v27 shallow clone has no composite and no verdict, so
+// it abstains on every shape and neither rises nor falls.
+describe('#556 property: under v27 a truncated or failed history read never scores above the complete clone, and a shallow clone abstains', () => {
   it('holds for every shape and clone, and A2 is never not applicable on incomplete history', () => {
     const problems: string[] = [];
-    const risesByA2: string[] = [];
     const lowered: string[] = [];
+    const abstained: string[] = [];
     for (const shape of SHALLOW_A2_SHAPES) {
       const full = report(shape, 'full', V27);
       for (const clone of INCOMPLETE) {
         const incomplete = report(shape, clone, V27);
         const name = `${shallowA2ShapeName(shape)} ${clone}`;
+        if (SHALLOW.includes(clone)) {
+          if (incomplete.verdict !== 'insufficient_source' || COMPOSITES.some((composite) => incomplete[composite] !== null)) {
+            problems.push(`${name}: a shallow clone is scored under v27`);
+          } else {
+            abstained.push(name);
+          }
+        }
         for (const composite of COMPOSITES) {
           if (rises(full[composite], incomplete[composite])) {
-            const byA2 =
-              SHALLOW.includes(clone) &&
-              a2(incomplete).status === 'insufficient_data' &&
-              incomplete.codeTrustScore === codeTrustWithoutA2(full) &&
-              incomplete.processTrustScore === full.processTrustScore;
-            if (byA2) risesByA2.push(`${name}: ${composite}`);
-            else problems.push(`${name}: ${composite} ${String(full[composite])} -> ${String(incomplete[composite])}`);
+            problems.push(`${name}: ${composite} ${String(full[composite])} -> ${String(incomplete[composite])}`);
           }
         }
         if (a2(incomplete).score > a2(full).score) problems.push(`${name}: A2 ${a2(full).score} -> ${a2(incomplete).score}`);
@@ -534,25 +540,17 @@ describe('#556 property: under v27 a truncated or failed history read never scor
         if (truncatedOrFailed && a2(incomplete).status === 'not_applicable') {
           problems.push(`${name}: A2 not applicable on incomplete history`);
         }
-        if ((incomplete.overallScore ?? 0) < (full.overallScore ?? 0)) lowered.push(name);
+        if (incomplete.overallScore !== null && incomplete.overallScore < (full.overallScore ?? 0)) lowered.push(name);
       }
     }
     expect(problems).toEqual([]);
-    expect(risesByA2.sort()).toEqual(SHALLOW_RISES_BY_A2_LEFT_OUT);
+    expect(abstained).toHaveLength(SHALLOW_A2_SHAPES.length * SHALLOW.length);
     // Liveness: the property is not vacuous. Lowered: every shape without a secret in the tree on
-    // its treeless clone (8), the 4 deleted-secret shapes on their blobless and missing-blob clones
-    // (4 x 2), and the two no-secret shapes with a crypto surface on their shallow clones (2 x 2),
-    // where the complete clone's A2 scores above the mean of code_trust's other criteria, so leaving
-    // it out lowers code_trust. Before F1 the shallow clones of all 8 shapes without a secret in the
-    // tree were lowered (32 in all). The in-tree secret stands as critical; a blobless clone whose
-    // history holds no credential path reads every object it needs.
-    expect(lowered).toHaveLength(20);
-    expect(lowered.filter((name) => / (1|12)$/.test(name)).sort()).toEqual([
-      'secret-none+crypto 1',
-      'secret-none+crypto 12',
-      'secret-none+data+crypto 1',
-      'secret-none+data+crypto 12',
-    ]);
+    // its treeless clone (8), and the 4 deleted-secret shapes on their blobless and missing-blob
+    // clones (4 x 2). The in-tree secret stands as critical; a blobless clone whose history holds no
+    // credential path reads every object it needs. No shallow clone is lowered: none is scored.
+    expect(lowered).toHaveLength(16);
+    expect(lowered.filter((name) => / (1|12)$/.test(name))).toEqual([]);
   }, 180_000);
 
   it('every rubric before v27 is unchanged on every shape (v17 pinned), and discloses exactly where A2 is not applicable on incomplete history', () => {

@@ -1,6 +1,7 @@
 import type { WitanReport } from './schemas.js';
 
 import { isWitanNoMeasurementAbstention } from './abstention.js';
+import { isWitanV27ShallowHistoryAbstention } from './history-depth.js';
 import { renderReportVerdict } from './html.js';
 
 // The free-CLI / GitHub Action growth-loop artifact (goal: witan_free_cli_badge). Both
@@ -43,6 +44,8 @@ const VERDICT_SVG_FILL: Record<string, string> = {
 function badgeMessage(report: WitanReport, verdict: string): string {
   if ((report.scanLimitations?.length ?? 0) > 0) return 'unrated: limited evidence';
   if (isWitanNoMeasurementAbstention(report)) return 'unrated: no measurable evidence';
+  // v27 on a shallow clone (operator ruling of 1 Nov): the source is there; its history was not.
+  if (isWitanV27ShallowHistoryAbstention(report)) return 'unrated: shallow clone';
   if (report.verdict === 'insufficient_source') return 'unrated: no source';
   return `${formatScore(report.overallScore)}/4.0 ${verdict.toLowerCase()}`;
 }

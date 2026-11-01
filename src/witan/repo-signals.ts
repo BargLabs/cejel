@@ -72,7 +72,7 @@ import {
   isExpectedGitAbsence,
   type GitExecResult,
 } from './git-exec.js';
-import { isShallowRepository } from './history-depth.js';
+import { WITAN_V27_SHALLOW_HISTORY_REASON, isShallowRepository } from './history-depth.js';
 import { stripBom } from './json-safe.js';
 import {
   WITAN_RUBRIC_VERSION_V9,
@@ -826,6 +826,14 @@ function buildWitanInputFromRepoUntracked(
           totalFileCount: gatedArchetype.totalFileCount,
         }
       : gatedArchetype;
+  // Operator ruling of 1 Nov (v27 only): a shallow clone gets no composite and no verdict. The
+  // signals above are still collected, so each criterion's reading is computed and shown; only the
+  // headline abstains. A structural reason the repository cannot be rated at all comes first, since
+  // fetching the history would not change it. Every other rubric is untouched.
+  const insufficientSourceReason =
+    ignoredTargetReason ??
+    archetype.insufficientSourceReason ??
+    (usesV27Closure && isShallowRepository(options.repoPath) ? WITAN_V27_SHALLOW_HISTORY_REASON : undefined);
 
   return {
     productSlug: options.productSlug,
@@ -839,9 +847,7 @@ function buildWitanInputFromRepoUntracked(
     generatedAt,
     ...(options.rubricVersion ? { rubricVersion: options.rubricVersion } : {}),
     archetype: archetype.archetype,
-    ...((ignoredTargetReason ?? archetype.insufficientSourceReason)
-      ? { insufficientSourceReason: ignoredTargetReason ?? archetype.insufficientSourceReason }
-      : {}),
+    ...(insufficientSourceReason ? { insufficientSourceReason } : {}),
     ...(scanLimitations.size > 0
       ? { scanLimitations: [...scanLimitations] }
       : {}),
@@ -6134,11 +6140,13 @@ export function v27A2FailedHistoryNote(
 
 /**
  * v27: A2's abstention after an incomplete read of the commit history. Where only the clone's
- * depth truncated it (#442's notes), the abstention carries the 'shallow_history' reason and is
- * left out of the composite, so a shallow clone does not lower the history score (v27 freeze
- * change F1, operator decision 2026-10-28, following the operator's 26/27 Oct rule for every other
- * rubric). Where a history read failed (#556, #560), on a shallow clone or not, it stays a read
- * failure kept in the composite at 0, as before.
+ * depth truncated it, it keeps #442's notes; where a history read failed (#556, #560), on a shallow
+ * clone or not, it carries the failed-history note and is a read failure kept in the composite at 0.
+ * The v27 freeze change F1 (2026-10-28) gave the shallow-only abstention the 'shallow_history'
+ * reason, which left it out of the composite. The operator's ruling of 1 Nov replaced that for v27:
+ * a shallow clone gets no composite and no verdict at all (WITAN_V27_SHALLOW_HISTORY_REASON), so the
+ * reason, and the composite exclusion it carried, is removed. With no composite the abstention
+ * enters no number either way.
  */
 function v27A2HistoryAbstention(
   incompleteness: A2HistoryIncompleteness,
@@ -6147,13 +6155,10 @@ function v27A2HistoryAbstention(
   if (historyReadFailed(incompleteness)) {
     return shallowHistoryAbstention('A2', v27A2FailedHistoryNote(incompleteness, wouldBeNotApplicable));
   }
-  return {
-    ...shallowHistoryAbstention(
-      'A2',
-      wouldBeNotApplicable ? V27_A2_SHALLOW_APPLICABILITY_NOTE : V27_A2_SHALLOW_HISTORY_NOTE,
-    ),
-    insufficientDataReason: 'shallow_history',
-  };
+  return shallowHistoryAbstention(
+    'A2',
+    wouldBeNotApplicable ? V27_A2_SHALLOW_APPLICABILITY_NOTE : V27_A2_SHALLOW_HISTORY_NOTE,
+  );
 }
 
 /**
@@ -6207,7 +6212,8 @@ const B2_SHALLOW_RATIO_WITHHELD_NOTE =
  * failed (#442, #556). No insufficientDataReason: it is a read failure, so it stays in the composite
  * at 0. Callers add the 'shallow_history' reason, which leaves the composite, where only the
  * clone's depth is the cause: B2 where it has no PR-trace evidence to score without the ratio
- * (every rubric but v27 since #604, v27 too since the v27 freeze change F1), and v27's A2 since F1
+ * (every rubric but v27 since #604, v27 too since the v27 freeze change F1). v27's A2 carried it
+ * from F1 until the operator's ruling of 1 Nov, under which a v27 shallow clone has no composite
  * (v27A2HistoryAbstention).
  */
 function shallowHistoryAbstention(
