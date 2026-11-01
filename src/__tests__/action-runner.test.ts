@@ -15,6 +15,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
+import { WITAN_V27_A2_FAILED_HISTORY_NOTE_PREFIX } from '../witan/abstention.js';
 import {
   buildCacheLibraryOrigin,
   cloneRepository,
@@ -657,12 +658,18 @@ describe('GitHub Action rubric-pin input', () => {
       expect(run.status).toBe(0);
       const report = readReport(run) as {
         rubricVersion: string;
-        criteria: { id: string; status: string; insufficientDataReason?: string }[];
+        criteria: { id: string; status: string; notes?: string }[];
+        verdictCap?: { criterionId: string; reason: string };
       };
       expect(report.rubricVersion).toBe(V27);
+      // Every history read succeeds on this fixture, so A2's abstention is the shallow-only one
+      // (a failed read would carry the failed-history note prefix).
       const a2 = report.criteria.find((criterion) => criterion.id === 'A2');
       expect(a2?.status).toBe('insufficient_data');
-      expect(a2?.insufficientDataReason).toBe('shallow_history');
+      expect((a2?.notes ?? '').startsWith(WITAN_V27_A2_FAILED_HISTORY_NOTE_PREFIX)).toBe(false);
+      if (report.verdictCap) {
+        expect(report.verdictCap).toMatchObject({ criterionId: 'A2', reason: 'shallow_history' });
+      }
 
       const summary = JSON.parse(readFileSync(join(run.exportDir, 'summary.json'), 'utf8')) as {
         overallScore: number | null;

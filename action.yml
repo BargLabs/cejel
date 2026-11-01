@@ -24,6 +24,15 @@ inputs:
       runner-temporary scan completes. Existing populated destinations are refused.
     required: false
     default: '.cejel'
+  rubric-pin:
+    description: >-
+      Explicit opt-in only: pin a rubric other than the calibrated default, for example
+      witan-rubric-v27-prospective-2026-10-19. A prospective rubric carries no precision or
+      recall claim. Leave empty for the calibrated default. The CLI validates the value; an
+      unknown id fails this step. When pinning v27, check out with actions/checkout and
+      fetch-depth: 0. On a shallow clone v27's A2 abstains and the verdict is capped.
+    required: false
+    default: ''
 outputs:
   score:
     description: 'Overall Cejel trust score (0.0-4.0), or empty when Cejel abstains.'
@@ -83,3 +92,4 @@ runs:
         WITAN_REPO_PATH: ${{ inputs.repo-path }}
         WITAN_MIN_SCORE: ${{ inputs.min-score }}
         WITAN_EXPORT_DIR: ${{ inputs.out-dir }}
+        WITAN_RUBRIC_PIN: ${{ inputs.rubric-pin }}
