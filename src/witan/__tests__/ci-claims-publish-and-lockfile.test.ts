@@ -355,8 +355,15 @@ describe('#517 — a workflow that publishes, releases or deploys is not CI veri
     }
   });
 
-  it('v27: removing the environment gate and moving publishing onto every push does not raise B3', () => {
-    for (const [gated, ungated] of pairs) {
+  // Changed 2026-11-01 (#517 correction, operator's ruling of 1 November 2026): v27 excludes only a
+  // publishing workflow that publishes without checking. The npm workflow runs `npm test` before
+  // `npm publish` in the same job, so it is default-branch CI that also publishes and is counted, as
+  // v17 counts it; only the PyPI pair, whose jobs build and publish without a check, still holds.
+  const uncheckedPairs = pairs.filter(([gated]) => gated === 'pypi-release-gated');
+
+  it('v27: removing the environment gate and moving an unchecked publish onto every push does not raise B3', () => {
+    expect(uncheckedPairs).toHaveLength(1);
+    for (const [gated, ungated] of uncheckedPairs) {
       const before = criterion(gated, V27, 'B3');
       const after = criterion(ungated, V27, 'B3');
       expect(after.score, ungated).toBe(before.score);
@@ -370,11 +377,10 @@ describe('#517 — a workflow that publishes, releases or deploys is not CI veri
   // the upload).
   const details: Readonly<Record<string, string>> = {
     'pypi-release-ungated': 'is triggered by push to main, and neither of its 2 publishing jobs declares an environment.',
-    'npm-release-ungated': 'is triggered by push to master, and its publishing job declares no environment.',
   };
 
   it('v27: the note and the disclosure name the publishing workflow, and never call it publish-only', () => {
-    for (const [, ungated, file] of pairs) {
+    for (const [, ungated, file] of uncheckedPairs) {
       const b3 = criterion(ungated, V27, 'B3');
       expect(b3.notes, ungated).toBe(
         `1 workflow that publishes, releases or deploys with no pull-request trigger (an unconditional step runs a publish, release or deploy command or action) is not counted as CI verification, whatever else it runs: ${file}. ${file} ${details[ungated]}`,
@@ -386,6 +392,24 @@ describe('#517 — a workflow that publishes, releases or deploys is not CI veri
       expect(b3.metrics.find(({ name }) => name === 'default_branch_ci_depth')?.presentation?.condition, ungated).toBe(
         '1 CI workflow file that publishes, releases or deploys with no pull-request trigger is not counted',
       );
+    }
+  });
+
+  it('v27 (#517 correction): the npm workflow, which tests before it publishes, is counted, gated or not, and the note says why', () => {
+    const file = '.github/workflows/release.yml';
+    const triggers: Readonly<Record<string, string>> = {
+      'npm-release-gated': 'workflow_dispatch, and its publishing job declares the environment npm-publish.',
+      'npm-release-ungated': 'push to master, and its publishing job declares no environment.',
+    };
+    for (const [name, trigger] of Object.entries(triggers)) {
+      const b3 = criterion(name, V27, 'B3');
+      for (const metric of ['default_branch_ci_depth', 'ci_script_depth']) {
+        expect(metricValue(b3, metric), `${name} ${metric}`).toBe(metricValue(criterion(name, V17, 'B3'), metric));
+      }
+      expect(b3.notes, name).toBe(
+        `${file} is counted as CI verification because a check runs before it publishes; it is triggered by ${trigger}`,
+      );
+      expect(b3.disclosures ?? [], name).not.toContainEqual(expect.stringContaining(file));
     }
   });
 

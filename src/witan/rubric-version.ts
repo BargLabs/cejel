@@ -178,7 +178,11 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     triggers or is a fork guard no gate, and a local reusable workflow followed; a job's
 //     matrix is not read, so a publishing job is publishing whatever its matrix, as before; from
 //     2026-10-28, freeze change F3-b, its note also names, read from the workflow, the triggers its
-//     `on:` names and whether its publishing job declares an `environment:`, as note text only);
+//     `on:` names and whether its publishing job declares an `environment:`, as note text only;
+//     from 2026-11-01, the #517 correction on the operator's ruling of 1 November, such a workflow
+//     is counted after all when a check runs before every publish step, in the publishing job or
+//     in a job it needs, and B3's note says so: only a workflow that publishes without checking is
+//     excluded);
 //   - A1: conftest.py is not a concrete test file, and an unconditional run-wide pytest skip
 //     (a collection hook that skips or clears every item, or a module-level pytestmark skip)
 //     marks the test files in its scope hollow (from 2026-10-27 the hook's skip marker may also be
