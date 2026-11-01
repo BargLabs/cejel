@@ -179,7 +179,9 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     matrix is not read, so a publishing job is publishing whatever its matrix, as before; from
 //     2026-10-28, freeze change F3-b, its note also names, read from the workflow, the triggers its
 //     `on:` names and whether its publishing job declares an `environment:`, as note text only);
-//   - A1: conftest.py is not a concrete test file, and an unconditional run-wide pytest skip
+//   - A1: conftest.py is not a concrete test file (not cited as one, and rated hollow where it
+//     asserts; from 2026-11-01 test_to_source_ratio counts it as test surface, as v17 does), and
+//     an unconditional run-wide pytest skip
 //     (a collection hook that skips or clears every item, or a module-level pytestmark skip)
 //     marks the test files in its scope hollow (from 2026-10-27 the hook's skip marker may also be
 //     the name "skip", or a name bound once to pytest.mark.skip before the loop); from 2026-10-28
@@ -191,7 +193,14 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     `runTest`, a call or an attribute assignment outside function bodies (Python), JSX, or a call
 //     outside test-case and hook bodies that is not a test, suite or hook global (JavaScript),
 //     and (the #610 review residuals, 2026-10-29) a Python decorator anywhere in the file that is
-//     not a skip form or a pytest mark, or a Python module that names `load_tests`;
+//     not a skip form or a pytest mark, or a Python module that names `load_tests`; from 2026-11-01
+//     (goal_cejel_v27_a1_test_count_overmatch_2026-11-01) A1's note and evidence name each file
+//     these rules rate hollow, with the rule, and no rule claims where its condition is not read:
+//     a conftest.py where pytest's python_files is set, the Python per-test reader where
+//     python_functions or python_classes is set, any skip mark where `no:skipping` appears (each
+//     read from a pytest configuration file or a CI workflow), a hook without an `items` parameter,
+//     a clear where the hook hands the list itself to other code, or a skip that sits inside
+//     another mark's arguments in pytestmark;
 //   - every criterion: a read of a Git LFS pointer is a content-read skip, so the criterion that
 //     read it abstains as a read failure instead of scoring the pointer text, unless its
 //     collector made a critical finding (it then scores as under v17);
@@ -216,8 +225,9 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     would reach with it counted as 0 (report.verdictCap where that lowers it); the composite
 //     itself is not capped, and the cap never raises a band.
 // Every other abstention is a read failure, kept in the composite at 0, and each other change only
-// lowers a metric, adds a zero-valued one or adds a finding, which can only cap a score (A1's non-hollow share stays measured over v17's test
-// list, so excluding conftest.py cannot shrink its denominator). So on a full clone no score,
+// lowers a metric, adds a zero-valued one or adds a finding, which can only cap a score (A1's
+// test_to_source_ratio and non-hollow share are both measured over v17's test list, so excluding
+// conftest.py moves neither denominator nor the ratio). So on a full clone no score,
 // status, composite or verdict can rise against v17 for the same commit (against the earlier v27,
 // A4 rises where that zero is withdrawn). On a shallow clone v27's history criteria are compared
 // with the same commit's full clone, not with v17 on the truncated input; everything else is

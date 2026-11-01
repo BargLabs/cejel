@@ -1,3 +1,7 @@
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 import { describe, expect, it } from 'vitest';
 
 import type { WitanCriterionScore, WitanReport } from '../schemas.js';
@@ -48,7 +52,7 @@ function a1(name: string, rubricVersion: string): WitanCriterionScore {
   return found;
 }
 
-function metric(score: WitanCriterionScore, name: string): { value: number; max: number } | undefined {
+function metric(score: WitanCriterionScore, name: string): { value: number; max: number | undefined } | undefined {
   const found = score.metrics.find((entry) => entry.name === name);
   return found ? { value: found.value, max: found.max } : undefined;
 }
@@ -197,6 +201,17 @@ describe('item C — test_to_source_ratio does not move for a conftest.py', () =
     for (const name of ['a1rm-conftest-only-change', 'a1rm-conftest-asserting-helper', 'a1rm-conftest-nonroot-defines-tests']) {
       expect(metric(a1(name, V27), 'test_to_source_ratio'), name).toEqual(metric(a1(name, V17), 'test_to_source_ratio'));
     }
+  });
+
+  it('the v27 declaration says what the code does', () => {
+    const declaration = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'rubric-version.ts'), 'utf8')
+      .split('\n')
+      .map((line) => line.replace(/^\/\/\s?/, '').trim())
+      .join(' ');
+    expect(declaration).toContain('from 2026-11-01 test_to_source_ratio counts it as test surface, as v17 does');
+    expect(declaration).toContain(
+      "A1's test_to_source_ratio and non-hollow share are both measured over v17's test list, so excluding conftest.py moves neither denominator nor the ratio",
+    );
   });
 
   it('the asserting conftest.py still leaves the non-hollow share, named, and A1 does not rise above v17', () => {

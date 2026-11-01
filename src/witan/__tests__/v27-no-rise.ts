@@ -456,9 +456,12 @@ function sameFinding(a: Finding, b: Finding): boolean {
  *     (shallowOnlyAbstention, F1), reports nothing it derived from the content it did not read. A critical finding is never removed this way: v27 keeps a collector's critical
  *     finding through an LFS abstention, and A2 does not abstain on a shallow clone while one
  *     stands;
- *   - A1's "Test suite files are present, ..." finding, where v27 measures a test_to_source_ratio of
- *     0: the only test-shaped files were conftest.py, which v27 does not count as tests (#518), so
- *     the finding's premise is false under v27.
+ *   - A1's "Test suite files are present, ..." finding, where v27's A1 cites no detected test file
+ *     and cites conftest.py as not a test file: the only test-shaped files were conftest.py, which
+ *     v27 does not count as tests (#518), so the finding's premise is false under v27. (Until
+ *     goal_cejel_v27_a1_test_count_overmatch_2026-11-01 this read v27's test_to_source_ratio of 0
+ *     as that premise; since its item C the ratio counts conftest.py as test surface, as v17 does,
+ *     so the premise is read from the evidence that states it.)
  *
  * One re-citation is allowed, exactly: A1's info finding "Test suite files are present, ..." that
  * v17 anchors (kind test_run) to a conftest.py may be anchored by v27, still info, to the pointer
@@ -482,7 +485,9 @@ export function lostFindings(before: WitanReport, after: WitanReport): string[] 
       if (
         v17.id === 'A1' &&
         finding.summary.startsWith('Test suite files are present') &&
-        v27?.metrics.find(({ name }) => name === 'test_to_source_ratio')?.value === 0
+        v27 !== undefined &&
+        !v27.evidence.some(({ kind, label }) => kind === 'test_run' && label.startsWith('Detected test file')) &&
+        v27.evidence.some(({ label }) => label === 'pytest configuration (conftest.py), not a test file')
       ) {
         continue;
       }
