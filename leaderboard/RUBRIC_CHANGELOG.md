@@ -72,8 +72,12 @@ paths, under all eleven selectable rubrics: #604's matrix (twelve repositories, 
   On main, 52 of those 77 composites were below their full clone's, 11 above, and 5 verdicts carried
   `verdictCap`.
 
-No behaviour-fingerprint pin moves: the fingerprint corpus holds no shallow clone. No published
-score moved: the board is scored under v17.
+No behaviour-fingerprint pin moves: the fingerprint corpus holds no shallow clone. Two
+scoring-surface pins in `src/witan/__tests__/disclosure-gaps.test.ts` move, both v27 and both
+shallow clones (`b3-master-target-depth-1-clone` and `b3-master-target-ci-fetch`), to
+`60df49109d311c52a2181677bf9df7f84de7257cc6a08eeaf81f7e45f7e5d2a0`, the abstention. Only those v27
+pins were updated; no other rubric's pin moved. No published score moved: the board is scored
+under v17.
 
 ## 2026-10-29 — two notes that could stop a scan from writing its report now fit the limit under every rubric; under v27 the Python per-test skip reader makes no claim beside a decorator or `load_tests`; v17-v26 byte-identical wherever a report was written; no published score moved
 
