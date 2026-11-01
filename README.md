@@ -517,8 +517,8 @@ capped where A2 could not be read.
 | `rubric-pin` | empty: the calibrated default | Explicit opt-in only: the same value as the CLI's `--rubric-pin`. An unknown id fails the step with the CLI's message. |
 
 The scoring step is offline whatever the inputs; it never fetches history. To opt in to the
-prospective v27 rubric, pin it and check out in full with `fetch-depth: 0`: under v27 a shallow
-checkout leaves A2 unread and caps the verdict. v17 remains the calibrated default.
+prospective v27 rubric, pin it and check out in full with `fetch-depth: 0`: v27 reads the commit
+history, so a shallow checkout gets no full v27 result. v17 remains the calibrated default.
 
 ```yaml
 - uses: actions/checkout@v4

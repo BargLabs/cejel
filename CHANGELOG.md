@@ -25,8 +25,8 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   non-empty, so an empty or absent input leaves the CLI invocation, the report and every output as
   they were. The CLI's own check validates the value; an unknown id fails the step with its message.
   A prospective pin carries no precision or recall claim. v17 remains the default. When pinning
-  v27, check out with `fetch-depth: 0`: under v27 a shallow checkout leaves A2 unread and caps the
-  verdict, and the Action stays offline and fetches nothing.
+  v27, check out with `fetch-depth: 0`: v27 reads the commit history, so a shallow checkout gets no full
+  v27 result, and the Action stays offline and fetches nothing.
 
 ### Changed
 

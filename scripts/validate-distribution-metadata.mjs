@@ -766,7 +766,7 @@ for (const [name, manifest] of [
   requireIncludes(manifest, "\n  rubric-pin:\n", `${name} Action rubric-pin input`);
   requireIncludes(
     manifest,
-    "fetch-depth: 0. On a shallow clone v27's A2 abstains and the verdict is capped.\n    required: false\n    default: ''\n",
+    "fetch-depth: 0. v27 reads the commit history, so a shallow clone gets no full v27 result.\n    required: false\n    default: ''\n",
     `${name} Action rubric-pin empty default`,
   );
   requireIncludes(
