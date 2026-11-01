@@ -312,7 +312,7 @@ const FALSE_ASSURANCE_FIXTURES_ISSUES: readonly FalseAssuranceFixture[] = [
     name: 'b3-test-then-publish-workflow',
     issue: '#517',
     purpose:
-      'Corner: a workflow that runs the tests and then publishes on every push, with no pull-request trigger (counted by v27 until the 2026-10-26 #517 follow-up, not counted by B3 since).',
+      'Corner: a workflow that runs the tests and then publishes on every push, with no pull-request trigger (counted by v27 until the 2026-10-26 #517 follow-up, not counted by B3 from then until the 2026-11-01 #517 correction, and counted since: the test runs before the publish).',
     commits: [{ ...JS_LIBRARY, '.github/workflows/ci-release.yml': NPM_TEST_THEN_PUBLISH }],
   },
   // #518 ------------------------------------------------------------------------------------
