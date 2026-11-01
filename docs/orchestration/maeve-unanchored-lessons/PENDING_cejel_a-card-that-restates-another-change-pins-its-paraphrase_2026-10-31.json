@@ -1,0 +1,24 @@
+[
+  {
+    "statement": "A task card that adds a CI passthrough restated another change's behaviour as a red-first test: under the v27 rubric a shallow checkout would yield the abstention verdict and an empty score. On main that change had been redecided (operator option C, 28 Oct): A2 alone abstains, the composite keeps its score and the verdict is capped. A test written from the card would have failed against main. Making it pass would have meant changing scoring, which the same card forbids, or certifying an abstention the product does not produce. The session read the behaviour from main's own tests and wrote the test as a pass-through: the Action's outputs equal the CLI's summary, and A2's abstention is the shallow-only one. Rule: when a card's test expectation describes behaviour owned by another change, read that behaviour from main's code and tests before writing the test. Test that the new surface passes it through, never the card's paraphrase of it, and name the divergence in the hand-back.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "goal-cards"
+    ],
+    "tags": [
+      "card-premise-drift",
+      "red-first-test",
+      "pass-through-surface",
+      "read-behaviour-from-main"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-10-31T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 618
+    }
+  }
+]
