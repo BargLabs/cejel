@@ -345,8 +345,8 @@ prints that boundary on every successful verification.
 - `--rubric-pin <version>` — Explicit opt-in only: pin an alternate rubric instead of the
   calibrated public default. It
   accepts the calibrated version or any published prospective rubric
-  (`witan-rubric-v18-prospective-*` through `v26`) and fails closed, naming what was accepted, on
-  anything else. `v26` (`witan-rubric-v26-prospective-2026-10-14`) is prospective and uncalibrated:
+  (`witan-rubric-v18-prospective-*` through `v27`) and fails closed, naming what was accepted, on
+  anything else. The GitHub Action takes the same value as its optional `rubric-pin` input. `v26` (`witan-rubric-v26-prospective-2026-10-14`) is prospective and uncalibrated:
   it is the next calibration candidate, inherits v25 complete, inherits neither v23 nor v24, and
   today scores exactly as v25 does. `v25` is prospective and uncalibrated: it inherits v22 and adds only credit for a
   health or readiness route declared inline in an application file (see "What counts as a health or
@@ -508,6 +508,31 @@ the certificate then lists a history limitation. On a shallow clone A2's scans o
 read only the commits present and B2 withholds its pull-request merge ratio, each with its reason;
 under the opt-in `witan-rubric-v27-prospective-2026-10-19` rubric, A2 abstains and the verdict is
 capped where A2 could not be read.
+
+| Input | Default | What it does |
+|---|---|---|
+| `repo-path` | the checkout (`$GITHUB_WORKSPACE`) | Path to the repository to score. |
+| `min-score` | empty: never fail | Fails the step below this overall score (0–4), or when Cejel abstains. |
+| `out-dir` | `.cejel` | Empty destination for this run's report artifacts. |
+| `rubric-pin` | empty: the calibrated default | Explicit opt-in only: the same value as the CLI's `--rubric-pin`. An unknown id fails the step with the CLI's message. |
+
+The scoring step is offline whatever the inputs; it never fetches history. To opt in to the
+prospective v27 rubric, pin it and check out in full with `fetch-depth: 0`: under v27 a shallow
+checkout leaves A2 unread and caps the verdict. v17 remains the calibrated default.
+
+```yaml
+- uses: actions/checkout@v4
+  with:
+    fetch-depth: 0 # full history: A2 and B2 read commit history
+- uses: BargLabs/cejel/action@v1
+  with:
+    rubric-pin: witan-rubric-v27-prospective-2026-10-19
+```
+
+A prospective pin carries no precision/recall claim, and the certificate states that plainly
+whenever one is used. Leave `rubric-pin` empty for the calibrated result every default scan
+produces: an empty input passes no `--rubric-pin`, so the scan, the report and the outputs are
+the same as without the input.
 
 ## Use with Claude
 
