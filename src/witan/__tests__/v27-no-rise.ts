@@ -195,15 +195,16 @@ export function checkNoRise(before: WitanReport, after: WitanReport, fullClone?:
   // Operator ruling of 1 Nov: v27 gives a shallow clone no composite and no verdict. That is an
   // abstention, not a rise or a drop, so no composite is compared (v17's scored composites against
   // v27's nulls would otherwise be item (b)'s problem). Every criterion is still compared: A2 and
-  // B2 with the full clone, the rest with v17. A v27 shallow report that does not abstain is no
-  // longer produced, and is a problem.
+  // B2 with the full clone, the rest with v17. A v27 shallow report with a verdict is no longer
+  // produced, and is a problem. (One that abstains for a structural reason, such as no ratable
+  // source, carries that reason instead and is compared as before.)
   const abstained = isWitanV27ShallowHistoryAbstention(after);
   const result = checkNoRiseAgainst(withV27HistoryCriteria(before, after), after, !abstained);
   return {
     ...result,
     problems: [
       ...result.problems,
-      ...(abstained ? [] : ["v27's report is of a shallow clone and gives a composite and a verdict"]),
+      ...(after.verdict === 'insufficient_source' ? [] : ["v27's report is of a shallow clone and gives a composite and a verdict"]),
       ...checkShallowHistoryAgainstFullClone(fullClone, after),
     ],
     shallowHistoryAbstention: abstained,
