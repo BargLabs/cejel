@@ -6411,8 +6411,12 @@ function collectB3CiDisciplineEvidence(
   // Decided once per workflow, under both depth signals, since each depends on the reading.
   // v27 freeze change F3-b: the same reading also says, for B3's note, what triggers each such
   // publishing workflow and whether its publishing job declares an environment.
+  // #517 correction (operator's ruling of 1 November 2026): a publishing workflow that runs a check
+  // before every publish is counted after all; its clause is kept for B3's note.
   const publishingDetails = new Map<string, string>();
   const rootPublishingDetails = new Map<string, string>();
+  const checkedPublishingDetails = new Map<string, string>();
+  const rootCheckedPublishingDetails = new Map<string, string>();
   const uncreditedWorkflows: ReadonlyMap<string, UncreditedCiWorkflowReason> = useV27FalseAssuranceClosure
     ? withContentReadSignals('B3', ['ci_script_depth', 'default_branch_ci_depth'], () =>
         publishingWorkflowReasons(
@@ -6420,6 +6424,7 @@ function collectB3CiDisciplineEvidence(
           workflows,
           uncreditedCiWorkflows(repoPath, workflows, ownPublishOnlyInventory(repoFiles)),
           publishingDetails,
+          checkedPublishingDetails,
         ),
       )
     : new Map();
@@ -6431,6 +6436,7 @@ function collectB3CiDisciplineEvidence(
             rootWorkflows,
             uncreditedCiWorkflows(mono.root, rootWorkflows, null),
             rootPublishingDetails,
+            rootCheckedPublishingDetails,
           ),
         )
       : new Map();
@@ -6447,6 +6453,15 @@ function collectB3CiDisciplineEvidence(
       ([file, detail]) => [`${file} at the monorepo root`, `${file} at the monorepo root ${detail}`] as const,
     ),
   ]);
+  // Each counted publishing workflow's name, as the note names it, with its F3-b clause.
+  const b3CheckedPublishing: ReadonlyMap<string, string> = new Map([
+    ...checkedPublishingDetails,
+    ...[...rootCheckedPublishingDetails].map(([file, detail]) => [`${file} at the monorepo root`, detail] as const),
+  ]);
+  const b3Note = b3NoteWithCheckedPublishing(
+    b3Uncredited.size > 0 ? b3UncreditedWorkflowsNote(b3Uncredited, b3PublishingDetails) : undefined,
+    b3CheckedPublishing,
+  );
   const { defaultBranchCiCount, defaultBranchCiWorkflows, rootDefaultBranchCiWorkflows } = withContentReadSignal(
     'B3',
     'default_branch_ci_depth',
@@ -6648,9 +6663,46 @@ function collectB3CiDisciplineEvidence(
             : undefined,
       ),
     ],
-    ...(b3Uncredited.size > 0 ? { notes: b3UncreditedWorkflowsNote(b3Uncredited, b3PublishingDetails) } : {}),
+    ...(b3Note !== undefined ? { notes: b3Note } : {}),
     ...b3Disclosures(unshownCheckWorkflows, ...b3UncreditedDisclosures(b3Uncredited)),
   };
+}
+
+/**
+ * B3's note under v27 (#517 correction): `uncreditedNote` unchanged, if any, then one sentence for
+ * each publishing workflow counted because a check runs before it publishes, in order, while the
+ * whole fits CRITERION_NOTES_MAX_LENGTH. A sentence names the workflow, says so in one clause, and
+ * keeps its F3-b trigger and environment clause; without room for that clause it ends after the
+ * first, and without room for either the rest are counted in one sentence. Undefined when there is
+ * nothing to say, as before.
+ */
+function b3NoteWithCheckedPublishing(
+  uncreditedNote: string | undefined,
+  checked: ReadonlyMap<string, string>,
+): string | undefined {
+  const entries = [...checked];
+  let note = uncreditedNote ?? '';
+  const fits = (sentence: string) => (note === '' ? sentence.length : note.length + 1 + sentence.length) <= CRITERION_NOTES_MAX_LENGTH;
+  const add = (sentence: string) => {
+    note = note === '' ? sentence : `${note} ${sentence}`;
+  };
+  for (const [index, [name, detail]] of entries.entries()) {
+    const counted = `${name} is counted as CI verification because a check runs before it publishes`;
+    const full = `${counted}; it ${detail}`;
+    if (fits(full)) {
+      add(full);
+      continue;
+    }
+    if (fits(`${counted}.`)) {
+      add(`${counted}.`);
+      continue;
+    }
+    const rest = entries.length - index;
+    const remainder = `${rest}${note === '' ? '' : ' more'} publishing workflow${rest === 1 ? ' is' : 's are'} counted as CI verification because a check runs before ${rest === 1 ? 'it publishes' : 'they publish'}.`;
+    if (fits(remainder)) add(remainder);
+    break;
+  }
+  return note === '' ? undefined : note;
 }
 
 function b3Disclosures(unshown: B3UnshownCheckWorkflows, ...uncredited: string[]): { disclosures?: string[] } {
@@ -6781,12 +6833,18 @@ function isPublishingCommand(input: readonly string[]): boolean {
  *
  * v27 freeze change F3-b: for each workflow added as 'publishes', `details` gets the clause B3's
  * note adds after its path (publishingWorkflowDetail).
+ *
+ * #517 correction (operator's ruling of 1 November 2026): only a publishing workflow that publishes
+ * without checking is excluded. One where a check runs before every publish
+ * (checksBeforeEveryPublish) is default-branch CI that also publishes, so it is not added; its
+ * clause goes to `checkedDetails` instead, for B3's note to say it is counted and why.
  */
 function publishingWorkflowReasons(
   root: string,
   workflows: readonly string[],
   uncredited: ReadonlyMap<string, UncreditedCiWorkflowReason>,
   details: Map<string, string>,
+  checkedDetails: Map<string, string>,
 ): Map<string, UncreditedCiWorkflowReason> {
   const reasons = new Map<string, UncreditedCiWorkflowReason>();
   for (const file of workflows) {
@@ -6795,10 +6853,14 @@ function publishingWorkflowReasons(
       reasons.set(file, known);
       continue;
     }
-    const detail = publishingWorkflowDetail(root, file);
-    if (detail === undefined) continue;
+    const read = publishingWorkflowDetail(root, file);
+    if (read === undefined) continue;
+    if (read.checked) {
+      checkedDetails.set(file, read.detail);
+      continue;
+    }
     reasons.set(file, 'publishes');
-    details.set(file, detail);
+    details.set(file, read.detail);
   }
   return reasons;
 }
@@ -7056,6 +7118,23 @@ interface WorkflowJob {
   readonly target?: string;
   /** A job-level key `isGuardLine` counts as a guard sits on it. */
   readonly conditional: boolean;
+  /** The job's id, from its key; undefined when the key is not a plain name. */
+  readonly name?: string;
+  /**
+   * The job ids its `needs:` names (a name, a flow list or a block list): empty with no `needs:`,
+   * null when the reader cannot place it.
+   */
+  readonly needs: readonly string[] | null;
+}
+
+const JOB_ID_KEY_PATTERN = /^[ \t]*([A-Za-z_][A-Za-z0-9_-]*):$/;
+const JOB_ID_PATTERN = /^[A-Za-z_][A-Za-z0-9_-]*$/;
+const JOB_NEEDS_KEY_PATTERN = /^[ \t]*needs:([^]*)$/;
+const YAML_BLOCK_LIST_ITEM_PATTERN = /^[ \t]*-[ \t]+([^]*)$/;
+
+/** `names` when every one is a plain job id, otherwise null. */
+function jobIdsOrNull(names: readonly string[] | null): string[] | null {
+  return names !== null && names.every((name) => JOB_ID_PATTERN.test(name)) ? [...names] : null;
 }
 
 /**
@@ -7075,10 +7154,19 @@ function workflowJobs(contents: string, isGuardLine: (line: string) => boolean):
   if (jobsAt === -1) return jobs;
   let jobIndent = -1;
   let keyIndent = -1;
-  let job: { start: number; target?: string; conditional: boolean } | null = null;
+  type OpenJob = { start: number; target?: string; conditional: boolean; name?: string; needs: string[] | null };
+  let job: OpenJob | null = null;
+  // Set while the lines after a `needs:` with no value are read as its block list.
+  let needsBlock = false;
+  let needsSeen = false;
   const close = (end: number) => {
-    if (job) jobs.push({ ...job, end });
+    if (job) {
+      if (needsBlock && job.needs?.length === 0) job.needs = null;
+      jobs.push({ ...job, end });
+    }
     job = null;
+    needsBlock = false;
+    needsSeen = false;
   };
   let index = jobsAt + 1;
   for (; index < lines.length; index += 1) {
@@ -7089,18 +7177,35 @@ function workflowJobs(contents: string, isGuardLine: (line: string) => boolean):
     if (indent < jobIndent) break;
     if (indent === jobIndent) {
       close(index);
-      job = { start: index, conditional: false };
+      const id = JOB_ID_KEY_PATTERN.exec(stripYamlComment(lines[index] ?? '').trimEnd());
+      job = { start: index, conditional: false, needs: [], ...(id ? { name: id[1] ?? '' } : {}) };
       keyIndent = -1;
       continue;
     }
     if (!job) continue;
-    const current: { start: number; target?: string; conditional: boolean } = job;
+    const current: OpenJob = job;
     if (keyIndent === -1) keyIndent = indent;
-    if (indent !== keyIndent) continue;
     const raw = lines[index] ?? '';
+    if (needsBlock && indent > keyIndent) {
+      const item = YAML_BLOCK_LIST_ITEM_PATTERN.exec(stripYamlComment(raw).trimEnd());
+      const name = unquoteYamlScalar(item?.[1] ?? '');
+      if (item && current.needs && JOB_ID_PATTERN.test(name)) current.needs.push(name);
+      else current.needs = null;
+      continue;
+    }
+    if (needsBlock && current.needs?.length === 0) current.needs = null;
+    needsBlock = false;
+    if (indent !== keyIndent) continue;
     if (isGuardLine(raw)) current.conditional = true;
     const uses = JOB_USES_KEY_PATTERN.exec(raw);
     if (uses) current.target = unquoteYamlScalar(stripYamlComment(uses[1] ?? ''));
+    const needs = JOB_NEEDS_KEY_PATTERN.exec(raw);
+    if (needs) {
+      const value = stripYamlComment(needs[1] ?? '').trim();
+      current.needs = needsSeen ? null : value === '' ? [] : jobIdsOrNull(yamlInlineList(value));
+      needsBlock = !needsSeen && value === '';
+      needsSeen = true;
+    }
   }
   close(index);
   return jobs;
@@ -7124,47 +7229,63 @@ function workflowJobs(contents: string, isGuardLine: (line: string) => boolean):
  * order, or an empty list when the workflow does not publish on every run. The jobs are those of
  * the first file that publishes: this workflow, or else the first reusable workflow followed, read
  * in the same order as before, so the files read are the same.
+ *
+ * With the environments, whether a check runs before every publish (checksBeforeEveryPublish, the
+ * #517 correction). That is read only in the workflow itself (depth 0), from the contents already
+ * read; a publish inside a reusable workflow is checked only through what its calling job needs.
  */
 function publishingJobsOnEveryRun(
   root: string,
   contents: string,
   context: WorkflowTriggerContext,
   depth: number,
-): PublishingJobEnvironment[] {
-  if (YAML_LINE_BREAK_NOT_SPLIT_PATTERN.test(contents)) return [];
+): PublishingJobsReading {
+  const none: PublishingJobsReading = { environments: [], checkedBeforePublish: false };
+  if (YAML_LINE_BREAK_NOT_SPLIT_PATTERN.test(contents)) return none;
   const isGuardLine = (line: string) => isStepOrJobGuard(line) && !isAlwaysTrueIfLine(line, context);
   const jobs = workflowJobs(contents, isGuardLine);
   const mayRun = (step: WorkflowRunStep) => !step.conditional && step.job !== -1;
+  const readsRunLines = runsOnlyOnHostedBashRunners(contents);
   // The `steps:` line of each job that runs a publishing step.
   const publishingStepsKeys = new Set<number>();
+  // Every placed publishing step, conditional or not, with the line of its publish: the steps a
+  // check must come before (#517 correction).
+  const publishes: PublishAt[] = [];
   for (const step of githubActionsUsesSteps(contents, isGuardLine)) {
-    if (!mayRun(step)) continue;
     const value = unquoteYamlScalar(beforeShellComment(step.lines[0]?.text ?? ''));
     const at = value.indexOf('@');
-    if (at > 0 && PUBLISHING_ACTIONS.has(value.slice(0, at).toLowerCase())) publishingStepsKeys.add(step.job);
+    if (!(at > 0 && PUBLISHING_ACTIONS.has(value.slice(0, at).toLowerCase()))) continue;
+    if (step.job !== -1) publishes.push({ job: step.job, line: step.lines[0]?.line ?? 0 });
+    if (mayRun(step)) publishingStepsKeys.add(step.job);
   }
-  if (runsOnlyOnHostedBashRunners(contents)) {
-    for (const step of githubActionsRunSteps(contents, isGuardLine)) {
-      if (!mayRun(step)) continue;
-      const commands = joinShellContinuationLines(step.lines.map(({ text }) => text)).flatMap((text) =>
-        shellCommands(text).map((words) => ({ words })),
-      );
-      if (stepShellIsConditional(step, commands)) continue;
-      if (commands.some(({ words }) => isPublishingCommand(words))) publishingStepsKeys.add(step.job);
+  // Run lines are read for a publish on every runner: off a hosted bash runner such a step only
+  // needs a check before it, and never makes the workflow publishing (#564).
+  for (const step of githubActionsRunSteps(contents, isGuardLine)) {
+    const commands = joinShellContinuationLines(step.lines.map(({ text }) => text)).flatMap((text) =>
+      shellCommands(text).map((words) => ({ words })),
+    );
+    if (!commands.some(({ words }) => isPublishingCommand(words))) continue;
+    if (step.job !== -1) {
+      const line = step.lines.find(({ text }) => shellCommands(text).some(isPublishingCommand)) ?? step.lines[0];
+      publishes.push({ job: step.job, line: line?.line ?? 0 });
     }
+    if (readsRunLines && mayRun(step) && !stepShellIsConditional(step, commands)) publishingStepsKeys.add(step.job);
   }
   if (publishingStepsKeys.size > 0) {
     const lines = contents.split(/\r?\n/);
     const indents = lines.map(lineIndent);
     const inBlockScalar = blockScalarBodyLines(lines, indents);
-    return [...publishingStepsKeys]
-      .sort((left, right) => left - right)
-      .map((stepsKey) => {
-        const job = jobs.find(({ start, end }) => start < stepsKey && stepsKey < end);
-        return job ? jobEnvironment(lines, indents, inBlockScalar, job) : { kind: 'unread' };
-      });
+    return {
+      environments: [...publishingStepsKeys]
+        .sort((left, right) => left - right)
+        .map((stepsKey) => {
+          const job = jobs.find(({ start, end }) => start < stepsKey && stepsKey < end);
+          return job ? jobEnvironment(lines, indents, inBlockScalar, job) : { kind: 'unread' };
+        }),
+      checkedBeforePublish: depth === 0 && checksBeforeEveryPublish(contents, jobs, publishes, isGuardLine),
+    };
   }
-  if (depth >= REUSABLE_WORKFLOW_MAX_DEPTH) return [];
+  if (depth >= REUSABLE_WORKFLOW_MAX_DEPTH) return none;
   for (const { target, conditional } of jobs) {
     if (target === undefined || conditional) continue;
     const local = LOCAL_REUSABLE_WORKFLOW_PATTERN.exec(target);
@@ -7172,9 +7293,105 @@ function publishingJobsOnEveryRun(
     const calledPath = join(root, local[1] ?? '');
     if (!isRegularFile(calledPath)) continue;
     const called = publishingJobsOnEveryRun(root, readRepoText(calledPath, 'utf8'), context, depth + 1);
-    if (called.length > 0) return called;
+    if (called.environments.length > 0) {
+      return {
+        environments: called.environments,
+        checkedBeforePublish: depth === 0 && checksBeforeEveryPublish(contents, jobs, publishes, isGuardLine),
+      };
+    }
   }
-  return [];
+  return none;
+}
+
+/** What publishingJobsOnEveryRun reads of a workflow's publishing jobs. */
+interface PublishingJobsReading {
+  readonly environments: readonly PublishingJobEnvironment[];
+  /** True only when a check runs before every publish (checksBeforeEveryPublish). */
+  readonly checkedBeforePublish: boolean;
+}
+
+/** A publishing step: the `steps:` line of its job, and the 1-based line of its publish. */
+interface PublishAt {
+  readonly job: number;
+  readonly line: number;
+}
+
+// A status function other than `success()` anywhere in the file: `always()`, `cancelled()` and
+// `failure()` let a step or job run after a failed check, so no check is read as coming before a
+// publish in such a workflow. A mention in a comment refuses too, which only keeps it excluded.
+const STATUS_FUNCTION_NOT_SUCCESS_PATTERN = /\b(?:always|cancelled|failure)[ \t]*\(/i;
+
+/**
+ * v27 (#517 correction, operator's ruling of 1 November 2026): true when a check runs before every
+ * publish in this workflow, so a failing check stops it. B3 then counts the workflow, as
+ * default-branch CI that also publishes. Each publishing step in `publishes`, conditional or not,
+ * must have, either:
+ *   - an earlier line in its own job holding a check (firstCheckLineByJob); or
+ *   - a check in a job its job needs, directly or through other jobs' `needs:`.
+ * And every job that calls a reusable workflow, whose steps this file does not show, must need a
+ * job with a check. Refused outright when any `always()`, `cancelled()` or `failure()` appears
+ * (STATUS_FUNCTION_NOT_SUCCESS_PATTERN). A `needs:` the reader cannot place supplies no check.
+ * Anything not read keeps the workflow excluded, as before the correction.
+ */
+function checksBeforeEveryPublish(
+  contents: string,
+  jobs: readonly WorkflowJob[],
+  publishes: readonly PublishAt[],
+  isGuardLine: (line: string) => boolean,
+): boolean {
+  if (STATUS_FUNCTION_NOT_SUCCESS_PATTERN.test(contents)) return false;
+  const firstCheck = firstCheckLineByJob(contents, isGuardLine);
+  const checkJobs = [...firstCheck.keys()];
+  const jobOf = (stepsKey: number) => jobs.find(({ start, end }) => start < stepsKey && stepsKey < end);
+  const runsCheck = (job: WorkflowJob) => checkJobs.some((stepsKey) => job.start < stepsKey && stepsKey < job.end);
+  const byName = new Map<string, WorkflowJob>();
+  for (const job of jobs) if (job.name !== undefined && !byName.has(job.name)) byName.set(job.name, job);
+  // Whether any job `job` needs, directly or transitively, runs a check. Each job is visited once.
+  const needsCheck = (job: WorkflowJob): boolean => {
+    const seen = new Set<string>();
+    const pending = [...(job.needs ?? [])];
+    while (pending.length > 0) {
+      const name = pending.pop() ?? '';
+      if (seen.has(name)) continue;
+      seen.add(name);
+      const needed = byName.get(name);
+      if (!needed) continue;
+      if (runsCheck(needed)) return true;
+      pending.push(...(needed.needs ?? []));
+    }
+    return false;
+  };
+  const everyPublishChecked = publishes.every(({ job: stepsKey, line }) => {
+    const first = firstCheck.get(stepsKey);
+    if (first !== undefined && first < line) return true;
+    const job = jobOf(stepsKey);
+    return job !== undefined && needsCheck(job);
+  });
+  return everyPublishChecked && jobs.every((job) => job.target === undefined || needsCheck(job));
+}
+
+/**
+ * For each job (by its `steps:` line), the first line holding a check whose failure fails the job:
+ * an unconditional `run:` step (no `if:` that can be false under the triggers, no
+ * `continue-on-error:`), whose shell is not conditional (stepShellIsConditional: no `||`, heredoc,
+ * `if`, `!` or `set +e`), with a command isCheckCommand reads as a check on a line where
+ * failureStopsJobAt holds (no pipe, `&`, subshell or substitution, and one command or one `&&`
+ * chain). Linear in the file.
+ */
+function firstCheckLineByJob(contents: string, isGuardLine: (line: string) => boolean): Map<number, number> {
+  const first = new Map<number, number>();
+  for (const step of githubActionsRunSteps(contents, isGuardLine)) {
+    if (step.conditional || step.job === -1) continue;
+    const commands = joinShellContinuationLines(step.lines.map(({ text }) => text)).flatMap((text) =>
+      shellCommands(text).map((words) => ({ words })),
+    );
+    if (stepShellIsConditional(step, commands)) continue;
+    const check = step.lines.find(
+      ({ line, text }) => shellCommands(text).some(isCheckCommand) && failureStopsJobAt(contents, step, line),
+    );
+    if (check) first.set(step.job, Math.min(first.get(step.job) ?? check.line, check.line));
+  }
+  return first;
 }
 
 /**
@@ -7182,9 +7399,10 @@ function publishingJobsOnEveryRun(
  * workflow's path (v27 freeze change F3-b): what triggers it, read from its `on:`
  * (publishingTriggerText), and whether its publishing job declares an `environment:`
  * (publishingEnvironmentText). Undefined when the workflow is not such a workflow; the test is
- * #517's, unchanged.
+ * #517's, unchanged. `checked` says whether a check runs before every publish
+ * (checksBeforeEveryPublish, the #517 correction), in which case B3 counts the workflow after all.
  */
-function publishingWorkflowDetail(root: string, file: string): string | undefined {
+function publishingWorkflowDetail(root: string, file: string): { readonly detail: string; readonly checked: boolean } | undefined {
   if (!isGitHubActionsWorkflow(file)) return undefined;
   const fullPath = join(root, file);
   if (!isRegularFile(fullPath)) return undefined;
@@ -7200,9 +7418,12 @@ function publishingWorkflowDetail(root: string, file: string): string | undefine
     triggers,
     pushBranches: triggers.has('push') ? githubPushBranchFilter(contents) : null,
   };
-  const environments = publishingJobsOnEveryRun(root, contents, context, 0);
+  const { environments, checkedBeforePublish } = publishingJobsOnEveryRun(root, contents, context, 0);
   if (environments.length === 0) return undefined;
-  return `is triggered by ${publishingTriggerText(contents, triggers)}, and ${publishingEnvironmentText(environments)}.`;
+  return {
+    detail: `is triggered by ${publishingTriggerText(contents, triggers)}, and ${publishingEnvironmentText(environments)}.`,
+    checked: checkedBeforePublish,
+  };
 }
 
 // ---- v27 freeze change F3-b: what a publishing workflow's note names ---------------------------
@@ -7587,6 +7808,55 @@ const PUBLISH_OR_DEPLOY_STEP_PATTERN =
 // counted (#517): test runners invoked through a task runner or build tool, and pre-commit.
 const PUBLISH_ONLY_EXTRA_VERIFICATION_PATTERN =
   /\b(?:tox|nox|pre-commit|bazel[ \t]+test|gradlew?[ \t]+(?:test|check|build)|mvnw?[ \t]+(?:verify|test|package)|make[ \t]+(?:check|test)|just[ \t]+test|cargo[ \t]+(?:clippy|check|nextest)|turbo[ \t]+(?:run[ \t]+)?test)\b|[ \t]-r[ \t]+test\b|\brun[ \t]+test\b/i;
+
+/**
+ * True when `text` names a test, lint, type-check or other recognised verification command: the one
+ * vocabulary v27's readings of whether a workflow runs a check share (#517). The publish-only reader
+ * (isPublishOnlyWorkflow) refuses a workflow whose text names one anywhere, and the
+ * check-before-publish reader (isCheckCommand) credits a command that runs one, so no workflow is
+ * both publish-only and checked before it publishes.
+ */
+function namesVerificationCommand(text: string): boolean {
+  return verificationCommandPatterns().some((pattern) => pattern.test(text));
+}
+
+/** The verification vocabulary namesVerificationCommand and isCheckCommand share, in one place. */
+function verificationCommandPatterns(): readonly RegExp[] {
+  return [CI_TEST_COMMAND_PATTERN, CI_LINT_COMMAND_PATTERN, CI_TYPECHECK_COMMAND_PATTERN, PUBLISH_ONLY_EXTRA_VERIFICATION_PATTERN];
+}
+
+// `<tool> run <command>` for Python project tools, which run the next word as the command.
+const CHECK_COMMAND_RUN_LAUNCHERS: ReadonlySet<string> = new Set(['uv', 'poetry', 'pdm', 'pipenv', 'hatch']);
+
+/**
+ * v27 (#517 correction): true when one shell command, read from its command position, runs a check.
+ * After any leading `(`, `{` and `NAME=value` assignments, then one launcher (`npx`, `bunx`, `pnpx`,
+ * `uvx`, `python -m`, `python3 -m`, or `uv`, `poetry`, `pdm`, `pipenv` or `hatch` then `run`), and a
+ * leading `./`, the command's own words must begin with a command namesVerificationCommand
+ * recognises, ending at a word's end (`tsc`, never `tsc-alias`). So a check named in `echo` text or
+ * as an argument (`pip install pytest`) is not one. A status-inverted command is not one, nor one
+ * with `--if-present`, which runs nothing when the script is missing.
+ */
+function isCheckCommand(input: readonly string[]): boolean {
+  const head = commandHead(input);
+  if (head.inverted) return false;
+  let words = [head.word, ...input.slice(head.argsFrom)];
+  let start = 0;
+  while (start < words.length && /^[A-Za-z_][A-Za-z0-9_]*=/.test(words[start] ?? '')) start += 1;
+  if (PUBLISHING_COMMAND_LAUNCHERS.has(words[start] ?? '')) start += 1;
+  else if ((words[start] === 'python' || words[start] === 'python3') && words[start + 1] === '-m') start += 2;
+  else if (CHECK_COMMAND_RUN_LAUNCHERS.has(words[start] ?? '') && words[start + 1] === 'run') start += 2;
+  words = words.slice(start);
+  if (words.length === 0 || words.includes('--if-present')) return false;
+  const text = words.join(' ').replace(/^\.\//, '');
+  return verificationCommandPatterns().some((pattern) => {
+    const match = pattern.exec(text);
+    if (!match || match.index !== 0) return false;
+    const after = text[match[0].length];
+    return after === undefined || after === ' ';
+  });
+}
+
 // A pull-request (or merge-queue) trigger makes a workflow a pull-request gate whatever its steps.
 // One list feeds both v27's publish-only test (a word match) and B2's trigger label (a parsed key).
 // A literal, so the ReDoS guard reads it; disclosure-gaps.test.ts pins it to PULL_REQUEST_TRIGGERS.
@@ -7622,10 +7892,7 @@ function isPublishOnlyWorkflow(
     !PUBLISH_OR_DEPLOY_STEP_PATTERN.test(contents) ||
     PULL_REQUEST_TRIGGER_PATTERN.test(contents) ||
     REUSABLE_WORKFLOW_CALL_PATTERN.test(contents) ||
-    CI_TEST_COMMAND_PATTERN.test(contents) ||
-    CI_LINT_COMMAND_PATTERN.test(contents) ||
-    CI_TYPECHECK_COMMAND_PATTERN.test(contents) ||
-    PUBLISH_ONLY_EXTRA_VERIFICATION_PATTERN.test(contents) ||
+    namesVerificationCommand(contents) ||
     YAML_LINE_BREAK_NOT_SPLIT_PATTERN.test(contents)
   ) {
     return false;
