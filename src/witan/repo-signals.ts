@@ -2536,9 +2536,10 @@ function a1RatedHollowSentence(rated: readonly RatedHollowFile[], shown: number)
 
 /**
  * A1's note, with v27's sentences after it: `fixed` (or '') and, when any file was rated hollow,
- * the rated-hollow sentence. The base note is built to leave room for both in their shortest form;
- * the rated-hollow sentence then lists as many files as fit within CRITERION_NOTES_MAX_LENGTH and
- * counts the rest. With neither (every rubric but v27) the base note is built exactly as before.
+ * the rated-hollow sentence. The base note is built to leave room for both with the first rated
+ * file named whole (or, where even that cannot fit, with none named); the rated-hollow sentence
+ * then lists as many files as fit within CRITERION_NOTES_MAX_LENGTH and counts the rest. With
+ * neither (every rubric but v27) the base note is built exactly as before.
  */
 function withA1V27Sentences(
   base: (limit: number) => string,
@@ -2549,7 +2550,12 @@ function withA1V27Sentences(
   const tail = (shown: number) =>
     [fixed, rated.length === 0 ? '' : a1RatedHollowSentence(rated, shown)].filter((part) => part !== '').join(' ');
   const shortest = tail(0);
-  const note = base(CRITERION_NOTES_MAX_LENGTH - shortest.length - 1);
+  const roomForOne = tail(Math.min(rated.length, 1));
+  const withOne = base(CRITERION_NOTES_MAX_LENGTH - roomForOne.length - 1);
+  const note =
+    `${withOne} ${roomForOne}`.length <= CRITERION_NOTES_MAX_LENGTH
+      ? withOne
+      : base(CRITERION_NOTES_MAX_LENGTH - shortest.length - 1);
   // A note this long names at most a few dozen paths, so the search starts there, not at every file.
   for (let shown = Math.min(rated.length, 100); shown > 0; shown -= 1) {
     const whole = `${note} ${tail(shown)}`;

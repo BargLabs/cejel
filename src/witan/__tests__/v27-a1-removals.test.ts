@@ -134,6 +134,55 @@ describe('item A — v27 names every file a removal rule rates hollow, with its 
     // Evidence is bounded as the test-file evidence is: eight.
     expect(v27?.evidence.filter(({ label }) => label.startsWith('Rated hollow')).length).toBe(8);
   });
+
+  it('beside a long unresolved-coverage note, both fit the limit: the coverage note shortens, the list counts the rest', () => {
+    // Four CI workflows with 200-character paths whose cover flag comes from the environment (as in
+    // a1-coverage-unresolved-note-limit.test.ts) leave coverage unresolved; 30 skipped test files.
+    const workflow = [
+      'name: test',
+      'on: [push]',
+      'jobs:',
+      '  test:',
+      '    runs-on: ubuntu-latest',
+      '    steps:',
+      '      - uses: actions/checkout@v4',
+      '      - run: go test -cover=$WITH_COVERAGE ./...',
+      '',
+    ].join('\n');
+    const files: Record<string, string> = {
+      'go.mod': 'module example.invalid/synthetic\n\ngo 1.22\n',
+      'value.go': 'package synthetic\n\nfunc Value() int { return 1 }\n',
+      'value_test.go':
+        'package synthetic\n\nimport "testing"\n\nfunc TestValue(t *testing.T) {\n\tif Value() != 1 {\n\t\tt.Fatal("value")\n\t}\n}\n',
+    };
+    for (let index = 0; index < 4; index += 1) {
+      const prefix = `.github/workflows/w${index}-`;
+      files[`${prefix}${'x'.repeat(200 - prefix.length - 4)}.yml`] = workflow;
+    }
+    for (let index = 0; index < 30; index += 1) {
+      files[`tests/regression/legacy-behaviour/test_module_${String(index).padStart(2, '0')}.py`] =
+        'import pytest\n\n\n@pytest.mark.skip(reason="flaky")\ndef test_one():\n    assert 1 == 1\n';
+    }
+    const fixture: FalseAssuranceFixture = {
+      name: 'a1rm-bound-beside-unresolved-coverage',
+      issue: '#518',
+      purpose: 'A long unresolved-coverage note and a long rated-hollow list in one A1 note.',
+      commits: [files],
+    };
+    const v27 = scan(fixture, V27).criteria.find(({ id }) => id === 'A1');
+    const notes = v27?.notes ?? '';
+    expect(notes.length).toBeLessThanOrEqual(1000);
+    expect(notes).toContain('Coverage command reachability or flag ownership was unresolved in .github/workflows/w0-');
+    expect(notes).toContain('30 files that v17 rates non-hollow are rated hollow here because they run no test: ');
+    const more = /, and (\d+) more not listed\.$/.exec(notes);
+    const listed = notes.match(/ \(every test skipped\)/g)?.length ?? 0;
+    expect(listed).toBeGreaterThan(0);
+    expect(listed + Number(more?.[1] ?? 0)).toBe(30);
+    // v17's note on the same commit is the unresolved-coverage note alone, as before.
+    const v17 = scan(fixture, V17).criteria.find(({ id }) => id === 'A1');
+    expect(v17?.notes ?? '').not.toMatch(REMOVAL_SENTENCE);
+    expect((v17?.notes ?? '').length).toBeLessThanOrEqual(1000);
+  });
 });
 
 describe('item B — where a removal rule\'s condition does not hold, v27 reads the file as v17 does', () => {
