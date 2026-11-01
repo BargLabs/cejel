@@ -1735,16 +1735,25 @@ describe('no score, status or composite rises from v17 to v27 on any fixture', (
   // ({ A2, shallow-history, kept } and { B2, shallow-history, kept }). Now B2 withholds only its
   // ratio, exactly as v17 does on this clone, and A2's abstention is left out of the composite: no
   // abstention is introduced against v17, and both history criteria pass the full-clone comparison.
-  it('F1: on the shallow clone v27 introduces no abstention against v17, and A2 and B2 follow the full-clone rule', () => {
-    const result = checkNoRise(
-      report('history-shallow-clone', V17),
-      report('history-shallow-clone', V27),
-      fullCloneReport('history-shallow-clone'),
-    );
+  // Operator ruling of 1 Nov: under v27 a shallow clone gets no composite and no verdict. The
+  // checker reads that as an abstention, not as a rise or a drop: no composite is compared, and
+  // A2 and B2 are still compared with the full clone and every other criterion with v17.
+  it('on the shallow clone v27 gives no composite and no verdict, which checkNoRise reads as an abstention, not a rise or a drop', () => {
+    const after = report('history-shallow-clone', V27);
+    expect(after.verdict).toBe('insufficient_source');
+    expect(after.overallScore).toBeNull();
+    const result = checkNoRise(report('history-shallow-clone', V17), after, fullCloneReport('history-shallow-clone'));
     expect(result.problems).toEqual([]);
+    expect(result.shallowHistoryAbstention).toBe(true);
+    expect(result.fallenComposites).toEqual([]);
     expect(result.introducedAbstentions).toEqual([]);
     expect(criterion('history-shallow-clone', V27, 'B2')).toEqual(criterion('history-shallow-clone', V17, 'B2'));
     expect(criterion('history-shallow-clone', V27, 'A2').status).toBe('insufficient_data');
+  });
+
+  it('a full clone is still compared composite by composite: its results carry no shallow-history abstention', () => {
+    const result = checkNoRise(report('history-shallow-clone', V17), fullCloneReport('history-shallow-clone')!);
+    expect(result.shallowHistoryAbstention).toBe(false);
   });
 
   it('F1: a shallow report compared without its full clone is a problem, not a pass', () => {
