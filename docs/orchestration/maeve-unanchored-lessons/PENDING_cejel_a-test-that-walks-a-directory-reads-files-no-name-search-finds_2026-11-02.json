@@ -1,0 +1,24 @@
+[
+  {
+    "statement": "Two sessions searched the test tree for the name RUBRIC_CHANGELOG to find the tests that read it, ran the two it named, and pushed a reworded entry; CI then failed bare-npx-invocation-guard, which walks leaderboard/ for every .md file and read \"bunx launches,\" as an unpinned bunx call. A test that walks a directory reads files no search for their name finds. Rules: to find the tests that read a file, also search for its directory and extension, or run every guard that scans the tree before pushing a prose change.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "test-selection"
+    ],
+    "tags": [
+      "tests-reading",
+      "directory-walk",
+      "prose-guard",
+      "ci-red"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-11-02T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 625
+    }
+  }
+]
