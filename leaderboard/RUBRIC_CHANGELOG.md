@@ -106,7 +106,7 @@ pass's code) and controls that stay counted (`V3_COUNTED`, 6):
   file (`.npmrc`, `.yarnrc`, `.yarnrc.yml`, `pnpm-workspace.yaml`) that sets a script shell, node
   options or a yarn path, or is not read, a committed `.pnpmfile.cjs` or yarn plugin, or a workflow
   that names a script shell (`npm_config_script_shell`) means no npm, pnpm, yarn or bun command, or
-  one npx, pnpx or bunx launches, is a check or a setup step. An npm-family install is a setup step
+  one launched by `npx`, `pnpx` or `bunx`, is a check or a setup step. An npm-family install is a setup step
   only when the root package.json is read and declares no install lifecycle script (`preinstall`,
   `install`, `postinstall`, `prepublish`, `preprepare`, `prepare`, `postprepare`, `dependencies`),
   there is no root `binding.gyp`, and it names no package or path. A pip install (`pip`,
