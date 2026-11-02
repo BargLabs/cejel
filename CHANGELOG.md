@@ -41,7 +41,23 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   call, or an npm, pnpm or yarn test script that is empty or only `true`, `:`, `echo` or `exit 0`;
   when its failure does not end the step (`; true`, a pipe without `set -o pipefail`, a background
   `&`); when a job needs itself or is in a `needs` cycle; when a step cannot be read; or when a job
-  runs neither after a needed check nor after its own check with only setup steps before it. B3's
+  runs neither after a needed check nor after its own check with only setup steps before it. A third
+  pass, after an adversarial review of #625, also refuses: a backslash on any line YAML reads (so a
+  double-quoted escape such as `"\u0061lways()"` or `"BASH\u005fENV"` cannot spell what the reader
+  refuses); outside step items, a key or value not written plainly (a quoted key, a space before a
+  colon, a merge key, a flow mapping such as `defaults: { run: { shell: "bash {0}" } }`, an anchor,
+  alias or tag, a continued scalar), which could set a shell, runner or `continue-on-error` the line
+  readers miss; a pipefail pipeline whose other side backgrounds it or puts it in an `&&` list;
+  anything but setup commands or a stricter `set` before the check in its step (`set -n`,
+  `set -o noexec`, `hash -p`); an npm, yarn or pnpm setting that names a script shell, node options
+  or a yarn path, a committed pnpmfile or yarn plugin, or a workflow naming a script shell (no
+  npm-family command is then a check or setup); an install before the check that runs a root
+  package.json install script, builds a root `binding.gyp`, or installs the project or a path
+  (`pip install -e .`, `pip install .[test]`, `npm install ./path`, `uv sync`, `poetry install` and
+  `pdm install` without their no-project flags); and a check given `--collect-only`, `--co`,
+  `--passWithNoTests`, `--showConfig`, `--no-error-on-unmatched-pattern` or `--exit-zero`. Two
+  release workflows counted by the second pass are excluded by it, since each runs
+  `pip install -e .` before pytest. B3's
   note names every counted publishing workflow or counts the rest in its closing sentence. Only a v27
   certificate words the PR-gate CI glossary entry for this; v17, the default, and every other rubric
   are unchanged, certificate text included. No holdout or calibration ran for it, and it carries no

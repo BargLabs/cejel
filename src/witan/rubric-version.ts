@@ -190,7 +190,15 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     step is one the reader reads, no job needs itself or is in a `needs` cycle, and every job runs
 //     after a check, either in a job it needs or in its own steps with only setup before it; B3's
 //     note names or counts every such workflow, and only a v27 certificate words the PR-gate CI
-//     glossary entry for it);
+//     glossary entry for it; the third pass on #625 also requires that no line YAML reads holds a
+//     backslash, that outside step items every key and value is written plainly (no quoted key,
+//     space before a colon, merge key, flow mapping, anchor, alias, tag or continued scalar), that
+//     both sides of a pipefail pipeline are plain commands, that only setup commands or a stricter
+//     `set` run before the check in its step, that no committed npm, yarn or pnpm setting or
+//     workflow names a script shell, node options or a yarn path and no pnpmfile or yarn plugin is
+//     committed (else no npm-family command is a check or setup), that a setup install runs no
+//     root lifecycle script and installs no project or path, and that a check carries no flag with
+//     which it cannot fail);
 //   - A1: conftest.py is not a concrete test file, and an unconditional run-wide pytest skip
 //     (a collection hook that skips or clears every item, or a module-level pytestmark skip)
 //     marks the test files in its scope hollow (from 2026-10-27 the hook's skip marker may also be
