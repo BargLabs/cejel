@@ -213,9 +213,9 @@ const jsWithTestScript = (script: string): Record<string, string> => ({
   'package.json': `${JSON.stringify({ name: 'tint', version: '1.0.0', main: 'index.js', scripts: { test: script, build: 'node build.js' } }, null, 2)}\n`,
 });
 
-/** A Python release-tag workflow whose check step is `check`. */
+/** A Python release workflow on push to main whose check step is `check`. */
 const pythonRelease = (check: string): string =>
-  `name: publish\n${PUSH_TAGS}jobs:\n  release:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - uses: actions/setup-python@v5\n      - run: pip install -e . pytest build twine\n      - run: ${check}\n      - run: python -m build\n      - run: twine upload dist/*\n`;
+  `name: publish\n${PUSH_MAIN}jobs:\n  release:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - uses: actions/setup-python@v5\n      - run: pip install -e . pytest build twine\n      - run: ${check}\n      - run: python -m build\n      - run: twine upload dist/*\n`;
 
 /** Item A: a status function in an `if:` other than plain `success()` lets a publish run after a failed check. */
 export const STATUS_FUNCTION_EXCLUDED: readonly Shape[] = [
