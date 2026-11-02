@@ -39,7 +39,8 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   puts them back in a shape the reader understands (`extend`, `+=`, a slice assignment, `append`,
   `insert` or a loop of them, on the list or a name bound to it, from a source not known to be
   empty, such as a copy taken after the clear, or a same-file helper that adds to the list it is
-  given at its own top level, before any branch or exit, and is not a generator); copying, reporting, iterating,
+  given, at its own top level before any branch or exit and without rebinding its source, from a
+  copy of the list saved before the clear, and is not a generator); copying, reporting, iterating,
   a builtin, a logger, an unknown helper or an unknown method no longer cancels it, so the common
   deselect-everything hook is caught again. A pytest setting withholds a rule for a file only
   where it is in force for a pytest run that collects the file: the plain `pytest` at the root,

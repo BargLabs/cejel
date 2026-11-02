@@ -68,7 +68,11 @@ plain `pytest` at the root loads. In every one pytest ran no test and v27 gave v
   parameter (given the list first) or, nested in the hook before the call, to the list itself,
   where the hook's own rules hold inside that function too: the add sits at its own top level,
   before any statement there that branches or exits (`if`, a loop, `try`, `with`, `return`,
-  `raise`, `yield`), and the function is not a generator. A source known to be empty restores
+  `raise`, `yield`), it does not bind or change its source first (`src = []`), and the function is
+  not a generator; and where what it adds from is a copy of the list saved before the clear (the
+  call's argument at its source parameter's position, or the name a nested function reads), bound
+  at the hook's top level and not changed since. A literal, the list itself or a copy taken after
+  the clear is not a saved copy. A source known to be empty restores
   nothing: `[]`, `()`, `list()`, `tuple()`, a zero-length slice written `[:0]` or `[0:0]`, the
   cleared list itself, or a name whose last top-level binding before the restore is one of those
   or, after the last clear, a copy of the cleared list (`list(items)`, `items[:]`,
@@ -116,8 +120,10 @@ reading, and every other change only names files or lowers a metric, so v27 cann
 v17 on the same commit. The harness's conftest-only premise is read from A1's evidence, since the
 ratio no longer reads 0 there.
 
-**Measured** (after the second review's fixes: branch code and fixtures at `26a7d4795`; scoring
-code is unchanged since, and `411b5a2d6` changes one fixture's tox description only). Main `fe8c261de` and this branch scanned the same 393 synthetic repositories,
+**Measured** (after the second review's fixes: branch code and fixtures at `26a7d4795`; `411b5a2d6`
+changes one fixture's tox description only). The third pass (`96c39746f`) scanned the same 393
+repositories again under v17 and v27: every report byte-identical to `26a7d4795`'s. The last round
+(`0aa1116b8`) changes only how a same-file helper call is read and was not re-measured. Main `fe8c261de` and this branch scanned the same 393 synthetic repositories,
 built once at fixed paths: the 269 false-assurance fixtures, #621's 38 removal fixtures and the 86
 withhold fixtures (this change's 33 and the second review's 53). v17 and v27 scanned all 393; v18
 to v26 scanned the 124 v27 A1 fixtures. Errors: 0 on both sides.
