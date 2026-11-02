@@ -552,10 +552,10 @@ const REVIEW_626_FIXTURES: readonly WithholdFixture[] = [
   caught(
     'a1wh-r2-tox-description',
     'B',
-    "A tox description mentions a pytest command line; tox runs only an environment's commands.",
+    "A tox description holds a pytest command line, words and all; tox runs only an environment's commands.",
     {
       'tests/conftest.py': CLEAR_HOOK,
-      'tox.ini': lines('[tox]', 'envlist = py312', '', '[testenv]', 'description = pytest --noconftest is what the legacy job runs', 'commands = pytest'),
+      'tox.ini': lines('[tox]', 'envlist = py312', '', '[testenv]', 'description = pytest --noconftest', 'commands = pytest'),
     },
     HOOK_REMOVED,
   ),
