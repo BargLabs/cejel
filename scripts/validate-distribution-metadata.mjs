@@ -730,7 +730,11 @@ requireIncludes(
   'Unverified / Insufficient source /',
   'root Action verdict output contract',
 );
-requireIncludes(rootAction, 'Insufficient evidence).', 'root Action evidence abstention verdict');
+requireIncludes(
+  rootAction,
+  'Insufficient evidence / Unrated: shallow clone / Unrated: history depth unknown).',
+  'root Action abstention verdicts',
+);
 requireIncludes(
   nestedAction,
   'cd "$(dirname "${{ github.action_path }}")"',
@@ -753,8 +757,8 @@ requireIncludes(
 );
 requireIncludes(
   nestedAction,
-  'Insufficient evidence).',
-  'nested Action evidence abstention verdict',
+  'Insufficient evidence / Unrated: shallow clone / Unrated: history depth unknown).',
+  'nested Action abstention verdicts',
 );
 // The optional rubric-pin input: both manifests declare it empty by default and pass it to
 // run.mjs through WITAN_RUBRIC_PIN, which forwards --rubric-pin only when it is non-empty
@@ -785,8 +789,8 @@ if (rootAction === nestedAction) {
 }
 requireIncludes(
   actionRunner,
-  "s.verdict === 'Insufficient evidence'",
-  'Action insufficient-evidence abstention guard',
+  'const abstained = ACTION_ABSTENTION_VERDICTS.includes(s.verdict);',
+  'Action abstention guard reads the shared label list',
 );
 requireIncludes(actionRunner, 'finding.displaySummary ?? finding.summary', 'Action finding copy');
 requireIncludes(actionRunner, 'dimension band:', 'Action dimension-band label');

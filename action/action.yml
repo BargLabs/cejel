@@ -41,7 +41,7 @@ outputs:
   verdict:
     description: >-
       Verdict label (Verified / Conditional / At risk / Unverified / Insufficient source /
-      Insufficient evidence).
+      Insufficient evidence / Unrated: shallow clone / Unrated: history depth unknown).
     value: ${{ steps.witan-run.outputs.verdict }}
   artifact-dir:
     description: 'Write-only export destination containing this invocation’s report artifacts.'

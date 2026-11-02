@@ -83,6 +83,15 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- **GitHub Action: a v27 scan of a shallow checkout failed the step.** With `rubric-pin` set to
+  v27 on a shallow checkout, the CLI abstains and labels the summary "Unrated: shallow clone" (or
+  "Unrated: history depth unknown"). The Action recognised only "Insufficient source" and
+  "Insufficient evidence" as abstentions, so it treated the summary as scored, stopped on its
+  missing scores, and exited 1. It now recognises all four labels, writes "no composite score and
+  no verdict" in the step summary for the two Unrated ones, and leaves the `score` output empty as
+  for any abstention. The `verdict` output's description lists the new labels. A test now fails
+  whenever the Action's labels and the CLI's differ.
+
 - **A2's batched re-read of a large history had no overall time bound (#586).** Under every
   rubric, a whole-history read that stops at Cejel's own 8 MiB output limit or 30-second timeout is
   re-read over the commit list in pages and batches (#567). Each git call already stopped at
