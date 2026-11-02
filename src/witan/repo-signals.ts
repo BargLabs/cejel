@@ -12483,25 +12483,11 @@ function pythonFirstParameter(parameters: string): string | undefined {
   return /^[A-Za-z_]\w*$/.test(first) && first !== 'self' && first !== 'cls' ? first : undefined;
 }
 
-/** The first positional argument's text in a call's text after `(`, or undefined. */
-function pythonFirstArgument(afterParen: string): string | undefined {
-  let depth = 0;
-  for (let index = 0; index < afterParen.length; index += 1) {
-    const character = afterParen[index];
-    if (character === '(' || character === '[' || character === '{') depth += 1;
-    else if (character === ')' || character === ']' || character === '}') {
-      if (depth === 0) return afterParen.slice(0, index).trim();
-      depth -= 1;
-    } else if (character === ',' && depth === 0) return afterParen.slice(0, index).trim();
-  }
-  return undefined;
-}
-
 interface PythonListMutator {
-  /** Adds a non-empty source to its first parameter. */
-  readonly firstParameter: boolean;
-  /** Adds a non-empty source to the hook's list itself (a function nested in the hook). */
-  readonly closure: boolean;
+  /** Where it adds to its first parameter: the other parameters' positions its source names. */
+  readonly sourceParameters: readonly number[];
+  /** Where it adds to the hook's list itself (a function nested in the hook): the source, as written. */
+  readonly closureSource?: string;
   /** The hook statement that defines it (a nested function), or -1 (a module-level one). */
   readonly definedAt: number;
 }
@@ -12521,18 +12507,66 @@ function pythonBodyAddsTo(
   body: readonly { readonly indent: number; readonly code: string }[],
   targets: ReadonlySet<string>,
   knownEmpty: (source: string) => boolean,
-): boolean {
-  if (body.some(({ code }) => containsPythonIdentifier(code, 'yield'))) return false;
+): string | undefined {
+  if (body.some(({ code }) => containsPythonIdentifier(code, 'yield'))) return undefined;
   const top = body[0]?.indent;
+  // Names a top-level statement before the add binds or changes (`src = []`, `src.clear()`): an add
+  // from one of them no longer adds what the caller passed (last round of the #626 review).
+  const touched = new Set<string>();
   for (const { indent, code } of body) {
     if (indent !== top) continue;
-    if (PYTHON_BODY_EXIT_OR_BRANCH_PATTERN.test(code)) return false;
+    if (PYTHON_BODY_EXIT_OR_BRANCH_PATTERN.test(code)) return undefined;
     for (const target of targets) {
       const source = pythonListAddSource(code, target);
-      if (source !== undefined && !knownEmpty(source)) return true;
+      if (source === undefined || knownEmpty(source)) continue;
+      const names = [...source.matchAll(PYTHON_IDENTIFIER_PATTERN)].map((match) => match[0]);
+      return names.some((name) => touched.has(name)) ? undefined : source;
+    }
+    const changed = PYTHON_CHANGED_NAME_PATTERN.exec(code);
+    if (changed) touched.add(changed[1] ?? '');
+  }
+  return undefined;
+}
+
+// A statement that binds or changes the name in group 1: `x = `, `x += `, `x, y = `, `del x`,
+// `x.method(`, `x[...] =`.
+const PYTHON_CHANGED_NAME_PATTERN = /^(?:del[ \t]+)?([A-Za-z_]\w*)[ \t]*(?:[-+*/%&|^@]?=(?!=)|,|\.|\[)/;
+
+/** A call's positional and keyword arguments' texts, at its top level, from the text after `(`. Linear. */
+function pythonCallArguments(afterParen: string): string[] {
+  const parts: string[] = [];
+  let depth = 0;
+  let start = 0;
+  for (let index = 0; index < afterParen.length; index += 1) {
+    const character = afterParen[index];
+    if (character === '(' || character === '[' || character === '{') depth += 1;
+    else if (character === ')' || character === ']' || character === '}') {
+      if (depth === 0) {
+        parts.push(afterParen.slice(start, index).trim());
+        return parts.filter((part) => part !== '');
+      }
+      depth -= 1;
+    } else if (character === ',' && depth === 0) {
+      parts.push(afterParen.slice(start, index).trim());
+      start = index + 1;
     }
   }
-  return false;
+  return parts;
+}
+
+/** A `def` line's parameter names, in order ('' where one is not a plain name). */
+function pythonParameterNames(parameters: string): string[] {
+  return parameters.split(',').map((parameter) => {
+    const name = parameter.replace(/[:=].*$/, '').replace(/^\*+/, '').trim();
+    return /^[A-Za-z_]\w*$/.test(name) ? name : '';
+  });
+}
+
+/** The positions (from 1) of the parameters a source names. */
+function pythonSourceParameters(source: string | undefined, parameters: readonly string[]): number[] {
+  if (source === undefined) return [];
+  const named = new Set([...source.matchAll(PYTHON_IDENTIFIER_PATTERN)].map((match) => match[0]));
+  return parameters.flatMap((parameter, position) => (position > 0 && parameter !== '' && named.has(parameter) ? [position] : []));
 }
 
 /**
@@ -12553,10 +12587,11 @@ function pythonModuleListMutators(lines: readonly string[]): Map<string, PythonL
       const indent = raw.length - raw.trimStart().length;
       for (const code of pythonLineStatements(pythonCodeOutsideStrings(raw.trim()).trim())) body.push({ indent, code });
     }
-    const adds =
-      parameter !== undefined &&
-      pythonBodyAddsTo(body, new Set([parameter]), (source) => pythonSourceKnownEmpty(source, () => false, new Set([parameter])));
-    mutators.set(match[1] ?? '', { firstParameter: adds, closure: false, definedAt: -1 });
+    const source =
+      parameter === undefined
+        ? undefined
+        : pythonBodyAddsTo(body, new Set([parameter]), (candidate) => pythonSourceKnownEmpty(candidate, () => false, new Set([parameter])));
+    mutators.set(match[1] ?? '', { sourceParameters: pythonSourceParameters(source, pythonParameterNames(match[2] ?? '')), definedAt: -1 });
   }
   return mutators;
 }
@@ -12600,6 +12635,7 @@ function pytestItemsRestoreKind(
   // Indexed once, so each question below is answered by binary search, not a rescan.
   const bindings = new Map<string, number[]>();
   const mentions = new Map<string, number[]>();
+  const changes = new Map<string, number[]>();
   codes.forEach(({ code }, index) => {
     const seen = new Set<string>();
     for (const match of code.matchAll(PYTHON_IDENTIFIER_PATTERN)) {
@@ -12614,6 +12650,12 @@ function pytestItemsRestoreKind(
       const list = bindings.get(binding[1] ?? '') ?? [];
       list.push(index);
       bindings.set(binding[1] ?? '', list);
+    }
+    const changed = topLevel(index) ? PYTHON_CHANGED_NAME_PATTERN.exec(code) : null;
+    if (changed) {
+      const list = changes.get(changed[1] ?? '') ?? [];
+      list.push(index);
+      changes.set(changed[1] ?? '', list);
     }
   });
   // The last entry below `at` in an ascending list, or -1; and the first entry above `after`, or -1.
@@ -12660,6 +12702,25 @@ function pytestItemsRestoreKind(
     const next = firstAbove(mentions.get(name) ?? [], bound);
     return next === -1 || next >= at;
   };
+  // A name bound, at top level before the last clear, to a copy of the list, and not changed at top
+  // level since: the saved items a helper may put back.
+  const savedCopyAt = (name: string, at: number): boolean => {
+    if (!/^[A-Za-z_]\w*$/.test(name)) return false;
+    const bound = lastBelow(bindings.get(name) ?? [], at);
+    if (bound === -1 || bound >= lastClear) return false;
+    const value = (/^[A-Za-z_]\w*[ \t]*=(?!=)[ \t]*(.*)$/.exec(codes[bound]?.code ?? '')?.[1] ?? '').trim();
+    // A copy, not the list itself (an alias empties with it), an empty literal or a zero-length slice.
+    if (
+      listNames.has(value) ||
+      PYTHON_EMPTY_SEQUENCE_LITERAL_PATTERN.test(value) ||
+      PYTHON_ZERO_LENGTH_SLICE_PATTERN.test(value) ||
+      !pythonSourceKnownEmpty(value, () => false, listNames)
+    ) {
+      return false;
+    }
+    const next = firstAbove(changes.get(name) ?? [], bound);
+    return next === -1 || next >= at;
+  };
   const restoresFrom = (source: string | undefined, at: number) =>
     source !== undefined && !pythonSourceKnownEmpty(source, (name) => knownEmptyAt(name, at), listNames);
   const mutators = pythonModuleListMutators(lines);
@@ -12672,11 +12733,16 @@ function pytestItemsRestoreKind(
     for (let next = index + 1; next < codes.length && !topLevel(next); next += 1) {
       body.push({ indent: codes[next]?.indent ?? 0, code: codes[next]?.code ?? '' });
     }
-    const closure = pythonBodyAddsTo(body, listNames, (source) => !restoresFrom(source, index));
-    const firstParameter =
-      parameter !== undefined &&
-      pythonBodyAddsTo(body, new Set([parameter]), (source) => pythonSourceKnownEmpty(source, () => false, new Set([parameter])));
-    mutators.set(match[1] ?? '', { firstParameter, closure, definedAt: index });
+    const closureSource = pythonBodyAddsTo(body, listNames, (source) => !restoresFrom(source, index));
+    const ownSource =
+      parameter === undefined
+        ? undefined
+        : pythonBodyAddsTo(body, new Set([parameter]), (source) => pythonSourceKnownEmpty(source, () => false, new Set([parameter])));
+    mutators.set(match[1] ?? '', {
+      sourceParameters: pythonSourceParameters(ownSource, pythonParameterNames(match[2] ?? '')),
+      ...(closureSource === undefined ? {} : { closureSource }),
+      definedAt: index,
+    });
   }
   for (let index = lastClear + 1; index < codes.length; index += 1) {
     if (!topLevel(index)) continue;
@@ -12693,9 +12759,14 @@ function pytestItemsRestoreKind(
     const call = PYTHON_CALL_STATEMENT_PATTERN.exec(code);
     const mutator = call ? mutators.get(call[1] ?? '') : undefined;
     if (call && mutator && mutator.definedAt < index) {
-      if (mutator.closure) return 'restores';
-      const first = pythonFirstArgument(call[2] ?? '');
-      if (mutator.firstParameter && first !== undefined && listNames.has(first)) return 'restores';
+      // A helper restores only from a copy of the list saved before the clear: named in its source
+      // (a nested function) or passed where its source parameter is (last round of the #626 review).
+      const closureNames = [...(mutator.closureSource ?? '').matchAll(PYTHON_IDENTIFIER_PATTERN)].map((match) => match[0]);
+      if (closureNames.some((name) => savedCopyAt(name, index))) return 'restores';
+      const args = pythonCallArguments(call[2] ?? '');
+      if (listNames.has(args[0] ?? '') && mutator.sourceParameters.some((position) => savedCopyAt(args[position] ?? '', index))) {
+        return 'restores';
+      }
     }
   }
   return undefined;
