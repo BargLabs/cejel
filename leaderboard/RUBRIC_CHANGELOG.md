@@ -22,6 +22,91 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
+## 2026-11-02 — v27 A1 names every file it rates hollow, withholds a rule only on evidence the setting is in force or the items are put back, and says every withhold; v17-v22 byte-identical; v27 never above v17; no published score moved
+
+**Status.** A scoring change under `witan-rubric-v27-prospective-2026-10-19` only, with no
+identifier change. It covers the whole v27 A1 change: #621's (closed unmerged; its content is
+carried here) and goal_cejel_v27_a1_test_count_overmatch_v2_2026-11-02's, which supersedes it. No
+holdout or calibration ran for it, and this entry makes no precision or recall claim. The default
+stays v17.
+
+**Why.** Under v27, A1 rates files hollow by three rules (a `conftest.py` is not a test file; a
+run-wide pytest skip, by a collection hook or a module-level `pytestmark`; a file whose every test
+is skipped). The certificate named none of the files they moved, and seven shapes matched where
+their condition did not hold (#621). #621 then withheld a rule wherever a pytest setting was
+mentioned anywhere, and wherever a hook used `items` in almost any way. An adversarial review
+against pytest found that each withhold silently handed back v17's full credit: the common
+deselect-everything hook (`dropped = list(items)`, `items.clear()`,
+`config.hook.pytest_deselected(items=dropped)`) went from critical to verified, as did a suite
+whose settings named `no:skipping` only in a comment, an `echo` string or a default value.
+
+**Change.**
+
+- **Named** (#621). A1's note and evidence name each file a rule rates hollow, with the rule
+  (`conftest`, `run-wide skip: hook in <conftest>`, `run-wide skip: pytestmark in <file>`, `every
+  test skipped`), the note bounded by its 1,000-character limit with the rest counted, the evidence
+  by eight.
+- **Ratio** (#621). `test_to_source_ratio` counts a `conftest.py` as test surface, as v17 does.
+  Where `conftest.py` files are the only test-shaped files, the note says so.
+- **Not read as a rule's condition** (#621). A hook without an `items` parameter; a skip inside
+  another mark's arguments in `pytestmark`.
+- **A clear is withheld only on a restore** (this change, item A). A hook that empties `items` is
+  read as removing the suite unless the same hook may put the collected items back: a refill
+  (`extend`, `append`, `insert`, `+=`, a slice assignment), another adding method on the list, a
+  helper given `items` as its first argument and more, or another name bound to the list. A hook
+  that rebinds the name `items` is withheld too, since its clear may empty a copy. Copying
+  (`list(items)`, `items[:]`, `items.copy()`, `tuple(items)`), reporting
+  (`pytest_deselected(items=...)`, logging) and iterating over the items restore nothing.
+- **A setting withholds only where it is in force** (item B). An active key in `[pytest]` of
+  `pytest.ini`, `.pytest.ini` or `tox.ini`, `[tool:pytest]` of `setup.cfg`, or
+  `[tool.pytest.ini_options]` or pytest 9's `[tool.pytest]` of `pyproject.toml`, including its
+  `addopts`; or a flag on a pytest command line in a CI `run:` or script step, a Makefile or
+  justfile line, or a tox command; or `PYTEST_ADDOPTS`. Comments, strings, and keys in other
+  sections do not count. A value that leaves pytest's default reading does not withhold:
+  `python_files` withholds the conftest rule only where a pattern may match `conftest.py`;
+  `python_functions` and `python_classes` withhold the Python per-test reader only where a pattern
+  reaches names not starting with `test` or `Test`. `-p no:skipping` withholds every skip rule.
+- **Every withhold is said** (item C). A1's note carries one sentence of clauses, `<rule> not
+  applied: <reason>`, one per rule and reason, as many as the note limit allows and the rest
+  counted ("…; and N more not listed."), or, where none fits, a count. For example: "Run-wide skip
+  rule not applied: the hook in tests/conftest.py puts the collected items back."
+- **The older wrong flags** (item D). `--noconftest`, `--rootdir` and `--confcutdir`, in force as
+  in item B, withhold the hook rules. A hook is not applied to a file below a directory that can
+  be pytest's root, because pytest loads no `conftest.py` above its root: a pytest configuration
+  file there, or a file pytest takes its root from (`setup.py`, `pyproject.toml`, `tox.ini`,
+  `setup.cfg`) where no configuration file sits at or above it. `python_files` on a Makefile pytest
+  line is read through item B.
+
+**The no-rise property** (`src/witan/__tests__/v27-no-rise.ts`). Every withhold falls back to v17's
+reading, and every other change only names files or lowers a metric, so v27 cannot score A1 above
+v17 on the same commit. The harness's conftest-only premise is read from A1's evidence, since the
+ratio no longer reads 0 there.
+
+**Measured.** Main `fe8c261de` and this branch's code (`892a95a40`, unchanged at the records
+commits) scanned the same 340 synthetic repositories, built once at fixed paths: the 269
+false-assurance fixtures, #621's 38 removal fixtures and this change's 33 withhold fixtures.
+v17 and v27 scanned all 340; v18 to v22 scanned the 71 v27 A1 fixtures. Reports that carried a git
+30-second timeout from machine load (11, on one side or the other) were deleted on both sides and
+scanned again one process at a time.
+
+- v17: 340 of 340 reports byte-identical to main.
+- v18, v19, v20, v21: 71 of 71 each byte-identical. v22: 27 of 27 (the run reached 27 before its
+  time limit).
+- v23 to v26 were not scanned by this harness, for time. Every v27 change is behind the v27 gate
+  (`usesV27FalseAssuranceClosure`); the behaviour-fingerprint test pins every selectable rubric.
+- v27: 232 of 340 byte-identical. All 108 that moved moved in A1 alone, with the headline fields
+  computed from it. 85 moved in A1's notes, evidence or metrics only, with the same score: named
+  files, the ratio, and the withhold sentence. 23 A1 scores rose against main's v27, each to at
+  most v17's: three where `conftest.py` is the only test-shaped file (the ratio), and twenty where
+  a rule's condition does not hold (the seven #621 over-matches, a restore, a rebind, the in-force
+  settings, `--noconftest`, a root `conftest.py` pytest does not load). Four verdicts moved with
+  them. The fixtures that must stay caught (the deselect-everything idiom, the copy, report, log
+  and loop forms, a comment, an `echo`, a default value, a key outside pytest's sections) keep
+  main's score.
+- v27 A1 above v17 A1 on the same commit: 0 of 340. Errors: 0.
+
+No published score moved: the board is scored under v17.
+
 ## 2026-11-01 — under v27 a shallow clone gets no composite and no verdict, and says how to fetch the history; F1's composite exclusion of A2 and the verdict cap are removed; v17-v26 byte-identical; v27 full clones byte-identical; no published score moved
 
 **Status.** A scoring change under `witan-rubric-v27-prospective-2026-10-19` only, with no
