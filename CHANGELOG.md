@@ -30,6 +30,39 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- **Prospective v27: B3 counts a publishing workflow with no pull-request trigger only when a failed
+  check really stops every publish** (operator ruling of 1 Nov on #517; supersedes #620). Under
+  `witan-rubric-v27-prospective-2026-10-19`, a workflow that publishes, releases or deploys on every
+  push is counted as CI verification again when a test, lint, type-check or verifying-build command
+  runs before every publish step, in the publishing job or in a job it needs. It is not counted when
+  an `if:` uses a status-check function other than a plain `success()` (so `success() || true`,
+  `!failure() || ...`, `always() && ...` and `!cancelled()` all leave the publish free to run after a
+  failed check); when the "check" is a `run:` under `with:` or `env:`, a `--version` or `--help`
+  call, or an npm, pnpm or yarn test script that is empty or only `true`, `:`, `echo` or `exit 0`;
+  when its failure does not end the step (`; true`, a pipe without `set -o pipefail`, a background
+  `&`); when a job needs itself or is in a `needs` cycle; when a step cannot be read; or when a job
+  runs neither after a needed check nor after its own check with only setup steps before it. A third
+  pass, after an adversarial review of #625, also refuses: a backslash on any line YAML reads (so a
+  double-quoted escape such as `"\u0061lways()"` or `"BASH\u005fENV"` cannot spell what the reader
+  refuses); outside step items, a key or value not written plainly (a quoted key, a space before a
+  colon, a merge key, a flow mapping such as `defaults: { run: { shell: "bash {0}" } }`, an anchor,
+  alias or tag, a continued scalar), which could set a shell, runner or `continue-on-error` the line
+  readers miss; a pipefail pipeline whose other side backgrounds it or puts it in an `&&` list;
+  anything but setup commands or a stricter `set` before the check in its step (`set -n`,
+  `set -o noexec`, `hash -p`); an npm, yarn or pnpm setting that names a script shell, node options
+  or a yarn path, a committed pnpmfile or yarn plugin, or a workflow naming a script shell (no
+  npm-family command is then a check or setup); an install before the check that runs a root
+  package.json install script, builds a root `binding.gyp`, or installs the project or a path
+  (`pip install -e .`, `pip install .[test]`, `npm install ./path`, `uv sync`, `poetry install` and
+  `pdm install` without their no-project flags); and a check given `--collect-only`, `--co`,
+  `--passWithNoTests`, `--showConfig`, `--no-error-on-unmatched-pattern` or `--exit-zero`. Two
+  release workflows counted by the second pass are excluded by it, since each runs
+  `pip install -e .` before pytest. B3's
+  note names every counted publishing workflow or counts the rest in its closing sentence. Only a v27
+  certificate words the PR-gate CI glossary entry for this; v17, the default, and every other rubric
+  are unchanged, certificate text included. No holdout or calibration ran for it, and it carries no
+  precision or recall claim. The record is in `leaderboard/RUBRIC_CHANGELOG.md` (2026-11-01, B3).
+
 - **Prospective v27: A1 names every file it rates hollow, and withholds a rule only on evidence,
   saying so each time.** Under `witan-rubric-v27-prospective-2026-10-19` only. A1's note and
   evidence name each file the conftest, run-wide skip and every-test-skipped rules rate hollow,
@@ -54,6 +87,7 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   the root), withholds the hook for the files that run collects. Every withhold is said in A1's
   note ("<rule> not applied: <reason>"). v17, the default, and every other rubric are unchanged; v27 never scores A1 above
   v17 on the same commit. No precision or recall claim; no holdout or calibration ran.
+
 - **Prospective v27: a shallow clone gets no composite score and no verdict** (operator ruling of
   1 Nov). Under `witan-rubric-v27-prospective-2026-10-19` a scan of a shallow clone abstains
   (`insufficient_source`, null headline scores) and says what to do: run `git fetch --unshallow`

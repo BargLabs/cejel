@@ -178,7 +178,27 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     triggers or is a fork guard no gate, and a local reusable workflow followed; a job's
 //     matrix is not read, so a publishing job is publishing whatever its matrix, as before; from
 //     2026-10-28, freeze change F3-b, its note also names, read from the workflow, the triggers its
-//     `on:` names and whether its publishing job declares an `environment:`, as note text only);
+//     `on:` names and whether its publishing job declares an `environment:`, as note text only;
+//     from 2026-11-01, the #517 correction on the operator's ruling of 1 November, such a workflow
+//     is counted after all when a check runs before every publish step, in the publishing job or
+//     in a job it needs, and B3's note says so: only a workflow that publishes without checking is
+//     excluded; the second pass on #620 credits it only where a failed check stops every publish:
+//     every status-check call in the file is a plain `success()`, standing alone or ANDed with
+//     terms holding none, a check is a step's own `run:` that is not only `--version`, `-V`,
+//     `--help` or `-h` and, for an npm-family test script, runs a root package.json script that
+//     does something, its failure ends the step (a pipeline only after `set -o pipefail`), every
+//     step is one the reader reads, no job needs itself or is in a `needs` cycle, and every job runs
+//     after a check, either in a job it needs or in its own steps with only setup before it; B3's
+//     note names or counts every such workflow, and only a v27 certificate words the PR-gate CI
+//     glossary entry for it; the third pass on #625 also requires that no line YAML reads holds a
+//     backslash, that outside step items every key and value is written plainly (no quoted key,
+//     space before a colon, merge key, flow mapping, anchor, alias, tag or continued scalar), that
+//     both sides of a pipefail pipeline are plain commands, that only setup commands or a stricter
+//     `set` run before the check in its step, that no committed npm, yarn or pnpm setting or
+//     workflow names a script shell, node options or a yarn path and no pnpmfile or yarn plugin is
+//     committed (else no npm-family command is a check or setup), that a setup install runs no
+//     root lifecycle script and installs no project or path, and that a check carries no flag with
+//     which it cannot fail);
 //   - A1: conftest.py is not a concrete test file (not cited as one, and rated hollow where it
 //     asserts; from 2026-11-01 test_to_source_ratio counts it as test surface, as v17 does), and
 //     an unconditional run-wide pytest skip
