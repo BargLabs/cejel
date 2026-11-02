@@ -196,11 +196,21 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     not a skip form or a pytest mark, or a Python module that names `load_tests`; from 2026-11-01
 //     (goal_cejel_v27_a1_test_count_overmatch_2026-11-01) A1's note and evidence name each file
 //     these rules rate hollow, with the rule, and no rule claims where its condition is not read:
-//     a conftest.py where pytest's python_files is set, the Python per-test reader where
-//     python_functions or python_classes is set, any skip mark where `no:skipping` appears (each
-//     read from a pytest configuration file or a CI workflow), a hook without an `items` parameter,
-//     a clear where the hook hands the list itself to other code, or a skip that sits inside
-//     another mark's arguments in pytestmark;
+//     a hook without an `items` parameter, or a skip that sits inside another mark's arguments in
+//     pytestmark; from 2026-11-02 (goal_cejel_v27_a1_test_count_overmatch_v2_2026-11-02, which
+//     supersedes #621) a rule is withheld only on evidence: a hook's clear only where the same hook
+//     may put the collected items back (a refill such as extend, += or a slice assignment, another
+//     adding method, a helper given `items` and more, another name bound to the list) or rebinds
+//     `items`, never for copying, reporting or iterating over them; a pytest setting only where it
+//     is in force (an active key in [pytest] of pytest.ini, .pytest.ini or tox.ini, [tool:pytest]
+//     of setup.cfg, [tool.pytest.ini_options] or [tool.pytest] of pyproject.toml, its addopts, or
+//     a flag on a pytest command line in a CI step, a Makefile or justfile, a tox command, or
+//     PYTEST_ADDOPTS) and leaves pytest's default reading (python_files that may match conftest.py
+//     withholds the conftest rule, python_functions or python_classes reaching names not starting
+//     with test or Test the Python per-test reader, -p no:skipping every skip rule, and
+//     --noconftest, --rootdir or --confcutdir the hook rules); and a hook for a file below a
+//     directory that can be pytest's root, where pytest does not load it. Every withhold is said in
+//     A1's note ("<rule> not applied: <reason>"), never silently;
 //   - every criterion: a read of a Git LFS pointer is a content-read skip, so the criterion that
 //     read it abstains as a read failure instead of scoring the pointer text, unless its
 //     collector made a critical finding (it then scores as under v17);

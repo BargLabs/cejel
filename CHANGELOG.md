@@ -30,6 +30,20 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- **Prospective v27: A1 names every file it rates hollow, and withholds a rule only on evidence,
+  saying so each time.** Under `witan-rubric-v27-prospective-2026-10-19` only. A1's note and
+  evidence name each file the conftest, run-wide skip and every-test-skipped rules rate hollow,
+  with the rule, and `test_to_source_ratio` counts a `conftest.py` as test surface, as v17 does.
+  A rule is withheld only where pytest would not do what it assumes: a collection hook that empties
+  `items` only where the same hook puts them back (copying, reporting or iterating over them no
+  longer cancels it, so the common deselect-everything hook is caught again); a pytest setting only
+  where it is in force (an active key in a section pytest reads, or a flag on a pytest command line
+  in CI, a Makefile, a tox command or `PYTEST_ADDOPTS`), not in a comment, an `echo` string or
+  another section, and not at a value that leaves pytest's default reading; `--noconftest`,
+  `--rootdir` and `--confcutdir`; and a `conftest.py` pytest would not load because a configuration
+  file below it can be pytest's root. Every withhold is said in A1's note ("<rule> not applied:
+  <reason>"). v17, the default, and every other rubric are unchanged; v27 never scores A1 above
+  v17 on the same commit. No precision or recall claim; no holdout or calibration ran.
 - **Prospective v27: a shallow clone gets no composite score and no verdict** (operator ruling of
   1 Nov). Under `witan-rubric-v27-prospective-2026-10-19` a scan of a shallow clone abstains
   (`insufficient_source`, null headline scores) and says what to do: run `git fetch --unshallow`
