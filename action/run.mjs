@@ -42,8 +42,20 @@ function renderMarkdownInline(value) {
     .replace(/([\\`*_[\]<>|#])/g, '\\$1');
 }
 
+// Every verdict label an abstained summary.json carries. This file ships without the CLI's
+// source, so it keeps its own copy of WITAN_ABSTENTION_LABELS (src/witan/abstention.ts); a test
+// fails when the two differ. The two 'Unrated' labels (v27) withhold a score the source could
+// have earned; the other two say there was nothing to rate.
+export const ACTION_ABSTENTION_VERDICTS = Object.freeze([
+  'Insufficient source',
+  'Insufficient evidence',
+  'Unrated: shallow clone',
+  'Unrated: history depth unknown',
+]);
+
 export function renderStepSummary(s) {
-  const abstained = s.verdict === 'Insufficient source' || s.verdict === 'Insufficient evidence';
+  const abstained = ACTION_ABSTENTION_VERDICTS.includes(s.verdict);
+  const unrated = abstained && String(s.verdict).startsWith('Unrated: ');
   const limitationLines =
     Array.isArray(s.scanLimitations) && s.scanLimitations.length > 0
       ? [
@@ -59,7 +71,9 @@ export function renderStepSummary(s) {
     return `${[
       `## Cejel trust check — ${renderMarkdownInline(s.productDisplayName)}`,
       '',
-      `**${renderMarkdownInline(s.verdict)} to certify.**`,
+      unrated
+        ? `**${renderMarkdownInline(s.verdict)}: no composite score and no verdict.**`
+        : `**${renderMarkdownInline(s.verdict)} to certify.**`,
       '',
       renderMarkdownInline(
         s.insufficientSourceReason ?? 'No ratable source or measurable evidence was found.',
