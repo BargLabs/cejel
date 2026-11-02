@@ -22,6 +22,94 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
+## 2026-11-01 (B3) — under v27 a publishing workflow with no pull-request trigger is counted as CI again only when a failed check really stops every publish; v17-v26 byte-identical, certificate text included; no published score moved
+
+**Status.** A scoring change under `witan-rubric-v27-prospective-2026-10-19` only, with no
+identifier change. It reaches only GitHub Actions workflows with no pull-request trigger that
+publish, release or deploy on every run. No holdout or calibration ran for it, and this entry makes
+no precision or recall claim. The default stays v17. It supersedes #620, which was closed unmerged
+after an adversarial review found that its check reading credited a publish guarded by
+`if: success() || true`; #620's commits are carried here (replayed onto main, see the PR).
+
+**Why.** The operator's ruling of 1 Nov on #517: under v27, B3 excludes a publishing workflow only
+when it publishes without checking. Since the 2026-10-26 #517 follow-up, v27 had excluded every
+such workflow, whatever else it ran, which also threw away the tests many release workflows run
+first.
+
+**Change.** Under v27, B3 counts such a workflow, by both depth signals, when all of these hold, and
+its note says "<path> is counted as CI verification because a check runs before it publishes",
+followed by the F3-b trigger and environment clause:
+
+- **A check runs before every publish step** it recognises, earlier in the publishing job or in a
+  job it needs, directly or transitively. A check is a test, lint, type-check or verifying-build
+  command in command position (`tsc`, never `tsc-alias`; never named in `echo` text or as an
+  argument; never with `--if-present`).
+- **The check is a step's own `run:`**, a key of a list item directly under `steps:`, never a
+  `with:` input (an action's, `actions/github-script`'s), an `env:` value or any nested mapping.
+- **It does more than report.** A command given `--version`, `-V`, `--help` or `-h` is no check. An
+  npm, pnpm or yarn run of the `test` script is a check only when the root `package.json`, read as
+  the publish-only reader reads it, has a test script that runs something (not empty, not only
+  `true`, `:`, `echo ...` or `exit 0`), the workflow sets no `working-directory` and the step
+  changes no directory. At a monorepo root the manifest is outside the scan, so it is no check there.
+- **Its failure ends the step and job** (`failureStopsJobAt`, unchanged): not `; true`, `|| true`,
+  `set +e`, a pipe or a background `&`. One addition: after `set -o pipefail` (or a combined flag
+  such as `-euo pipefail`) on an earlier line of the same multi-line step, on GitHub-hosted bash
+  runners, a pipeline is read as its check segment.
+- **No `if:` lets a publish run after a failed check.** Any status-check function in an `if:`
+  replaces the implicit `success() &&`, so the reader admits one shape instead of refusing
+  spellings: every `success(` in the file must be a `success()` standing alone or ANDed at the top
+  level with terms holding no status call, in an `if:` read whole (one line, `${{ }}`, a plain or
+  quoted scalar continued on deeper lines, or a block). Any `always(`, `cancelled(` or `failure(`
+  anywhere refuses, as before. So `success() || true`, `success() || github.event_name == 'push'`,
+  `SUCCESS() || true`, `!failure() || true`, `always() && ...`, `success() || failure()`,
+  `!cancelled()`, the job-level `needs: test` with `if: ${{ success() || true }}`, and two-line
+  plain-scalar forms at the step and the job are all refused.
+- **The workflow is one GitHub runs, and every step is read.** Every job has a plain id and a read
+  `needs:` naming jobs of the file, and no job needs itself or is in a `needs` cycle. Every item
+  under every `steps:` is a block mapping with one `run:` or `uses:` and no merge key: a flow-style
+  `- {run: ...}` step withholds the credit wherever it sits.
+- **Every job runs after a check,** so a publish the reader cannot see (a repository script, an
+  unlisted action) never rides on a checked one: a job it needs runs a check, or it runs one itself
+  with only setup steps before it (checkout, `actions/setup-*`, `actions/cache`,
+  `pnpm/action-setup`, `astral-sh/setup-uv`, `oven-sh/setup-bun`, and `npm ci`/`install`, `pnpm`,
+  `yarn`, `bun install`, `corepack enable`, `pip install`, `python -m pip install`, `uv sync`,
+  `uv pip install`, `poetry`/`pdm`/`pipenv install`, `go mod download`, `cargo fetch`). A job that
+  calls a reusable workflow must need a job with a check.
+
+**B3's note** names each counted publishing workflow in order, and keeps room for a closing "N more
+publishing workflows are counted as CI verification because a check runs before they publish"
+before each named sentence, so every one is named or counted within the 1000-character limit. Where
+both kinds are present, the excluded-workflow note is given the limit less that room.
+
+**Certificate text.** #620 had changed the PR-gate CI count's glossary sentence for every rubric.
+v17's sentence is restored byte for byte; only a v27 certificate (HTML, Markdown and terminal) shows
+the v27 wording, which adds the check-before-publish clause and the conditions above.
+
+**The no-rise property** (`src/witan/__tests__/v27-no-rise.ts`). A counted workflow is counted as
+v17 counts it, so B3 can only return to v17's value, never rise past it. `checkNoRise` and
+`lostFindings` pass on all 53 fixtures of `b3-publishing-with-checks.test.ts`, and the generated
+shards pass.
+
+**Measured.** Main `fe8c261de` and this head scored the same 393 synthetic checkouts (the 53
+fixtures of `b3-publishing-with-checks-fixtures.ts`, every fixture of `false-assurance-fixtures.ts`,
+and `ci-claims-followups-fixtures.ts`), built once each, under all eleven selectable rubrics, and
+compared report JSON, HTML and Markdown byte for byte:
+
+- v17-v26: 3,930 of 3,930 reports byte-identical to main, and so are their HTML and Markdown.
+- v27: 384 of 393 reports byte-identical to main. The 9 that move are the counted fixtures
+  (`npm-test-then-publish`, `npm-test-in-needed-job`, `npm-test-in-transitively-needed-job`,
+  `pytest-before-twine-on-tag`, `reusable-publish-needs-test`, `publish-if-success-and-fork-guard`,
+  `check-piped-into-tee-with-pipefail`, `twelve-checked-publishing-workflows` and
+  `b3-test-then-publish-workflow`), in B3 only: main excludes each, and this head counts it as v17
+  does. Every v27 HTML and Markdown report differs from main's by the v27 glossary wording.
+- `b3-publishing-with-checks-v17.json` pins v17's projection of all 53 fixtures at `fe8c261de`
+  (#620's 12 entries unchanged), and `b3-publishing-with-checks-v17.html` pins one v17
+  certificate's HTML whole.
+
+Each new refusal has a fixture only it excludes; removing it, one at a time, fails that fixture
+(the PR lists the nine mutation runs). No behaviour-fingerprint pin moves: the fingerprint corpus
+holds no check-then-publish workflow. No published score moved: the board is scored under v17.
+
 ## 2026-11-01 — under v27 a shallow clone gets no composite and no verdict, and says how to fetch the history; F1's composite exclusion of A2 and the verdict cap are removed; v17-v26 byte-identical; v27 full clones byte-identical; no published score moved
 
 **Status.** A scoring change under `witan-rubric-v27-prospective-2026-10-19` only, with no
