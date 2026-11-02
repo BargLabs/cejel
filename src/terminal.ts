@@ -26,6 +26,7 @@ import {
   formatDimensionsMeasuredSentence,
   formatVerdictCapSentence,
   formatLowConfidenceSentence,
+  glossaryEntryForRubric,
 } from './witan/certificate-presentation.js';
 import { PROSPECTIVE_RUBRIC_NOTICE, isProspectiveRubricVersion } from './witan/rubric-version.js';
 
@@ -253,7 +254,7 @@ export function renderTerminalCertificate(summary: WitanCliSummary, report?: Wit
     }
   }
   lines.push('', 'Plain-language glossary:');
-  for (const entry of CERTIFICATE_GLOSSARY) {
+  for (const entry of CERTIFICATE_GLOSSARY.map((curated) => glossaryEntryForRubric(curated, report?.rubricVersion))) {
     lines.push(`  ${entry.term} — ${entry.definition}`);
   }
 

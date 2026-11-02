@@ -181,8 +181,8 @@ export function renderWitanHtmlReport(
     ${renderContentReadSummary(report)}
 
     <section class="trust-grid" aria-label="Rubric criteria">
-      ${renderCriterionColumn('Code trust', codeCriteria, gitHistoryUnavailable)}
-      ${renderCriterionColumn('Process trust', processCriteria, gitHistoryUnavailable)}
+      ${renderCriterionColumn('Code trust', codeCriteria, gitHistoryUnavailable, report.rubricVersion)}
+      ${renderCriterionColumn('Process trust', processCriteria, gitHistoryUnavailable, report.rubricVersion)}
     </section>
 
     <section class="evidence-grid" aria-label="Evidence and gaps">
@@ -429,6 +429,7 @@ function renderCriterionColumn(
   title: string,
   criteria: readonly WitanCriterionScore[],
   gitHistoryUnavailable: boolean,
+  rubricVersion: string,
 ): string {
   const applicable = criteria.filter((criterion) => criterion.status !== 'not_applicable');
   const notApplicable = criteria.filter((criterion) => criterion.status === 'not_applicable');
@@ -437,7 +438,7 @@ function renderCriterionColumn(
   return `<section class="criteria-column">
         <h2>${escapeHtml(title)}</h2>
         <div class="criteria-list">
-          ${applicable.map((criterion) => renderCriterionCard(criterion, gitHistoryUnavailable)).join('')}
+          ${applicable.map((criterion) => renderCriterionCard(criterion, gitHistoryUnavailable, rubricVersion)).join('')}
         </div>${notApplicableGroup}
       </section>`;
 }
@@ -461,12 +462,13 @@ function renderNotApplicableItem(criterion: WitanCriterionScore): string {
 function renderCriterionCard(
   criterion: WitanCriterionScore,
   gitHistoryUnavailable: boolean,
+  rubricVersion: string,
 ): string {
   const evidence = [
     ...criterion.evidence.map(renderEvidencePointer),
     ...criterion.findings.map((finding) => renderFindingEvidence(criterion, finding)),
   ];
-  const metrics = criterion.metrics.map((metric) => renderMetric(criterion, metric));
+  const metrics = criterion.metrics.map((metric) => renderMetric(criterion, metric, rubricVersion));
   const statusReconciliation = renderStatusReconciliation(criterion);
   const historyWarning =
     gitHistoryUnavailable && criterion.metrics.some((metric) => metric.name === 'pr_merge_ratio')
@@ -548,8 +550,9 @@ function renderMetricWeightBadge(
 function renderMetric(
   criterion: WitanCriterionScore,
   metric: WitanCriterionScore['metrics'][number],
+  rubricVersion: string,
 ): string {
-  const entry = glossaryEntryForMetric(metric);
+  const entry = glossaryEntryForMetric(metric, rubricVersion);
   const tooltipId = `tooltip-${criterion.id}-${entry.key}`;
   const formatted = formatCertificateMetricValue(criterion, metric);
   const weightBadge = renderMetricWeightBadge(criterion, metric);
