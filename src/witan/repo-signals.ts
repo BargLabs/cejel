@@ -12401,6 +12401,7 @@ function pytestItemsAliases(code: string): string[] {
   const names = parts.slice(0, -1);
   return names.every((name) => /^[A-Za-z_]\w*$/.test(name)) ? names : [];
 }
+const PYTHON_ZERO_LENGTH_SLICE_PATTERN = /^[A-Za-z_][\w.]*[ \t]*\[[ \t]*(?:0[ \t]*)?:[ \t]*0[ \t]*\]$/;
 const PYTHON_EMPTY_SEQUENCE_LITERAL_PATTERN = /^(?:\[[ \t]*\]|\([ \t]*\)|list[ \t]*\([ \t]*\)|tuple[ \t]*\([ \t]*\))$/;
 const PYTHON_DEF_WITH_PARAMETERS_PATTERN = /^(?:async[ \t]+)?def[ \t]+([A-Za-z_]\w*)[ \t]*\(([^)]*)\)/;
 /** A `for <target> in <source>:` statement's source and inline body, or undefined. Linear. */
@@ -12456,15 +12457,19 @@ function pythonListAddSource(code: string, name: string): string | undefined {
 /** True when a restore's source is known to be empty: an empty literal, a name bound only to one, or the cleared list. */
 function pythonSourceKnownEmpty(
   source: string,
-  emptyNames: ReadonlySet<string>,
+  emptyName: (name: string) => boolean,
   listNames: ReadonlySet<string>,
 ): boolean {
   if (source === PYTHON_ONE_VALUE_SOURCE || source === '') return false;
   if (PYTHON_EMPTY_SEQUENCE_LITERAL_PATTERN.test(source)) return true;
-  if (/^[A-Za-z_]\w*$/.test(source) && emptyNames.has(source)) return true;
+  // A zero-length slice written as `[:0]` or `[0:0]` (third pass; other empty slices are not read).
+  if (PYTHON_ZERO_LENGTH_SLICE_PATTERN.test(source)) return true;
+  if (/^[A-Za-z_]\w*$/.test(source) && emptyName(source)) return true;
   for (const name of listNames) {
     // After the clear the list is empty, and so is a copy, a sort or a comprehension over it alone.
-    const built = new RegExp(`^(?:${name}(?:[ \\t]*\\[[ \\t]*:[ \\t]*\\])?$|(?:sorted|list|tuple|reversed)[ \\t]*\\([ \\t]*${name}\\b)`);
+    const built = new RegExp(
+      `^(?:${name}(?:[ \\t]*\\[[ \\t]*:[ \\t]*\\]|[ \\t]*\\.[ \\t]*copy[ \\t]*\\([ \\t]*\\))?$|(?:sorted|list|tuple|reversed)[ \\t]*\\([ \\t]*${name}\\b|\\[[ \\t]*\\*[ \\t]*${name}[ \\t]*\\]$)`,
+    );
     if (built.test(source)) return true;
     // A comprehension over the cleared list alone (each test is linear: no two open runs).
     if (source.startsWith('[') && source.endsWith(']') && new RegExp(`[ \\t]in[ \\t]+${name}\\b`).test(source)) return true;
@@ -12501,6 +12506,35 @@ interface PythonListMutator {
   readonly definedAt: number;
 }
 
+// A statement at a function's top level after which a later statement may not run (or runs only
+// on some calls): the hook's own conditional rule, plus return, raise and yield.
+const PYTHON_BODY_EXIT_OR_BRANCH_PATTERN =
+  /^(?:if|elif|else|while|for|try|except|finally|with|match|case|return|raise|yield|break|continue|async|await)\b/;
+
+/**
+ * True when a function body adds, from a source not known to be empty, to one of `targets`, at the
+ * body's own top level and before any statement there that branches or exits; never for a
+ * generator (a body holding `yield`), whose call runs none of it (third pass: the hook's own rules
+ * apply inside a helper). Linear in the body.
+ */
+function pythonBodyAddsTo(
+  body: readonly { readonly indent: number; readonly code: string }[],
+  targets: ReadonlySet<string>,
+  knownEmpty: (source: string) => boolean,
+): boolean {
+  if (body.some(({ code }) => containsPythonIdentifier(code, 'yield'))) return false;
+  const top = body[0]?.indent;
+  for (const { indent, code } of body) {
+    if (indent !== top) continue;
+    if (PYTHON_BODY_EXIT_OR_BRANCH_PATTERN.test(code)) return false;
+    for (const target of targets) {
+      const source = pythonListAddSource(code, target);
+      if (source !== undefined && !knownEmpty(source)) return true;
+    }
+  }
+  return false;
+}
+
 /**
  * Module-level functions of a conftest.py that add to their first parameter, by name. Read from
  * each top-level `def` whose parameter list closes on its line, over the indented lines below it.
@@ -12511,17 +12545,17 @@ function pythonModuleListMutators(lines: readonly string[]): Map<string, PythonL
     const match = PYTHON_DEF_WITH_PARAMETERS_PATTERN.exec(lines[index] ?? '');
     if (!match) continue;
     const parameter = pythonFirstParameter(match[2] ?? '');
-    let adds = false;
+    const body: { indent: number; code: string }[] = [];
     for (let next = index + 1; next < lines.length; next += 1) {
       const raw = lines[next] ?? '';
       if (raw.trim() === '' || raw.trimStart().startsWith('#')) continue;
       if (!/^[ \t]/.test(raw)) break;
-      if (parameter === undefined || adds) continue;
-      for (const statement of pythonLineStatements(pythonCodeOutsideStrings(raw.trim()).trim())) {
-        const source = pythonListAddSource(statement, parameter);
-        if (source !== undefined && !pythonSourceKnownEmpty(source, new Set(), new Set([parameter]))) adds = true;
-      }
+      const indent = raw.length - raw.trimStart().length;
+      for (const code of pythonLineStatements(pythonCodeOutsideStrings(raw.trim()).trim())) body.push({ indent, code });
     }
+    const adds =
+      parameter !== undefined &&
+      pythonBodyAddsTo(body, new Set([parameter]), (source) => pythonSourceKnownEmpty(source, () => false, new Set([parameter])));
     mutators.set(match[1] ?? '', { firstParameter: adds, closure: false, definedAt: -1 });
   }
   return mutators;
@@ -12560,37 +12594,88 @@ function pytestItemsRestoreKind(
     }
     return undefined;
   };
-  // A name is known empty when it is bound to an empty literal and otherwise only read as a source.
-  const emptyNames = new Set<string>();
-  for (const { code } of codes) {
-    const binding = /^([A-Za-z_]\w*)[ \t]*=[ \t]*(.+)$/.exec(code);
-    if (binding && PYTHON_EMPTY_SEQUENCE_LITERAL_PATTERN.test((binding[2] ?? '').trim())) emptyNames.add(binding[1] ?? '');
-  }
-  for (const name of [...emptyNames]) {
-    const onlyEmpty = codes.every(({ code }) => {
-      if (!containsPythonIdentifier(code, name)) return true;
-      const binding = /^([A-Za-z_]\w*)[ \t]*=[ \t]*(.+)$/.exec(code);
-      if (binding?.[1] === name && PYTHON_EMPTY_SEQUENCE_LITERAL_PATTERN.test((binding[2] ?? '').trim())) return true;
-      return addSource(code) === name;
-    });
-    if (!onlyEmpty) emptyNames.delete(name);
-  }
-  const restoresFrom = (source: string | undefined) =>
-    source !== undefined && !pythonSourceKnownEmpty(source, emptyNames, listNames);
+  // A name is known empty at a statement where its last top-level binding before it is an empty
+  // literal, a zero-length slice, or (after the last clear) a copy of the cleared list, and nothing
+  // between them mentions it (third pass: a copy taken after the clear is empty).
+  // Indexed once, so each question below is answered by binary search, not a rescan.
+  const bindings = new Map<string, number[]>();
+  const mentions = new Map<string, number[]>();
+  codes.forEach(({ code }, index) => {
+    const seen = new Set<string>();
+    for (const match of code.matchAll(PYTHON_IDENTIFIER_PATTERN)) {
+      if (seen.has(match[0])) continue;
+      seen.add(match[0]);
+      const list = mentions.get(match[0]) ?? [];
+      list.push(index);
+      mentions.set(match[0], list);
+    }
+    const binding = topLevel(index) ? /^([A-Za-z_]\w*)[ \t]*=(?!=)/.exec(code) : null;
+    if (binding) {
+      const list = bindings.get(binding[1] ?? '') ?? [];
+      list.push(index);
+      bindings.set(binding[1] ?? '', list);
+    }
+  });
+  // The last entry below `at` in an ascending list, or -1; and the first entry above `after`, or -1.
+  const lastBelow = (list: readonly number[], at: number): number => {
+    let low = 0;
+    let high = list.length - 1;
+    let found = -1;
+    while (low <= high) {
+      const middle = (low + high) >> 1;
+      if ((list[middle] ?? 0) < at) {
+        found = list[middle] ?? -1;
+        low = middle + 1;
+      } else high = middle - 1;
+    }
+    return found;
+  };
+  const firstAbove = (list: readonly number[], after: number): number => {
+    let low = 0;
+    let high = list.length - 1;
+    let found = -1;
+    while (low <= high) {
+      const middle = (low + high) >> 1;
+      if ((list[middle] ?? 0) > after) {
+        found = list[middle] ?? -1;
+        high = middle - 1;
+      } else low = middle + 1;
+    }
+    return found;
+  };
+  const emptyBinding = new Map<number, boolean>();
+  const knownEmptyAt = (name: string, at: number): boolean => {
+    const bound = lastBelow(bindings.get(name) ?? [], at);
+    if (bound === -1) return false;
+    let empty = emptyBinding.get(bound);
+    if (empty === undefined) {
+      const value = (/^[A-Za-z_]\w*[ \t]*=(?!=)[ \t]*(.*)$/.exec(codes[bound]?.code ?? '')?.[1] ?? '').trim();
+      empty =
+        PYTHON_EMPTY_SEQUENCE_LITERAL_PATTERN.test(value) ||
+        PYTHON_ZERO_LENGTH_SLICE_PATTERN.test(value) ||
+        (bound > lastClear && pythonSourceKnownEmpty(value, () => false, listNames));
+      emptyBinding.set(bound, empty);
+    }
+    if (!empty) return false;
+    const next = firstAbove(mentions.get(name) ?? [], bound);
+    return next === -1 || next >= at;
+  };
+  const restoresFrom = (source: string | undefined, at: number) =>
+    source !== undefined && !pythonSourceKnownEmpty(source, (name) => knownEmptyAt(name, at), listNames);
   const mutators = pythonModuleListMutators(lines);
   // Nested functions defined in the hook, top level, with what they add to.
   for (let index = 0; index < codes.length; index += 1) {
     const match = topLevel(index) ? PYTHON_DEF_WITH_PARAMETERS_PATTERN.exec(codes[index]?.code ?? '') : null;
     if (!match) continue;
     const parameter = pythonFirstParameter(match[2] ?? '');
-    let firstParameter = false;
-    let closure = false;
+    const body: { indent: number; code: string }[] = [];
     for (let next = index + 1; next < codes.length && !topLevel(next); next += 1) {
-      const code = codes[next]?.code ?? '';
-      if (restoresFrom(addSource(code))) closure = true;
-      const own = parameter === undefined ? undefined : pythonListAddSource(code, parameter);
-      if (own !== undefined && !pythonSourceKnownEmpty(own, emptyNames, new Set([parameter ?? '']))) firstParameter = true;
+      body.push({ indent: codes[next]?.indent ?? 0, code: codes[next]?.code ?? '' });
     }
+    const closure = pythonBodyAddsTo(body, listNames, (source) => !restoresFrom(source, index));
+    const firstParameter =
+      parameter !== undefined &&
+      pythonBodyAddsTo(body, new Set([parameter]), (source) => pythonSourceKnownEmpty(source, () => false, new Set([parameter])));
     mutators.set(match[1] ?? '', { firstParameter, closure, definedAt: index });
   }
   for (let index = lastClear + 1; index < codes.length; index += 1) {
@@ -12598,12 +12683,12 @@ function pytestItemsRestoreKind(
     // A lambda, def or class line never starts with the list or a call of a known function, so only
     // a statement that runs here is read (the mutation run showed an exclusion of them unreachable).
     const code = codes[index]?.code ?? '';
-    if (restoresFrom(addSource(code))) return 'restores';
+    if (restoresFrom(addSource(code), index)) return 'restores';
     const loop = pythonForLoop(code);
-    if (loop && !pythonSourceKnownEmpty(loop.source, emptyNames, listNames)) {
+    if (loop && !pythonSourceKnownEmpty(loop.source, (name) => knownEmptyAt(name, index), listNames)) {
       const body = [loop.body];
       for (let next = index + 1; next < codes.length && !topLevel(next); next += 1) body.push(codes[next]?.code ?? '');
-      if (body.some((statement) => restoresFrom(addSource(statement)))) return 'restores';
+      if (body.some((statement) => restoresFrom(addSource(statement), index))) return 'restores';
     }
     const call = PYTHON_CALL_STATEMENT_PATTERN.exec(code);
     const mutator = call ? mutators.get(call[1] ?? '') : undefined;
