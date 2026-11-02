@@ -296,6 +296,20 @@ const REVIEW_626_FIXTURES: readonly WithholdFixture[] = [
     HOOK_REMOVED,
   ),
   caught(
+    'a1wh-r2-alias-after-clear-never-adds',
+    'A',
+    'After the clear the hook binds another name to the list but never adds through it.',
+    { 'tests/conftest.py': conftestHook(['    items.clear()', '    seen = items']) },
+    HOOK_REMOVED,
+  ),
+  caught(
+    'a1wh-r2-unknown-method-after-clear',
+    'A',
+    'After the clear the hook calls a list method the reader does not know, which adds nothing.',
+    { 'tests/conftest.py': conftestHook(['    items.clear()', '    count = items.__len__()']) },
+    HOOK_REMOVED,
+  ),
+  caught(
     'a1wh-r2-imported-helper-call',
     'A',
     'After the clear the hook passes items to a helper defined in another module, which the reader cannot see.',
@@ -408,7 +422,7 @@ const REVIEW_626_FIXTURES: readonly WithholdFixture[] = [
     'a1wh-r2-ci-echo-unquoted',
     'B',
     'A CI step echoes an unquoted pytest command; echo runs, pytest does not.',
-    { 'tests/conftest.py': CLEAR_HOOK, [CI_PATH]: ciWorkflow(['pytest', 'echo pytest --noconftest is not used here']) },
+    { 'tests/conftest.py': CLEAR_HOOK, [CI_PATH]: ciWorkflow(['pytest', 'echo pytest --noconftest']) },
     HOOK_REMOVED,
   ),
   caught(
@@ -428,7 +442,7 @@ const REVIEW_626_FIXTURES: readonly WithholdFixture[] = [
         '      - run: pytest',
         '      - run: |',
         '          cat > notes.txt <<EOF',
-        '          never run pytest --noconftest',
+        '          pytest --noconftest',
         '          EOF',
       ]),
     },
@@ -541,7 +555,7 @@ const REVIEW_626_FIXTURES: readonly WithholdFixture[] = [
     "A tox description mentions a pytest command line; tox runs only an environment's commands.",
     {
       'tests/conftest.py': CLEAR_HOOK,
-      'tox.ini': lines('[tox]', 'envlist = py312', '', '[testenv]', 'description = run pytest --noconftest style checks', 'commands = pytest'),
+      'tox.ini': lines('[tox]', 'envlist = py312', '', '[testenv]', 'description = pytest --noconftest is what the legacy job runs', 'commands = pytest'),
     },
     HOOK_REMOVED,
   ),

@@ -10734,7 +10734,8 @@ function isAtOrBelow(path: string, target: string): boolean {
 function resolveCommandPath(directory: string, path: string): string | null {
   if (path === '' || /[$`{}*?[\]~]/.test(path) || path.startsWith('/') || /^[A-Za-z]:[\\/]/.test(path)) return null;
   const joined = posix.normalize(posix.join(directory === '' ? '.' : directory, path.replace(/\\/g, '/')));
-  const trimmed = joined.replace(/\/+$/, '');
+  // posix.normalize leaves at most one trailing slash.
+  const trimmed = joined.endsWith('/') ? joined.slice(0, -1) : joined;
   if (trimmed === '.' || trimmed === '') return '';
   if (trimmed === '..' || trimmed.startsWith('../')) return null;
   return trimmed;
@@ -11492,16 +11493,20 @@ function readShellCommands(
   let exported = addopts;
   const joined = stripShellHeredocBodies(text).replace(/\\\r?\n/g, ' ');
   for (const segment of splitShellCommandSegments(joined)) {
-    const words = shellWords(segment.trim());
+    const all = shellWords(segment.trim());
     // A subshell or group opener, and make's @, - or + prefix, are not part of the command's name.
-    while (words.length > 0 && /^[({]+$/.test(words[0] ?? '')) words.shift();
-    if (words.length === 0) continue;
-    words[0] = (words[0] ?? '').replace(/^[({]+/, '').replace(/^[@+-]+(?=[A-Za-z./{$])/, '');
+    let start = 0;
+    while (start < all.length && /^[({]+$/.test(all[start] ?? '')) start += 1;
+    if (start >= all.length) continue;
+    all[start] = (all[start] ?? '').replace(/^[({]+/, '').replace(/^[@+-]+(?=[A-Za-z./{$])/, '');
     let local = exported;
-    while (words.length > 0 && /^[A-Za-z_]\w*=/.test(words[0] ?? '')) {
-      const assignment = words.shift() ?? '';
+    // Leading assignments, read by index: shifting each off would be quadratic in their number.
+    while (start < all.length && /^[A-Za-z_]\w*=/.test(all[start] ?? '')) {
+      const assignment = all[start] ?? '';
       if (assignment.startsWith(PYTEST_ADDOPTS_ASSIGNMENT)) local = shellWords(assignment.slice(PYTEST_ADDOPTS_ASSIGNMENT.length));
+      start += 1;
     }
+    const words = start === 0 ? all : all.slice(start);
     if (words.length === 0) {
       exported = local;
       continue;
@@ -11727,14 +11732,14 @@ function readYamlLines(text: string): YamlLine[] {
     const dash = /^-(?:[ \t]+|$)/.exec(trimmed);
     const item = dash ? trimmed.slice(dash[0].length) : trimmed;
     const keyColumn = indent + (dash ? dash[0].length : 0);
-    const key = /^("[^"]*"|'[^']*'|[^\s"'#:][^:#]*?)[ \t]*:(?:[ \t]+(.*)|$)/.exec(item);
-    const value = key ? (key[2] ?? '').trim() : item;
+    const key = yamlMappingKey(item);
+    const value = key ? key.value : item;
     lines.push({
       blank: false,
       indent,
       dash: dash !== null,
       keyColumn,
-      ...(key ? { key: unquoteYamlListItem((key[1] ?? '').trim()) } : {}),
+      ...(key ? { key: key.key } : {}),
       value,
     });
     if (key && /^[|>][-+0-9]*(?:[ \t]+#.*)?$/.test(value)) scalarAbove = keyColumn;
@@ -11742,11 +11747,59 @@ function readYamlLines(text: string): YamlLine[] {
   return lines;
 }
 
-/** A plain or quoted YAML scalar's value, its trailing comment removed. */
+/**
+ * A YAML block-mapping line's key and value: a quoted key, or a plain one up to the first `:`
+ * followed by a blank or the line's end (a `#` first makes it no key). Linear in the line.
+ */
+function yamlMappingKey(item: string): { key: string; value: string } | undefined {
+  let end: number;
+  let key: string;
+  const quote = item[0];
+  if (quote === '"' || quote === "'") {
+    const close = item.indexOf(quote, 1);
+    if (close === -1) return undefined;
+    key = item.slice(1, close);
+    end = close + 1;
+    while (item[end] === ' ' || item[end] === '\t') end += 1;
+    if (item[end] !== ':') return undefined;
+  } else {
+    end = -1;
+    for (let index = 0; index < item.length; index += 1) {
+      const character = item[index];
+      if (character === '#') return undefined;
+      if (character === ':' && (index + 1 === item.length || item[index + 1] === ' ' || item[index + 1] === '\t')) {
+        end = index;
+        break;
+      }
+    }
+    if (end <= 0) return undefined;
+    key = item.slice(0, end).trim();
+    if (key === '') return undefined;
+  }
+  return { key, value: item.slice(end + 1).trim() };
+}
+
+/** The index of a YAML or shell comment's `#` (one at the start or after a blank), or -1. Linear. */
+function trailingCommentStart(value: string): number {
+  for (let index = 0; index < value.length; index += 1) {
+    if (value[index] === '#' && (index === 0 || value[index - 1] === ' ' || value[index - 1] === '\t')) return index;
+  }
+  return -1;
+}
+
+/** A plain or quoted YAML scalar's value, its trailing comment removed. Linear in the value. */
 function yamlPlainScalar(value: string): string {
-  const quoted = /^(?:"(.*)"|'(.*)')(?:[ \t]+#.*)?$/.exec(value);
-  if (quoted) return quoted[1] ?? quoted[2] ?? '';
-  return value.replace(/[ \t]+#.*$/, '').trim();
+  const quote = value[0];
+  if (quote === '"' || quote === "'") {
+    const close = value.lastIndexOf(quote);
+    if (close > 0) {
+      const after = value.slice(close + 1);
+      const comment = trailingCommentStart(after);
+      if ((comment === -1 ? after : after.slice(0, comment)).trim() === '') return value.slice(1, close);
+    }
+  }
+  const comment = trailingCommentStart(value);
+  return (comment === -1 ? value : value.slice(0, comment)).trim();
 }
 
 /**
@@ -11759,13 +11812,28 @@ function readGithubRunSteps(text: string): { command: string; directory: string 
   const lines = readYamlLines(text);
   const raw = text.split(/\r?\n/);
   const steps: { command: string; directory: string | null; addopts?: readonly string[] }[] = [];
-  const nonBlankAbove = (from: number, test: (line: YamlLine) => boolean): number => {
-    for (let index = from - 1; index >= 0; index -= 1) {
-      const line = lines[index];
-      if (line && !line.blank && test(line)) return index;
+  // One pass: each line's parent (the nearest non-blank line above it at a smaller key column) and
+  // the dash line that opens the mapping its key sits in, each by a stack, so the per-step reads
+  // below stay linear in the file however many steps or jobs it holds.
+  const parent = new Array<number>(lines.length).fill(-1);
+  const itemStart = new Array<number>(lines.length).fill(-1);
+  const open: number[] = [];
+  const items: { column: number; index: number }[] = [];
+  lines.forEach((line, index) => {
+    if (line.blank) return;
+    while (open.length > 0 && (lines[open[open.length - 1] ?? 0]?.keyColumn ?? 0) >= line.keyColumn) open.pop();
+    parent[index] = open[open.length - 1] ?? -1;
+    open.push(index);
+    while (items.length > 0 && (items[items.length - 1]?.column ?? 0) > line.keyColumn) items.pop();
+    const top = items[items.length - 1];
+    if (line.dash) {
+      if (top?.column === line.keyColumn) items.pop();
+      items.push({ column: line.keyColumn, index });
+      itemStart[index] = index;
+    } else if (top?.column === line.keyColumn) {
+      itemStart[index] = top.index;
     }
-    return -1;
-  };
+  });
   const mappingKeys = (start: number, column: number): Map<string, number> => {
     const keys = new Map<string, number>();
     for (let index = start; index < lines.length; index += 1) {
@@ -11789,31 +11857,50 @@ function readGithubRunSteps(text: string): { command: string; directory: string 
   const scalarAt = (index: number | undefined): string | undefined =>
     index === undefined ? undefined : yamlPlainScalar(lines[index]?.value ?? '');
   const isFalse = (value: string | undefined) => value !== undefined && /^(?:false|\$\{\{\s*false\s*\}\})$/.test(value);
-  const firstRootLine = lines.findIndex((line) => !line.blank);
-  const rootKeys = firstRootLine === -1 ? new Map<string, number>() : mappingKeys(firstRootLine, lines[firstRootLine]?.keyColumn ?? 0);
   const defaultDirectory = (keys: Map<string, number>) => scalarAt(childKeys(childKeys(keys.get('defaults')).get('run')).get('working-directory'));
   const addoptsIn = (keys: Map<string, number>) => scalarAt(childKeys(keys.get('env')).get('PYTEST_ADDOPTS'));
+  interface MappingFacts {
+    readonly never: boolean;
+    readonly directory?: string;
+    readonly addopts?: string;
+  }
+  const factsOf = (keys: Map<string, number>): MappingFacts => {
+    const directory = defaultDirectory(keys);
+    const addopts = addoptsIn(keys);
+    return {
+      never: isFalse(scalarAt(keys.get('if'))),
+      ...(directory === undefined ? {} : { directory }),
+      ...(addopts === undefined ? {} : { addopts }),
+    };
+  };
+  const firstRootLine = lines.findIndex((line) => !line.blank);
+  const root = factsOf(firstRootLine === -1 ? new Map() : mappingKeys(firstRootLine, lines[firstRootLine]?.keyColumn ?? 0));
+  const jobs = new Map<number, MappingFacts>();
+  const jobFacts = (header: number, column: number): MappingFacts => {
+    let facts = jobs.get(header);
+    if (facts === undefined) {
+      let start = header + 1;
+      while (start < lines.length && lines[start]?.blank) start += 1;
+      facts = start < lines.length ? factsOf(mappingKeys(start, column)) : { never: false };
+      jobs.set(header, facts);
+    }
+    return facts;
+  };
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index];
     if (!line || line.blank || line.key !== 'run' || line.value === '') continue;
     const column = line.keyColumn;
     // The step's first key is the dash line at this column; its other keys sit at the column too.
-    let stepStart = index;
-    while (stepStart !== -1 && !lines[stepStart]?.dash) {
-      stepStart = nonBlankAbove(stepStart, (above) => above.keyColumn <= column);
-      if (stepStart !== -1 && lines[stepStart]?.keyColumn !== column) stepStart = -1;
-    }
+    const stepStart = itemStart[index] ?? -1;
     if (stepStart === -1) continue;
     const stepKeys = mappingKeys(stepStart, column);
-    const list = nonBlankAbove(stepStart, (above) => above.keyColumn < column);
-    const jobColumn = list === -1 ? 0 : (lines[list]?.keyColumn ?? 0);
-    const jobHeader = list === -1 ? -1 : nonBlankAbove(list, (above) => above.keyColumn < jobColumn);
-    const jobStart = jobHeader === -1 ? -1 : lines.findIndex((candidate, at) => at > jobHeader && !candidate.blank);
-    const jobKeys = jobStart === -1 ? new Map<string, number>() : mappingKeys(jobStart, jobColumn);
-    if (isFalse(scalarAt(stepKeys.get('if'))) || isFalse(scalarAt(jobKeys.get('if')))) continue;
-    const directoryValue = scalarAt(stepKeys.get('working-directory')) ?? defaultDirectory(jobKeys) ?? defaultDirectory(rootKeys);
+    const list = parent[stepStart] ?? -1;
+    const jobHeader = list === -1 ? -1 : (parent[list] ?? -1);
+    const job = jobHeader === -1 ? { never: false } : jobFacts(jobHeader, lines[list]?.keyColumn ?? 0);
+    if (isFalse(scalarAt(stepKeys.get('if'))) || job.never) continue;
+    const directoryValue = scalarAt(stepKeys.get('working-directory')) ?? job.directory ?? root.directory;
     const directory = directoryValue === undefined ? '' : directoryValue.includes('${{') ? null : resolveCommandPath('', directoryValue);
-    const addoptsValue = addoptsIn(stepKeys) ?? addoptsIn(jobKeys) ?? addoptsIn(rootKeys);
+    const addoptsValue = addoptsIn(stepKeys) ?? job.addopts ?? root.addopts;
     let command: string;
     if (/^[|>]/.test(line.value)) {
       const block: string[] = [];
@@ -11822,7 +11909,8 @@ function readGithubRunSteps(text: string): { command: string; directory: string 
         if (text.trim() !== '' && text.length - text.trimStart().length <= column) break;
         block.push(text);
       }
-      const indent = Math.min(...block.filter((text) => text.trim() !== '').map((text) => text.length - text.trimStart().length));
+      let indent = Number.POSITIVE_INFINITY;
+      for (const text of block) if (text.trim() !== '') indent = Math.min(indent, text.length - text.trimStart().length);
       const dedented = block.map((text) => text.slice(Number.isFinite(indent) ? indent : 0));
       command = dedented.join(line.value.startsWith('>') ? ' ' : '\n');
     } else {
@@ -12306,10 +12394,35 @@ function pytestHookTakesItems(defLine: string): boolean {
 // report, a loop over it, a call to a builtin, a logger or a function Cejel cannot see, an
 // unknown method) is not read as a restore, so the hollow rating stands.
 
-const PYTEST_ITEMS_ALIAS_PATTERN = /^([A-Za-z_]\w*)(?:[ \t]*=[ \t]*[A-Za-z_]\w*)*[ \t]*=[ \t]*items[ \t]*$/;
+/** The names a statement binds to the list (`a = items`, `a = b = items`), or []. Linear. */
+function pytestItemsAliases(code: string): string[] {
+  const parts = code.split('=').map((part) => part.trim());
+  if (parts.length < 2 || parts[parts.length - 1] !== 'items') return [];
+  const names = parts.slice(0, -1);
+  return names.every((name) => /^[A-Za-z_]\w*$/.test(name)) ? names : [];
+}
 const PYTHON_EMPTY_SEQUENCE_LITERAL_PATTERN = /^(?:\[[ \t]*\]|\([ \t]*\)|list[ \t]*\([ \t]*\)|tuple[ \t]*\([ \t]*\))$/;
 const PYTHON_DEF_WITH_PARAMETERS_PATTERN = /^(?:async[ \t]+)?def[ \t]+([A-Za-z_]\w*)[ \t]*\(([^)]*)\)/;
-const PYTHON_FOR_PATTERN = /^for[ \t]+[^:]+?[ \t]+in[ \t]+(.+?)[ \t]*:(.*)$/;
+/** A `for <target> in <source>:` statement's source and inline body, or undefined. Linear. */
+function pythonForLoop(code: string): { source: string; body: string } | undefined {
+  if (!/^for[ \t]/.test(code)) return undefined;
+  let depth = 0;
+  let colon = -1;
+  for (let index = 0; index < code.length; index += 1) {
+    const character = code[index];
+    if (character === '(' || character === '[' || character === '{') depth += 1;
+    else if (character === ')' || character === ']' || character === '}') depth -= 1;
+    else if (character === ':' && depth === 0) {
+      colon = index;
+      break;
+    }
+  }
+  if (colon === -1) return undefined;
+  const head = code.slice(0, colon);
+  const at = head.search(/[ \t]in[ \t]/);
+  if (at === -1) return undefined;
+  return { source: head.slice(at + 4).trim(), body: code.slice(colon + 1).trim() };
+}
 // A call statement, optionally assigning its result: callee in group 1, the text after `(` in 2.
 const PYTHON_CALL_STATEMENT_PATTERN = /^(?:[A-Za-z_]\w*[ \t]*=[ \t]*)?([A-Za-z_]\w*)[ \t]*\((.*)$/;
 // Marks an adding call whose argument is one value (append, insert): never an empty source.
@@ -12333,9 +12446,11 @@ function pythonListAddSource(code: string, name: string): string | undefined {
   }
   const augmented = /^[ \t]*\+=[ \t]*(.*)$/.exec(rest);
   if (augmented) return (augmented[1] ?? '').trim();
-  const slice = /^[ \t]*\[[^\]]*:[^\]]*\][ \t]*=(?!=)[ \t]*(.*)$/.exec(rest);
-  if (slice) return (slice[1] ?? '').trim();
-  return undefined;
+  const open = rest.trimStart();
+  const close = open.startsWith('[') ? open.indexOf(']') : -1;
+  if (close === -1 || !open.slice(1, close).includes(':')) return undefined;
+  const assigned = /^[ \t]*=(?!=)[ \t]*(.*)$/.exec(open.slice(close + 1));
+  return assigned ? (assigned[1] ?? '').trim() : undefined;
 }
 
 /** True when a restore's source is known to be empty: an empty literal, a name bound only to one, or the cleared list. */
@@ -12349,10 +12464,10 @@ function pythonSourceKnownEmpty(
   if (/^[A-Za-z_]\w*$/.test(source) && emptyNames.has(source)) return true;
   for (const name of listNames) {
     // After the clear the list is empty, and so is a copy, a sort or a comprehension over it alone.
-    const built = new RegExp(
-      `^(?:${name}(?:[ \\t]*\\[[ \\t]*:[ \\t]*\\])?|(?:sorted|list|tuple|reversed)[ \\t]*\\([ \\t]*${name}\\b.*|\\[.*\\bfor\\b.*\\bin[ \\t]+${name}\\b[^\\]]*\\])$`,
-    );
+    const built = new RegExp(`^(?:${name}(?:[ \\t]*\\[[ \\t]*:[ \\t]*\\])?$|(?:sorted|list|tuple|reversed)[ \\t]*\\([ \\t]*${name}\\b)`);
     if (built.test(source)) return true;
+    // A comprehension over the cleared list alone (each test is linear: no two open runs).
+    if (source.startsWith('[') && source.endsWith(']') && new RegExp(`[ \\t]in[ \\t]+${name}\\b`).test(source)) return true;
   }
   return false;
 }
@@ -12436,8 +12551,7 @@ function pytestItemsRestoreKind(
   }
   const listNames = new Set(['items']);
   codes.forEach(({ code }, index) => {
-    const alias = topLevel(index) ? PYTEST_ITEMS_ALIAS_PATTERN.exec(code) : null;
-    if (alias) for (const name of code.split('=').slice(0, -1)) listNames.add(name.trim());
+    if (topLevel(index)) for (const name of pytestItemsAliases(code)) listNames.add(name);
   });
   const addSource = (code: string): string | undefined => {
     for (const name of listNames) {
@@ -12485,9 +12599,9 @@ function pytestItemsRestoreKind(
     // a statement that runs here is read (the mutation run showed an exclusion of them unreachable).
     const code = codes[index]?.code ?? '';
     if (restoresFrom(addSource(code))) return 'restores';
-    const loop = PYTHON_FOR_PATTERN.exec(code);
-    if (loop && !pythonSourceKnownEmpty((loop[1] ?? '').trim(), emptyNames, listNames)) {
-      const body = [(loop[2] ?? '').trim()];
+    const loop = pythonForLoop(code);
+    if (loop && !pythonSourceKnownEmpty(loop.source, emptyNames, listNames)) {
+      const body = [loop.body];
       for (let next = index + 1; next < codes.length && !topLevel(next); next += 1) body.push(codes[next]?.code ?? '');
       if (body.some((statement) => restoresFrom(addSource(statement)))) return 'restores';
     }
