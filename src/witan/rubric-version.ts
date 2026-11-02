@@ -182,7 +182,15 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     from 2026-11-01, the #517 correction on the operator's ruling of 1 November, such a workflow
 //     is counted after all when a check runs before every publish step, in the publishing job or
 //     in a job it needs, and B3's note says so: only a workflow that publishes without checking is
-//     excluded);
+//     excluded; the second pass on #620 credits it only where a failed check stops every publish:
+//     every status-check call in the file is a plain `success()`, standing alone or ANDed with
+//     terms holding none, a check is a step's own `run:` that is not only `--version`, `-V`,
+//     `--help` or `-h` and, for an npm-family test script, runs a root package.json script that
+//     does something, its failure ends the step (a pipeline only after `set -o pipefail`), every
+//     step is one the reader reads, no job needs itself or is in a `needs` cycle, and every job runs
+//     after a check, either in a job it needs or in its own steps with only setup before it; B3's
+//     note names or counts every such workflow, and only a v27 certificate words the PR-gate CI
+//     glossary entry for it);
 //   - A1: conftest.py is not a concrete test file, and an unconditional run-wide pytest skip
 //     (a collection hook that skips or clears every item, or a module-level pytestmark skip)
 //     marks the test files in its scope hollow (from 2026-10-27 the hook's skip marker may also be

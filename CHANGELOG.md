@@ -30,6 +30,23 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- **Prospective v27: B3 counts a publishing workflow with no pull-request trigger only when a failed
+  check really stops every publish** (operator ruling of 1 Nov on #517; supersedes #620). Under
+  `witan-rubric-v27-prospective-2026-10-19`, a workflow that publishes, releases or deploys on every
+  push is counted as CI verification again when a test, lint, type-check or verifying-build command
+  runs before every publish step, in the publishing job or in a job it needs. It is not counted when
+  an `if:` uses a status-check function other than a plain `success()` (so `success() || true`,
+  `!failure() || ...`, `always() && ...` and `!cancelled()` all leave the publish free to run after a
+  failed check); when the "check" is a `run:` under `with:` or `env:`, a `--version` or `--help`
+  call, or an npm, pnpm or yarn test script that is empty or only `true`, `:`, `echo` or `exit 0`;
+  when its failure does not end the step (`; true`, a pipe without `set -o pipefail`, a background
+  `&`); when a job needs itself or is in a `needs` cycle; when a step cannot be read; or when a job
+  runs neither after a needed check nor after its own check with only setup steps before it. B3's
+  note names every counted publishing workflow or counts the rest in its closing sentence. Only a v27
+  certificate words the PR-gate CI glossary entry for this; v17, the default, and every other rubric
+  are unchanged, certificate text included. No holdout or calibration ran for it, and it carries no
+  precision or recall claim. The record is in `leaderboard/RUBRIC_CHANGELOG.md` (2026-11-01, B3).
+
 - **Prospective v27: a shallow clone gets no composite score and no verdict** (operator ruling of
   1 Nov). Under `witan-rubric-v27-prospective-2026-10-19` a scan of a shallow clone abstains
   (`insufficient_source`, null headline scores) and says what to do: run `git fetch --unshallow`

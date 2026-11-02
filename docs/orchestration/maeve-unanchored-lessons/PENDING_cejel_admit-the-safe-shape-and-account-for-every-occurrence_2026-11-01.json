@@ -1,0 +1,45 @@
+[
+  {
+    "statement": "A scorer refused credit when a workflow named always(), failure() or cancelled(), yet credited if: success() || true, which runs after a failed check exactly as always() does. A refusal list of spellings is evaded by any other spelling with the same platform effect. Rules: admit only the one safe shape (a plain success() ANDed with no status term), and require every occurrence in the file to be accounted for in a position the reader parsed whole.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "false-assurance",
+      "rubric-design"
+    ],
+    "tags": [
+      "denylist-evasion",
+      "semantic-guard",
+      "false-assurance"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-11-01T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 625
+    }
+  },
+  {
+    "statement": "Removing a new step-readability refusal left every test green, because a second rule also refused the only fixture written for it. A guard with no fixture where it alone fires is untested, however many fixtures pass. Rules: mutate each refusal separately, and for any that survives, add a fixture only that refusal excludes.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "test-design"
+    ],
+    "tags": [
+      "mutation-testing",
+      "redundant-guard",
+      "test-coverage"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-11-01T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 625
+    }
+  }
+]
