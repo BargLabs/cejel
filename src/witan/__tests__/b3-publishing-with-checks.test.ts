@@ -113,6 +113,9 @@ describe('v27 (#517 correction) — a publishing workflow that checks before it 
   }
 });
 
+// Excluded fixtures triggered only by a tag push: default_branch_ci_depth never counted them.
+const TAG_TRIGGERED_ONLY: ReadonlySet<string> = new Set(['pytest-before-twine-on-tag']);
+
 describe('v27 (#517 correction) — a publishing workflow with no check before its publish step is still excluded', () => {
   for (const [name] of [...EXCLUDED, ...EDGE_EXCLUDED, ...V2_EXCLUDED, ...V3_EXCLUDED]) {
     it(`v27 excludes ${name}, with the note and disclosure unchanged`, () => {
@@ -123,6 +126,9 @@ describe('v27 (#517 correction) — a publishing workflow with no check before i
       expect(b3.disclosures, name).toContain(
         `B3 did not count CI workflows that publish, release or deploy with no pull-request trigger, whatever else they run: ${file} runs an unconditional publish, release or deploy step.`,
       );
+      // A workflow triggered by a tag push alone is no default-branch CI, so its exclusion cannot
+      // lower default_branch_ci_depth; the note and disclosure above show it (third pass on #625).
+      if (TAG_TRIGGERED_ONLY.has(name)) return;
       expect(b3.metrics.find(({ name: metric }) => metric === 'default_branch_ci_depth')?.value, name).toBeLessThan(
         criterion(name, V17, 'B3').metrics.find(({ name: metric }) => metric === 'default_branch_ci_depth')?.value ?? 0,
       );

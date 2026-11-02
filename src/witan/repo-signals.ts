@@ -6441,7 +6441,7 @@ function collectB3CiDisciplineEvidence(
           uncreditedCiWorkflows(repoPath, workflows, inventory),
           publishingDetails,
           checkedPublishingDetails,
-          rootTestScriptRunsSomething(repoPath, inventory),
+          checkReading(repoPath, inventory),
         );
       })
     : new Map();
@@ -6454,9 +6454,10 @@ function collectB3CiDisciplineEvidence(
             uncreditedCiWorkflows(mono.root, rootWorkflows, null),
             rootPublishingDetails,
             rootCheckedPublishingDetails,
-            // The monorepo root's package.json is outside this scan's inventory, so its test
-            // script is not read, and the npm-family test script is not a check there (item E).
-            false,
+            // The monorepo root's package.json and package-manager configuration are outside this
+            // scan's inventory, so none is read: the npm-family test script is not a check there
+            // (item E), and no npm, pnpm, yarn or bun command is a check or a setup step (third pass).
+            UNREAD_CHECK_READING,
           ),
         )
       : new Map();
@@ -6868,8 +6869,7 @@ function isPublishingCommand(input: readonly string[]): boolean {
  * without checking is excluded. One where a check runs before every publish
  * (checksBeforeEveryPublish) is default-branch CI that also publishes, so it is not added; its
  * clause goes to `checkedDetails` instead, for B3's note to say it is counted and why.
- * `testScriptRuns` says whether the root package.json's test script runs something
- * (rootTestScriptRunsSomething), which an npm-family test script command needs to be a check.
+ * `reading` is what the checkout says about the commands a check reading admits (checkReading).
  */
 function publishingWorkflowReasons(
   root: string,
@@ -6877,7 +6877,7 @@ function publishingWorkflowReasons(
   uncredited: ReadonlyMap<string, UncreditedCiWorkflowReason>,
   details: Map<string, string>,
   checkedDetails: Map<string, string>,
-  testScriptRuns: boolean,
+  reading: CheckReading,
 ): Map<string, UncreditedCiWorkflowReason> {
   const reasons = new Map<string, UncreditedCiWorkflowReason>();
   for (const file of workflows) {
@@ -6886,7 +6886,7 @@ function publishingWorkflowReasons(
       reasons.set(file, known);
       continue;
     }
-    const read = publishingWorkflowDetail(root, file, testScriptRuns);
+    const read = publishingWorkflowDetail(root, file, reading);
     if (read === undefined) continue;
     if (read.checked) {
       checkedDetails.set(file, read.detail);
@@ -7272,7 +7272,7 @@ function publishingJobsOnEveryRun(
   contents: string,
   context: WorkflowTriggerContext,
   depth: number,
-  testScriptRuns: boolean,
+  reading: CheckReading,
 ): PublishingJobsReading {
   const none: PublishingJobsReading = { environments: [], checkedBeforePublish: false };
   if (YAML_LINE_BREAK_NOT_SPLIT_PATTERN.test(contents)) return none;
@@ -7316,7 +7316,7 @@ function publishingJobsOnEveryRun(
           const job = jobs.find(({ start, end }) => start < stepsKey && stepsKey < end);
           return job ? jobEnvironment(lines, indents, inBlockScalar, job) : { kind: 'unread' };
         }),
-      checkedBeforePublish: depth === 0 && checksBeforeEveryPublish(contents, jobs, publishes, isGuardLine, testScriptRuns),
+      checkedBeforePublish: depth === 0 && checksBeforeEveryPublish(contents, jobs, publishes, isGuardLine, reading),
     };
   }
   if (depth >= REUSABLE_WORKFLOW_MAX_DEPTH) return none;
@@ -7326,11 +7326,11 @@ function publishingJobsOnEveryRun(
     if (!local) continue;
     const calledPath = join(root, local[1] ?? '');
     if (!isRegularFile(calledPath)) continue;
-    const called = publishingJobsOnEveryRun(root, readRepoText(calledPath, 'utf8'), context, depth + 1, testScriptRuns);
+    const called = publishingJobsOnEveryRun(root, readRepoText(calledPath, 'utf8'), context, depth + 1, reading);
     if (called.environments.length > 0) {
       return {
         environments: called.environments,
-        checkedBeforePublish: depth === 0 && checksBeforeEveryPublish(contents, jobs, publishes, isGuardLine, testScriptRuns),
+        checkedBeforePublish: depth === 0 && checksBeforeEveryPublish(contents, jobs, publishes, isGuardLine, reading),
       };
     }
   }
@@ -7559,36 +7559,47 @@ function isSetupAction(value: string): boolean {
   return SETUP_ACTIONS.has(name) || (name.startsWith(SETUP_ACTION_PREFIX) && /^[a-z0-9-]+$/.test(name.slice(SETUP_ACTION_PREFIX.length)));
 }
 
-/** True for one shell command that installs dependencies or enables a toolchain, named here. */
-function isSetupCommand(input: readonly string[]): boolean {
+/**
+ * True for one shell command that installs dependencies or enables a toolchain, named here, and
+ * runs none of the project's own code (third pass on #625, F6). An npm, pnpm, yarn or bun install
+ * is one only when the root package.json is read and declares no script those run on install and
+ * the package-manager configuration is plain (CheckReading); a pip install only of named packages
+ * from an index (pipArgumentsNamePackagesOnly), never of the project or a path; `uv sync`,
+ * `poetry install` and `pdm install` only when told not to install the project itself.
+ */
+function isSetupCommand(input: readonly string[], reading: CheckReading): boolean {
   const head = commandHead(input);
   if (head.inverted) return false;
   const words = [head.word, ...input.slice(head.argsFrom)];
   let start = 0;
   while (start < words.length && /^[A-Za-z_][A-Za-z0-9_]*=/.test(words[start] ?? '')) start += 1;
   const [tool = '', first = '', second = ''] = words.slice(start);
+  // An npm-family install of the project's own dependencies: flags only, no package or path named.
+  const javaScriptInstall =
+    reading.installRunsNoProjectScript && reading.packageManagerConfigPlain && words.slice(start + 2).every((word) => word.startsWith('-'));
   switch (tool) {
     case 'npm':
-      return first === 'ci' || first === 'install' || first === 'i';
+      return javaScriptInstall && (first === 'ci' || first === 'install' || first === 'i');
     case 'pnpm':
     case 'bun':
-      return first === 'install' || first === 'i';
+      return javaScriptInstall && (first === 'install' || first === 'i');
     case 'yarn':
-      return first === '' || first === 'install';
+      return javaScriptInstall && (first === '' || first === 'install' || first.startsWith('-'));
     case 'corepack':
       return first === 'enable';
     case 'pip':
     case 'pip3':
-      return first === 'install';
+      return first === 'install' && pipArgumentsNamePackagesOnly(words.slice(start + 2));
     case 'python':
     case 'python3':
-      return first === '-m' && second === 'pip' && words[start + 3] === 'install';
+      return first === '-m' && second === 'pip' && words[start + 3] === 'install' && pipArgumentsNamePackagesOnly(words.slice(start + 4));
     case 'uv':
-      return first === 'sync' || (first === 'pip' && second === 'install');
+      if (first === 'pip' && second === 'install') return pipArgumentsNamePackagesOnly(words.slice(start + 3));
+      return first === 'sync' && words.includes('--no-install-project');
     case 'poetry':
+      return first === 'install' && words.includes('--no-root');
     case 'pdm':
-    case 'pipenv':
-      return first === 'install';
+      return first === 'install' && words.includes('--no-self');
     case 'go':
       return first === 'mod' && second === 'download';
     case 'cargo':
@@ -7596,6 +7607,34 @@ function isSetupCommand(input: readonly string[]): boolean {
     default:
       return false;
   }
+}
+
+// Third pass on #625 (F6): the pip flags a package-only install may carry, none of which names a
+// path, a file or an index.
+const PIP_PACKAGE_ONLY_FLAGS: ReadonlySet<string> = new Set([
+  '-U', '--upgrade', '-q', '--quiet', '--user', '--no-cache-dir', '--disable-pip-version-check', '--pre', '--no-input',
+]);
+// A requirement naming a package on an index: a name, optional extras, then only version-specifier
+// characters. No `/`, `:` or `@`, so no path, URL or direct reference.
+const PIP_PACKAGE_NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]*(?:\[[A-Za-z0-9._,-]+\])?/;
+const PIP_VERSION_SPECIFIER_PATTERN = /^(?:[<>=!~][<>=!~A-Za-z0-9.*+_,-]*)?$/;
+
+/**
+ * Third pass on #625 (F6): true when a pip install's arguments name at least one package and only
+ * packages from an index, with only PIP_PACKAGE_ONLY_FLAGS. `-e`, `.`, `.[test]`, a path, a URL, a
+ * requirements file (`-r`, which the reader does not read) and any other flag are refused: a local
+ * install builds the project, running its build code before any check.
+ */
+function pipArgumentsNamePackagesOnly(args: readonly string[]): boolean {
+  let packages = 0;
+  for (const raw of args) {
+    const arg = unquoteYamlScalar(raw);
+    if (PIP_PACKAGE_ONLY_FLAGS.has(arg)) continue;
+    const name = PIP_PACKAGE_NAME_PATTERN.exec(arg);
+    if (!name || !PIP_VERSION_SPECIFIER_PATTERN.test(arg.slice(name[0].length))) return false;
+    packages += 1;
+  }
+  return packages > 0;
 }
 
 /**
@@ -7612,19 +7651,24 @@ function isSetupCommand(input: readonly string[]): boolean {
  *     does not list) never rides on a checked one: either a job it needs runs a check, or it runs
  *     one itself with only setup steps before it (isSetupAction, isSetupCommand). A job that calls a
  *     reusable workflow, whose steps this file does not show, must need a job with a check.
+ * Third pass on #625: and the file is one the line readers read as GitHub does
+ * (workflowStructureIsPlain: no YAML escape, and only plain keys and values outside step items), and
+ * it names no npm script shell (F6).
  */
 function checksBeforeEveryPublish(
   contents: string,
   jobs: readonly WorkflowJob[],
   publishes: readonly PublishAt[],
   isGuardLine: (line: string) => boolean,
-  testScriptRuns: boolean,
+  reading: CheckReading,
 ): boolean {
+  if (!workflowStructureIsPlain(contents)) return false;
+  if (SCRIPT_SHELL_SETTING_PATTERN.test(contents)) return false;
   if (!statusFunctionsReduceToPlainSuccess(contents)) return false;
   if (!needsGraphIsReadable(jobs)) return false;
   const items = workflowStepItems(contents);
   if (items === null || items.some(({ readable }) => !readable)) return false;
-  const firstCheck = firstCheckLineByJob(contents, isGuardLine, testScriptRuns);
+  const firstCheck = firstCheckLineByJob(contents, isGuardLine, reading);
   const checkJobs = [...firstCheck.keys()];
   const jobOf = (stepsKey: number) => jobs.find(({ start, end }) => start < stepsKey && stepsKey < end);
   const runsCheck = (job: WorkflowJob) => checkJobs.some((stepsKey) => job.start < stepsKey && stepsKey < job.end);
@@ -7662,7 +7706,7 @@ function checksBeforeEveryPublish(
     const commands = joinShellContinuationLines(step.lines.map(({ text }) => text)).flatMap((text) =>
       shellCommands(text).map((words) => ({ words })),
     );
-    if (commands.length > 0 && !stepShellIsConditional(step, commands) && commands.every(({ words }) => isSetupCommand(words))) {
+    if (commands.length > 0 && !stepShellIsConditional(step, commands) && commands.every(({ words }) => isSetupCommand(words, reading))) {
       setupItems.add(step.itemLine);
     }
   }
@@ -7682,16 +7726,19 @@ function checksBeforeEveryPublish(
  * a `with:` input, an `env:` value or any nested mapping), whose shell is not conditional
  * (stepShellIsConditional: no `||`, heredoc, `if`, `!` or `set +e`), with a command isCheckCommand
  * reads as a check on a line where checkFailureStopsJobAt holds. An npm-family test script is a check
- * only when `testScriptRuns`, the workflow sets no `working-directory` and the step changes no
- * directory, so the root package.json's script is the one run (item E). Linear in the file.
+ * only when the root package.json's script runs something (CheckReading), the workflow sets no
+ * `working-directory` and the step changes no directory, so that script is the one run (item E).
+ * Third pass on #625 (F5): everything the step runs before the check is a setup command or a `set`
+ * that only makes the shell stricter (commandsBeforeCheckAreSetup), so nothing before it can stop it
+ * running (`set -n`) or change what it runs (`hash -p`). Linear in the file.
  */
 function firstCheckLineByJob(
   contents: string,
   isGuardLine: (line: string) => boolean,
-  testScriptRuns: boolean,
+  reading: CheckReading,
 ): Map<number, { readonly line: number; readonly itemLine: number }> {
   const first = new Map<number, { readonly line: number; readonly itemLine: number }>();
-  const rootScripts = testScriptRuns && !/\bworking-directory\b/.test(contents);
+  const rootScripts = reading.testScriptRuns && !/\bworking-directory\b/.test(contents);
   for (const step of githubActionsRunSteps(contents, isGuardLine)) {
     if (step.conditional || step.job === -1 || !step.ownKey) continue;
     const commands = joinShellContinuationLines(step.lines.map(({ text }) => text)).flatMap((text) =>
@@ -7699,11 +7746,11 @@ function firstCheckLineByJob(
     );
     if (stepShellIsConditional(step, commands)) continue;
     const changesDirectory = commands.some(({ words }) => ['cd', 'pushd'].includes(commandHead(words).word));
-    const isCheck = (words: readonly string[]) => isCheckCommand(words, rootScripts && !changesDirectory);
-    const check = step.lines.find(
-      ({ line, text }) => shellCommands(text).some(isCheck) && checkFailureStopsJobAt(contents, step, line, isCheck),
-    );
-    if (!check) continue;
+    const isCheck = (words: readonly string[]) =>
+      isCheckCommand(words, { ...reading, testScriptRuns: rootScripts && !changesDirectory });
+    const check = step.lines.find(({ text }) => shellCommands(text).some(isCheck));
+    if (!check || !checkFailureStopsJobAt(contents, step, check.line, isCheck)) continue;
+    if (!commandsBeforeCheckAreSetup(step, check.line, isCheck, reading)) continue;
     const known = first.get(step.job);
     if (known === undefined || check.line < known.line) first.set(step.job, { line: check.line, itemLine: step.itemLine });
   }
@@ -7716,7 +7763,8 @@ function firstCheckLineByJob(
  * `-euo pipefail`) on an earlier line of the same step, and no `+o pipefail` in it, a pipeline
  * fails when any of its commands fails, and bash -e then stops at it. That line is read as its
  * check segment alone, under every other condition failureStopsJobAt states (so only on
- * GitHub-hosted bash runners, since the step has more than one line).
+ * GitHub-hosted bash runners, since the step has more than one line), and only when every segment
+ * of the pipeline is one plain command (pipelineSegmentIsPlain, third pass on #625).
  */
 function checkFailureStopsJobAt(
   contents: string,
@@ -7738,10 +7786,209 @@ function checkFailureStopsJobAt(
   if (!setsPipefail) return false;
   const segments = beforeShellComment(step.lines[at]?.text ?? '').split('|');
   if (segments.length < 2 || segments.some((segment) => segment.trim() === '')) return false;
+  // Third pass on #625 (F2): every side of the pipeline is one plain command, so nothing after the
+  // pipe can background it (`&`) or put it in a list whose failure bash -e ignores (`&&`).
+  if (!segments.every(pipelineSegmentIsPlain)) return false;
   const segment = segments.find((candidate) => shellCommands(candidate).some(isCheck));
   if (segment === undefined) return false;
   const lines = step.lines.map((entry, index) => (index === at ? { line: entry.line, text: segment.trim() } : entry));
   return failureStopsJobAt(contents, { ...step, lines }, line);
+}
+
+/**
+ * Third pass on #625 (F2): one side of a pipeline that is a single command with no list, background,
+ * subshell, substitution or redirection syntax and none of STEP_MAY_CONTINUE_PAST_FAILURE_WORDS, so
+ * the pipeline it belongs to is the line's whole command.
+ */
+function pipelineSegmentIsPlain(segment: string): boolean {
+  const code = segment.trim();
+  if (code === '' || /[&;`()<>]/.test(code)) return false;
+  if (code.split(/[ \t]+/).some((word) => STEP_MAY_CONTINUE_PAST_FAILURE_WORDS.has(word))) return false;
+  const list = shellCommandList(code);
+  return list.length === 1 && !isConditionalShellCommand(list[0]?.words ?? []);
+}
+
+// Third pass on #625 (F5): the options a `set` before a check may turn on. Each only makes the shell
+// stricter; none stops a later command running or changes what it runs.
+const STRICTER_SHELL_SHORT_FLAGS_PATTERN = /^-[eux]*o?$/;
+const STRICTER_SHELL_O_OPTIONS: ReadonlySet<string> = new Set(['errexit', 'nounset', 'pipefail', 'xtrace']);
+
+/** True for a `set` whose every argument turns on errexit, nounset, pipefail or xtrace. */
+function isStricterShellSet(input: readonly string[]): boolean {
+  const head = commandHead(input);
+  if (head.inverted || head.word !== 'set') return false;
+  const args = input.slice(head.argsFrom);
+  if (args.length === 0) return false;
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index] ?? '';
+    if (arg === '-' || !STRICTER_SHELL_SHORT_FLAGS_PATTERN.test(arg)) return false;
+    if (arg.endsWith('o')) {
+      index += 1;
+      if (!STRICTER_SHELL_O_OPTIONS.has(args[index] ?? '')) return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * Third pass on #625 (F5): true when every command the step runs before its check line, and every
+ * command before the check on that line, is a setup command (isSetupCommand) or a `set` that only
+ * makes the shell stricter (isStricterShellSet). The safe shape is admitted rather than the unsafe
+ * spellings refused: `set -n`, `set -o noexec`, `hash -p`, `alias`, a function or a PATH change
+ * before the check are all refused because none is admitted.
+ */
+function commandsBeforeCheckAreSetup(
+  step: WorkflowRunStep,
+  checkLine: number,
+  isCheck: (words: readonly string[]) => boolean,
+  reading: CheckReading,
+): boolean {
+  const admitted = (words: readonly string[]) => isSetupCommand(words, reading) || isStricterShellSet(words);
+  for (const { line, text } of step.lines) {
+    const commands = shellCommands(text);
+    if (line < checkLine) {
+      if (!commands.every(admitted)) return false;
+      continue;
+    }
+    if (line > checkLine) break;
+    const at = commands.findIndex(isCheck);
+    return at !== -1 && commands.slice(0, at).every(admitted);
+  }
+  return false;
+}
+
+/**
+ * What the checkout says about the commands a check reading admits, read once per scan (checkReading).
+ * Each is false when what it rests on is not read.
+ */
+interface CheckReading {
+  /** The root package.json's test script runs something (rootTestScriptRunsSomething, item E). */
+  readonly testScriptRuns: boolean;
+  /**
+   * Third pass on #625 (F6): the root package.json is read and declares no script npm, pnpm, yarn
+   * or bun runs on install (INSTALL_LIFECYCLE_SCRIPTS), and there is no binding.gyp, whose build an
+   * install runs (rootInstallRunsNoProjectScript).
+   */
+  readonly installRunsNoProjectScript: boolean;
+  /**
+   * Third pass on #625 (F6): every committed npm, yarn or pnpm configuration file is read and sets
+   * no script shell, node options or yarn path, and there is no pnpmfile or yarn plugin
+   * (packageManagerConfigIsPlain). Otherwise an npm, pnpm, yarn or bun command, or one launched by
+   * npx, pnpx or bunx, may not run what it names, so none is a check or a setup step.
+   */
+  readonly packageManagerConfigPlain: boolean;
+}
+
+const UNREAD_CHECK_READING: CheckReading = {
+  testScriptRuns: false,
+  installRunsNoProjectScript: false,
+  packageManagerConfigPlain: false,
+};
+
+/** The CheckReading of a checkout's root, read from its inventory. */
+function checkReading(root: string, inventory: PublishOnlyInventory): CheckReading {
+  return {
+    testScriptRuns: rootTestScriptRunsSomething(root, inventory),
+    installRunsNoProjectScript: rootInstallRunsNoProjectScript(root, inventory),
+    packageManagerConfigPlain: packageManagerConfigIsPlain(root, inventory),
+  };
+}
+
+// Third pass on #625 (F6): the root package.json scripts an npm, pnpm, yarn or bun install runs.
+const INSTALL_LIFECYCLE_SCRIPTS: readonly string[] = [
+  'preinstall', 'install', 'postinstall', 'prepublish', 'preprepare', 'prepare', 'postprepare', 'dependencies',
+];
+
+/** CheckReading.installRunsNoProjectScript. */
+function rootInstallRunsNoProjectScript(root: string, inventory: PublishOnlyInventory): boolean {
+  if (inventory.known.has('binding.gyp') || !inventory.scanned.has('package.json')) return false;
+  const manifest = parseJsonObject(readRepoText(join(root, 'package.json'), 'utf8'));
+  if (!manifest) return false;
+  const scripts = manifest.scripts;
+  if (scripts === undefined) return true;
+  return isRecord(scripts) && INSTALL_LIFECYCLE_SCRIPTS.every((name) => !Object.hasOwn(scripts, name));
+}
+
+// Third pass on #625 (F6): committed package-manager configuration, read for the settings below.
+const PACKAGE_MANAGER_CONFIG_FILES: readonly string[] = ['.npmrc', '.yarnrc', '.yarnrc.yml', 'pnpm-workspace.yaml'];
+// Code a package manager runs from the checkout on every install.
+const PACKAGE_MANAGER_CODE_FILES: readonly string[] = ['.pnpmfile.cjs', '.pnpmfile.mjs'];
+// A setting that replaces the shell scripts run in, adds node options to them, or runs a package
+// manager from the checkout, in any of the spellings npm, pnpm and yarn read.
+const PACKAGE_MANAGER_SETTING_PATTERN = /script[-_]?shell|node[-_]?options|yarn[-_]?path/i;
+// The same script-shell setting in a workflow, as `npm_config_script_shell` or any other spelling.
+const SCRIPT_SHELL_SETTING_PATTERN = /script[-_]?shell/i;
+
+/** CheckReading.packageManagerConfigPlain. */
+function packageManagerConfigIsPlain(root: string, inventory: PublishOnlyInventory): boolean {
+  if (inventory.hasYarnPlugins || PACKAGE_MANAGER_CODE_FILES.some((file) => inventory.known.has(file))) return false;
+  return PACKAGE_MANAGER_CONFIG_FILES.every(
+    (file) =>
+      !inventory.known.has(file) ||
+      (inventory.scanned.has(file) && !PACKAGE_MANAGER_SETTING_PATTERN.test(readRepoText(join(root, file), 'utf8'))),
+  );
+}
+
+// Third pass on #625 (F3, F4): outside step items, a line is a plain key (a name, unquoted, with no
+// space before its colon) and its value, or a `- ` list item and its value.
+const PLAIN_YAML_KEY_PATTERN = /^([A-Za-z_][A-Za-z0-9_-]*):(?:[ \t]+|$)/;
+// A `${{ }}` expression holding no brace, which a plain value may contain.
+const BRACE_FREE_EXPRESSION_PATTERN = /\$\{\{[^{}]*\}\}/g;
+
+/**
+ * Third pass on #625 (F3, F4): true when a value outside step items is one the line readers read as
+ * GitHub does: empty (a nested block follows), a block scalar indicator, a flow sequence of scalars
+ * (`[main]`, `['v*']`), or a scalar with no flow mapping, anchor, alias, tag or other indicator.
+ */
+function plainYamlValue(value: string): boolean {
+  const text = value.trim();
+  if (text === '' || BLOCK_SCALAR_VALUE_PATTERN.test(text)) return true;
+  const outside = text.replace(BRACE_FREE_EXPRESSION_PATTERN, 'x');
+  if (/^[&*!?%@`{|>]/.test(outside)) return false;
+  if (outside.startsWith('[')) {
+    const flow = /^\[([^[\]{}]*)\]$/.exec(outside);
+    return flow !== null && (flow[1] ?? '').split(',').every((item) => !/^[ \t]*[&*!]/.test(item));
+  }
+  return !/[{}[\]]/.test(outside);
+}
+
+/**
+ * Third pass on #625 (F1, F3, F4): true when the workflow's YAML is read by the line readers as
+ * GitHub reads it. Refused, on any line YAML reads (not text inside a `|` / `>` block scalar):
+ *   - any backslash, so no double-quoted escape spells what the readers look for (`"\u0061lways()"`,
+ *     `"BASH\u005fENV"`); a backslash in a plain or single-quoted scalar is refused too;
+ *   - a leading blank other than a space or tab (OTHER_LEADING_BLANK_PATTERN);
+ * and, outside step items (which workflowStepItems reads), any line that is not a plain key or a
+ * list item with a plainYamlValue: a quoted key, a space before a colon, a merge key, a flow
+ * mapping, an anchor, alias or tag, a scalar continued on the next line, a document marker. So a
+ * `shell:`, `runs-on:` or `continue-on-error:` the line readers would not see is never set.
+ * Linear in the file.
+ */
+function workflowStructureIsPlain(contents: string): boolean {
+  if (OTHER_LEADING_BLANK_PATTERN.test(contents)) return false;
+  const lines = contents.split(/\r?\n/);
+  const indents = lines.map(lineIndent);
+  const inBlockScalar = blockScalarBodyLines(lines, indents);
+  let stepsIndent = -1;
+  for (let index = 0; index < lines.length; index += 1) {
+    const raw = lines[index] ?? '';
+    if (inBlockScalar[index] || raw.trim() === '' || raw.trimStart().startsWith('#')) continue;
+    if (raw.includes('\\')) return false;
+    const indent = indents[index] ?? 0;
+    if (stepsIndent !== -1 && indent <= stepsIndent) stepsIndent = -1;
+    if (stepsIndent !== -1) continue;
+    if (STEPS_KEY_PATTERN.test(raw)) {
+      stepsIndent = indent;
+      continue;
+    }
+    let text = stripYamlComment(raw).trim();
+    const item = text === '-' || text.startsWith('- ');
+    if (item) text = text.slice(1).trimStart();
+    const key = PLAIN_YAML_KEY_PATTERN.exec(text);
+    const value = key ? text.slice(key[0].length) : item ? text : null;
+    if (value === null || !plainYamlValue(value)) return false;
+  }
+  return true;
 }
 
 /**
@@ -7755,7 +8002,7 @@ function checkFailureStopsJobAt(
 function publishingWorkflowDetail(
   root: string,
   file: string,
-  testScriptRuns: boolean,
+  reading: CheckReading,
 ): { readonly detail: string; readonly checked: boolean } | undefined {
   if (!isGitHubActionsWorkflow(file)) return undefined;
   const fullPath = join(root, file);
@@ -7772,7 +8019,7 @@ function publishingWorkflowDetail(
     triggers,
     pushBranches: triggers.has('push') ? githubPushBranchFilter(contents) : null,
   };
-  const { environments, checkedBeforePublish } = publishingJobsOnEveryRun(root, contents, context, 0, testScriptRuns);
+  const { environments, checkedBeforePublish } = publishingJobsOnEveryRun(root, contents, context, 0, reading);
   if (environments.length === 0) return undefined;
   return {
     detail: `is triggered by ${publishingTriggerText(contents, triggers)}, and ${publishingEnvironmentText(environments)}.`,
@@ -8184,6 +8431,16 @@ function verificationCommandPatterns(): readonly RegExp[] {
 const CHECK_COMMAND_RUN_LAUNCHERS: ReadonlySet<string> = new Set(['uv', 'poetry', 'pdm', 'pipenv', 'hatch']);
 // Item E: flags with which a command only prints its version or usage.
 const REPORT_ONLY_FLAGS: ReadonlySet<string> = new Set(['--version', '-V', '--help', '-h']);
+// Third pass on #625 (F6): flags with which a check cannot fail: it lists tests without running them
+// (`--collect-only`, `--co`), passes when it finds none (`--passWithNoTests`), prints its configuration
+// (`--showConfig`), lints no file without an error (`--no-error-on-unmatched-pattern`), or exits 0
+// whatever it finds (`--exit-zero`). Matched as a word or before `=`.
+const NO_FAIL_FLAGS: ReadonlySet<string> = new Set([
+  '--collect-only', '--co', '--passWithNoTests', '--showConfig', '--no-error-on-unmatched-pattern', '--exit-zero',
+]);
+// Third pass on #625 (F6): commands that run through the package manager's script shell or its own
+// configuration, which CheckReading.packageManagerConfigPlain must say is plain.
+const PACKAGE_MANAGER_COMMANDS: ReadonlySet<string> = new Set(['npm', 'pnpm', 'yarn', 'bun', 'npx', 'pnpx', 'bunx']);
 // Item E: an npm, pnpm or yarn run of the package's `test` script, as the check vocabulary reads it.
 const NPM_FAMILY_TEST_SCRIPT_PATTERN = /^(?:npm|pnpm|yarn)[ \t]+(?:run[ \t]+)?test(?:[ \t]|$)/i;
 // Item E: a test script command that runs nothing: `true`, `:`, `echo ...`, and `exit` or `exit 0`.
@@ -8221,23 +8478,28 @@ function rootTestScriptRunsSomething(root: string, inventory: PublishOnlyInvento
  * with `--if-present`, which runs nothing when the script is missing.
  *
  * Second pass on #620 (item E): a command given `--version`, `-V`, `--help` or `-h` only reports, so
- * it is not one; and an npm, pnpm or yarn run of the `test` script is one only when `testScriptRuns`
- * (rootTestScriptRunsSomething: the root package.json's script runs something).
+ * it is not one; and an npm, pnpm or yarn run of the `test` script is one only when
+ * `reading.testScriptRuns` (rootTestScriptRunsSomething: the root package.json's script runs something).
+ *
+ * Third pass on #625 (F6): nor is a command given a NO_FAIL_FLAGS flag, nor an npm, pnpm, yarn or bun
+ * command (or one npx, pnpx or bunx launches) unless the package-manager configuration is plain.
  */
-function isCheckCommand(input: readonly string[], testScriptRuns: boolean): boolean {
+function isCheckCommand(input: readonly string[], reading: CheckReading): boolean {
   const head = commandHead(input);
   if (head.inverted) return false;
   let words = [head.word, ...input.slice(head.argsFrom)];
   let start = 0;
   while (start < words.length && /^[A-Za-z_][A-Za-z0-9_]*=/.test(words[start] ?? '')) start += 1;
+  if (PACKAGE_MANAGER_COMMANDS.has(words[start] ?? '') && !reading.packageManagerConfigPlain) return false;
   if (PUBLISHING_COMMAND_LAUNCHERS.has(words[start] ?? '')) start += 1;
   else if ((words[start] === 'python' || words[start] === 'python3') && words[start + 1] === '-m') start += 2;
   else if (CHECK_COMMAND_RUN_LAUNCHERS.has(words[start] ?? '') && words[start + 1] === 'run') start += 2;
   words = words.slice(start);
   if (words.length === 0 || words.includes('--if-present')) return false;
   if (words.some((word) => REPORT_ONLY_FLAGS.has(word))) return false;
+  if (words.some((word) => NO_FAIL_FLAGS.has(word.split('=')[0] ?? word))) return false;
   const text = words.join(' ').replace(/^\.\//, '');
-  if (NPM_FAMILY_TEST_SCRIPT_PATTERN.test(text) && !testScriptRuns) return false;
+  if (NPM_FAMILY_TEST_SCRIPT_PATTERN.test(text) && !reading.testScriptRuns) return false;
   return verificationCommandPatterns().some((pattern) => {
     const match = pattern.exec(text);
     if (!match || match.index !== 0) return false;
