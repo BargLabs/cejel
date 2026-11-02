@@ -217,6 +217,21 @@ const REVIEW_626_FIXTURES: readonly WithholdFixture[] = [
     HOOK_REMOVED,
   ),
   caught(
+    'a1wh-r2-restore-in-uncalled-nested-def-after-clear',
+    'A',
+    'After the clear the hook defines a nested function that extends the list, and never calls it.',
+    {
+      'tests/conftest.py': conftestHook([
+        '    saved = list(items)',
+        '    items.clear()',
+        '',
+        '    def never_called():',
+        '        items.extend(saved)',
+      ]),
+    },
+    HOOK_REMOVED,
+  ),
+  caught(
     'a1wh-r2-restore-in-uncalled-lambda',
     'A',
     'The only extend sits in a lambda the hook never calls.',

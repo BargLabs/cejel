@@ -12481,8 +12481,9 @@ function pytestItemsRestoreKind(
   }
   for (let index = lastClear + 1; index < codes.length; index += 1) {
     if (!topLevel(index)) continue;
+    // A lambda, def or class line never starts with the list or a call of a known function, so only
+    // a statement that runs here is read (the mutation run showed an exclusion of them unreachable).
     const code = codes[index]?.code ?? '';
-    if (containsPythonIdentifier(code, 'lambda') || /^(?:async[ \t]+)?(?:def|class)\b/.test(code)) continue;
     if (restoresFrom(addSource(code))) return 'restores';
     const loop = PYTHON_FOR_PATTERN.exec(code);
     if (loop && !pythonSourceKnownEmpty((loop[1] ?? '').trim(), emptyNames, listNames)) {
