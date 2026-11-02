@@ -436,6 +436,44 @@ const REVIEW_626_FIXTURES: readonly WithholdFixture[] = [
     { 'tests/conftest.py': conftestHook(['    saved = list(items)', '    items.clear()', '    items.extend(saved[:0])']) },
     HOOK_REMOVED,
   ),
+  // Last round (coordinator's probe of 5c9d4868b): a helper restores only from a copy saved before
+  // the clear, passed at the call, and only where it does not rebind that parameter first.
+  caught(
+    'a1wh-r2-helper-rebinds-source',
+    'A',
+    'The same-file helper rebinds its source parameter to an empty list before it adds from it.',
+    {
+      'tests/conftest.py': conftestHook(
+        ['    saved = list(items)', '    items.clear()', '    refill(items, saved)'],
+        ['import pytest', '', '', 'def refill(lst, src):', '    src = []', '    lst.extend(src)'],
+      ),
+    },
+    HOOK_REMOVED,
+  ),
+  caught(
+    'a1wh-r2-helper-given-empty-literal',
+    'A',
+    'The hook passes an empty literal to a helper that extends the list from it.',
+    {
+      'tests/conftest.py': conftestHook(
+        ['    items.clear()', '    refill(items, [])'],
+        ['import pytest', '', '', 'def refill(lst, src):', '    lst.extend(src)'],
+      ),
+    },
+    HOOK_REMOVED,
+  ),
+  caught(
+    'a1wh-r2-helper-given-copy-after-clear',
+    'A',
+    'The hook passes the helper a copy it took after the clear, which is empty.',
+    {
+      'tests/conftest.py': conftestHook(
+        ['    items.clear()', '    saved = list(items)', '    refill(items, saved)'],
+        ['import pytest', '', '', 'def refill(lst, src):', '    lst.extend(src)'],
+      ),
+    },
+    HOOK_REMOVED,
+  ),
   withheld(
     'a1wh-r2-helper-adds-at-top-level',
     'A',
