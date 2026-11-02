@@ -1,0 +1,25 @@
+[
+  {
+    "statement": "A rule that removes items from a count cannot be checked until it names what it removed. Under a prospective rubric, three rules took test files out of a count or rated them hollow, and the certificate named none of them, so two lowerings later judged wrong could not be traced to a file. Adversarial fixtures then found seven shapes where a rule fired though its condition did not hold. Each rule had silently assumed a tool default: pytest's python_files, python_functions and python_classes, its skipping plugin, a hook's items parameter, a skip mark at module level rather than inside another mark's arguments, a cleared list nobody refills. Rule: a rule that removes items from a count names each item and the rule that removed it, bounded, with the count left unlisted; and a rule that reads a tool's default withholds wherever the repository may set that default.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "rubric"
+    ],
+    "tags": [
+      "count-removal",
+      "name-what-you-remove",
+      "tool-defaults",
+      "over-match",
+      "auditability"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-11-01T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 621
+    }
+  }
+]

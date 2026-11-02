@@ -264,12 +264,16 @@ describe('#518 — a suite that cannot fail is not verified', () => {
     expect(hook?.evidence.line).toBe(4);
   });
 
-  it('v27: conftest.py is not a test file', () => {
-    const control = criterion('a1-pytest-suite', V27, 'A1');
+  // Changed 2026-11-01 (goal_cejel_v27_a1_test_count_overmatch_2026-11-01, item C): conftest.py is
+  // still not cited as a test file, but test_to_source_ratio counts it as test surface, as v17
+  // does. It used to pin the ratio of the suite without the conftest.py.
+  it('v27: conftest.py is not cited as a test file; test_to_source_ratio counts it as v17 does', () => {
     for (const name of ['a1-pytest-fixture-conftest', 'a1-pytest-hook-skips-slow-only']) {
       const a1 = criterion(name, V27, 'A1');
       expect(a1.evidence.map(({ path }) => path)).not.toContain('tests/conftest.py');
-      expect(metricValue(a1, 'test_to_source_ratio')).toBe(metricValue(control, 'test_to_source_ratio'));
+      expect(metricValue(a1, 'test_to_source_ratio')).toBe(
+        metricValue(criterion(name, V17, 'A1'), 'test_to_source_ratio'),
+      );
     }
   });
 
@@ -287,10 +291,18 @@ describe('#518 — a suite that cannot fail is not verified', () => {
     expect(a1.status).toBe('critical');
   });
 
+  // Changed 2026-11-01 (item C of goal_cejel_v27_a1_test_count_overmatch_2026-11-01): the ratio is
+  // v17's, not 0, and the note says what it counts.
   it('v27: a test directory holding only conftest.py stays measured rather than going unmeasured', () => {
-    const a1 = criterion('a1-conftest-is-the-only-test-directory-file', V27, 'A1');
+    const name = 'a1-conftest-is-the-only-test-directory-file';
+    const a1 = criterion(name, V27, 'A1');
     expect(a1.status).not.toBe('insufficient_data');
-    expect(metricValue(a1, 'test_to_source_ratio')).toBe(0);
+    expect(metricValue(a1, 'test_to_source_ratio')).toBe(
+      metricValue(criterion(name, V17, 'A1'), 'test_to_source_ratio'),
+    );
+    expect(a1.notes).toContain(
+      'test_to_source_ratio counts the 1 conftest.py file as test surface, as v17 does; it is not cited as a test file, and no concrete test file was found.',
+    );
   });
 
   // Follow-up 2026-10-27: the skip marker held in a local or module-level name, as in the pytest
@@ -938,12 +950,14 @@ describe('third-review findings against the merged implementation stay fixed', (
     }
   });
 
-  it('#518: a conftest.py that is the only test-shaped file keeps A1 measured, at a test ratio of 0', () => {
+  // Changed 2026-11-01 (item C of goal_cejel_v27_a1_test_count_overmatch_2026-11-01): the ratio
+  // was pinned at 0; it is now v17's, since a conftest.py is test surface.
+  it('#518: a conftest.py that is the only test-shaped file keeps A1 measured, at v17\'s test ratio', () => {
     for (const name of ['review3-a1-conftest-only-no-runner', 'review3-a1-conftest-only-unproven-source']) {
       const v17 = criterion(name, V17, 'A1');
       const v27 = criterion(name, V27, 'A1');
       expect(v27.status, name).toBe(v17.status);
-      expect(metricValue(v27, 'test_to_source_ratio'), name).toBe(0);
+      expect(metricValue(v27, 'test_to_source_ratio'), name).toBe(metricValue(v17, 'test_to_source_ratio'));
       expect(v27.evidence[0]?.label, name).toBe('pytest configuration (conftest.py), not a test file');
       expect(v27.score, name).toBeLessThanOrEqual(v17.score);
     }

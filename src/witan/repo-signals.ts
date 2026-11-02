@@ -2067,23 +2067,37 @@ function collectA1TestIntegrityEvidence(
 ): WitanCriterionSignalPayload | null {
   const evidence: WitanEvidencePointer[] = [];
   const findings: WitanCriterionSignalPayload['findings'] = [];
-  // v27 (#518): conftest.py holds pytest fixtures and hooks, not tests, so it does not count as
-  // test surface (test_to_source_ratio) or test evidence. Every other rubric counts it because it
-  // sits in a test directory. The non-hollow share below is still measured over the v17 list:
-  // v17 rates a name-shaped conftest (e.g. under __tests__/) hollow, and dropping it from that
-  // denominator would raise the share.
+  // v27 (#518): conftest.py holds pytest fixtures and hooks, not tests, so it is not cited as test
+  // evidence, and where it asserts it is rated hollow in the non-hollow share. Every other rubric
+  // cites it because it sits in a test directory. Both test_to_source_ratio and the non-hollow
+  // share are measured over the v17 list under every rubric: test_to_source_ratio counts test
+  // surface, which a conftest.py's fixtures are, so it does not move for one
+  // (goal_cejel_v27_a1_test_count_overmatch_2026-11-01, item C), and v17 rates a name-shaped
+  // conftest (e.g. under __tests__/) hollow, so dropping it from the share's denominator would
+  // raise the share. Where the repository sets pytest's python_files, a conftest.py may be a test
+  // module, and v27 reads it as v17 does.
   const v17TestFiles = findConcreteTestFiles(
     repoPath,
     repoFiles,
     reviewableSourceProof ? WITAN_RUBRIC_VERSION_V17 : undefined,
   );
-  const allTestFiles = useV27FalseAssuranceClosure
-    ? v17TestFiles.filter((file) => !PYTEST_CONFTEST_PATTERN.test(file))
-    : v17TestFiles;
+  // Read only where a Python test-shaped file exists: every rule they govern reads Python files.
+  const pytestSettings = useV27FalseAssuranceClosure
+    ? v17TestFiles.some((file) => /\.py$/.test(file))
+      ? readPytestCollectionSettings(repoPath, repoFiles)
+      : PYTEST_DEFAULT_COLLECTION_SETTINGS
+    : undefined;
+  const allTestFiles =
+    pytestSettings !== undefined && !pytestSettings.setsPythonFiles
+      ? v17TestFiles.filter((file) => !PYTEST_CONFTEST_PATTERN.test(file))
+      : v17TestFiles;
   // v27 (#518): a conftest.py hook that skips or deselects every collected test disables the
-  // whole suite under it, so those files cannot fail. Read only under v27.
-  const runWideSkips = useV27FalseAssuranceClosure
-    ? findPytestRunWideSkips(repoPath, repoFiles)
+  // whole suite under it, so those files cannot fail. Read only under v27. A hook that skips is
+  // not read where pytest's skipping plugin may be disabled.
+  const runWideSkips = pytestSettings
+    ? findPytestRunWideSkips(repoPath, repoFiles).filter(
+        (skip) => skip.kind === 'clear' || !pytestSettings.disablesSkipping,
+      )
     : [];
   const testFiles = allTestFiles.slice(0, 8);
   const sourceFiles = repoFiles.filter(isSourceFile);
@@ -2221,8 +2235,9 @@ function collectA1TestIntegrityEvidence(
     );
   }
   // v27 (#518): where conftest.py files are the only test-shaped files, they are cited as what
-  // they are. A1 then measures a suite with no test file (test_to_source_ratio 0), as v17 measured
-  // it, instead of losing its only evidence and leaving the composite, which could raise it.
+  // they are, instead of A1 losing its only evidence and leaving the composite, which could raise
+  // it. test_to_source_ratio still counts them as test surface, as v17 does (item C of
+  // goal_cejel_v27_a1_test_count_overmatch_2026-11-01).
   if (useV27FalseAssuranceClosure && allTestFiles.length === 0) {
     for (const file of v17TestFiles.slice(0, 8)) {
       evidence.push(
@@ -2393,14 +2408,25 @@ function collectA1TestIntegrityEvidence(
       repoPath,
       v17TestFiles,
       reviewableSourceProof !== undefined,
-      useV27FalseAssuranceClosure
+      pytestSettings
         ? {
-            disabledByRunWideSkip: (file) =>
-              runWideSkips.some((skip) => isGovernedPytestFile(skip, file)),
+            disabledByRunWideSkip: (file) => runWideSkips.find((skip) => isGovernedPytestFile(skip, file)),
+            pytestSettings,
           }
         : undefined,
     ),
   );
+  // v27 (goal_cejel_v27_a1_test_count_overmatch_2026-11-01, item A): each file a v27 rule rated
+  // hollow is cited with its rule, the first eight as the test files are, so a reviewer can check
+  // that the rule's condition held. Empty under every other rubric.
+  for (const rated of nonHollowShare.ratedHollow.slice(0, 8)) {
+    const label = `Rated hollow under this rubric: runs no test (${rated.rule})`;
+    evidence.push(
+      rated.line === null
+        ? evidenceForRelative(repoPath, rated.path, 'test_run', label)
+        : evidenceForRelativeAtLine(repoPath, rated.path, 'test_run', label, rated.line),
+    );
+  }
   for (const skip of runWideSkips.slice(0, 2)) {
     const governed = allTestFiles.filter((file) => isGovernedPytestFile(skip, file)).length;
     if (governed === 0) continue;
@@ -2439,7 +2465,7 @@ function collectA1TestIntegrityEvidence(
       metric(
         'test_to_source_ratio',
         'Test-to-source file ratio',
-        allTestFiles.length,
+        v17TestFiles.length,
         Math.max(sourceFiles.length, 1),
         0.3,
         'ratio',
@@ -2481,11 +2507,72 @@ function collectA1TestIntegrityEvidence(
         'Penalizes skipped or placeholder-only test files; test-directory support scaffolding (helpers/fixtures with no test in them) is excluded from the denominator.',
       ),
     ],
-    notes:
-      coverageFiles.length === 0 && coverageAnalysis.unresolvedFiles.length > 0
-        ? a1CoverageUnresolvedNote(coverageAnalysis.unresolvedFiles)
-        : 'A1 is detected from real test files, test runner configuration, and optional coverage configuration.',
+    notes: withA1V27Sentences(
+      (limit) =>
+        coverageFiles.length === 0 && coverageAnalysis.unresolvedFiles.length > 0
+          ? a1CoverageUnresolvedNote(coverageAnalysis.unresolvedFiles, limit)
+          : 'A1 is detected from real test files, test runner configuration, and optional coverage configuration.',
+      // v27, where conftest.py files are the only test-shaped files: the ratio counts what the
+      // evidence does not cite as test files, so the note says so (item C).
+      useV27FalseAssuranceClosure && allTestFiles.length === 0 && v17TestFiles.length > 0
+        ? a1ConftestSurfaceSentence(v17TestFiles.length)
+        : '',
+      nonHollowShare.ratedHollow,
+    ),
   };
+}
+
+/** v27: test_to_source_ratio counts conftest.py files that are the only test-shaped files. */
+function a1ConftestSurfaceSentence(count: number): string {
+  return count === 1
+    ? 'test_to_source_ratio counts the 1 conftest.py file as test surface, as v17 does; it is not cited as a test file, and no concrete test file was found.'
+    : `test_to_source_ratio counts the ${count} conftest.py files as test surface, as v17 does; they are not cited as test files, and no concrete test file was found.`;
+}
+
+/**
+ * A1's v27 sentence naming the files a v27 rule rated hollow, `shown` of them with their rules
+ * (goal_cejel_v27_a1_test_count_overmatch_2026-11-01, item A). With none shown it counts them.
+ */
+function a1RatedHollowSentence(rated: readonly RatedHollowFile[], shown: number): string {
+  const count = rated.length;
+  const lead = `${count} file${count === 1 ? '' : 's'} that v17 rates non-hollow ${count === 1 ? 'is' : 'are'} rated hollow here because ${count === 1 ? 'it runs' : 'they run'} no test`;
+  if (shown === 0) return `${lead}; none is listed, for the note's length limit.`;
+  const more = count - shown;
+  const listed = rated
+    .slice(0, shown)
+    .map(({ path, rule }) => `${path} (${rule})`)
+    .join(', ');
+  return `${lead}: ${listed}${more === 0 ? '' : `, and ${more} more not listed`}.`;
+}
+
+/**
+ * A1's note, with v27's sentences after it: `fixed` (or '') and, when any file was rated hollow,
+ * the rated-hollow sentence. The base note is built to leave room for both with the first rated
+ * file named whole (or, where even that cannot fit, with none named); the rated-hollow sentence
+ * then lists as many files as fit within CRITERION_NOTES_MAX_LENGTH and counts the rest. With
+ * neither (every rubric but v27) the base note is built exactly as before.
+ */
+function withA1V27Sentences(
+  base: (limit: number) => string,
+  fixed: string,
+  rated: readonly RatedHollowFile[],
+): string {
+  if (rated.length === 0 && fixed === '') return base(CRITERION_NOTES_MAX_LENGTH);
+  const tail = (shown: number) =>
+    [fixed, rated.length === 0 ? '' : a1RatedHollowSentence(rated, shown)].filter((part) => part !== '').join(' ');
+  const shortest = tail(0);
+  const roomForOne = tail(Math.min(rated.length, 1));
+  const withOne = base(CRITERION_NOTES_MAX_LENGTH - roomForOne.length - 1);
+  const note =
+    `${withOne} ${roomForOne}`.length <= CRITERION_NOTES_MAX_LENGTH
+      ? withOne
+      : base(CRITERION_NOTES_MAX_LENGTH - shortest.length - 1);
+  // A note this long names at most a few dozen paths, so the search starts there, not at every file.
+  for (let shown = Math.min(rated.length, 100); shown > 0; shown -= 1) {
+    const whole = `${note} ${tail(shown)}`;
+    if (whole.length <= CRITERION_NOTES_MAX_LENGTH) return whole;
+  }
+  return `${note} ${shortest}`;
 }
 
 /**
@@ -2494,16 +2581,20 @@ function collectA1TestIntegrityEvidence(
  * rubric. A note that fits is unchanged; one that does not names fewer paths, the first always
  * whole, and says how many more.
  */
-function a1CoverageUnresolvedNote(unresolvedFiles: readonly string[]): string {
+function a1CoverageUnresolvedNote(
+  unresolvedFiles: readonly string[],
+  // Shorter only under v27, where A1's rated-hollow sentence follows (withA1RatedHollowNote).
+  limit = CRITERION_NOTES_MAX_LENGTH,
+): string {
   const note = (paths: string) =>
     `A1 is detected from real test files, test runner configuration, and optional coverage configuration. Coverage command reachability or flag ownership was unresolved in ${paths}; the no-coverage absence claim was withheld.`;
   const whole = note(unresolvedFiles.slice(0, 4).join(', '));
-  if (whole.length <= CRITERION_NOTES_MAX_LENGTH) return whole;
+  if (whole.length <= limit) return whole;
   const count = unresolvedFiles.length;
   for (let shown = Math.min(count, 4) - 1; shown > 0; shown -= 1) {
     const more = count - shown;
     const shortened = note(`${unresolvedFiles.slice(0, shown).join(', ')} and ${more} more file${more === 1 ? '' : 's'}`);
-    if (shortened.length <= CRITERION_NOTES_MAX_LENGTH) return shortened;
+    if (shortened.length <= limit) return shortened;
   }
   // A single path can be longer than the room left (git allows it): the files are then counted.
   return note(`${count} file${count === 1 ? '' : 's'}`);
@@ -10319,11 +10410,27 @@ interface NonHollowTestShare {
    * in them carries its own unconditional skip. Always empty under every other rubric.
    */
   perTestSkipped: PerTestSkippedFile[];
+  /** witan-rubric-v27 only: every file a v27 rule moved from non-hollow to hollow, in file order. */
+  ratedHollow: RatedHollowFile[];
 }
 
 interface RunWideSkipOptions {
-  /** True for a test file a run-wide pytest hook disables (findPytestRunWideSkips). */
-  readonly disabledByRunWideSkip: (file: string) => boolean;
+  /** The run-wide pytest hook that disables a test file (findPytestRunWideSkips), if any. */
+  readonly disabledByRunWideSkip: (file: string) => PytestRunWideSkip | undefined;
+  /** What the repository's pytest settings leave Cejel able to read (readPytestCollectionSettings). */
+  readonly pytestSettings: PytestCollectionSettings;
+}
+
+/**
+ * witan-rubric-v27 only: a file v17 rates non-hollow that v27 rates hollow because it runs no
+ * test, with the rule that says so, as A1's note and evidence name it.
+ */
+interface RatedHollowFile {
+  readonly path: string;
+  /** 'conftest', 'run-wide skip: hook in <conftest>', 'run-wide skip: pytestmark in <file>' or 'every test skipped'. */
+  readonly rule: string;
+  /** 1-based line of the first skip, for 'every test skipped'; null otherwise. */
+  readonly line: number | null;
 }
 
 function measureNonHollowTestShare(
@@ -10336,6 +10443,7 @@ function measureNonHollowTestShare(
   let nonHollowCount = 0;
   let ratedCount = 0;
   const perTestSkipped: PerTestSkippedFile[] = [];
+  const ratedHollow: RatedHollowFile[] = [];
   for (const file of files) {
     const fullPath = join(repoPath, file);
     if (!isRegularFile(fullPath)) continue;
@@ -10350,22 +10458,25 @@ function measureNonHollowTestShare(
       hasLiveAvaAssertion(contents) ||
       hasLiveFrameworkAssertion(masked());
     const suiteSkipped = SUITE_LEVEL_SKIP_PATTERN.test(contents);
+    // What v17 rates the file, before any v27 rule.
+    const nonHollowUnderV17 = asserting && !suiteSkipped && !frameworkSuiteSkipped;
     // A file the run cannot execute as a test is hollow however live its assertions read: one a
     // run-wide skip disables, and (v27) a conftest.py, which pytest never collects tests from. It
     // stays where v17 rates it, so this can only lower the share, never shrink the denominator to
-    // the files that still run.
-    const disabledRunWide =
-      runWideSkip !== undefined &&
-      (PYTEST_CONFTEST_PATTERN.test(file) ||
-        runWideSkip.disabledByRunWideSkip(file) ||
-        hasUnconditionalPytestModuleSkip(file, contents));
+    // the files that still run. Each rule claims only where the repository's pytest settings leave
+    // its condition readable (goal_cejel_v27_a1_test_count_overmatch_2026-11-01): a conftest.py
+    // only under pytest's default python_files, a skip mark only while pytest's skipping plugin runs.
+    const runWideRule = runWideSkip === undefined ? undefined : readRunWideRule(file, contents, runWideSkip);
+    const disabledRunWide = runWideRule !== undefined;
     // v27 (F2): so is a file whose every test carries its own unconditional skip. Read only for a
     // file that would otherwise count as non-hollow, so it names only the files it moves.
     const perTestSkip =
-      runWideSkip !== undefined && asserting && !suiteSkipped && !frameworkSuiteSkipped && !disabledRunWide
-        ? readEveryTestUnconditionallySkipped(file, contents)
+      runWideSkip !== undefined && nonHollowUnderV17 && !disabledRunWide
+        ? readEveryTestUnconditionallySkipped(file, contents, runWideSkip.pytestSettings)
         : undefined;
     if (perTestSkip) perTestSkipped.push({ path: file, ...perTestSkip });
+    if (nonHollowUnderV17 && runWideRule !== undefined) ratedHollow.push({ path: file, rule: runWideRule, line: null });
+    else if (perTestSkip) ratedHollow.push({ path: file, rule: 'every test skipped', line: perTestSkip.line });
     const cannotRunAsTest = disabledRunWide || perTestSkip !== undefined;
     const nonHollow =
       asserting &&
@@ -10384,7 +10495,67 @@ function measureNonHollowTestShare(
       ratedCount += 1;
     }
   }
-  return { nonHollowCount, ratedCount, perTestSkipped };
+  return { nonHollowCount, ratedCount, perTestSkipped, ratedHollow };
+}
+
+/**
+ * witan-rubric-v27 only: the run-wide rule that makes a file run no test, as A1 names it, or
+ * undefined. In order: a conftest.py (under pytest's default python_files), a run-wide hook in a
+ * conftest.py above it, or the file's own module-level pytestmark skip (while skip marks apply).
+ */
+function readRunWideRule(file: string, contents: string, options: RunWideSkipOptions): string | undefined {
+  if (!options.pytestSettings.setsPythonFiles && PYTEST_CONFTEST_PATTERN.test(file)) return 'conftest';
+  const hook = options.disabledByRunWideSkip(file);
+  if (hook !== undefined) return `run-wide skip: hook in ${hook.path}`;
+  if (!options.pytestSettings.disablesSkipping && hasUnconditionalPytestModuleSkip(file, contents)) {
+    return `run-wide skip: pytestmark in ${file}`;
+  }
+  return undefined;
+}
+
+// ---- pytest settings the v27 removal rules depend on (goal_cejel_v27_a1_test_count_overmatch) --
+//
+// Each v27 A1 removal rule reads pytest's defaults: conftest.py is never a test module only while
+// python_files does not name it, the per-test reader sees every test only while python_functions
+// and python_classes are pytest's own, and a skip mark skips only while pytest's skipping plugin
+// is loaded. Cejel does not evaluate these settings, so any mention of one in a file that may
+// configure pytest (an ini-style configuration file, or a CI workflow that may pass `-o` or `-p`)
+// withholds the rules that depend on it. A mention that changes nothing only withholds a claim.
+
+interface PytestCollectionSettings {
+  /** python_files is set somewhere: conftest.py may be collected as a test module. */
+  readonly setsPythonFiles: boolean;
+  /** python_functions or python_classes is set somewhere: tests may have names the reader does not see. */
+  readonly setsTestNames: boolean;
+  /** `no:skipping` appears somewhere: pytest's skip marks may not apply. */
+  readonly disablesSkipping: boolean;
+}
+
+const PYTEST_DEFAULT_COLLECTION_SETTINGS: PytestCollectionSettings = Object.freeze({
+  setsPythonFiles: false,
+  setsTestNames: false,
+  disablesSkipping: false,
+});
+const PYTEST_SETTINGS_FILE_PATTERN =/(^|\/)(?:pytest\.ini|\.pytest\.ini|pyproject\.toml|tox\.ini|setup\.cfg)$/;
+const PYTEST_PYTHON_FILES_SETTING_PATTERN = /\bpython_files\b/;
+const PYTEST_TEST_NAMES_SETTING_PATTERN = /\bpython_(?:functions|classes)\b/;
+const PYTEST_SKIPPING_DISABLED_PATTERN = /\bno:skipping\b/;
+
+function readPytestCollectionSettings(repoPath: string, repoFiles: readonly string[]): PytestCollectionSettings {
+  let setsPythonFiles = false;
+  let setsTestNames = false;
+  let disablesSkipping = false;
+  for (const file of repoFiles) {
+    if (GENERATED_OR_VENDOR_PATH_PATTERN.test(file)) continue;
+    if (!PYTEST_SETTINGS_FILE_PATTERN.test(file) && !isCiWorkflow(file)) continue;
+    const fullPath = join(repoPath, file);
+    if (!isRegularFile(fullPath)) continue;
+    const text = readRepoText(fullPath, 'utf8');
+    setsPythonFiles ||= PYTEST_PYTHON_FILES_SETTING_PATTERN.test(text);
+    setsTestNames ||= PYTEST_TEST_NAMES_SETTING_PATTERN.test(text);
+    disablesSkipping ||= PYTEST_SKIPPING_DISABLED_PATTERN.test(text);
+  }
+  return { setsPythonFiles, setsTestNames, disablesSkipping };
 }
 
 // ---- Run-wide pytest skips (witan-rubric-v27, #518) ----------------------------------------
@@ -10466,7 +10637,7 @@ function hasUnconditionalPytestModuleSkip(file: string, contents: string): boole
   // read as fewer claims than its first line alone.
   if (
     !PYTEST_MODULE_SKIP_ASSIGNMENT_PATTERN.test(first) ||
-    !PYTEST_MODULE_SKIP_MARK_PATTERN.test(pythonCodeOutsideStrings(first))
+    !pytestmarkNamesSkipAsMark(pythonCodeOutsideStrings(first))
   ) {
     return false;
   }
@@ -10486,6 +10657,38 @@ function hasUnconditionalPytestModuleSkip(file: string, contents: string): boole
   }
   if (depth > 0) return false;
   return !/\bif\b/.test(statement.join('\n'));
+}
+
+const PYTEST_MODULE_SKIP_MARK_GLOBAL_PATTERN = new RegExp(PYTEST_MODULE_SKIP_MARK_PATTERN.source, 'g');
+
+/**
+ * True when the first line of a `pytestmark = ...` statement (code, string contents blanked) names
+ * pytest's skip as one of the module's marks: the whole value, or an item of the list or tuple the
+ * value opens with. A skip inside another mark's arguments marks only what that mark gives it
+ * (`pytest.mark.parametrize("b", [pytest.param("x", marks=pytest.mark.skip), "y"])` skips one
+ * parameter), so it is not read as skipping the module
+ * (goal_cejel_v27_a1_test_count_overmatch_2026-11-01). Linear in the line.
+ */
+function pytestmarkNamesSkipAsMark(code: string): boolean {
+  const equals = code.indexOf('=');
+  if (equals === -1) return false;
+  const value = code.slice(equals + 1);
+  const valueStart = value.length - value.trimStart().length;
+  const opensWithSequence = value[valueStart] === '[' || value[valueStart] === '(';
+  const skips = new Set([...value.matchAll(PYTEST_MODULE_SKIP_MARK_GLOBAL_PATTERN)].map((match) => match.index ?? -1));
+  if (skips.size === 0) return false;
+  let depth = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    if (skips.has(index) && (depth === 0 || (depth === 1 && opensWithSequence))) return true;
+    const character = value[index];
+    if (character === '(' || character === '[' || character === '{') depth += 1;
+    else if (character === ')' || character === ']' || character === '}') depth -= 1;
+    // The opening list or tuple closed before the end: the value is an expression on it, not a list of marks.
+    if (depth === 0 && index > valueStart && opensWithSequence && value.slice(index + 1).trim() !== '') {
+      return false;
+    }
+  }
+  return false;
 }
 
 /** The line up to its first `#` (a comment start, or a `#` in a string, which only shortens it). */
@@ -10669,6 +10872,39 @@ function hookSkipsEveryItem(
   return false;
 }
 
+const PYTEST_HOOK_PARAMETERS_PATTERN = /^def[ \t]+pytest_collection_modifyitems[ \t]*\(([^)]*)\)/;
+
+/** True when the hook's `def` line closes its parameter list and names a parameter `items`. */
+function pytestHookTakesItems(defLine: string): boolean {
+  const parameters = PYTEST_HOOK_PARAMETERS_PATTERN.exec(defLine)?.[1];
+  if (parameters === undefined) return false;
+  return parameters.split(',').some((parameter) => /^[ \t]*items(?![\w])/.test(parameter));
+}
+
+const PYTEST_ITEMS_NAME_GLOBAL_PATTERN = /(?<![\w.])items(?!\w)/g;
+
+/**
+ * True when a hook statement uses the `items` list itself other than to read or change it in
+ * place: not `items[...]`, `items.<method>`, `in items` or the keyword name `items=`. Passing it
+ * to a call or binding another name to it lets other code refill it. Linear in the statement.
+ */
+function handsOnPytestItems(text: string): boolean {
+  const code = pythonCodeOutsideStrings(text);
+  const blank = (character: string | undefined) => character === ' ' || character === '\t';
+  for (const match of code.matchAll(PYTEST_ITEMS_NAME_GLOBAL_PATTERN)) {
+    const at = match.index ?? 0;
+    let next = at + match[0].length;
+    while (blank(code[next])) next += 1;
+    let previous = at - 1;
+    while (previous >= 0 && blank(code[previous])) previous -= 1;
+    if (code[next] === '[' || code[next] === '.') continue;
+    if (code[next] === '=' && code[next + 1] !== '=' && (code[previous] === '(' || code[previous] === ',')) continue;
+    if (code[previous] === 'n' && code[previous - 1] === 'i' && !/\w/.test(code[previous - 2] ?? '')) continue;
+    return true;
+  }
+  return false;
+}
+
 interface PytestRunWideSkip {
   /** The conftest.py, repository-relative. */
   readonly path: string;
@@ -10718,6 +10954,10 @@ function findPytestRunWideSkips(
     }
     // At most one pass, over that last definition (a loop so `continue` withholds the claim).
     for (let index = last; index !== -1; index = -1) {
+      // pytest passes the collected items only to a hook that names an `items` parameter; a hook
+      // without one may loop over some other `items` (goal_cejel_v27_a1_test_count_overmatch).
+      // The parameters are read from the `def` line alone, closed there.
+      if (!pytestHookTakesItems(lines[index] ?? '')) continue;
       const indented: PythonHookStatement[] = [];
       for (let next = index + 1; next < lines.length; next += 1) {
         const raw = lines[next] ?? '';
@@ -10734,9 +10974,17 @@ function findPytestRunWideSkips(
       // The clear must run when the hook does: at the hook body's own first indent, not inside a
       // nested function or a loop that may run zero times.
       const hookIndent = indented[0]?.indent;
-      const clears = indented.some(
-        ({ indent, text }) => indent === hookIndent && PYTEST_HOOK_CLEAR_ITEMS_PATTERN.test(text),
-      );
+      const clears =
+        indented.some(({ indent, text }) => indent === hookIndent && PYTEST_HOOK_CLEAR_ITEMS_PATTERN.test(text)) &&
+        // A statement that hands the list itself to something else (`restore(items, saved)`,
+        // `alias = items`) may put items back, as a refill does
+        // (goal_cejel_v27_a1_test_count_overmatch_2026-11-01).
+        !indented.some(
+          ({ text }) =>
+            !PYTEST_HOOK_CLEAR_ITEMS_PATTERN.test(text) &&
+            !PYTEST_HOOK_EMPTY_REFILL_PATTERN.test(text) &&
+            handsOnPytestItems(text),
+        );
       const refills = body.some(
         (statement) =>
           !PYTEST_HOOK_CLEAR_ITEMS_PATTERN.test(statement) &&
@@ -10777,8 +11025,16 @@ interface PerTestSkippedFile extends PerTestSkipReading {
 
 const JS_OR_TS_TEST_SOURCE_PATTERN = /\.[cm]?[jt]sx?$/;
 
-function readEveryTestUnconditionallySkipped(file: string, contents: string): PerTestSkipReading | undefined {
-  if (/\.py$/.test(file)) return readEveryPythonTestSkipped(contents);
+function readEveryTestUnconditionallySkipped(
+  file: string,
+  contents: string,
+  pytestSettings: PytestCollectionSettings,
+): PerTestSkipReading | undefined {
+  // The Python reader assumes pytest's own test names and its skipping plugin
+  // (goal_cejel_v27_a1_test_count_overmatch_2026-11-01): either set otherwise, no claim.
+  if (/\.py$/.test(file)) {
+    return pytestSettings.setsTestNames || pytestSettings.disablesSkipping ? undefined : readEveryPythonTestSkipped(contents);
+  }
   if (JS_OR_TS_TEST_SOURCE_PATTERN.test(file)) return readEveryJavaScriptTestSkipped(contents);
   return undefined;
 }
