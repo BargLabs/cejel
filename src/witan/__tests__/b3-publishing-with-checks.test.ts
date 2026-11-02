@@ -7,13 +7,19 @@ import type { WitanCriterionScore, WitanReport } from '../schemas.js';
 
 import { scoreRepoWithPublicCejel } from '../public-scan.js';
 import { WITAN_RUBRIC_VERSION_V17, WITAN_RUBRIC_VERSION_V27 } from '../rubric-version.js';
+import { renderWitanHtmlReport } from '../html.js';
 import {
   COUNTED,
   EDGE_COUNTED,
   EDGE_EXCLUDED,
   EDGE_FIXTURES,
   EXCLUDED,
+  MANY_CHECKED_NAME,
+  MANY_CHECKED_WORKFLOWS,
   PUBLISHING_WITH_CHECKS_FIXTURES,
+  V2_COUNTED,
+  V2_EXCLUDED,
+  V2_FIXTURES,
   publishingFile,
 } from './fixtures/b3-publishing-with-checks-fixtures.js';
 import { buildFalseAssuranceFixture } from './fixtures/false-assurance-fixtures.js';
@@ -30,7 +36,7 @@ import { checkNoRise, lostFindings } from './v27-no-rise.js';
 const V17 = WITAN_RUBRIC_VERSION_V17;
 const V27 = WITAN_RUBRIC_VERSION_V27;
 
-const ALL = [...PUBLISHING_WITH_CHECKS_FIXTURES, ...EDGE_FIXTURES];
+const ALL = [...PUBLISHING_WITH_CHECKS_FIXTURES, ...EDGE_FIXTURES, ...V2_FIXTURES];
 
 const repos = new Map<string, string>();
 const reports = new Map<string, WitanReport>();
@@ -78,10 +84,12 @@ const COUNTED_DETAILS: Readonly<Record<string, string>> = {
   'npm-test-in-transitively-needed-job': 'is triggered by push to main, and its publishing job declares no environment.',
   'pytest-before-twine-on-tag': 'is triggered by push of a tag its filter matches, and its publishing job declares no environment.',
   'reusable-publish-needs-test': 'is triggered by push to main, and its publishing job declares no environment.',
+  'publish-if-success-and-fork-guard': 'is triggered by push to main, and its publishing job declares no environment.',
+  'check-piped-into-tee-with-pipefail': 'is triggered by push to main, and its publishing job declares no environment.',
 };
 
 describe('v27 (#517 correction) — a publishing workflow that checks before it publishes is counted', () => {
-  for (const [name] of [...COUNTED, ...EDGE_COUNTED]) {
+  for (const [name] of [...COUNTED, ...EDGE_COUNTED, ...V2_COUNTED]) {
     it(`v27 counts ${name}, as v17 does`, () => {
       const file = publishingFile(name);
       const b3 = criterion(name, V27, 'B3');
@@ -100,7 +108,7 @@ describe('v27 (#517 correction) — a publishing workflow that checks before it 
 });
 
 describe('v27 (#517 correction) — a publishing workflow with no check before its publish step is still excluded', () => {
-  for (const [name] of [...EXCLUDED, ...EDGE_EXCLUDED]) {
+  for (const [name] of [...EXCLUDED, ...EDGE_EXCLUDED, ...V2_EXCLUDED]) {
     it(`v27 excludes ${name}, with the note and disclosure unchanged`, () => {
       const file = publishingFile(name);
       const b3 = criterion(name, V27, 'B3');
@@ -121,18 +129,41 @@ describe('B2 and B3 agree about every workflow here (#527)', () => {
     for (const { name } of ALL) {
       const b2 = criterion(name, V27, 'B2');
       expect(b2, name).toEqual(criterion(name, V17, 'B2'));
-      expect(b2.notes ?? '', name).not.toContain(publishingFile(name));
+      for (const file of name === MANY_CHECKED_NAME ? MANY_CHECKED_WORKFLOWS : [publishingFile(name)]) {
+        expect(file, name).not.toBe('');
+        expect(b2.notes ?? '', name).not.toContain(file);
+      }
     }
   });
 
   it('a workflow B3 counts under this correction is one B2 credits: neither leaves it uncredited', () => {
-    for (const [name] of [...COUNTED, ...EDGE_COUNTED]) {
+    for (const [name] of [...COUNTED, ...EDGE_COUNTED, ...V2_COUNTED]) {
       const file = publishingFile(name);
       for (const id of ['B2', 'B3']) {
         const score = criterion(name, V27, id);
         expect(score.notes ?? '', `${name} ${id}`).not.toContain('not counted');
         expect(score.disclosures ?? [], `${name} ${id}`).not.toContainEqual(expect.stringContaining(file));
       }
+    }
+  });
+});
+
+describe('item D — B3 note never drops a counted publishing workflow silently', () => {
+  it('at the 1000-character limit, every one of 12 long-named checked publishing workflows is named or counted', () => {
+    const b3 = criterion(MANY_CHECKED_NAME, V27, 'B3');
+    const note = b3.notes ?? '';
+    expect(note.length).toBeLessThanOrEqual(1000);
+    const named = MANY_CHECKED_WORKFLOWS.filter((file) => note.includes(file));
+    expect(named.length).toBeGreaterThan(0);
+    expect(named.length).toBeLessThan(MANY_CHECKED_WORKFLOWS.length);
+    // Named in order, then the rest counted in one closing sentence.
+    expect(named).toEqual(MANY_CHECKED_WORKFLOWS.slice(0, named.length));
+    const rest = MANY_CHECKED_WORKFLOWS.length - named.length;
+    expect(note.endsWith(
+      ` ${rest} more publishing workflow${rest === 1 ? ' is' : 's are'} counted as CI verification because a check runs before ${rest === 1 ? 'it publishes' : 'they publish'}.`,
+    )).toBe(true);
+    for (const metric of ['default_branch_ci_depth', 'ci_script_depth']) {
+      expect(metricValues(b3)[metric], metric).toBe(metricValues(criterion(MANY_CHECKED_NAME, V17, 'B3'))[metric]);
     }
   });
 });
@@ -151,9 +182,11 @@ describe('no rise against v17 on these fixtures', () => {
 // ---- v17 is unchanged ------------------------------------------------------------------------
 //
 // fixtures/b3-publishing-with-checks-v17.json pins v17's output for every fixture, scored by the
-// Cejel commit named there, before this correction. To re-pin, set
-// B3_PUBLISHING_CHECKS_V17_PIN to the output path and B3_PUBLISHING_CHECKS_V17_COMMIT to the
-// commit, and run only the test named "writes the pin".
+// Cejel commit named there, before this correction; fixtures/b3-publishing-with-checks-v17.html is
+// that commit's v17 certificate HTML for one fixture (item H). To re-pin, set
+// B3_PUBLISHING_CHECKS_V17_PIN to the JSON output path, B3_PUBLISHING_CHECKS_V17_HTML to the HTML
+// output path and B3_PUBLISHING_CHECKS_V17_COMMIT to the commit, and run only the test named
+// "writes the pin". The second pass re-pinned at main's fe8c261de with every fixture here.
 
 interface CriterionProjection {
   readonly score: number;
@@ -199,24 +232,49 @@ function projection(scored: WitanReport): ReportProjection {
 }
 
 const PIN_PATH = join(import.meta.dirname, 'fixtures', 'b3-publishing-with-checks-v17.json');
+const HTML_PIN_PATH = join(import.meta.dirname, 'fixtures', 'b3-publishing-with-checks-v17.html');
+// The fixture whose v17 certificate HTML is pinned whole (item H).
+const HTML_PIN_FIXTURE = 'npm-test-then-publish';
+
+const html = (name: string, rubricVersion: string) => renderWitanHtmlReport(report(name, rubricVersion));
 
 describe('v17 output is identical on these fixtures', () => {
   it.runIf(process.env.B3_PUBLISHING_CHECKS_V17_PIN !== undefined)('writes the pin', () => {
     const pin: V17Pin = {
       commit: process.env.B3_PUBLISHING_CHECKS_V17_COMMIT ?? '',
       rubricVersion: V17,
-      fixtures: Object.fromEntries(PUBLISHING_WITH_CHECKS_FIXTURES.map(({ name }) => [name, projection(report(name, V17))])),
+      fixtures: Object.fromEntries(ALL.map(({ name }) => [name, projection(report(name, V17))])),
     };
     writeFileSync(process.env.B3_PUBLISHING_CHECKS_V17_PIN ?? '', `${JSON.stringify(pin, null, 2)}\n`);
+    writeFileSync(process.env.B3_PUBLISHING_CHECKS_V17_HTML ?? '', html(HTML_PIN_FIXTURE, V17));
   });
 
   it.skipIf(process.env.B3_PUBLISHING_CHECKS_V17_PIN !== undefined)('every fixture is pinned, and v17 matches the pin', () => {
     const pin = JSON.parse(readFileSync(PIN_PATH, 'utf8')) as V17Pin;
     expect(pin.rubricVersion).toBe(V17);
     expect(pin.commit).toMatch(/^[0-9a-f]{40}$/);
-    expect(Object.keys(pin.fixtures).sort()).toEqual(PUBLISHING_WITH_CHECKS_FIXTURES.map(({ name }) => name).sort());
-    for (const { name } of PUBLISHING_WITH_CHECKS_FIXTURES) {
+    expect(Object.keys(pin.fixtures).sort()).toEqual(ALL.map(({ name }) => name).sort());
+    for (const { name } of ALL) {
       expect(projection(report(name, V17)), name).toEqual(pin.fixtures[name]);
     }
+  });
+
+  it.skipIf(process.env.B3_PUBLISHING_CHECKS_V17_PIN !== undefined)(
+    "item H — a v17 certificate's HTML is byte-identical to the pinned commit's",
+    () => {
+      expect(html(HTML_PIN_FIXTURE, V17) === readFileSync(HTML_PIN_PATH, 'utf8')).toBe(true);
+    },
+  );
+});
+
+// v27's wording of the PR-gate CI count's glossary entry says a checked publishing workflow is
+// counted; only a v27 certificate shows it (item H). Every other rubric shows the sentence as it was.
+const V27_GLOSSARY_CLAUSE =
+  'unless a check (a test, lint, type-check or verifying-build command whose failure stops the job) runs before every publish step, in the publishing job or in a job it needs.';
+
+describe("item H — v27's glossary wording appears on v27 certificates only", () => {
+  it('a v27 certificate states the check-before-publish clause, and a v17 certificate does not', () => {
+    expect(html(HTML_PIN_FIXTURE, V27)).toContain(V27_GLOSSARY_CLAUSE);
+    expect(html(HTML_PIN_FIXTURE, V17)).not.toContain(V27_GLOSSARY_CLAUSE);
   });
 });

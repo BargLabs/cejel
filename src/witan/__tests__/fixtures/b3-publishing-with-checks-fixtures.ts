@@ -195,6 +195,273 @@ export const EDGE_EXCLUDED: readonly Shape[] = [
   ],
 ];
 
+// ---- Second pass (supersedes #620): the fixtures of the adversarial review of #620 -------------
+//
+// Items A to E and G of goal_cejel_v27_b3_publishing_with_checks_v2. Each is pinned in
+// b3-publishing-with-checks-v17.json with the rest, so v17's output on it is shown unchanged.
+
+/** A one-job release on push to main: setup, `npm ci`, then `steps`. */
+const releaseAfterInstall = (steps: string): string => oneJobRelease(`      - run: npm ci\n${steps}`);
+
+/** A two-job release on push to main: a test job, then a publishing job whose key lines are `jobKeys`. */
+const testThenPublishJob = (jobKeys: string): string =>
+  `name: release\n${PUSH_MAIN}jobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - uses: actions/setup-node@v4\n      - run: npm ci\n      - run: npm test\n  publish:\n${jobKeys}    runs-on: ubuntu-latest\n    steps:\n${SETUP_NODE}      - run: npm ci\n${NPM_PUBLISH}`;
+
+/** A JavaScript package whose `test` script is `script`. */
+const jsWithTestScript = (script: string): Record<string, string> => ({
+  ...JS_BASE,
+  'package.json': `${JSON.stringify({ name: 'tint', version: '1.0.0', main: 'index.js', scripts: { test: script, build: 'node build.js' } }, null, 2)}\n`,
+});
+
+/** A Python release-tag workflow whose check step is `check`. */
+const pythonRelease = (check: string): string =>
+  `name: publish\n${PUSH_TAGS}jobs:\n  release:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - uses: actions/setup-python@v5\n      - run: pip install -e . pytest build twine\n      - run: ${check}\n      - run: python -m build\n      - run: twine upload dist/*\n`;
+
+/** Item A: a status function in an `if:` other than plain `success()` lets a publish run after a failed check. */
+export const STATUS_FUNCTION_EXCLUDED: readonly Shape[] = [
+  [
+    'publish-if-success-or-true',
+    'Excluded: the publish step runs `if: success() || true`, which holds after a failed check.',
+    { ...JS_BASE, [RELEASE]: releaseAfterInstall(`      - run: npm test\n      - if: success() || true\n        run: npm publish\n`) },
+  ],
+  [
+    'publish-if-success-or-push-event',
+    "Excluded: the publish step runs `if: success() || github.event_name == 'push'`, which holds on every push.",
+    {
+      ...JS_BASE,
+      [RELEASE]: releaseAfterInstall(`      - run: npm test\n      - if: success() || github.event_name == 'push'\n        run: npm publish\n`),
+    },
+  ],
+  [
+    'publish-if-upper-case-success-or-true',
+    'Excluded: `SUCCESS() || true`; GitHub reads function names ignoring case.',
+    { ...JS_BASE, [RELEASE]: releaseAfterInstall(`      - run: npm test\n      - if: SUCCESS() || true\n        run: npm publish\n`) },
+  ],
+  [
+    'publish-if-not-failure-or-true',
+    'Excluded: the publish step runs `if: ${{ !failure() || true }}`.',
+    { ...JS_BASE, [RELEASE]: releaseAfterInstall(`      - run: npm test\n      - if: \${{ !failure() || true }}\n        run: npm publish\n`) },
+  ],
+  [
+    'publish-if-always-and-ref',
+    "Excluded: the publish step runs `if: always() && github.ref == 'refs/heads/main'`.",
+    {
+      ...JS_BASE,
+      [RELEASE]: releaseAfterInstall(`      - run: npm test\n      - if: always() && github.ref == 'refs/heads/main'\n        run: npm publish\n`),
+    },
+  ],
+  [
+    'publish-if-success-or-failure',
+    'Excluded: the publish step runs `if: success() || failure()`.',
+    { ...JS_BASE, [RELEASE]: releaseAfterInstall(`      - run: npm test\n      - if: success() || failure()\n        run: npm publish\n`) },
+  ],
+  [
+    'publish-if-not-cancelled',
+    'Excluded: the publish step runs `if: ${{ !cancelled() }}`.',
+    { ...JS_BASE, [RELEASE]: releaseAfterInstall(`      - run: npm test\n      - if: \${{ !cancelled() }}\n        run: npm publish\n`) },
+  ],
+  [
+    'publish-if-multi-line-success-or-push-event',
+    "Excluded: the publish step's `if:` is a plain scalar over two lines, `success()` then `|| github.event_name == 'push'`.",
+    {
+      ...JS_BASE,
+      [RELEASE]: releaseAfterInstall(`      - run: npm test\n      - run: npm publish\n        if: success()\n          || github.event_name == 'push'\n`),
+    },
+  ],
+  [
+    'publishing-job-if-success-or-true',
+    'Excluded: the publishing job needs the test job but runs `if: ${{ success() || true }}`, so it runs when the test fails.',
+    { ...JS_BASE, [RELEASE]: testThenPublishJob('    needs: test\n    if: ${{ success() || true }}\n') },
+  ],
+  [
+    'publishing-job-if-multi-line-success-or-true',
+    "Excluded: the publishing job's `if:` is a plain scalar over two lines, `success()` then `|| true`.",
+    { ...JS_BASE, [RELEASE]: testThenPublishJob('    needs: test\n    if: success()\n      || true\n') },
+  ],
+];
+
+/** Item A, the other side: plain `success()` ANDed with a term that holds is still a check gate. */
+export const STATUS_FUNCTION_COUNTED: readonly Shape[] = [
+  [
+    'publish-if-success-and-fork-guard',
+    "Counted: the publish step runs `if: success() && github.repository == 'acme/tint'`, which reduces to plain success() on the repository's own runs.",
+    {
+      ...JS_BASE,
+      [RELEASE]: releaseAfterInstall(`      - run: npm test\n      - if: success() && github.repository == 'acme/tint'\n        run: npm publish\n`),
+    },
+  ],
+];
+
+/** Item B: a `run:` that is not a step's own key is not a check. */
+export const RUN_KEY_EXCLUDED: readonly Shape[] = [
+  [
+    'check-in-action-with-run-input',
+    'Excluded: `run: npm test` is an input under `with:` of an action, not a step command.',
+    {
+      ...JS_BASE,
+      [RELEASE]: releaseAfterInstall(`      - uses: acme/run-anything@v1\n        with:\n          run: npm test\n${NPM_PUBLISH}`),
+    },
+  ],
+  [
+    'check-in-github-script-run-input',
+    'Excluded: `actions/github-script` given an input named `run`; the action runs its script, not a shell command.',
+    {
+      ...JS_BASE,
+      [RELEASE]: releaseAfterInstall(
+        `      - uses: actions/github-script@v7\n        with:\n          run: npm test\n          script: console.log('ok')\n${NPM_PUBLISH}`,
+      ),
+    },
+  ],
+  [
+    'check-in-env-var-named-run',
+    'Excluded: `run: npm test` is an environment variable of a build step, not its command.',
+    {
+      ...JS_BASE,
+      [RELEASE]: releaseAfterInstall(`      - run: npm run build\n        env:\n          run: npm test\n${NPM_PUBLISH}`),
+    },
+  ],
+  [
+    'check-in-nested-mapping',
+    'Excluded: `run: npm test` sits in a mapping nested in an action input.',
+    {
+      ...JS_BASE,
+      [RELEASE]: releaseAfterInstall(`      - uses: acme/configure@v1\n        with:\n          settings:\n            run: npm test\n${NPM_PUBLISH}`),
+    },
+  ],
+];
+
+/** Item C: a check whose failure does not end its step. */
+export const FAILURE_STOPS_EXCLUDED: readonly Shape[] = [
+  [
+    'check-then-semicolon-true',
+    'Excluded: `npm test; true`; the step exits with the status of `true`.',
+    { ...JS_BASE, [RELEASE]: releaseAfterInstall(`      - run: npm test; true\n${NPM_PUBLISH}`) },
+  ],
+  [
+    'check-piped-into-tee',
+    'Excluded: `npm test | tee test.log` without pipefail; the step exits with the status of tee.',
+    { ...JS_BASE, [RELEASE]: releaseAfterInstall(`      - run: npm test | tee test.log\n${NPM_PUBLISH}`) },
+  ],
+  [
+    'check-backgrounded',
+    'Excluded: `npm test &` runs the check in the background; the step does not wait for it.',
+    { ...JS_BASE, [RELEASE]: releaseAfterInstall(`      - run: npm test &\n${NPM_PUBLISH}`) },
+  ],
+];
+
+export const FAILURE_STOPS_COUNTED: readonly Shape[] = [
+  [
+    'check-piped-into-tee-with-pipefail',
+    'Counted: the step sets pipefail, then pipes `npm test` into tee; under bash -e the failing pipeline ends the step.',
+    { ...JS_BASE, [RELEASE]: releaseAfterInstall(`      - run: |\n          set -o pipefail\n          npm test | tee test.log\n${NPM_PUBLISH}`) },
+  ],
+];
+
+/** Item E: a command that only reports, and a test script that runs nothing, are not checks. */
+export const FAKE_CHECK_EXCLUDED: readonly Shape[] = [
+  ['pytest-version', 'Excluded: `pytest --version` prints a version.', { ...PY_BASE, [PUBLISH]: pythonRelease('pytest --version') }],
+  ['pytest-capital-v', 'Excluded: `pytest -V` prints a version.', { ...PY_BASE, [PUBLISH]: pythonRelease('pytest -V') }],
+  ['pytest-help', 'Excluded: `pytest --help` prints usage.', { ...PY_BASE, [PUBLISH]: pythonRelease('pytest --help') }],
+  ['pytest-h', 'Excluded: `pytest -h` prints usage.', { ...PY_BASE, [PUBLISH]: pythonRelease('pytest -h') }],
+  [
+    'npx-tsc-version',
+    'Excluded: `npx tsc --version` prints a version.',
+    { ...JS_BASE, [RELEASE]: releaseAfterInstall(`      - run: npx tsc --version\n${NPM_PUBLISH}`) },
+  ],
+  [
+    'npm-test-empty-script',
+    'Excluded: `npm test` where the root package.json test script is empty.',
+    { ...jsWithTestScript(''), [RELEASE]: releaseAfterInstall(`      - run: npm test\n${NPM_PUBLISH}`) },
+  ],
+  [
+    'yarn-test-script-true',
+    'Excluded: `yarn test` where the root package.json test script is `true`.',
+    { ...jsWithTestScript('true'), [RELEASE]: releaseAfterInstall(`      - run: yarn test\n${NPM_PUBLISH}`) },
+  ],
+  [
+    'pnpm-test-script-exit-0',
+    'Excluded: `pnpm test` where the root package.json test script is `exit 0`.',
+    { ...jsWithTestScript('exit 0'), [RELEASE]: releaseAfterInstall(`      - run: pnpm test\n${NPM_PUBLISH}`) },
+  ],
+  [
+    'npm-run-test-script-echo',
+    'Excluded: `npm run test` where the root package.json test script only echoes.',
+    { ...jsWithTestScript('echo "no tests yet"'), [RELEASE]: releaseAfterInstall(`      - run: npm run test\n${NPM_PUBLISH}`) },
+  ],
+  [
+    'npm-test-script-colon',
+    'Excluded: `npm test` where the root package.json test script is `:`.',
+    { ...jsWithTestScript(':'), [RELEASE]: releaseAfterInstall(`      - run: npm test\n${NPM_PUBLISH}`) },
+  ],
+];
+
+/** Item G: a workflow GitHub rejects, and a publish the reader cannot see. */
+export const READING_EXCLUDED: readonly Shape[] = [
+  [
+    'publishing-job-needs-itself',
+    'Excluded: the publishing job needs itself, which GitHub rejects; its only check runs after the publish.',
+    {
+      ...JS_BASE,
+      [RELEASE]: `name: release\n${PUSH_MAIN}jobs:\n  publish:\n    needs: publish\n    runs-on: ubuntu-latest\n    steps:\n${SETUP_NODE}      - run: npm ci\n${NPM_PUBLISH}      - run: npm test\n`,
+    },
+  ],
+  [
+    'needs-cycle',
+    'Excluded: the test and publishing jobs need each other, a cycle GitHub rejects.',
+    {
+      ...JS_BASE,
+      [RELEASE]: `name: release\n${PUSH_MAIN}jobs:\n  test:\n    needs: publish\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - run: npm ci\n      - run: npm test\n  publish:\n    needs: test\n    runs-on: ubuntu-latest\n    steps:\n${SETUP_NODE}      - run: npm ci\n${NPM_PUBLISH}`,
+    },
+  ],
+  [
+    'unread-flow-style-publish-beside-checked-one',
+    'Excluded: a second job with no `needs:` publishes in a flow-style step, `- {run: npm publish}`, which the reader does not read.',
+    {
+      ...JS_BASE,
+      [RELEASE]: `${oneJobRelease(`      - run: npm ci\n      - run: npm test\n${NPM_PUBLISH}`)}  mirror:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - {run: npm publish}\n`,
+    },
+  ],
+  [
+    'script-publish-beside-checked-one',
+    'Excluded: a second job with no `needs:` runs a repository script that publishes, with no check before it.',
+    {
+      ...JS_BASE,
+      'scripts/publish.sh': '#!/bin/sh\nset -e\nnpm publish\n',
+      [RELEASE]: `${oneJobRelease(`      - run: npm ci\n      - run: npm test\n${NPM_PUBLISH}`)}  mirror:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - run: ./scripts/publish.sh\n`,
+    },
+  ],
+];
+
+// Item D: twelve checked publishing workflows with long names, so B3's note reaches its limit.
+export const MANY_CHECKED_WORKFLOWS: readonly string[] = Array.from(
+  { length: 12 },
+  (_, index) =>
+    `.github/workflows/release-to-the-public-registry-after-the-whole-test-suite-passes-channel-${String(index + 1).padStart(2, '0')}.yml`,
+);
+
+export const MANY_CHECKED_NAME = 'twelve-checked-publishing-workflows';
+
+const MANY_CHECKED: Shape = [
+  MANY_CHECKED_NAME,
+  'Counted: twelve publishing workflows with long names, each running the npm test script before it publishes.',
+  {
+    ...JS_BASE,
+    ...Object.fromEntries(
+      MANY_CHECKED_WORKFLOWS.map((file) => [file, releaseAfterInstall(`      - run: npm test\n${NPM_PUBLISH}`)] as const),
+    ),
+  },
+];
+
+/** The second pass's counted and excluded shapes, in the order the tests read them. */
+export const V2_COUNTED: readonly Shape[] = [...STATUS_FUNCTION_COUNTED, ...FAILURE_STOPS_COUNTED];
+export const V2_EXCLUDED: readonly Shape[] = [
+  ...STATUS_FUNCTION_EXCLUDED,
+  ...RUN_KEY_EXCLUDED,
+  ...FAILURE_STOPS_EXCLUDED,
+  ...FAKE_CHECK_EXCLUDED,
+  ...READING_EXCLUDED,
+];
+
 function fixture(name: string, purpose: string, files: Record<string, string>): FalseAssuranceFixture {
   return { name, issue: '#517', purpose, commits: [files] };
 }
@@ -207,9 +474,15 @@ export const EDGE_FIXTURES: readonly FalseAssuranceFixture[] = [...EDGE_COUNTED,
   ([name, purpose, files]) => fixture(name, purpose, files),
 );
 
+export const V2_FIXTURES: readonly FalseAssuranceFixture[] = [...V2_COUNTED, ...V2_EXCLUDED, MANY_CHECKED].map(
+  ([name, purpose, files]) => fixture(name, purpose, files),
+);
+
 /** The publishing workflow each fixture adds. */
 export const publishingFile = (name: string): string => {
-  const shape = [...COUNTED, ...EXCLUDED, ...EDGE_COUNTED, ...EDGE_EXCLUDED].find(([entry]) => entry === name);
+  const shape = [...COUNTED, ...EXCLUDED, ...EDGE_COUNTED, ...EDGE_EXCLUDED, ...V2_COUNTED, ...V2_EXCLUDED].find(
+    ([entry]) => entry === name,
+  );
   const files = Object.keys(shape?.[2] ?? {});
   return [RELEASE, PUBLISH, DOCS].find((file) => files.includes(file)) ?? '';
 };
