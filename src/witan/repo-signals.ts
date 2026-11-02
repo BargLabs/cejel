@@ -2088,17 +2088,21 @@ function collectA1TestIntegrityEvidence(
       : PYTEST_DEFAULT_COLLECTION_SETTINGS
     : undefined;
   const allTestFiles =
-    pytestSettings !== undefined && !pytestSettings.setsPythonFiles
+    pytestSettings !== undefined && pytestSettings.pythonFiles === undefined
       ? v17TestFiles.filter((file) => !PYTEST_CONFTEST_PATTERN.test(file))
       : v17TestFiles;
   // v27 (#518): a conftest.py hook that skips or deselects every collected test disables the
-  // whole suite under it, so those files cannot fail. Read only under v27. A hook that skips is
-  // not read where pytest's skipping plugin may be disabled.
+  // whole suite under it, so those files cannot fail. Read only under v27. A hook is not applied
+  // where it puts the items back, where pytest's skipping plugin may be disabled (a hook that
+  // skips), where --noconftest, --rootdir or --confcutdir is in force, or, for a file, where pytest
+  // may not load its conftest.py (goal_cejel_v27_a1_test_count_overmatch_v2_2026-11-02).
+  const runWideHooks = pytestSettings ? findPytestRunWideSkips(repoPath, repoFiles) : [];
   const runWideSkips = pytestSettings
-    ? findPytestRunWideSkips(repoPath, repoFiles).filter(
-        (skip) => skip.kind === 'clear' || !pytestSettings.disablesSkipping,
-      )
+    ? runWideHooks.filter((skip) => pytestRunWideHookWithheld(skip, pytestSettings) === undefined)
     : [];
+  const hookGoverns = (skip: PytestRunWideSkip, file: string): boolean =>
+    isGovernedPytestFile(skip, file) &&
+    (pytestSettings === undefined || pytestDoesNotLoadHookFor(skip, file, pytestSettings) === undefined);
   const testFiles = allTestFiles.slice(0, 8);
   const sourceFiles = repoFiles.filter(isSourceFile);
   const runnerFiles = repoFiles
@@ -2410,12 +2414,32 @@ function collectA1TestIntegrityEvidence(
       reviewableSourceProof !== undefined,
       pytestSettings
         ? {
-            disabledByRunWideSkip: (file) => runWideSkips.find((skip) => isGovernedPytestFile(skip, file)),
+            disabledByRunWideSkip: (file) => runWideSkips.find((skip) => hookGoverns(skip, file)),
+            withheldRunWideSkip: (file) => {
+              for (const skip of runWideHooks) {
+                if (!isGovernedPytestFile(skip, file)) continue;
+                const reason =
+                  pytestRunWideHookWithheld(skip, pytestSettings) ?? pytestDoesNotLoadHookFor(skip, file, pytestSettings);
+                if (reason !== undefined) return reason;
+              }
+              return undefined;
+            },
             pytestSettings,
           }
         : undefined,
     ),
   );
+  // v27, item C of goal_cejel_v27_a1_test_count_overmatch_v2_2026-11-02: every rule withheld is
+  // said, once per rule and reason, in the order met. The conftest rule is withheld for the whole
+  // repository where python_files may collect a conftest.py that v17 lists.
+  const withheldClauses = [
+    ...new Set([
+      ...(pytestSettings?.pythonFiles !== undefined && v17TestFiles.some((file) => PYTEST_CONFTEST_PATTERN.test(file))
+        ? [`conftest rule not applied: ${pytestSettingReason(pytestSettings.pythonFiles)}`]
+        : []),
+      ...nonHollowShare.withheldRules.map(({ rule, reason }) => `${rule} not applied: ${reason}`),
+    ]),
+  ];
   // v27 (goal_cejel_v27_a1_test_count_overmatch_2026-11-01, item A): each file a v27 rule rated
   // hollow is cited with its rule, the first eight as the test files are, so a reviewer can check
   // that the rule's condition held. Empty under every other rubric.
@@ -2428,7 +2452,7 @@ function collectA1TestIntegrityEvidence(
     );
   }
   for (const skip of runWideSkips.slice(0, 2)) {
-    const governed = allTestFiles.filter((file) => isGovernedPytestFile(skip, file)).length;
+    const governed = allTestFiles.filter((file) => hookGoverns(skip, file)).length;
     if (governed === 0) continue;
     findings.push({
       severity: 'warning',
@@ -2518,8 +2542,24 @@ function collectA1TestIntegrityEvidence(
         ? a1ConftestSurfaceSentence(v17TestFiles.length)
         : '',
       nonHollowShare.ratedHollow,
+      withheldClauses,
     ),
   };
+}
+
+/**
+ * A1's v27 sentence saying which removal rules were not applied and why
+ * (goal_cejel_v27_a1_test_count_overmatch_v2_2026-11-02, item C), `shown` clauses of them, the
+ * rest counted. With none shown it counts them, so a withhold is never silent.
+ */
+function a1WithheldSentence(clauses: readonly string[], shown: number): string {
+  const count = clauses.length;
+  if (shown === 0) {
+    return `A removal rule was not applied in ${count} case${count === 1 ? '' : 's'}; none is listed, for the note's length limit.`;
+  }
+  const more = count - shown;
+  const text = `${clauses.slice(0, shown).join('; ')}${more === 0 ? '' : `; and ${more} more not listed`}.`;
+  return `${text.charAt(0).toUpperCase()}${text.slice(1)}`;
 }
 
 /** v27: test_to_source_ratio counts conftest.py files that are the only test-shaped files. */
@@ -2551,28 +2591,50 @@ function a1RatedHollowSentence(rated: readonly RatedHollowFile[], shown: number)
  * file named whole (or, where even that cannot fit, with none named); the rated-hollow sentence
  * then lists as many files as fit within CRITERION_NOTES_MAX_LENGTH and counts the rest. With
  * neither (every rubric but v27) the base note is built exactly as before.
+ *
+ * goal_cejel_v27_a1_test_count_overmatch_v2_2026-11-02, item C: `withheld` clauses, when any, go
+ * between them as one sentence (a1WithheldSentence). Room is left for its first clause and the
+ * first rated file; the withheld clauses are then listed as far as they fit beside one rated file,
+ * and the rated files as far as they fit after that. Each sentence counts what it does not list.
  */
 function withA1V27Sentences(
   base: (limit: number) => string,
   fixed: string,
   rated: readonly RatedHollowFile[],
+  withheld: readonly string[] = [],
 ): string {
-  if (rated.length === 0 && fixed === '') return base(CRITERION_NOTES_MAX_LENGTH);
-  const tail = (shown: number) =>
-    [fixed, rated.length === 0 ? '' : a1RatedHollowSentence(rated, shown)].filter((part) => part !== '').join(' ');
-  const shortest = tail(0);
-  const roomForOne = tail(Math.min(rated.length, 1));
+  if (rated.length === 0 && fixed === '' && withheld.length === 0) return base(CRITERION_NOTES_MAX_LENGTH);
+  const tail = (shownWithheld: number, shownRated: number) =>
+    [
+      fixed,
+      withheld.length === 0 ? '' : a1WithheldSentence(withheld, shownWithheld),
+      rated.length === 0 ? '' : a1RatedHollowSentence(rated, shownRated),
+    ]
+      .filter((part) => part !== '')
+      .join(' ');
+  const firstWithheld = Math.min(withheld.length, 1);
+  const firstRated = Math.min(rated.length, 1);
+  const shortest = tail(0, 0);
+  const roomForOne = tail(firstWithheld, firstRated);
   const withOne = base(CRITERION_NOTES_MAX_LENGTH - roomForOne.length - 1);
   const note =
     `${withOne} ${roomForOne}`.length <= CRITERION_NOTES_MAX_LENGTH
       ? withOne
       : base(CRITERION_NOTES_MAX_LENGTH - shortest.length - 1);
-  // A note this long names at most a few dozen paths, so the search starts there, not at every file.
-  for (let shown = Math.min(rated.length, 100); shown > 0; shown -= 1) {
-    const whole = `${note} ${tail(shown)}`;
-    if (whole.length <= CRITERION_NOTES_MAX_LENGTH) return whole;
+  const fits = (shownWithheld: number, shownRated: number) =>
+    `${note} ${tail(shownWithheld, shownRated)}`.length <= CRITERION_NOTES_MAX_LENGTH;
+  // A note this long names at most a few dozen paths or clauses, so each search starts there.
+  let shownWithheld = 0;
+  for (const ratedShown of [firstRated, 0]) {
+    for (let shown = Math.min(withheld.length, 100); shown > 0 && shownWithheld === 0; shown -= 1) {
+      if (fits(shown, ratedShown)) shownWithheld = shown;
+    }
+    if (shownWithheld > 0) break;
   }
-  return `${note} ${shortest}`;
+  for (let shown = Math.min(rated.length, 100); shown > 0; shown -= 1) {
+    if (fits(shownWithheld, shown)) return `${note} ${tail(shownWithheld, shown)}`;
+  }
+  return `${note} ${tail(shownWithheld, 0)}`;
 }
 
 /**
@@ -10412,13 +10474,30 @@ interface NonHollowTestShare {
   perTestSkipped: PerTestSkippedFile[];
   /** witan-rubric-v27 only: every file a v27 rule moved from non-hollow to hollow, in file order. */
   ratedHollow: RatedHollowFile[];
+  /**
+   * witan-rubric-v27 only (goal_cejel_v27_a1_test_count_overmatch_v2_2026-11-02, item C): each rule
+   * that would have rated a file v17 rates non-hollow as running no test, but was not applied
+   * because of a pytest setting in force or a hook that puts the items back, in file order.
+   */
+  withheldRules: PytestWithheldRule[];
 }
 
 interface RunWideSkipOptions {
   /** The run-wide pytest hook that disables a test file (findPytestRunWideSkips), if any. */
   readonly disabledByRunWideSkip: (file: string) => PytestRunWideSkip | undefined;
+  /**
+   * Why a run-wide hook that would disable a test file was not applied to it (a setting in force,
+   * a hook that puts the items back, or a conftest.py pytest would not load for it), if one was not.
+   */
+  readonly withheldRunWideSkip: (file: string) => string | undefined;
   /** What the repository's pytest settings leave Cejel able to read (readPytestCollectionSettings). */
   readonly pytestSettings: PytestCollectionSettings;
+}
+
+/** A v27 A1 rule that was not applied, and why, as A1's note says it. */
+interface PytestWithheldRule {
+  readonly rule: 'conftest rule' | 'run-wide skip rule' | 'every-test-skipped rule';
+  readonly reason: string;
 }
 
 /**
@@ -10444,6 +10523,7 @@ function measureNonHollowTestShare(
   let ratedCount = 0;
   const perTestSkipped: PerTestSkippedFile[] = [];
   const ratedHollow: RatedHollowFile[] = [];
+  const withheldRules: PytestWithheldRule[] = [];
   for (const file of files) {
     const fullPath = join(repoPath, file);
     if (!isRegularFile(fullPath)) continue;
@@ -10477,6 +10557,12 @@ function measureNonHollowTestShare(
     if (perTestSkip) perTestSkipped.push({ path: file, ...perTestSkip });
     if (nonHollowUnderV17 && runWideRule !== undefined) ratedHollow.push({ path: file, rule: runWideRule, line: null });
     else if (perTestSkip) ratedHollow.push({ path: file, rule: 'every test skipped', line: perTestSkip.line });
+    // v27 (goal_cejel_v27_a1_test_count_overmatch_v2_2026-11-02, item C): a rule that would have
+    // moved this file but was withheld is recorded, so A1's note says so instead of falling back to
+    // v17's reading in silence.
+    if (runWideSkip !== undefined && nonHollowUnderV17 && runWideRule === undefined) {
+      withheldRules.push(...readWithheldA1Rules(file, contents, runWideSkip, perTestSkip === undefined));
+    }
     const cannotRunAsTest = disabledRunWide || perTestSkip !== undefined;
     const nonHollow =
       asserting &&
@@ -10495,7 +10581,33 @@ function measureNonHollowTestShare(
       ratedCount += 1;
     }
   }
-  return { nonHollowCount, ratedCount, perTestSkipped, ratedHollow };
+  return { nonHollowCount, ratedCount, perTestSkipped, ratedHollow, withheldRules };
+}
+
+/**
+ * witan-rubric-v27 only (item C): the rules that would have rated `file` as running no test under
+ * pytest's defaults but were withheld for it. Read only for a file v17 rates non-hollow and no
+ * run-wide rule moved; the per-test reader only where it did not move the file either. The conftest
+ * rule's withhold is read once for the repository (collectA1TestIntegrityEvidence).
+ */
+function readWithheldA1Rules(
+  file: string,
+  contents: string,
+  options: RunWideSkipOptions,
+  readPerTest: boolean,
+): PytestWithheldRule[] {
+  const settings = options.pytestSettings;
+  const withheld: PytestWithheldRule[] = [];
+  const hookReason = options.withheldRunWideSkip(file);
+  if (hookReason !== undefined) withheld.push({ rule: 'run-wide skip rule', reason: hookReason });
+  if (settings.disablesSkipping !== undefined && hasUnconditionalPytestModuleSkip(file, contents)) {
+    withheld.push({ rule: 'run-wide skip rule', reason: pytestSettingReason(settings.disablesSkipping) });
+  }
+  const perTestBlocker = settings.disablesSkipping ?? settings.testNames;
+  if (readPerTest && perTestBlocker !== undefined && /\.py$/.test(file) && readEveryPythonTestSkipped(contents)) {
+    withheld.push({ rule: 'every-test-skipped rule', reason: pytestSettingReason(perTestBlocker) });
+  }
+  return withheld;
 }
 
 /**
@@ -10504,10 +10616,10 @@ function measureNonHollowTestShare(
  * conftest.py above it, or the file's own module-level pytestmark skip (while skip marks apply).
  */
 function readRunWideRule(file: string, contents: string, options: RunWideSkipOptions): string | undefined {
-  if (!options.pytestSettings.setsPythonFiles && PYTEST_CONFTEST_PATTERN.test(file)) return 'conftest';
+  if (options.pytestSettings.pythonFiles === undefined && PYTEST_CONFTEST_PATTERN.test(file)) return 'conftest';
   const hook = options.disabledByRunWideSkip(file);
   if (hook !== undefined) return `run-wide skip: hook in ${hook.path}`;
-  if (!options.pytestSettings.disablesSkipping && hasUnconditionalPytestModuleSkip(file, contents)) {
+  if (options.pytestSettings.disablesSkipping === undefined && hasUnconditionalPytestModuleSkip(file, contents)) {
     return `run-wide skip: pytestmark in ${file}`;
   }
   return undefined;
@@ -10517,45 +10629,569 @@ function readRunWideRule(file: string, contents: string, options: RunWideSkipOpt
 //
 // Each v27 A1 removal rule reads pytest's defaults: conftest.py is never a test module only while
 // python_files does not name it, the per-test reader sees every test only while python_functions
-// and python_classes are pytest's own, and a skip mark skips only while pytest's skipping plugin
-// is loaded. Cejel does not evaluate these settings, so any mention of one in a file that may
-// configure pytest (an ini-style configuration file, or a CI workflow that may pass `-o` or `-p`)
-// withholds the rules that depend on it. A mention that changes nothing only withholds a claim.
+// and python_classes name nothing it does not read as a test, a skip mark skips only while pytest's
+// skipping plugin is loaded, and a conftest.py hook runs only where pytest loads that conftest.py.
+//
+// goal_cejel_v27_a1_test_count_overmatch_v2_2026-11-02, item B: a setting withholds a rule only
+// where it is in force. That is an active, uncommented key in a section pytest reads ([pytest] in
+// pytest.ini, .pytest.ini or tox.ini, [tool:pytest] in setup.cfg, [tool.pytest.ini_options] or
+// pytest 9's [tool.pytest] in pyproject.toml), its addopts, or a flag on a pytest command line (a
+// CI run or script step, a Makefile or justfile line, a tox.ini command) or in PYTEST_ADDOPTS. A
+// comment, an echo or other string, and a key outside those sections do not withhold, nor does a
+// value that leaves pytest's default reading (python_files patterns none of which can match
+// conftest.py; python_functions and python_classes patterns each starting with test or Test). A
+// file anywhere in the repository counts: Cejel does not work out which one pytest picks, so it
+// withholds on any of them.
 
-interface PytestCollectionSettings {
-  /** python_files is set somewhere: conftest.py may be collected as a test module. */
-  readonly setsPythonFiles: boolean;
-  /** python_functions or python_classes is set somewhere: tests may have names the reader does not see. */
-  readonly setsTestNames: boolean;
-  /** `no:skipping` appears somewhere: pytest's skip marks may not apply. */
-  readonly disablesSkipping: boolean;
+/** A setting in force, as A1's note names it: the setting and where it is set. */
+interface PytestSettingSource {
+  /** python_files, python_functions, python_classes, -p no:skipping, --noconftest, --rootdir or --confcutdir. */
+  readonly setting: string;
+  /** 'set in <file>', 'on a pytest command line in <file>' or 'in PYTEST_ADDOPTS in <file>'. */
+  readonly where: string;
 }
 
+interface PytestCollectionSettings {
+  /** A python_files pattern that may match conftest.py: conftest.py may be collected as a test module. */
+  readonly pythonFiles?: PytestSettingSource;
+  /** A python_functions or python_classes pattern reaching names the per-test reader does not read as tests. */
+  readonly testNames?: PytestSettingSource;
+  /** `-p no:skipping`: pytest's skip marks may not apply. */
+  readonly disablesSkipping?: PytestSettingSource;
+  /** --noconftest, --rootdir or --confcutdir: a conftest.py hook may not be loaded. */
+  readonly noConftest?: PytestSettingSource;
+  /** Directories ('' for the root) holding a pytest configuration file, each with the first such file. */
+  readonly configDirs: ReadonlyMap<string, string>;
+  /** Directories holding a file pytest may take its root from where no configuration file is found. */
+  readonly rootCandidates: ReadonlyMap<string, string>;
+}
+
+type PytestSettingKey = 'pythonFiles' | 'testNames' | 'disablesSkipping' | 'noConftest';
+type PytestSettingSink = (key: PytestSettingKey, source: PytestSettingSource) => void;
+
 const PYTEST_DEFAULT_COLLECTION_SETTINGS: PytestCollectionSettings = Object.freeze({
-  setsPythonFiles: false,
-  setsTestNames: false,
-  disablesSkipping: false,
+  configDirs: new Map<string, string>(),
+  rootCandidates: new Map<string, string>(),
 });
-const PYTEST_SETTINGS_FILE_PATTERN =/(^|\/)(?:pytest\.ini|\.pytest\.ini|pyproject\.toml|tox\.ini|setup\.cfg)$/;
-const PYTEST_PYTHON_FILES_SETTING_PATTERN = /\bpython_files\b/;
-const PYTEST_TEST_NAMES_SETTING_PATTERN = /\bpython_(?:functions|classes)\b/;
-const PYTEST_SKIPPING_DISABLED_PATTERN = /\bno:skipping\b/;
+
+// The section pytest reads in each ini-style file.
+const PYTEST_INI_SECTIONS: ReadonlyMap<string, string> = new Map([
+  ['pytest.ini', 'pytest'],
+  ['.pytest.ini', 'pytest'],
+  ['tox.ini', 'pytest'],
+  ['setup.cfg', 'tool:pytest'],
+]);
+const PYTEST_EXECUTABLE_PATTERN = /^(?:pytest|py\.test)(?:\.exe)?$/;
+const PYTEST_ADDOPTS_ASSIGNMENT = 'PYTEST_ADDOPTS=';
+// `PYTEST_ADDOPTS: value` (YAML env), `PYTEST_ADDOPTS = value` (Make, tox setenv) or `export ...`.
+const PYTEST_ADDOPTS_LINE_PATTERN = /^[ \t]*(?:-[ \t]*)?(?:export[ \t]+)?PYTEST_ADDOPTS[ \t]*(?::|[:?+]?=)(.*)$/;
+// CI keys whose value is shell (GitLab, Azure, CircleCI's `command:` and others); `run:` is
+// extractCiRunCommands's.
+const CI_SCRIPT_KEY_PATTERN =
+  /^([ \t]*)(?:-[ \t]*)?(?:script|before_script|after_script|bash|pwsh|powershell|sh|command)[ \t]*:[ \t]*(.*)$/;
+
+/** A1's notes name a path whole up to this length, and its start with `...` beyond it. */
+const A1_NOTE_PATH_MAX_LENGTH = 120;
+
+function a1NotePath(path: string): string {
+  return path.length <= A1_NOTE_PATH_MAX_LENGTH ? path : `${path.slice(0, A1_NOTE_PATH_MAX_LENGTH - 3)}...`;
+}
+
+function pytestSettingReason(source: PytestSettingSource): string {
+  return `${source.setting} ${source.where}`;
+}
+
+/** The directory of a repository-relative path, '' for the root. */
+function repoDirectory(file: string): string {
+  const slash = file.lastIndexOf('/');
+  return slash === -1 ? '' : file.slice(0, slash);
+}
 
 function readPytestCollectionSettings(repoPath: string, repoFiles: readonly string[]): PytestCollectionSettings {
-  let setsPythonFiles = false;
-  let setsTestNames = false;
-  let disablesSkipping = false;
+  const found: { [key in PytestSettingKey]?: PytestSettingSource } = {};
+  const sink: PytestSettingSink = (key, source) => {
+    found[key] ??= source;
+  };
+  const configDirs = new Map<string, string>();
+  const rootCandidates = new Map<string, string>();
+  const remember = (map: Map<string, string>, directory: string, file: string) => {
+    if (!map.has(directory)) map.set(directory, file);
+  };
   for (const file of repoFiles) {
     if (GENERATED_OR_VENDOR_PATH_PATTERN.test(file)) continue;
-    if (!PYTEST_SETTINGS_FILE_PATTERN.test(file) && !isCiWorkflow(file)) continue;
+    const name = file.slice(file.lastIndexOf('/') + 1);
+    const directory = repoDirectory(file);
+    if (name === 'setup.py') {
+      remember(rootCandidates, directory, file);
+      continue;
+    }
+    const iniSection = PYTEST_INI_SECTIONS.get(name);
+    const pyproject = name === 'pyproject.toml';
+    const ci = isCiWorkflow(file);
+    const recipe = isRecipeFile(file);
+    if (iniSection === undefined && !pyproject && !ci && !recipe) continue;
     const fullPath = join(repoPath, file);
     if (!isRegularFile(fullPath)) continue;
     const text = readRepoText(fullPath, 'utf8');
-    setsPythonFiles ||= PYTEST_PYTHON_FILES_SETTING_PATTERN.test(text);
-    setsTestNames ||= PYTEST_TEST_NAMES_SETTING_PATTERN.test(text);
-    disablesSkipping ||= PYTEST_SKIPPING_DISABLED_PATTERN.test(text);
+    const shown = a1NotePath(file);
+    if (iniSection !== undefined || pyproject) remember(rootCandidates, directory, file);
+    if (iniSection !== undefined) {
+      const ini = readIniSection(text, iniSection);
+      // pytest.ini is pytest's configuration even without a [pytest] section.
+      if (ini.present || name === 'pytest.ini' || name === '.pytest.ini') remember(configDirs, directory, file);
+      for (const [key, value] of ini.entries) {
+        readPytestOption(key, { kind: 'text', text: value }, `set in ${shown}`, sink);
+      }
+      if (name === 'tox.ini') readPytestShellText(ini.outside.join('\n'), shown, sink);
+    }
+    if (pyproject) {
+      const toml = readPyprojectPytestSettings(text);
+      if (toml.present) remember(configDirs, directory, file);
+      for (const [key, value] of toml.entries) readPytestOption(key, value, `set in ${shown}`, sink);
+    }
+    if (ci) {
+      for (const command of ciShellTexts(text)) readPytestShellText(command, shown, sink);
+      readPytestAddoptsLines(text, shown, sink);
+    }
+    if (recipe) readPytestShellText(text, shown, sink);
   }
-  return { setsPythonFiles, setsTestNames, disablesSkipping };
+  return { ...found, configDirs, rootCandidates };
+}
+
+/** A pytest option's value as read: ini text, a TOML string or list, or a TOML value Cejel did not parse. */
+type PytestOptionValue =
+  | { readonly kind: 'text'; readonly text: string }
+  | { readonly kind: 'list'; readonly items: readonly string[] }
+  | { readonly kind: 'unknown'; readonly text: string };
+
+const PYTEST_A1_OPTION_NAMES = ['python_files', 'python_functions', 'python_classes', 'addopts'] as const;
+
+/**
+ * Reads one pytest option in force. python_files withholds the conftest rule where a pattern may
+ * match conftest.py; python_functions and python_classes withhold the Python per-test reader where a
+ * pattern reaches names it does not read as tests; addopts is read as flags (readPytestFlags). A
+ * value Cejel did not parse is in force.
+ */
+function readPytestOption(name: string, value: PytestOptionValue, where: string, sink: PytestSettingSink, depth = 0): void {
+  const patterns =
+    value.kind === 'unknown'
+      ? undefined
+      : (value.kind === 'text' ? [value.text] : value.items).flatMap((item) => item.split(/\s+/)).filter((item) => item !== '');
+  if (name === 'python_files') {
+    if (patterns === undefined || patterns.some(pythonFilesPatternMayMatchConftest)) {
+      sink('pythonFiles', { setting: name, where });
+    }
+  } else if (name === 'python_functions' || name === 'python_classes') {
+    if (patterns === undefined || patterns.some(pytestNamePatternReachesBeyondTest)) {
+      sink('testNames', { setting: name, where });
+    }
+  } else if (name === 'addopts' && depth === 0) {
+    const words = value.kind === 'list' ? value.items : shellWords(value.text);
+    readPytestFlags(words, where, sink, depth + 1);
+  }
+}
+
+/** Reads pytest's own flags among `words`: -p no:skipping, --noconftest, --rootdir, --confcutdir and -o. */
+function readPytestFlags(words: readonly string[], where: string, sink: PytestSettingSink, depth = 0): void {
+  for (let index = 0; index < words.length; index += 1) {
+    const word = words[index] ?? '';
+    if ((word === '-p' && words[index + 1] === 'no:skipping') || word === '-pno:skipping') {
+      sink('disablesSkipping', { setting: '-p no:skipping', where });
+      continue;
+    }
+    if (word === '--noconftest') {
+      sink('noConftest', { setting: word, where });
+      continue;
+    }
+    const directoryFlag = /^--(rootdir|confcutdir)(?:=|$)/.exec(word);
+    if (directoryFlag) {
+      sink('noConftest', { setting: `--${directoryFlag[1]}`, where });
+      continue;
+    }
+    let override: string | undefined;
+    if (word === '-o' || word === '--override-ini') override = words[index + 1];
+    else if (word.startsWith('--override-ini=')) override = word.slice('--override-ini='.length);
+    else if (word.startsWith('-o') && !word.startsWith('--') && word.length > 2) override = word.slice(2);
+    const equals = override?.indexOf('=') ?? -1;
+    if (override !== undefined && equals > 0) {
+      readPytestOption(override.slice(0, equals).trim(), { kind: 'text', text: override.slice(equals + 1) }, where, sink, depth);
+    }
+  }
+}
+
+/**
+ * Reads every pytest command line in shell text: the flags after a `pytest` or `py.test` word, and a
+ * PYTEST_ADDOPTS assignment, in each command (comments, strings and other commands' words are not
+ * pytest's). Linear in the text.
+ */
+function readPytestShellText(text: string, shownFile: string, sink: PytestSettingSink): void {
+  for (const segment of splitShellCommandSegments(text)) {
+    const words = shellWords(segment.trim());
+    for (const word of words) {
+      if (word.startsWith(PYTEST_ADDOPTS_ASSIGNMENT)) {
+        readPytestFlags(shellWords(word.slice(PYTEST_ADDOPTS_ASSIGNMENT.length)), `in PYTEST_ADDOPTS in ${shownFile}`, sink);
+      }
+    }
+    // A Makefile recipe's first word may carry make's own @, - or + prefix.
+    const at = words.findIndex((word, index) =>
+      PYTEST_EXECUTABLE_PATTERN.test(basename(index === 0 ? word.replace(/^[@+-]+/, '') : word)),
+    );
+    if (at !== -1) readPytestFlags(words.slice(at + 1), `on a pytest command line in ${shownFile}`, sink);
+  }
+  readPytestAddoptsLines(text, shownFile, sink);
+}
+
+/** Reads `PYTEST_ADDOPTS: ...` and `PYTEST_ADDOPTS = ...` lines (YAML env, Make, tox setenv). */
+function readPytestAddoptsLines(text: string, shownFile: string, sink: PytestSettingSink): void {
+  if (!text.includes('PYTEST_ADDOPTS')) return;
+  for (const line of text.split(/\r?\n/)) {
+    const value = PYTEST_ADDOPTS_LINE_PATTERN.exec(line)?.[1];
+    if (value === undefined) continue;
+    const [segment] = splitShellCommandSegments(value);
+    const words = shellWords((segment ?? '').trim());
+    // A quoted YAML or Make value is one word holding the flags.
+    const flags = words.length === 1 ? shellWords(words[0] ?? '') : words;
+    readPytestFlags(flags, `in PYTEST_ADDOPTS in ${shownFile}`, sink);
+  }
+}
+
+/**
+ * Shell text a CI configuration runs: `run:` steps (extractCiRunCommands), the values of the
+ * script-family keys (inline, block scalar or block sequence), and a Jenkinsfile's one-line `sh`
+ * steps. Linear in the file.
+ */
+function ciShellTexts(contents: string): string[] {
+  const texts = extractCiRunCommands(contents);
+  const lines = contents.split(/\r?\n/);
+  for (let index = 0; index < lines.length; index += 1) {
+    const match = CI_SCRIPT_KEY_PATTERN.exec(lines[index] ?? '');
+    if (!match) continue;
+    const indent = match[1]?.length ?? 0;
+    const value = (match[2] ?? '').trim();
+    if (value !== '' && !/^[|>]/.test(value)) {
+      texts.push(unquoteYamlListItem(value.replace(/^\[(.*)\]$/, '$1')));
+      continue;
+    }
+    for (index += 1; index < lines.length; index += 1) {
+      const nested = lines[index] ?? '';
+      if (nested.trim() === '') continue;
+      if (nested.length - nested.trimStart().length <= indent) {
+        index -= 1;
+        break;
+      }
+      const item = nested.trim().replace(/^-[ \t]*/, '').replace(/^[|>][-+]?$/, '');
+      if (item !== '') texts.push(unquoteYamlListItem(item));
+    }
+  }
+  for (const match of contents.matchAll(/\bsh[ \t]*\(?[ \t]*(['"])([^'"\n]*)\1/g)) texts.push(match[2] ?? '');
+  return texts;
+}
+
+/** A YAML scalar with its one pair of enclosing quotes removed, if it has them. */
+function unquoteYamlListItem(value: string): string {
+  const quoted = /^(?:"(.*)"|'(.*)')$/.exec(value);
+  return quoted ? (quoted[1] ?? quoted[2] ?? '') : value;
+}
+
+/**
+ * The entries of one section of an ini-style file, as pytest's ini reader takes them: a line
+ * starting `#` or `;` is a comment, a line starting with whitespace continues the previous value,
+ * and a key ends at its first `=` or `:`. `outside` holds the other non-comment lines (tox's
+ * commands). Linear in the file.
+ */
+function readIniSection(
+  text: string,
+  section: string,
+): { present: boolean; entries: [string, string][]; outside: string[] } {
+  let present = false;
+  let current: string | undefined;
+  let last: [string, string] | undefined;
+  const entries: [string, string][] = [];
+  const outside: string[] = [];
+  for (const raw of text.split(/\r?\n/)) {
+    const trimmed = raw.trim();
+    if (trimmed === '' || trimmed.startsWith('#') || trimmed.startsWith(';')) continue;
+    if (raw.startsWith('[')) {
+      const close = raw.indexOf(']');
+      current = close === -1 ? undefined : raw.slice(1, close).trim();
+      last = undefined;
+      if (current === section) present = true;
+      continue;
+    }
+    if (current !== section) {
+      outside.push(trimmed);
+      continue;
+    }
+    if (/^[ \t]/.test(raw)) {
+      if (last) last[1] = `${last[1]}\n${trimmed}`;
+      continue;
+    }
+    const match = /^([^=:]+)[=:](.*)$/.exec(raw);
+    last = match ? [(match[1] ?? '').trim(), (match[2] ?? '').trim()] : undefined;
+    if (last) entries.push(last);
+  }
+  return { present, entries, outside };
+}
+
+/**
+ * pytest's options in pyproject.toml: under [tool.pytest.ini_options], or pytest 9's native
+ * [tool.pytest], however the key is dotted. Comments are not read; an array or a multi-line string
+ * runs to its end. An inline table naming one of the options counts it as set to a value Cejel did
+ * not parse. Linear in the file.
+ */
+function readPyprojectPytestSettings(text: string): { present: boolean; entries: [string, PytestOptionValue][] } {
+  const lines = text.split(/\r?\n/);
+  const entries: [string, PytestOptionValue][] = [];
+  let present = false;
+  let table: string[] = [];
+  for (let index = 0; index < lines.length; index += 1) {
+    const trimmed = (lines[index] ?? '').trim();
+    if (trimmed === '' || trimmed.startsWith('#')) continue;
+    const header = /^\[\[?([^\]]*)\]\]?/.exec(trimmed);
+    if (header) {
+      table = tomlKeyPath(header[1] ?? '');
+      if (table[0] === 'tool' && table[1] === 'pytest' && (table.length === 2 || table[2] === 'ini_options')) {
+        present = true;
+      }
+      continue;
+    }
+    const equals = tomlKeyEnd(trimmed);
+    if (equals === -1) continue;
+    const scanner = new TomlValueScanner();
+    scanner.feed(trimmed.slice(equals + 1));
+    while (!scanner.complete() && index + 1 < lines.length) {
+      index += 1;
+      scanner.feed(`\n${lines[index] ?? ''}`);
+    }
+    const path = [...table, ...tomlKeyPath(trimmed.slice(0, equals))];
+    if (path[0] !== 'tool' || path[1] !== 'pytest') continue;
+    const rest = path[2] === 'ini_options' ? path.slice(3) : path.slice(2);
+    if (rest.length > 1) continue;
+    present = true;
+    const value = scanner.value();
+    if (rest.length === 1) {
+      entries.push([rest[0] ?? '', value]);
+      continue;
+    }
+    for (const name of PYTEST_A1_OPTION_NAMES) {
+      if (containsPythonIdentifier(scanner.code(), name)) entries.push([name, { kind: 'unknown', text: value.kind === 'unknown' ? value.text : '' }]);
+    }
+  }
+  return { present, entries };
+}
+
+/** A TOML key's dotted path, each part unquoted. */
+function tomlKeyPath(key: string): string[] {
+  return key
+    .split('.')
+    .map((part) => part.trim().replace(/^"(.*)"$|^'(.*)'$/, '$1$2'))
+    .filter((part) => part !== '');
+}
+
+/** The index of a TOML key line's `=`, outside quotes, or -1. */
+function tomlKeyEnd(line: string): number {
+  let quote: string | undefined;
+  for (let index = 0; index < line.length; index += 1) {
+    const character = line[index];
+    if (quote !== undefined) {
+      if (character === quote) quote = undefined;
+    } else if (character === '"' || character === "'") {
+      quote = character;
+    } else if (character === '=') {
+      return index;
+    }
+  }
+  return -1;
+}
+
+/**
+ * Reads a TOML value fed in chunks: its strings (basic, literal and multi-line), the code outside
+ * strings and comments, and whether every bracket and string has closed. Linear in what it is fed.
+ */
+class TomlValueScanner {
+  private quote: '"' | "'" | '"""' | "'''" | undefined;
+  private escaped = false;
+  private comment = false;
+  private depth = 0;
+  private current = '';
+  private readonly strings: string[] = [];
+  private outside = '';
+
+  feed(chunk: string): void {
+    for (let index = 0; index < chunk.length; index += 1) {
+      const character = chunk[index] ?? '';
+      if (this.comment) {
+        if (character === '\n') this.comment = false;
+        continue;
+      }
+      if (this.quote !== undefined) {
+        if (this.escaped) {
+          this.current += character;
+          this.escaped = false;
+          continue;
+        }
+        if (character === '\\' && (this.quote === '"' || this.quote === '"""')) {
+          this.escaped = true;
+          continue;
+        }
+        if (chunk.startsWith(this.quote, index)) {
+          this.strings.push(this.current);
+          this.current = '';
+          index += this.quote.length - 1;
+          this.quote = undefined;
+          continue;
+        }
+        this.current += character;
+        continue;
+      }
+      if (character === '#') {
+        this.comment = true;
+        continue;
+      }
+      if (character === '"' || character === "'") {
+        const triple = character.repeat(3);
+        this.quote = chunk.startsWith(triple, index) ? (triple as '"""' | "'''") : character;
+        index += this.quote.length - 1;
+        continue;
+      }
+      if (character === '[' || character === '{') this.depth += 1;
+      else if (character === ']' || character === '}') this.depth -= 1;
+      this.outside += character;
+    }
+  }
+
+  complete(): boolean {
+    return this.quote === undefined && this.depth <= 0;
+  }
+
+  code(): string {
+    return this.outside;
+  }
+
+  value(): PytestOptionValue {
+    const code = this.outside.trim();
+    if (code.startsWith('[') && /^\[[\s,]*\]$/.test(code.replace(/[^\[\],\s]/g, ''))) {
+      return { kind: 'list', items: this.strings };
+    }
+    if (code === '' && this.strings.length === 1) return { kind: 'text', text: this.strings[0] ?? '' };
+    return { kind: 'unknown', text: this.strings.join(' ') };
+  }
+}
+
+/**
+ * True when a python_files pattern may match conftest.py: its last path part, matched as Python's
+ * fnmatch does and case-insensitively (so it errs towards withholding).
+ */
+function pythonFilesPatternMayMatchConftest(pattern: string): boolean {
+  const last = pattern.slice(Math.max(pattern.lastIndexOf('/'), pattern.lastIndexOf('\\')) + 1);
+  return fnmatchWhole(last.toLowerCase(), 'conftest.py');
+}
+
+/**
+ * True when a python_functions or python_classes pattern may reach a name that does not start with
+ * test or Test, which the Python per-test reader does not read as a test. pytest takes a pattern as a
+ * prefix, or as a glob where it holds a glob character, so its literal start decides.
+ */
+function pytestNamePatternReachesBeyondTest(pattern: string): boolean {
+  const glob = pattern.search(/[*?[]/);
+  const literal = glob === -1 ? pattern : pattern.slice(0, glob);
+  return !literal.startsWith('test') && !literal.startsWith('Test');
+}
+
+/**
+ * Python's fnmatch over a whole name: `*` any run, `?` one character, `[seq]` and `[!seq]` a set
+ * (with ranges; an unclosed `[` is literal). Dynamic programming, linear in pattern times name.
+ */
+function fnmatchWhole(pattern: string, name: string): boolean {
+  let reach = new Array<boolean>(name.length + 1).fill(false);
+  reach[0] = true;
+  let index = 0;
+  while (index < pattern.length) {
+    const character = pattern[index] ?? '';
+    const next = new Array<boolean>(name.length + 1).fill(false);
+    if (character === '*') {
+      let any = false;
+      for (let at = 0; at <= name.length; at += 1) {
+        any ||= reach[at] === true;
+        next[at] = any;
+      }
+      index += 1;
+    } else {
+      let test: (candidate: string) => boolean = (candidate) => candidate === character;
+      let width = 1;
+      if (character === '?') {
+        test = () => true;
+      } else if (character === '[') {
+        let end = index + 1;
+        if (pattern[end] === '!') end += 1;
+        if (pattern[end] === ']') end += 1;
+        while (end < pattern.length && pattern[end] !== ']') end += 1;
+        if (end < pattern.length) {
+          const negate = pattern[index + 1] === '!';
+          const body = pattern.slice(index + (negate ? 2 : 1), end);
+          test = (candidate) => {
+            let inSet = false;
+            for (let at = 0; at < body.length; at += 1) {
+              const low = body[at] ?? '';
+              if (body[at + 1] === '-' && at + 2 < body.length) {
+                const high = body[at + 2] ?? '';
+                if (candidate >= low && candidate <= high) inSet = true;
+                at += 2;
+              } else if (candidate === low) {
+                inSet = true;
+              }
+            }
+            return inSet !== negate;
+          };
+          width = end - index + 1;
+        }
+      }
+      for (let at = 0; at < name.length; at += 1) {
+        if (reach[at] && test(name[at] ?? '')) next[at + 1] = true;
+      }
+      index += width;
+    }
+    reach = next;
+  }
+  return reach[name.length] === true;
+}
+
+/**
+ * Why pytest may not load a run-wide hook's conftest.py for `file`, or undefined. pytest loads
+ * conftest.py files no higher than its root directory (confcutdir defaults to the directory of the
+ * configuration file, or the root): a configuration file in a directory below the hook's, on the
+ * file's path, makes that directory the root when pytest is run there; so does any file pytest takes
+ * its root from (setup.py, pyproject.toml, tox.ini, setup.cfg) where no configuration file is found
+ * at or above it. (goal_cejel_v27_a1_test_count_overmatch_v2_2026-11-02, item D.)
+ */
+function pytestDoesNotLoadHookFor(
+  skip: PytestRunWideSkip,
+  file: string,
+  settings: PytestCollectionSettings,
+): string | undefined {
+  if (settings.configDirs.size === 0 && settings.rootCandidates.size === 0) return undefined;
+  const configAtOrAbove = (directory: string): boolean => {
+    for (let at = directory; ; at = repoDirectory(at)) {
+      if (settings.configDirs.has(at)) return true;
+      if (at === '') return false;
+    }
+  };
+  for (let directory = repoDirectory(file); directory !== skip.scope && directory !== ''; directory = repoDirectory(directory)) {
+    const config = settings.configDirs.get(directory);
+    const candidate = config ?? (configAtOrAbove(directory) ? undefined : settings.rootCandidates.get(directory));
+    if (candidate !== undefined) {
+      return `${a1NotePath(candidate)} can make pytest's root ${a1NotePath(directory)}, where it does not load ${a1NotePath(skip.path)}`;
+    }
+  }
+  return undefined;
+}
+
+/** Why a run-wide hook is not applied to any file, or undefined: the hook puts the items back, or a setting in force. */
+function pytestRunWideHookWithheld(skip: PytestRunWideSkip, settings: PytestCollectionSettings): string | undefined {
+  if (skip.withheld !== undefined) return skip.withheld;
+  if (skip.kind === 'skip' && settings.disablesSkipping !== undefined) return pytestSettingReason(settings.disablesSkipping);
+  if (settings.noConftest !== undefined) return pytestSettingReason(settings.noConftest);
+  return undefined;
 }
 
 // ---- Run-wide pytest skips (witan-rubric-v27, #518) ----------------------------------------
@@ -10882,27 +11518,62 @@ function pytestHookTakesItems(defLine: string): boolean {
 }
 
 const PYTEST_ITEMS_NAME_GLOBAL_PATTERN = /(?<![\w.])items(?!\w)/g;
+// `items.<method>(` for a method that cannot add to the list; any other method call on it (extend,
+// append, insert, __iadd__, __setitem__, one Cejel does not know) may put items back.
+const PYTEST_ITEMS_METHOD_CALL_GLOBAL_PATTERN = /(?<![\w.])items[ \t]*\.[ \t]*([A-Za-z_]\w*)[ \t]*\(/g;
+const PYTEST_ITEMS_NON_ADDING_METHODS = new Set(['clear', 'copy', 'count', 'index', 'pop', 'remove', 'sort', 'reverse']);
+// `other = items` (or `a = b = items`): another name for the same list, through which it may be refilled.
+const PYTEST_ITEMS_ALIAS_PATTERN = /^[A-Za-z_]\w*(?:[ \t]*=[ \t]*[A-Za-z_]\w*)*[ \t]*=[ \t]*items[ \t]*$/;
 
 /**
- * True when a hook statement uses the `items` list itself other than to read or change it in
- * place: not `items[...]`, `items.<method>`, `in items` or the keyword name `items=`. Passing it
- * to a call or binding another name to it lets other code refill it. Linear in the statement.
+ * True when a hook statement calls a helper with `items` as its first argument and something more
+ * (`restore(items, saved)`): the helper may put the saved items back. A call given `items` alone
+ * (`noop(items)`, `len(items)`, `list(items)`) or as a keyword's value is not read as a restore.
+ * Cejel does not check that the other argument is a saved copy, so it withholds on more, never on
+ * less. Linear in the statement.
  */
-function handsOnPytestItems(text: string): boolean {
-  const code = pythonCodeOutsideStrings(text);
+function pytestHelperGivenItems(code: string): boolean {
   const blank = (character: string | undefined) => character === ' ' || character === '\t';
   for (const match of code.matchAll(PYTEST_ITEMS_NAME_GLOBAL_PATTERN)) {
     const at = match.index ?? 0;
-    let next = at + match[0].length;
-    while (blank(code[next])) next += 1;
     let previous = at - 1;
     while (previous >= 0 && blank(code[previous])) previous -= 1;
-    if (code[next] === '[' || code[next] === '.') continue;
-    if (code[next] === '=' && code[next + 1] !== '=' && (code[previous] === '(' || code[previous] === ',')) continue;
-    if (code[previous] === 'n' && code[previous - 1] === 'i' && !/\w/.test(code[previous - 2] ?? '')) continue;
-    return true;
+    if (code[previous] !== '(') continue;
+    let callee = previous - 1;
+    while (callee >= 0 && blank(code[callee])) callee -= 1;
+    if (!/[\w)\]]/.test(code[callee] ?? '')) continue;
+    let next = at + match[0].length;
+    while (blank(code[next])) next += 1;
+    if (code[next] !== ',') continue;
+    next += 1;
+    while (blank(code[next])) next += 1;
+    if (next < code.length && code[next] !== ')') return true;
   }
   return false;
+}
+
+/**
+ * How a hook that empties `items` may leave pytest's list holding the collected items
+ * (goal_cejel_v27_a1_test_count_overmatch_v2_2026-11-02, item A): 'restores' where a statement puts
+ * items back (`items.extend(saved)`, `items += saved`, `items[:] = saved`, another adding method, a
+ * helper given `items` and more, or another name bound to the list), 'rebinds' where the name
+ * `items` is bound to something else (so the clear may empty a copy), or undefined. Copying the
+ * items (`list(items)`, `items[:]`, `items.copy()`), reporting them (`pytest_deselected(items=...)`,
+ * logging) and iterating over them restore nothing.
+ */
+function pytestItemsRestoreKind(statements: readonly PythonHookStatement[]): 'restores' | 'rebinds' | undefined {
+  let rebinds = false;
+  for (const { text } of statements) {
+    if (PYTEST_HOOK_CLEAR_ITEMS_PATTERN.test(text) || PYTEST_HOOK_EMPTY_REFILL_PATTERN.test(text)) continue;
+    if (PYTEST_HOOK_REFILL_ITEMS_PATTERN.test(text)) return 'restores';
+    const code = pythonCodeOutsideStrings(text);
+    for (const call of code.matchAll(PYTEST_ITEMS_METHOD_CALL_GLOBAL_PATTERN)) {
+      if (!PYTEST_ITEMS_NON_ADDING_METHODS.has(call[1] ?? '')) return 'restores';
+    }
+    if (pytestHelperGivenItems(code) || PYTEST_ITEMS_ALIAS_PATTERN.test(code.trim())) return 'restores';
+    if (PYTEST_HOOK_REBIND_ITEMS_PATTERN.test(text)) rebinds = true;
+  }
+  return rebinds ? 'rebinds' : undefined;
 }
 
 interface PytestRunWideSkip {
@@ -10913,6 +11584,11 @@ interface PytestRunWideSkip {
   /** The directory the conftest governs, '' for the repository root. */
   readonly scope: string;
   readonly kind: 'skip' | 'clear';
+  /**
+   * Set on a hook that empties `items` but may leave pytest's list holding them (item A): why the
+   * clear is not applied, as A1's note says it. Such a hook disables no file.
+   */
+  readonly withheld?: string;
 }
 
 /**
@@ -10974,31 +11650,37 @@ function findPytestRunWideSkips(
       // The clear must run when the hook does: at the hook body's own first indent, not inside a
       // nested function or a loop that may run zero times.
       const hookIndent = indented[0]?.indent;
-      const clears =
-        indented.some(({ indent, text }) => indent === hookIndent && PYTEST_HOOK_CLEAR_ITEMS_PATTERN.test(text)) &&
-        // A statement that hands the list itself to something else (`restore(items, saved)`,
-        // `alias = items`) may put items back, as a refill does
-        // (goal_cejel_v27_a1_test_count_overmatch_2026-11-01).
-        !indented.some(
-          ({ text }) =>
-            !PYTEST_HOOK_CLEAR_ITEMS_PATTERN.test(text) &&
-            !PYTEST_HOOK_EMPTY_REFILL_PATTERN.test(text) &&
-            handsOnPytestItems(text),
-        );
-      const refills = body.some(
-        (statement) =>
-          !PYTEST_HOOK_CLEAR_ITEMS_PATTERN.test(statement) &&
-          !PYTEST_HOOK_EMPTY_REFILL_PATTERN.test(statement) &&
-          PYTEST_HOOK_REFILL_ITEMS_PATTERN.test(statement),
+      const clears = indented.some(
+        ({ indent, text }) => indent === hookIndent && PYTEST_HOOK_CLEAR_ITEMS_PATTERN.test(text),
       );
-      const kind = clears && !refills
-        ? ('clear' as const)
-        : hookSkipsEveryItem(indented, pytestHeldSkipMarkers(lines, indented))
-          ? ('skip' as const)
-          : undefined;
+      // goal_cejel_v27_a1_test_count_overmatch_v2_2026-11-02, item A: a clear is withheld only where
+      // the hook demonstrably may put the collected items back (or rebinds the name), and the
+      // withhold is kept, with its reason, so A1's note says it. Any other use of `items` (a copy,
+      // a report, a loop) leaves the clear standing.
+      const restore = clears ? pytestItemsRestoreKind(indented) : undefined;
+      const kind =
+        clears && restore === undefined
+          ? ('clear' as const)
+          : hookSkipsEveryItem(indented, pytestHeldSkipMarkers(lines, indented))
+            ? ('skip' as const)
+            : clears
+              ? ('clear' as const)
+              : undefined;
       if (!kind) continue;
       const scope = dirname(file);
-      found.push({ path: file, line: index + 1, scope: scope === '.' ? '' : scope, kind });
+      const withheld =
+        kind === 'clear' && restore !== undefined
+          ? restore === 'restores'
+            ? `the hook in ${a1NotePath(file)} puts the collected items back`
+            : `the hook in ${a1NotePath(file)} rebinds items, so its clear may not empty pytest's list`
+          : undefined;
+      found.push({
+        path: file,
+        line: index + 1,
+        scope: scope === '.' ? '' : scope,
+        kind,
+        ...(withheld === undefined ? {} : { withheld }),
+      });
     }
   }
   return found;
@@ -11033,7 +11715,9 @@ function readEveryTestUnconditionallySkipped(
   // The Python reader assumes pytest's own test names and its skipping plugin
   // (goal_cejel_v27_a1_test_count_overmatch_2026-11-01): either set otherwise, no claim.
   if (/\.py$/.test(file)) {
-    return pytestSettings.setsTestNames || pytestSettings.disablesSkipping ? undefined : readEveryPythonTestSkipped(contents);
+    return pytestSettings.testNames !== undefined || pytestSettings.disablesSkipping !== undefined
+      ? undefined
+      : readEveryPythonTestSkipped(contents);
   }
   if (JS_OR_TS_TEST_SOURCE_PATTERN.test(file)) return readEveryJavaScriptTestSkipped(contents);
   return undefined;
