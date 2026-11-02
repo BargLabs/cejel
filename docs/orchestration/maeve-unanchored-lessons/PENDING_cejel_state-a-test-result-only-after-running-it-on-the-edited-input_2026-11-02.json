@@ -1,0 +1,26 @@
+[
+  {
+    "statement": "On the third pass of cejel #625, the red-first commit 1297f8fa4 said that 30 of 31 new fixtures failed against the old code and that ruff-exit-zero was \"excluded already by another rule\". That held for an earlier version of the fixture (`ruff check --exit-zero .`, which the step reader refuses because `.` is read as the `source` builtin). The fixture had been changed to `ruff check --exit-zero src` minutes before the commit and was not re-run. Run against the old code, it failed like the other 30, so 31 of 31 were red. Rules: write a result into a commit message, record or handback only after running the check on the input as committed. When you edit a fixture, every claim made about its old form is void until you re-run it. A fixture that something else already excludes makes a mutation run vacuous, so check that each fixture is red for the reason it names.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "evidence-discipline",
+      "testing"
+    ],
+    "tags": [
+      "claim-before-check",
+      "stale-result",
+      "red-first",
+      "mutation-testing",
+      "own-error"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-11-02T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 625
+    }
+  }
+]
