@@ -10,7 +10,7 @@ import type { FalseAssuranceFixture } from './false-assurance-fixtures.js';
 // in which it does hold. Built with buildFalseAssuranceFixture, outside FALSE_ASSURANCE_FIXTURES,
 // so the existing sharded suites and their pins do not move.
 
-const PYPROJECT = (pytestOptions: readonly string[] = []): string =>
+export const PYPROJECT = (pytestOptions: readonly string[] = []): string =>
   [
     '[project]',
     'name = "cachelib"',
@@ -23,7 +23,7 @@ const PYPROJECT = (pytestOptions: readonly string[] = []): string =>
     '',
   ].join('\n');
 
-const PY_BASE: Readonly<Record<string, string>> = {
+export const PY_BASE: Readonly<Record<string, string>> = {
   'pyproject.toml': PYPROJECT(),
   'README.md': '# cachelib\n\nA small cache library.\n',
   LICENSE: 'MIT\n',
@@ -39,10 +39,10 @@ const PY_BASE: Readonly<Record<string, string>> = {
     'name: ci\non:\n  push:\n    branches: [main]\n  pull_request:\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - run: pip install pytest\n      - run: pytest\n',
 };
 
-const lines = (...text: string[]): string => `${text.join('\n')}\n`;
+export const lines = (...text: string[]): string => `${text.join('\n')}\n`;
 
 /** A conftest.py whose collection hook has `body` (each line already indented four spaces). */
-const conftestHook = (body: readonly string[], preamble: readonly string[] = ['import pytest']): string =>
+export const conftestHook =(body: readonly string[], preamble: readonly string[] = ['import pytest']): string =>
   lines(...preamble, '', '', 'def pytest_collection_modifyitems(config, items):', ...body);
 
 const JS_BASE: Readonly<Record<string, string>> = {
@@ -91,7 +91,7 @@ const fixture = (
   base: Readonly<Record<string, string>> = PY_BASE,
 ): RemovalFixture => ({ name, issue: '#518', rule, purpose, commits: [{ ...base, ...files }], removed });
 
-const SKIPPED_CACHE_TEST = lines(
+export const SKIPPED_CACHE_TEST = lines(
   'import pytest',
   '',
   'from cachelib import get, put',
@@ -109,7 +109,7 @@ const SKIPPED_CACHE_TEST = lines(
   '    assert c["a"] == 2',
 );
 
-const LIVE_PY_TEST = (name: string): string =>
+export const LIVE_PY_TEST = (name: string): string =>
   lines('from cachelib import get', '', '', `def test_${name}():`, '    assert get({"k": 1}, "k") == 1');
 
 export const REMOVAL_FIXTURES: readonly RemovalFixture[] = [
