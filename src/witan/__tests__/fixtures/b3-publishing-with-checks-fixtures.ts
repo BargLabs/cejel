@@ -422,6 +422,23 @@ export const READING_EXCLUDED: readonly Shape[] = [
     },
   ],
   [
+    'unread-flow-style-step-after-check',
+    'Excluded: the checked job also has a flow-style step, `- {run: npm publish --tag next}`; a workflow with a step the reader cannot read is withheld, wherever the step sits.',
+    {
+      ...JS_BASE,
+      [RELEASE]: releaseAfterInstall(`      - run: npm test\n      - {run: npm publish --tag next}\n${NPM_PUBLISH}`),
+    },
+  ],
+  [
+    'script-publish-before-check-in-same-job',
+    'Excluded: a repository script that publishes runs before the check in the same job; only setup steps may come before a check.',
+    {
+      ...JS_BASE,
+      'scripts/publish.sh': '#!/bin/sh\nset -e\nnpm publish\n',
+      [RELEASE]: releaseAfterInstall(`      - run: ./scripts/publish.sh\n      - run: npm test\n${NPM_PUBLISH}`),
+    },
+  ],
+  [
     'script-publish-beside-checked-one',
     'Excluded: a second job with no `needs:` runs a repository script that publishes, with no check before it.',
     {
