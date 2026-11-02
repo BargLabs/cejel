@@ -7957,7 +7957,6 @@ function plainYamlValue(value: string): boolean {
  * GitHub reads it. Refused, on any line YAML reads (not text inside a `|` / `>` block scalar):
  *   - any backslash, so no double-quoted escape spells what the readers look for (`"\u0061lways()"`,
  *     `"BASH\u005fENV"`); a backslash in a plain or single-quoted scalar is refused too;
- *   - a leading blank other than a space or tab (OTHER_LEADING_BLANK_PATTERN);
  * and, outside step items (which workflowStepItems reads), any line that is not a plain key or a
  * list item with a plainYamlValue: a quoted key, a space before a colon, a merge key, a flow
  * mapping, an anchor, alias or tag, a scalar continued on the next line, a document marker. So a
@@ -7965,7 +7964,6 @@ function plainYamlValue(value: string): boolean {
  * Linear in the file.
  */
 function workflowStructureIsPlain(contents: string): boolean {
-  if (OTHER_LEADING_BLANK_PATTERN.test(contents)) return false;
   const lines = contents.split(/\r?\n/);
   const indents = lines.map(lineIndent);
   const inBlockScalar = blockScalarBodyLines(lines, indents);

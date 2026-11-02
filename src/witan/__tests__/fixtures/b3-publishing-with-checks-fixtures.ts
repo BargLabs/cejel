@@ -621,8 +621,46 @@ export const SCRIPT_SHELL_EXCLUDED: readonly Shape[] = [
   ],
   [
     'npmrc-script-shell-npx-check',
-    'Excluded: `.npmrc` sets `script-shell=true`; `npx` runs through it too, so `npx vitest run` runs `true`.',
-    { ...JS_BASE, '.npmrc': 'script-shell=true\n', [RELEASE]: releaseAfterInstall(`      - run: npx vitest run\n${NPM_PUBLISH}`) },
+    'Excluded: `.npmrc` sets `script-shell=true`; `npx` runs through it too, so `npx vitest run` runs `true`. No install runs first.',
+    { ...JS_BASE, '.npmrc': 'script-shell=true\n', [RELEASE]: oneJobRelease(`      - run: npx vitest run\n${NPM_PUBLISH}`) },
+  ],
+  [
+    'npmrc-node-options-npx-check',
+    'Excluded: `.npmrc` sets `node-options`, which npm adds to every script it runs, so it can replace the check.',
+    {
+      ...JS_BASE,
+      '.npmrc': 'node-options=--require ./scripts/pass.cjs\n',
+      'scripts/pass.cjs': 'process.on(\'exit\', () => { process.exitCode = 0; });\n',
+      [RELEASE]: oneJobRelease(`      - run: npx vitest run\n${NPM_PUBLISH}`),
+    },
+  ],
+  [
+    'yarnrc-yarn-path-yarn-test',
+    'Excluded: `.yarnrc.yml` sets `yarnPath`, so `yarn` runs a committed script of the repository rather than yarn.',
+    {
+      ...JS_BASE,
+      '.yarnrc.yml': 'yarnPath: .yarn/releases/yarn.cjs\n',
+      '.yarn/releases/yarn.cjs': 'process.exit(0);\n',
+      [RELEASE]: oneJobRelease(`      - run: yarn test\n${NPM_PUBLISH}`),
+    },
+  ],
+  [
+    'pnpmfile-runs-at-install-before-check',
+    'Excluded: `.pnpmfile.cjs` is code pnpm runs on install, before the check.',
+    {
+      ...JS_BASE,
+      '.pnpmfile.cjs': "module.exports = { hooks: {} };\n",
+      [RELEASE]: oneJobRelease(`      - run: pnpm install\n      - run: node --test\n${NPM_PUBLISH}`),
+    },
+  ],
+  [
+    'yarn-plugin-runs-at-install-before-check',
+    'Excluded: a committed yarn plugin is code yarn runs on install, before the check.',
+    {
+      ...JS_BASE,
+      '.yarn/plugins/plugin.cjs': 'module.exports = { name: "plugin", factory: () => ({}) };\n',
+      [RELEASE]: oneJobRelease(`      - run: yarn install\n      - run: node --test\n${NPM_PUBLISH}`),
+    },
   ],
   [
     'workflow-env-npm-config-script-shell',
@@ -654,6 +692,35 @@ export const INSTALL_RUNS_PROJECT_CODE_EXCLUDED: readonly Shape[] = [
     'pip-install-local-path-before-check',
     'Excluded: `pip install .[test]` installs the project from its own directory before the check.',
     { ...PY_BASE, [PUBLISH]: pythonPlainRelease('pytest').replace('pip install pytest build twine', 'pip install .[test] build twine') },
+  ],
+  [
+    'binding-gyp-build-at-install-before-check',
+    'Excluded: a root binding.gyp makes `npm ci` build it, running the project\'s build before the check.',
+    {
+      ...JS_BASE,
+      'binding.gyp': "{ 'targets': [] }\n",
+      [RELEASE]: oneJobRelease(`      - run: npm ci\n      - run: node --test\n${NPM_PUBLISH}`),
+    },
+  ],
+  [
+    'npm-install-local-path-before-check',
+    'Excluded: `npm install ./tools/publisher` installs a package from a path in the repository, running its install scripts before the check.',
+    { ...JS_BASE, [RELEASE]: oneJobRelease(`      - run: npm install ./tools/publisher\n      - run: node --test\n${NPM_PUBLISH}`) },
+  ],
+  [
+    'uv-sync-installs-project-before-check',
+    'Excluded: `uv sync` installs the project itself before pytest.',
+    { ...PY_BASE, [PUBLISH]: pythonPlainRelease('pytest').replace('pip install pytest build twine', 'uv sync') },
+  ],
+  [
+    'poetry-install-installs-project-before-check',
+    'Excluded: `poetry install` installs the project itself before pytest.',
+    { ...PY_BASE, [PUBLISH]: pythonPlainRelease('pytest').replace('pip install pytest build twine', 'poetry install') },
+  ],
+  [
+    'pdm-install-installs-project-before-check',
+    'Excluded: `pdm install` installs the project itself before pytest.',
+    { ...PY_BASE, [PUBLISH]: pythonPlainRelease('pytest').replace('pip install pytest build twine', 'pdm install') },
   ],
   [
     'prepare-script-runs-at-install-before-check',
@@ -708,6 +775,11 @@ export const V3_COUNTED: readonly Shape[] = [
     'set-euo-pipefail-before-check',
     'Counted: `set -euo pipefail` only makes the step stricter, then `npm test` runs.',
     { ...JS_BASE, [RELEASE]: releaseAfterInstall(`      - run: |\n          set -euo pipefail\n          npm test\n${NPM_PUBLISH}`) },
+  ],
+  [
+    'poetry-install-no-root-before-check',
+    'Counted: `poetry install --no-root` installs the dependencies only, then pytest runs.',
+    { ...PY_BASE, [PUBLISH]: pythonPlainRelease('pytest').replace('pip install pytest build twine', 'poetry install --no-root') },
   ],
   [
     'npmrc-registry-only',

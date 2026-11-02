@@ -91,6 +91,7 @@ const COUNTED_DETAILS: Readonly<Record<string, string>> = {
   'reusable-publish-needs-plain-pip-test': 'is triggered by push to main, and its publishing job declares no environment.',
   'set-euo-pipefail-before-check': 'is triggered by push to main, and its publishing job declares no environment.',
   'npmrc-registry-only': 'is triggered by push to main, and its publishing job declares no environment.',
+  'poetry-install-no-root-before-check': 'is triggered by push to main, and its publishing job declares no environment.',
   'job-level-keys-written-plainly': 'is triggered by push to main, and its publishing job declares no environment.',
 };
 
