@@ -232,16 +232,18 @@ describe('#517 — a workflow that only publishes is not CI depth', () => {
     }
   });
 
-  it('v27: a workflow that runs the tests and then publishes on every push, with no pull-request trigger, is not counted', () => {
+  it('v27: a workflow that runs the tests and then publishes on every push, with no pull-request trigger, is counted, and the note says why', () => {
     // Changed 2026-10-26 (#517 follow-up): this corner counted under v27 before.
+    // Changed 2026-11-01 (#517 correction, operator's ruling of 1 November 2026): only a workflow that
+    // publishes without checking is excluded. `npm test` runs before `npm publish` in the same job,
+    // so the workflow is default-branch CI that also publishes, and v27 counts it as v17 does. The
+    // note names it in one clause and keeps the F3-b trigger and environment text.
     const v17 = criterion('b3-test-then-publish-workflow', V17, 'B3');
     const v27 = criterion('b3-test-then-publish-workflow', V27, 'B3');
-    expect(v27.score).toBeLessThan(v17.score);
-    expect(metricValue(v27, 'default_branch_ci_depth')).toBe((metricValue(v17, 'default_branch_ci_depth') ?? 0) - 1);
-    // Changed 2026-10-28 (v27 freeze change F3-b): the note goes on to name the trigger and the
-    // publishing job's environment.
+    expect(metricValue(v27, 'default_branch_ci_depth')).toBe(metricValue(v17, 'default_branch_ci_depth'));
+    expect(metricValue(v27, 'ci_script_depth')).toBe(metricValue(v17, 'ci_script_depth'));
     expect(v27.notes).toBe(
-      '1 workflow that publishes, releases or deploys with no pull-request trigger (an unconditional step runs a publish, release or deploy command or action) is not counted as CI verification, whatever else it runs: .github/workflows/ci-release.yml. .github/workflows/ci-release.yml is triggered by push to main, and its publishing job declares no environment.',
+      '.github/workflows/ci-release.yml is counted as CI verification because a check runs before it publishes; it is triggered by push to main, and its publishing job declares no environment.',
     );
   });
 });
@@ -1661,10 +1663,13 @@ describe('B2 and B3 never disagree about which workflows are credited (v27)', ()
           .replaceAll('a PR-trace CI workflow', 'CI verification') ?? '';
       const b3Notes = b3.notes ?? '';
       expect(b3Notes.startsWith(shared)).toBe(true);
+      // #517 correction (2026-11-01): B3's own sentences are either the publishing exclusion or, for
+      // a publishing workflow counted because a check runs before it publishes, a sentence saying
+      // so. Such a workflow is counted by both criteria, so the counts below still agree.
       const publishingSentence = b3Notes.slice(shared.length).trim();
       if (publishingSentence !== '') {
         expect(publishingSentence).toMatch(
-          /^\d+ workflows? that publish(?:es)?, releases? or deploys? with no pull-request trigger /,
+          /^(?:\d+ workflows? that publish(?:es)?, releases? or deploys? with no pull-request trigger |\S+ is counted as CI verification because a check runs before it publishes)/,
         );
       }
       // The counts agree too: B2 credits every CI workflow file B3 does not set aside.

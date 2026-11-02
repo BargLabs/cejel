@@ -1,0 +1,25 @@
+[
+  {
+    "statement": "A scorer that admitted only a plain success() in a workflow's if: conditions matched always(), cancelled() and failure() in the file's raw text, so if: \"\\x61lways()\", which YAML decodes to always(), was credited as a check that stops the publish. A reader that admits a safe shape must test the value the platform will run, not the bytes before decoding. Rules: decode a scalar before matching it, or refuse on the credit path any escape or encoding the reader does not decode.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "false-assurance",
+      "rubric-design"
+    ],
+    "tags": [
+      "denylist-evasion",
+      "yaml-escapes",
+      "parse-before-match",
+      "false-assurance"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-11-02T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 625
+    }
+  }
+]
