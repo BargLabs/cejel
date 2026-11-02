@@ -22,7 +22,7 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
-## 2026-11-02 — v27 A1 names every file it rates hollow, withholds a rule only on evidence the setting is in force or the items are put back, and says every withhold; v17-v22 byte-identical; v27 never above v17; no published score moved
+## 2026-11-02 — v27 A1 names every file it rates hollow, withholds a rule only on evidence the setting is in force for a pytest run that collects the file or the items are put back, and says every withhold; v17-v26 byte-identical; v27 never above v17; no published score moved
 
 **Status.** A scoring change under `witan-rubric-v27-prospective-2026-10-19` only, with no
 identifier change. It covers the whole v27 A1 change: #621's (closed unmerged; its content is
@@ -38,7 +38,15 @@ mentioned anywhere, and wherever a hook used `items` in almost any way. An adver
 against pytest found that each withhold silently handed back v17's full credit: the common
 deselect-everything hook (`dropped = list(items)`, `items.clear()`,
 `config.hook.pytest_deselected(items=dropped)`) went from critical to verified, as did a suite
-whose settings named `no:skipping` only in a comment, an `echo` string or a default value.
+whose settings named `no:skipping` only in a comment, an `echo` string or a default value. A second
+adversarial review of this change's first pass (at `f31c4e244`) found the same failure one level
+down, each checked with pytest 9.2.0: a restore read where none runs (`enumerate(items, 1)` or
+`print(items, file=...)` read as a helper restoring the list; an `extend` in a nested function the
+hook never calls; a restore from `saved = []`), settings pytest never reads (a `pytest.ini` beside
+the `pyproject.toml` that set `--noconftest`; a `pytest.ini` under `docs/examples`; an unquoted
+`echo pytest ...`; a heredoc), flags that leave the hook loaded (`--rootdir=.`, `--confcutdir` at
+the hook's own directory), and an empty `tests/pytest.ini` withholding a root `conftest.py` that
+plain `pytest` at the root loads. In every one pytest ran no test and v27 gave v17's credit.
 
 **Change.**
 
@@ -50,60 +58,85 @@ whose settings named `no:skipping` only in a comment, an `echo` string or a defa
   Where `conftest.py` files are the only test-shaped files, the note says so.
 - **Not read as a rule's condition** (#621). A hook without an `items` parameter; a skip inside
   another mark's arguments in `pytestmark`.
-- **A clear is withheld only on a restore** (this change, item A). A hook that empties `items` is
-  read as removing the suite unless the same hook may put the collected items back: a refill
-  (`extend`, `append`, `insert`, `+=`, a slice assignment), another adding method on the list, a
-  helper given `items` as its first argument and more, or another name bound to the list. A hook
-  that rebinds the name `items` is withheld too, since its clear may empty a copy. Copying
-  (`list(items)`, `items[:]`, `items.copy()`, `tuple(items)`), reporting
-  (`pytest_deselected(items=...)`, logging) and iterating over the items restore nothing.
-- **A setting withholds only where it is in force** (item B). An active key in `[pytest]` of
-  `pytest.ini`, `.pytest.ini` or `tox.ini`, `[tool:pytest]` of `setup.cfg`, or
-  `[tool.pytest.ini_options]` or pytest 9's `[tool.pytest]` of `pyproject.toml`, including its
-  `addopts`; or a flag on a pytest command line in a CI `run:` or script step, a Makefile or
-  justfile line, or a tox command; or `PYTEST_ADDOPTS`. Comments, strings, and keys in other
-  sections do not count. A value that leaves pytest's default reading does not withhold:
-  `python_files` withholds the conftest rule only where a pattern may match `conftest.py`;
-  `python_functions` and `python_classes` withhold the Python per-test reader only where a pattern
-  reaches names not starting with `test` or `Test`. `-p no:skipping` withholds every skip rule.
+- **A clear is withheld only on a restore the reader understands, read where it runs** (this
+  change, item A, as fixed after the second review). A hook that empties `items` is read as
+  removing the suite unless, at the hook body's own indent, after its last clear, and outside any
+  lambda, nested function or class, a statement puts items back: `items.extend(src)`,
+  `items += src`, `items[a:b] = src`, `items.__iadd__(src)`, `items.append(x)` or
+  `items.insert(i, x)`, on `items` or a name bound to it; a top-level `for` loop whose body adds
+  that way; or a call of a function the same `conftest.py` defines that adds to its first
+  parameter (given the list first) or, nested in the hook before the call, to the list itself. A
+  source known to be empty (`[]`, `()`, `list()`, `tuple()`, a name bound only to one, or the
+  cleared list itself) restores nothing. A call to a builtin, a logger, a function Cejel cannot see
+  or an unknown method on the list is not a restore, so the hollow rating stands. A hook that
+  rebinds the name `items` at its top level before the clear is withheld, since its clear empties
+  another list; a rebind after the clear is not, since pytest's list is already empty.
+  `items[:] = ()` is read as a clear. Copying, reporting and iterating restore nothing.
+- **A setting withholds a rule for a file only where it is in force for a pytest run that
+  collects the file** (item B, as fixed after the second review). The runs Cejel reads are the
+  plain `pytest` at the repository's root, and each command that starts with pytest (`pytest`,
+  `python -m pytest`, `coverage run -m pytest`, or one of those through `uv run`, `poetry run`,
+  `pdm run`, `pipenv run`, `rye run`, `hatch run`, `pipx run`, `env`, `exec` or `time`) in a GitHub
+  Actions `run:` step (with its `working-directory` and `env`; a step or job with `if: false` is
+  left out), in another CI file's script keys, in a Makefile or justfile recipe reached from the
+  default goal, a `test`, `tests` or `check` target or a CI `make`/`just` command, and in a tox
+  environment's `commands` ([testenv], or one envlist or a CI `tox -e` names; with its `changedir`
+  and `setenv`). pytest named as another command's argument (`echo pytest ...`), a heredoc body and
+  any other tox key are not commands. Each run is set up as pytest 9.2.0's `findpaths.py` does: the
+  configuration file is the first found walking up from the common ancestor of the run's paths, in
+  pytest's order (`pytest.toml`, `.pytest.toml`, `pytest.ini`, `.pytest.ini`, `pyproject.toml`
+  with a pytest table, `tox.ini` with `[pytest]`, `setup.cfg` with `[tool:pytest]`), so a file
+  another shadows, or one no run reaches, is not read; then the root, the files the run collects
+  (its paths, else `testpaths` where it runs at its root, else its directory) and the flags in
+  force (its own, the configuration's `addopts`, `-o` overrides and `PYTEST_ADDOPTS`). Within a
+  section pytest reads, a value that leaves pytest's default reading does not withhold, as before.
+  A run Cejel cannot read whole (a variable in a path, an expression as its working directory) is
+  not used.
 - **Every withhold is said** (item C). A1's note carries one sentence of clauses, `<rule> not
   applied: <reason>`, one per rule and reason, as many as the note limit allows and the rest
   counted ("…; and N more not listed."), or, where none fits, a count. For example: "Run-wide skip
   rule not applied: the hook in tests/conftest.py puts the collected items back."
-- **The older wrong flags** (item D). `--noconftest`, `--rootdir` and `--confcutdir`, in force as
-  in item B, withhold the hook rules. A hook is not applied to a file below a directory that can
-  be pytest's root, because pytest loads no `conftest.py` above its root: a pytest configuration
-  file there, or a file pytest takes its root from (`setup.py`, `pyproject.toml`, `tox.ini`,
-  `setup.cfg`) where no configuration file sits at or above it. `python_files` on a Makefile pytest
-  line is read through item B.
+- **The older wrong flags** (item D, as fixed after the second review). A hook is withheld for a
+  file only where a run that collects the file passes `--noconftest`, or has its confcutdir
+  strictly below the hook's directory, where pytest loads no `conftest.py`. confcutdir is
+  `--confcutdir`, else the run's configuration file's directory, else its root (`--rootdir`, a
+  `setup.py`, or its directory). So `--rootdir=.` beside a configuration file, and `--confcutdir`
+  at or below the hook, do not withhold; `cd pkg && pytest`, a `working-directory: pkg` step or
+  `pytest tests` with a configuration file there do; and a configuration file in a subdirectory
+  that no run starts from (an empty `tests/pytest.ini` with `pytest` run at the root) does not.
+  `python_files` on a Makefile pytest line is read through item B.
 
 **The no-rise property** (`src/witan/__tests__/v27-no-rise.ts`). Every withhold falls back to v17's
 reading, and every other change only names files or lowers a metric, so v27 cannot score A1 above
 v17 on the same commit. The harness's conftest-only premise is read from A1's evidence, since the
 ratio no longer reads 0 there.
 
-**Measured.** Main `fe8c261de` and this branch's code (`892a95a40`, unchanged at the records
-commits) scanned the same 340 synthetic repositories, built once at fixed paths: the 269
-false-assurance fixtures, #621's 38 removal fixtures and this change's 33 withhold fixtures.
-v17 and v27 scanned all 340; v18 to v22 scanned the 71 v27 A1 fixtures. Reports that carried a git
-30-second timeout from machine load (11, on one side or the other) were deleted on both sides and
-scanned again one process at a time.
+**Measured** (after the second review's fixes: branch code and fixtures at `26a7d4795`; scoring
+code is unchanged since, and `411b5a2d6` changes one fixture's tox description only). Main `fe8c261de` and this branch scanned the same 393 synthetic repositories,
+built once at fixed paths: the 269 false-assurance fixtures, #621's 38 removal fixtures and the 86
+withhold fixtures (this change's 33 and the second review's 53). v17 and v27 scanned all 393; v18
+to v26 scanned the 124 v27 A1 fixtures. Errors: 0 on both sides.
 
-- v17: 340 of 340 reports byte-identical to main.
-- v18, v19, v20, v21: 71 of 71 each byte-identical. v22: 27 of 27 (the run reached 27 before its
-  time limit).
-- v23 to v26 were not scanned by this harness, for time. Every v27 change is behind the v27 gate
-  (`usesV27FalseAssuranceClosure`); the behaviour-fingerprint test pins every selectable rubric.
-- v27: 232 of 340 byte-identical. All 108 that moved moved in A1 alone, with the headline fields
-  computed from it. 85 moved in A1's notes, evidence or metrics only, with the same score: named
-  files, the ratio, and the withhold sentence. 23 A1 scores rose against main's v27, each to at
-  most v17's: three where `conftest.py` is the only test-shaped file (the ratio), and twenty where
-  a rule's condition does not hold (the seven #621 over-matches, a restore, a rebind, the in-force
-  settings, `--noconftest`, a root `conftest.py` pytest does not load). Four verdicts moved with
-  them. The fixtures that must stay caught (the deselect-everything idiom, the copy, report, log
-  and loop forms, a comment, an `echo`, a default value, a key outside pytest's sections) keep
-  main's score.
-- v27 A1 above v17 A1 on the same commit: 0 of 340. Errors: 0.
+- v17: 393 of 393 reports byte-identical to main.
+- v18, v19, v20, v21, v22, v23, v24, v25, v26: 124 of 124 each byte-identical to main. (The first
+  measurement of this change did not scan v23 to v26; this one does.)
+- v27: 232 of 393 byte-identical. All 161 that moved moved in A1 alone (every other criterion's
+  record is identical), with the headline fields computed from it. 43 A1 scores changed against
+  main's v27: 35 rose, each to at most v17's (three where `conftest.py` is the only test-shaped
+  file, the ratio; the rest where a rule's condition does not hold: #621's over-matches, the
+  restores and the rebind before the clear, the in-force settings read through a run, and the
+  `conftest.py` files pytest does not load), and 8 fell, where main's v27 read a refill anywhere in
+  the hook as a restore (an extend before the clear, a restore from an empty name or from the
+  cleared list, an extend in an uncalled nested function, a second clear) or did not read
+  `items[:] = ()` as a clear. The fixtures that must stay caught keep, or reach, main's caught
+  score.
+- v27 A1 above v17 A1 on the same commit: 0 of 393.
+
+The withhold fixtures' ground truth was checked with pytest 9.2.0 one by one; two of this
+change's first-pass withhold fixtures (`tox.ini` and `setup.cfg` beside a `pyproject.toml` with a
+pytest table) were not genuine, since pytest reads the `pyproject.toml` there, and now carry a
+`pyproject.toml` without one. Each refusal was mutated alone against the withhold fixtures, and
+each has a fixture that fails when it alone is removed. No holdout or calibration ran.
 
 No published score moved: the board is scored under v17.
 

@@ -1,0 +1,69 @@
+[
+  {
+    "statement": "Evidence that a tool setting is in force must be reachable from how the tool is actually run, not merely present in a file it could read. A rubric's test-count rules, fixed once to withhold only on 'a setting in force', still read every config file anywhere and every word 'pytest' on any line. A second review found pytest 9.2.0 running no test while the rubric gave full credit: a pytest.ini shadowed the pyproject.toml that set --noconftest, a pytest.ini under docs/examples is never found from the root, 'echo pytest --noconftest' runs echo, --confcutdir at the hook's directory still loads the hook. Two of the first pass's genuine-withhold fixtures were not genuine (tox.ini and setup.cfg shadowed by pyproject.toml). Rule: model each run (the command that starts with the tool, its directory, its paths), resolve it as the tool's own discovery code does, let a setting count only for files a run that has it collects, and ignore a run that cannot be read whole.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "rubric"
+    ],
+    "tags": [
+      "withhold",
+      "in-force-evidence",
+      "tool-discovery",
+      "config-precedence",
+      "silent-credit"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-11-02T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 626
+    }
+  },
+  {
+    "statement": "A fixture named for one refusal can pass because a different refusal fires first, so only a one-at-a-time mutation shows which refusal a fixture really pins. Fixing a rubric's restore reader, the reviewer's own fixture for 'a restore inside a nested function the hook never calls' put that function before the clear; with the top-level-only check removed the fixture still passed, because the after-the-clear check rejected it, and the mutation run reported 0 failures for that refusal. The same run showed a lambda exclusion and a def exclusion that no input could ever reach. Rule: for each refusal, mutate it alone and require at least one fixture that fails; where none does, either write the fixture that isolates it (here, the uncalled nested function after the clear) or delete the unreachable guard, and say which in the hand-back.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "testing"
+    ],
+    "tags": [
+      "mutation-testing",
+      "fixture-isolation",
+      "reviewer-error",
+      "dead-guard"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-11-02T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 626
+    }
+  },
+  {
+    "statement": "A mutation driver that edits the tracked source in place and restores it at the end of each run leaves the last mutation in the tree when it is stopped mid-run, and nothing fails until a later test or commit picks it up. Stopping such a driver during a rubric fix left one comparison deleted from the restore reader's emptiness check (git diff showed a one-line change nobody had made on purpose); it was found only because the tree was checked before the next edit. Rule: after stopping any process that mutates tracked files, run git status and git diff on those files and restore from HEAD before doing anything else; better, mutate a copy, or restore in a finally handler and on the signal that stops the driver.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "testing"
+    ],
+    "tags": [
+      "mutation-testing",
+      "near-miss",
+      "working-tree-hygiene",
+      "reviewer-error"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-11-02T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 626
+    }
+  }
+]

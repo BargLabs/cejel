@@ -198,18 +198,23 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     these rules rate hollow, with the rule, and no rule claims where its condition is not read:
 //     a hook without an `items` parameter, or a skip that sits inside another mark's arguments in
 //     pytestmark; from 2026-11-02 (goal_cejel_v27_a1_test_count_overmatch_v2_2026-11-02, which
-//     supersedes #621) a rule is withheld only on evidence: a hook's clear only where the same hook
-//     may put the collected items back (a refill such as extend, += or a slice assignment, another
-//     adding method, a helper given `items` and more, another name bound to the list) or rebinds
-//     `items`, never for copying, reporting or iterating over them; a pytest setting only where it
-//     is in force (an active key in [pytest] of pytest.ini, .pytest.ini or tox.ini, [tool:pytest]
-//     of setup.cfg, [tool.pytest.ini_options] or [tool.pytest] of pyproject.toml, its addopts, or
-//     a flag on a pytest command line in a CI step, a Makefile or justfile, a tox command, or
-//     PYTEST_ADDOPTS) and leaves pytest's default reading (python_files that may match conftest.py
-//     withholds the conftest rule, python_functions or python_classes reaching names not starting
-//     with test or Test the Python per-test reader, -p no:skipping every skip rule, and
-//     --noconftest, --rootdir or --confcutdir the hook rules); and a hook for a file below a
-//     directory that can be pytest's root, where pytest does not load it. Every withhold is said in
+//     supersedes #621; as fixed after the #626 review) a rule is withheld only on evidence: a
+//     hook's clear only where, at the hook's top level after its last clear, the same hook puts
+//     the items back in a shape the reader understands (extend, +=, a slice assignment, __iadd__,
+//     append or insert on the list or a name bound to it, a top-level loop of them, or a call of a
+//     function the conftest.py defines that adds to the list), from a source not known to be
+//     empty, or rebinds `items` at top level before the clear, never for copying, reporting,
+//     iterating, a builtin, a logger, an unknown helper or an unknown method; a pytest setting
+//     only for a file a pytest run collects where the setting is in force for that run (the plain
+//     pytest at the root, or a command starting with pytest in a CI step with its
+//     working-directory, env and if, a reached Makefile or justfile target, or a running tox
+//     environment's commands; each set up as pytest 9 does: the first configuration file in
+//     pytest's order walking up from its paths, its root, confcutdir, collected files, flags,
+//     addopts, -o and PYTEST_ADDOPTS) and the value leaves pytest's default reading (python_files
+//     that may match conftest.py withholds the conftest rule, python_functions or python_classes
+//     reaching names not starting with test or Test the Python per-test reader, -p no:skipping
+//     every skip rule); and a hook for a file a run collects with --noconftest or a confcutdir
+//     strictly below the hook's directory, where pytest does not load it. Every withhold is said in
 //     A1's note ("<rule> not applied: <reason>"), never silently;
 //   - every criterion: a read of a Git LFS pointer is a content-read skip, so the criterion that
 //     read it abstains as a read failure instead of scoring the pointer text, unless its
