@@ -354,6 +354,88 @@ const REVIEW_626_FIXTURES: readonly WithholdFixture[] = [
     { 'tests/conftest.py': conftestHook(['    items[:] = ()']) },
     HOOK_REMOVED,
   ),
+  // Third pass (coordinator's probe of 346e57b8f): the hook's own rules apply inside a helper, and
+  // a copy taken after the clear is empty.
+  caught(
+    'a1wh-r2-helper-add-under-if-false',
+    'A',
+    "The same-file helper's add to its first parameter sits under `if False:`, so it never runs.",
+    {
+      'tests/conftest.py': conftestHook(
+        ['    saved = list(items)', '    items.clear()', '    refill(items, saved)'],
+        ['import pytest', '', '', 'def refill(lst, src):', '    if False:', '        lst.extend(src)'],
+      ),
+    },
+    HOOK_REMOVED,
+  ),
+  caught(
+    'a1wh-r2-helper-add-after-return',
+    'A',
+    "The same-file helper returns before its add to its first parameter.",
+    {
+      'tests/conftest.py': conftestHook(
+        ['    saved = list(items)', '    items.clear()', '    refill(items, saved)'],
+        ['import pytest', '', '', 'def refill(lst, src):', '    return', '    lst.extend(src)'],
+      ),
+    },
+    HOOK_REMOVED,
+  ),
+  caught(
+    'a1wh-r2-helper-is-a-generator',
+    'A',
+    'The same-file helper holds a yield, so calling it runs none of its body.',
+    {
+      'tests/conftest.py': conftestHook(
+        ['    saved = list(items)', '    items.clear()', '    refill(items, saved)'],
+        ['import pytest', '', '', 'def refill(lst, src):', '    lst.extend(src)', '    yield'],
+      ),
+    },
+    HOOK_REMOVED,
+  ),
+  caught(
+    'a1wh-r2-nested-def-add-in-loop',
+    'A',
+    "The nested function's extend sits in a loop over an empty tuple, below its own top level.",
+    {
+      'tests/conftest.py': conftestHook([
+        '    saved = list(items)',
+        '',
+        '    def put_back():',
+        '        for _ in ():',
+        '            items.extend(saved)',
+        '',
+        '    items.clear()',
+        '    put_back()',
+      ]),
+    },
+    HOOK_REMOVED,
+  ),
+  caught(
+    'a1wh-r2-copy-after-clear',
+    'A',
+    'The hook copies the list after clearing it, then extends the list from that empty copy.',
+    { 'tests/conftest.py': conftestHook(['    items.clear()', '    saved = list(items)', '    items.extend(saved)']) },
+    HOOK_REMOVED,
+  ),
+  caught(
+    'a1wh-r2-zero-length-slice-source',
+    'A',
+    'The hook extends the cleared list from a zero-length slice of the saved copy.',
+    { 'tests/conftest.py': conftestHook(['    saved = list(items)', '    items.clear()', '    items.extend(saved[:0])']) },
+    HOOK_REMOVED,
+  ),
+  withheld(
+    'a1wh-r2-helper-adds-at-top-level',
+    'A',
+    "Control: the same-file helper extends its first parameter at its own top level.",
+    {
+      'tests/conftest.py': conftestHook(
+        ['    saved = list(items)', '    items.clear()', '    refill(items, saved)'],
+        ['import pytest', '', '', 'def refill(lst, src):', '    lst.extend(src)'],
+      ),
+    },
+    [RESTORED],
+  ),
   withheld(
     'a1wh-r2-restore-append-loop',
     'A',
