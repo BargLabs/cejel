@@ -20,6 +20,9 @@ import {
   V2_COUNTED,
   V2_EXCLUDED,
   V2_FIXTURES,
+  V3_COUNTED,
+  V3_EXCLUDED,
+  V3_FIXTURES,
   publishingFile,
 } from './fixtures/b3-publishing-with-checks-fixtures.js';
 import { buildFalseAssuranceFixture } from './fixtures/false-assurance-fixtures.js';
@@ -36,7 +39,7 @@ import { checkNoRise, lostFindings } from './v27-no-rise.js';
 const V17 = WITAN_RUBRIC_VERSION_V17;
 const V27 = WITAN_RUBRIC_VERSION_V27;
 
-const ALL = [...PUBLISHING_WITH_CHECKS_FIXTURES, ...EDGE_FIXTURES, ...V2_FIXTURES];
+const ALL = [...PUBLISHING_WITH_CHECKS_FIXTURES, ...EDGE_FIXTURES, ...V2_FIXTURES, ...V3_FIXTURES];
 
 const repos = new Map<string, string>();
 const reports = new Map<string, WitanReport>();
@@ -82,14 +85,17 @@ const COUNTED_DETAILS: Readonly<Record<string, string>> = {
   'npm-test-then-publish': 'is triggered by push to main, and its publishing job declares no environment.',
   'npm-test-in-needed-job': 'is triggered by push to main, and its publishing job declares no environment.',
   'npm-test-in-transitively-needed-job': 'is triggered by push to main, and its publishing job declares no environment.',
-  'pytest-before-twine-on-tag': 'is triggered by push of a tag its filter matches, and its publishing job declares no environment.',
-  'reusable-publish-needs-test': 'is triggered by push to main, and its publishing job declares no environment.',
   'publish-if-success-and-fork-guard': 'is triggered by push to main, and its publishing job declares no environment.',
   'check-piped-into-tee-with-pipefail': 'is triggered by push to main, and its publishing job declares no environment.',
+  'pytest-after-plain-pip-install': 'is triggered by push to main, and its publishing job declares no environment.',
+  'reusable-publish-needs-plain-pip-test': 'is triggered by push to main, and its publishing job declares no environment.',
+  'set-euo-pipefail-before-check': 'is triggered by push to main, and its publishing job declares no environment.',
+  'npmrc-registry-only': 'is triggered by push to main, and its publishing job declares no environment.',
+  'job-level-keys-written-plainly': 'is triggered by push to main, and its publishing job declares no environment.',
 };
 
 describe('v27 (#517 correction) — a publishing workflow that checks before it publishes is counted', () => {
-  for (const [name] of [...COUNTED, ...EDGE_COUNTED, ...V2_COUNTED]) {
+  for (const [name] of [...COUNTED, ...EDGE_COUNTED, ...V2_COUNTED, ...V3_COUNTED]) {
     it(`v27 counts ${name}, as v17 does`, () => {
       const file = publishingFile(name);
       const b3 = criterion(name, V27, 'B3');
@@ -108,7 +114,7 @@ describe('v27 (#517 correction) — a publishing workflow that checks before it 
 });
 
 describe('v27 (#517 correction) — a publishing workflow with no check before its publish step is still excluded', () => {
-  for (const [name] of [...EXCLUDED, ...EDGE_EXCLUDED, ...V2_EXCLUDED]) {
+  for (const [name] of [...EXCLUDED, ...EDGE_EXCLUDED, ...V2_EXCLUDED, ...V3_EXCLUDED]) {
     it(`v27 excludes ${name}, with the note and disclosure unchanged`, () => {
       const file = publishingFile(name);
       const b3 = criterion(name, V27, 'B3');
@@ -137,7 +143,7 @@ describe('B2 and B3 agree about every workflow here (#527)', () => {
   });
 
   it('a workflow B3 counts under this correction is one B2 credits: neither leaves it uncredited', () => {
-    for (const [name] of [...COUNTED, ...EDGE_COUNTED, ...V2_COUNTED]) {
+    for (const [name] of [...COUNTED, ...EDGE_COUNTED, ...V2_COUNTED, ...V3_COUNTED]) {
       const file = publishingFile(name);
       for (const id of ['B2', 'B3']) {
         const score = criterion(name, V27, id);

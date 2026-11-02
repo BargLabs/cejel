@@ -88,15 +88,9 @@ export const COUNTED: readonly Shape[] = [
       [RELEASE]: `name: release\n${PUSH_MAIN}jobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - uses: actions/setup-node@v4\n      - run: npm ci\n      - run: npm test\n  build:\n    needs:\n      - test\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - run: npm ci\n      - run: npm run build\n  publish:\n    needs: [build]\n    runs-on: ubuntu-latest\n    steps:\n${SETUP_NODE}      - run: npm ci\n${NPM_PUBLISH}`,
     },
   ],
-  [
-    'pytest-before-twine-on-tag',
-    'Counted: a release-tag workflow whose job runs pytest before a twine upload.',
-    {
-      ...PY_BASE,
-      [PUBLISH]: `name: publish\n${PUSH_TAGS}jobs:\n  release:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - uses: actions/setup-python@v5\n      - run: pip install -e . pytest build twine\n      - run: pytest\n      - run: python -m build\n      - run: twine upload dist/*\n        env:\n          TWINE_PASSWORD: \${{ secrets.PYPI_TOKEN }}\n`,
-    },
-  ],
 ];
+
+// Third pass: 'pytest-before-twine-on-tag' moved to INSTALL_RUNS_PROJECT_CODE_EXCLUDED below.
 
 /** Publishing workflows that publish without a check before: still excluded under v27. */
 export const EXCLUDED: readonly Shape[] = [
@@ -153,17 +147,8 @@ export const EXCLUDED: readonly Shape[] = [
 const CALLED_PYPI = `name: pypi\non:\n  workflow_call:\njobs:\n  upload:\n    runs-on: ubuntu-latest\n    permissions:\n      id-token: write\n    steps:\n      - uses: actions/checkout@v4\n      - run: pip install build\n      - run: python -m build\n      - uses: pypa/gh-action-pypi-publish@release/v1\n`;
 const PY_TEST_JOB = '  test:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - run: pip install -e . pytest\n      - run: pytest\n';
 
-export const EDGE_COUNTED: readonly Shape[] = [
-  [
-    'reusable-publish-needs-test',
-    'Counted: the publishing job calls a reusable workflow in this repository and needs a job that runs pytest.',
-    {
-      ...PY_BASE,
-      [PUBLISH]: `name: publish\n${PUSH_MAIN}jobs:\n${PY_TEST_JOB}  release:\n    needs: test\n    uses: ./.github/workflows/pypi.yaml\n    secrets: inherit\n`,
-      '.github/workflows/pypi.yaml': CALLED_PYPI,
-    },
-  ],
-];
+// Third pass: 'reusable-publish-needs-test' moved to INSTALL_RUNS_PROJECT_CODE_EXCLUDED below.
+export const EDGE_COUNTED: readonly Shape[] = [];
 
 export const EDGE_EXCLUDED: readonly Shape[] = [
   [
@@ -479,6 +464,276 @@ export const V2_EXCLUDED: readonly Shape[] = [
   ...READING_EXCLUDED,
 ];
 
+// ---- Third pass: the fixtures of the adversarial review of #625 -------------------------------
+//
+// Findings F1 to F6 of the review of #625 at a9d9ff01. Each excluded fixture publishes after a
+// check whose failure would not stop it, or whose check never runs; each was credited by #625's
+// head. The counted fixtures are controls: the safe shape each new refusal leaves counted.
+
+/** A one-job release on push to main whose top-level keys after `on:` are `top`. */
+const oneJobReleaseWith = (top: string, steps: string): string => oneJobRelease(steps, `${PUSH_MAIN}${top}`);
+
+/** A Python release on push to main: setup, `pip install pytest build twine`, then `check`. */
+const pythonPlainRelease = (check: string): string =>
+  `name: publish\n${PUSH_MAIN}jobs:\n  release:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - uses: actions/setup-python@v5\n      - run: pip install pytest build twine\n      - run: ${check}\n      - run: python -m build\n      - run: twine upload dist/*\n`;
+
+/** A JavaScript package whose scripts are `scripts`. */
+const jsWithScripts = (scripts: Record<string, string>): Record<string, string> => ({
+  ...JS_BASE,
+  'package.json': `${JSON.stringify({ name: 'tint', version: '1.0.0', main: 'index.js', scripts }, null, 2)}\n`,
+});
+
+const MULTI_LINE_CHECK = '      - run: |\n          npm test\n          echo done\n';
+const GH_RELEASE = '      - uses: softprops/action-gh-release@v2\n';
+
+/** A two-job release: a test job whose extra job-level key lines are `testKeys`, then a publishing job that needs it. */
+const testJobWithKeysThenPublish = (testKeys: string): string =>
+  `name: release\n${PUSH_MAIN}jobs:\n  test:\n    runs-on: ubuntu-latest\n${testKeys}    steps:\n      - uses: actions/checkout@v4\n      - uses: actions/setup-node@v4\n      - run: npm ci\n      - run: npm test\n  publish:\n    needs: test\n    runs-on: ubuntu-latest\n    steps:\n${SETUP_NODE}      - run: npm ci\n${NPM_PUBLISH}`;
+
+/** F1: a YAML escape in a double-quoted scalar spells what the reader refuses, in text it does not see. */
+export const ESCAPE_EXCLUDED: readonly Shape[] = [
+  [
+    'escaped-always-on-publish-step',
+    'Excluded: a second publish runs `if: "\\u0061lways()"`, which YAML decodes to `always()`, so it runs after a failed check.',
+    { ...JS_BASE, [RELEASE]: releaseAfterInstall(`      - run: npm test\n${NPM_PUBLISH}      - run: npm publish --tag next\n        if: "\\u0061lways()"\n`) },
+  ],
+  [
+    'escaped-not-cancelled-on-publish-step',
+    'Excluded: a second publish runs `if: "${{ \\x21cancelled() }}"`, which YAML decodes to `${{ !cancelled() }}`.',
+    { ...JS_BASE, [RELEASE]: releaseAfterInstall(`      - run: npm test\n${NPM_PUBLISH}      - run: npm publish --tag next\n        if: "\${{ \\x21cancelled() }}"\n`) },
+  ],
+  [
+    'escaped-always-on-publishing-job',
+    'Excluded: a publishing job that needs the test job runs `if: "\\u0061lways()"`, so it runs when the test fails.',
+    {
+      ...JS_BASE,
+      [RELEASE]: `${testThenPublishJob('    needs: test\n    if: "\\u0061lways()"\n')}  release:\n    needs: test\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n${GH_RELEASE}`,
+    },
+  ],
+  [
+    'escaped-bash-env-key-on-check-step',
+    'Excluded: the check step sets `"BASH\\u005fENV"`, which YAML decodes to BASH_ENV; the file it names turns errexit off, so the check failing does not end the step.',
+    {
+      ...JS_BASE,
+      '.ci/env.sh': 'set +e\n',
+      [RELEASE]: releaseAfterInstall(`${MULTI_LINE_CHECK}        env:\n          "BASH\\u005fENV": .ci/env.sh\n${NPM_PUBLISH}`),
+    },
+  ],
+];
+
+/** F2: after `set -o pipefail`, a pipeline whose other side backgrounds it or puts it in a list. */
+export const PIPELINE_EXCLUDED: readonly Shape[] = [
+  [
+    'pipefail-check-pipeline-backgrounded',
+    'Excluded: `npm test | tee test.log &` after pipefail; the pipeline runs in the background and the step exits 0.',
+    { ...JS_BASE, [RELEASE]: releaseAfterInstall(`      - run: |\n          set -o pipefail\n          npm test | tee test.log &\n${NPM_PUBLISH}`) },
+  ],
+  [
+    'pipefail-check-pipeline-in-and-list',
+    'Excluded: `npm test | tee test.log && echo passed`, then another line; a failure in an `&&` list does not stop bash -e.',
+    {
+      ...JS_BASE,
+      [RELEASE]: releaseAfterInstall(`      - run: |\n          set -o pipefail\n          npm test | tee test.log && echo passed\n          echo done\n${NPM_PUBLISH}`),
+    },
+  ],
+];
+
+/** F3 and F4: a shell, runner or continue-on-error setting spelled so the line readers miss it. */
+export const HIDDEN_SETTING_EXCLUDED: readonly Shape[] = [
+  [
+    'shell-in-flow-mapping-defaults',
+    'Excluded: `defaults: { run: { shell: "bash {0}" } }` runs every step without -e, so a failing first line does not end the check step.',
+    { ...JS_BASE, [RELEASE]: oneJobReleaseWith('defaults: { run: { shell: "bash {0}" } }\n', `      - run: npm ci\n${MULTI_LINE_CHECK}${NPM_PUBLISH}`) },
+  ],
+  [
+    'shell-key-with-space-before-colon',
+    'Excluded: `shell : bash {0}` under `defaults: run:` is the shell key; every step runs without -e.',
+    { ...JS_BASE, [RELEASE]: oneJobReleaseWith('defaults:\n  run:\n    shell : bash {0}\n', `      - run: npm ci\n${MULTI_LINE_CHECK}${NPM_PUBLISH}`) },
+  ],
+  [
+    'shell-key-quoted',
+    'Excluded: `"shell": bash {0}` under `defaults: run:` is the shell key; every step runs without -e.',
+    { ...JS_BASE, [RELEASE]: oneJobReleaseWith('defaults:\n  run:\n    "shell": bash {0}\n', `      - run: npm ci\n${MULTI_LINE_CHECK}${NPM_PUBLISH}`) },
+  ],
+  [
+    'custom-true-shell-in-flow-defaults',
+    'Excluded: `defaults: { run: { shell: "true {0}" } }` runs no step script at all, so the check never runs; an action publishes.',
+    { ...JS_BASE, [RELEASE]: oneJobReleaseWith('defaults: { run: { shell: "true {0}" } }\n', `      - run: npm ci\n      - run: npm test\n${GH_RELEASE}`) },
+  ],
+  [
+    'runs-on-key-with-space-before-colon',
+    'Excluded: `runs-on : windows-latest` puts the publishing job on Windows, where pwsh does not stop at a failing first line.',
+    {
+      ...JS_BASE,
+      [RELEASE]: `name: release\n${PUSH_MAIN}jobs:\n  publish:\n    runs-on : windows-latest\n    steps:\n${SETUP_NODE}      - run: npm ci\n      - run: |\n          npm test\n          git --version\n${NPM_PUBLISH}  notify:\n    needs: publish\n    runs-on: ubuntu-latest\n    steps:\n      - run: npm --version\n`,
+    },
+  ],
+  [
+    'needed-job-continue-on-error-space-before-colon',
+    'Excluded: the needed test job sets `continue-on-error : true`, so the publishing job runs when it fails.',
+    { ...JS_BASE, [RELEASE]: testJobWithKeysThenPublish('    continue-on-error : true\n') },
+  ],
+  [
+    'needed-job-continue-on-error-quoted-key',
+    'Excluded: the needed test job sets `"continue-on-error": true`, so the publishing job runs when it fails.',
+    { ...JS_BASE, [RELEASE]: testJobWithKeysThenPublish('    "continue-on-error": true\n') },
+  ],
+  [
+    'needed-job-continue-on-error-merge-key',
+    'Excluded: the needed test job merges `continue-on-error: true` from an anchor with `<<: *common`.',
+    {
+      ...JS_BASE,
+      [RELEASE]: testJobWithKeysThenPublish('    <<: *common\n').replace('jobs:\n', 'x-common: &common\n  continue-on-error: true\njobs:\n'),
+    },
+  ],
+];
+
+/** F5: a line before the check, in the check's own step, that stops the check running. */
+export const CHECK_NEVER_RUNS_EXCLUDED: readonly Shape[] = [
+  [
+    'set-n-before-check',
+    'Excluded: `set -n` reads the rest of the script without running it, so `npm test` never runs and the step exits 0.',
+    { ...JS_BASE, [RELEASE]: releaseAfterInstall(`      - run: |\n          set -n\n          npm test\n${NPM_PUBLISH}`) },
+  ],
+  [
+    'set-o-noexec-before-check',
+    'Excluded: `set -o noexec` reads the rest of the script without running it.',
+    { ...JS_BASE, [RELEASE]: releaseAfterInstall(`      - run: |\n          set -o noexec\n          npm test\n${NPM_PUBLISH}`) },
+  ],
+  [
+    'set-n-and-check-on-one-line',
+    'Excluded: `set -n && npm test`; the check after `set -n` is never run.',
+    { ...JS_BASE, [RELEASE]: releaseAfterInstall(`      - run: set -n && npm test\n${NPM_PUBLISH}`) },
+  ],
+  [
+    'hash-p-before-check',
+    'Excluded: `hash -p /usr/bin/true npm` makes `npm` run `true`, so `npm test` passes without testing.',
+    { ...JS_BASE, [RELEASE]: releaseAfterInstall(`      - run: |\n          hash -p /usr/bin/true npm\n          npm test\n${NPM_PUBLISH}`) },
+  ],
+];
+
+/** F6: a package-manager setting that replaces the shell scripts run in. */
+export const SCRIPT_SHELL_EXCLUDED: readonly Shape[] = [
+  [
+    'npmrc-script-shell-npm-test',
+    'Excluded: `.npmrc` sets `script-shell=true`, so `npm test` runs `true` instead of the test script.',
+    { ...JS_BASE, '.npmrc': 'script-shell=true\n', [RELEASE]: releaseAfterInstall(`      - run: npm test\n${NPM_PUBLISH}`) },
+  ],
+  [
+    'npmrc-script-shell-npx-check',
+    'Excluded: `.npmrc` sets `script-shell=true`; `npx` runs through it too, so `npx vitest run` runs `true`.',
+    { ...JS_BASE, '.npmrc': 'script-shell=true\n', [RELEASE]: releaseAfterInstall(`      - run: npx vitest run\n${NPM_PUBLISH}`) },
+  ],
+  [
+    'workflow-env-npm-config-script-shell',
+    'Excluded: the workflow sets `npm_config_script_shell`, the environment form of the same setting.',
+    { ...JS_BASE, [RELEASE]: oneJobReleaseWith('env:\n  npm_config_script_shell: "true"\n', `      - run: npm ci\n      - run: npm test\n${NPM_PUBLISH}`) },
+  ],
+];
+
+/** F6: an install before the check that runs the project's own code. */
+export const INSTALL_RUNS_PROJECT_CODE_EXCLUDED: readonly Shape[] = [
+  [
+    'pytest-before-twine-on-tag',
+    'Excluded since the third pass (counted by the second): `pip install -e .` builds and installs the project before pytest, running its build code before any check.',
+    {
+      ...PY_BASE,
+      [PUBLISH]: `name: publish\n${PUSH_TAGS}jobs:\n  release:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - uses: actions/setup-python@v5\n      - run: pip install -e . pytest build twine\n      - run: pytest\n      - run: python -m build\n      - run: twine upload dist/*\n        env:\n          TWINE_PASSWORD: \${{ secrets.PYPI_TOKEN }}\n`,
+    },
+  ],
+  [
+    'reusable-publish-needs-test',
+    'Excluded since the third pass (counted by the second): the needed test job runs `pip install -e .` before pytest.',
+    {
+      ...PY_BASE,
+      [PUBLISH]: `name: publish\n${PUSH_MAIN}jobs:\n${PY_TEST_JOB}  release:\n    needs: test\n    uses: ./.github/workflows/pypi.yaml\n    secrets: inherit\n`,
+      '.github/workflows/pypi.yaml': CALLED_PYPI,
+    },
+  ],
+  [
+    'pip-install-local-path-before-check',
+    'Excluded: `pip install .[test]` installs the project from its own directory before the check.',
+    { ...PY_BASE, [PUBLISH]: pythonPlainRelease('pytest').replace('pip install pytest build twine', 'pip install .[test] build twine') },
+  ],
+  [
+    'prepare-script-runs-at-install-before-check',
+    'Excluded: the root package.json has a `prepare` script, which `npm ci` runs before `npm test`; it can publish before the check.',
+    {
+      ...jsWithScripts({ test: 'uvu test', prepare: 'node scripts/release.js' }),
+      'scripts/release.js': "import { execSync } from 'node:child_process';\nexecSync('npm publish');\n",
+      [RELEASE]: releaseAfterInstall(`      - run: npm test\n${NPM_PUBLISH}`),
+    },
+  ],
+];
+
+/** F6: a check command given a flag with which it cannot fail. */
+export const NO_FAIL_FLAG_EXCLUDED: readonly Shape[] = [
+  ['pytest-collect-only', 'Excluded: `pytest --collect-only` lists tests without running them.', { ...PY_BASE, [PUBLISH]: pythonPlainRelease('pytest --collect-only') }],
+  ['pytest-co', 'Excluded: `pytest --co`, the short form of --collect-only.', { ...PY_BASE, [PUBLISH]: pythonPlainRelease('pytest --co') }],
+  ['ruff-exit-zero', 'Excluded: `ruff check --exit-zero src` exits 0 whatever it finds.', { ...PY_BASE, [PUBLISH]: pythonPlainRelease('ruff check --exit-zero src') }],
+  [
+    'jest-pass-with-no-tests',
+    'Excluded: `npx jest --passWithNoTests` passes when it finds no test.',
+    { ...JS_BASE, [RELEASE]: releaseAfterInstall(`      - run: npx jest --passWithNoTests\n${NPM_PUBLISH}`) },
+  ],
+  [
+    'tsc-show-config',
+    'Excluded: `npx tsc --showConfig` prints the configuration and checks nothing.',
+    { ...JS_BASE, [RELEASE]: releaseAfterInstall(`      - run: npx tsc --showConfig\n${NPM_PUBLISH}`) },
+  ],
+  [
+    'eslint-no-error-on-unmatched-pattern',
+    'Excluded: `npx eslint --no-error-on-unmatched-pattern nothing` lints no file and exits 0.',
+    { ...JS_BASE, [RELEASE]: releaseAfterInstall(`      - run: npx eslint --no-error-on-unmatched-pattern nothing\n${NPM_PUBLISH}`) },
+  ],
+];
+
+/** Controls: the safe shape next to each third-pass refusal, still counted. */
+export const V3_COUNTED: readonly Shape[] = [
+  [
+    'pytest-after-plain-pip-install',
+    'Counted: `pip install pytest build twine` installs named packages only, then pytest runs before the upload.',
+    { ...PY_BASE, [PUBLISH]: pythonPlainRelease('pytest') },
+  ],
+  [
+    'reusable-publish-needs-plain-pip-test',
+    'Counted: the publishing job calls a reusable workflow and needs a test job that installs named packages only, then runs pytest.',
+    {
+      ...PY_BASE,
+      [PUBLISH]: `name: publish\n${PUSH_MAIN}jobs:\n${PY_TEST_JOB.replace('pip install -e . pytest', 'pip install pytest')}  release:\n    needs: test\n    uses: ./.github/workflows/pypi.yaml\n    secrets: inherit\n`,
+      '.github/workflows/pypi.yaml': CALLED_PYPI,
+    },
+  ],
+  [
+    'set-euo-pipefail-before-check',
+    'Counted: `set -euo pipefail` only makes the step stricter, then `npm test` runs.',
+    { ...JS_BASE, [RELEASE]: releaseAfterInstall(`      - run: |\n          set -euo pipefail\n          npm test\n${NPM_PUBLISH}`) },
+  ],
+  [
+    'npmrc-registry-only',
+    'Counted: `.npmrc` names a registry and sets no script shell.',
+    { ...JS_BASE, '.npmrc': 'registry=https://registry.npmjs.org/\n', [RELEASE]: releaseAfterInstall(`      - run: npm test\n${NPM_PUBLISH}`) },
+  ],
+  [
+    'job-level-keys-written-plainly',
+    'Counted: job-level `timeout-minutes`, `env` and `defaults` written as plain block keys, with `shell: bash`.',
+    {
+      ...JS_BASE,
+      [RELEASE]: testJobWithKeysThenPublish('    timeout-minutes: 10\n    env:\n      CI: true\n    defaults:\n      run:\n        shell: bash\n'),
+    },
+  ],
+];
+
+export const V3_EXCLUDED: readonly Shape[] = [
+  ...ESCAPE_EXCLUDED,
+  ...PIPELINE_EXCLUDED,
+  ...HIDDEN_SETTING_EXCLUDED,
+  ...CHECK_NEVER_RUNS_EXCLUDED,
+  ...SCRIPT_SHELL_EXCLUDED,
+  ...INSTALL_RUNS_PROJECT_CODE_EXCLUDED,
+  ...NO_FAIL_FLAG_EXCLUDED,
+];
+
 function fixture(name: string, purpose: string, files: Record<string, string>): FalseAssuranceFixture {
   return { name, issue: '#517', purpose, commits: [files] };
 }
@@ -495,9 +750,22 @@ export const V2_FIXTURES: readonly FalseAssuranceFixture[] = [...V2_COUNTED, ...
   ([name, purpose, files]) => fixture(name, purpose, files),
 );
 
+export const V3_FIXTURES: readonly FalseAssuranceFixture[] = [...V3_COUNTED, ...V3_EXCLUDED].map(([name, purpose, files]) =>
+  fixture(name, purpose, files),
+);
+
 /** The publishing workflow each fixture adds. */
 export const publishingFile = (name: string): string => {
-  const shape = [...COUNTED, ...EXCLUDED, ...EDGE_COUNTED, ...EDGE_EXCLUDED, ...V2_COUNTED, ...V2_EXCLUDED].find(
+  const shape = [
+    ...COUNTED,
+    ...EXCLUDED,
+    ...EDGE_COUNTED,
+    ...EDGE_EXCLUDED,
+    ...V2_COUNTED,
+    ...V2_EXCLUDED,
+    ...V3_COUNTED,
+    ...V3_EXCLUDED,
+  ].find(
     ([entry]) => entry === name,
   );
   const files = Object.keys(shape?.[2] ?? {});
