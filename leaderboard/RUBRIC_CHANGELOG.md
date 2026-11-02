@@ -22,7 +22,7 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
-## 2026-11-01 (B3) — under v27 a publishing workflow with no pull-request trigger is counted as CI again only when a failed check really stops every publish; v17-v26 byte-identical, certificate text included; no published score moved
+## 2026-11-01 (B3) — under v27 a publishing workflow with no pull-request trigger is counted as CI again only when a failed check really stops every publish; third pass 2026-11-02; v17-v26 byte-identical, certificate text included; no published score moved
 
 **Status.** A scoring change under `witan-rubric-v27-prospective-2026-10-19` only, with no
 identifier change. It reaches only GitHub Actions workflows with no pull-request trigger that
@@ -73,8 +73,55 @@ followed by the F3-b trigger and environment clause:
   with only setup steps before it (checkout, `actions/setup-*`, `actions/cache`,
   `pnpm/action-setup`, `astral-sh/setup-uv`, `oven-sh/setup-bun`, and `npm ci`/`install`, `pnpm`,
   `yarn`, `bun install`, `corepack enable`, `pip install`, `python -m pip install`, `uv sync`,
-  `uv pip install`, `poetry`/`pdm`/`pipenv install`, `go mod download`, `cargo fetch`). A job that
-  calls a reusable workflow must need a job with a check.
+  `uv pip install`, `poetry`/`pdm`/`pipenv install`, `go mod download`, `cargo fetch`, as the
+  second pass listed them; the third pass narrows the installs, below). A job that calls a reusable
+  workflow must need a job with a check.
+
+**Third pass (adversarial review of #625, 2 Nov).** The review scored 62 probe workflows and found
+that the second pass still credited workflows in which a failing check would not stop the publish,
+or the check never ran. Each finding below is now refused on the credit path, with fixtures in
+`b3-publishing-with-checks-fixtures.ts` (`V3_EXCLUDED`, 40 fixtures, each red against the second
+pass's code) and controls that stay counted (`V3_COUNTED`, 6):
+
+- **F1, YAML escapes.** The status-function rule matched raw text, so `if: "always()"` (which
+  YAML decodes to `always()`), `"${{ \x21cancelled() }}"` and the job-level form were credited. No
+  line YAML reads (any line outside a `|` / `>` block scalar's text) may now hold a backslash. This
+  also closes the case the second pass left open: a YAML-escaped `BASH_ENV` key
+  (`"BASH_ENV": ...`), which the literal `BASH_ENV` refusal could not see.
+- **F3 and F4, settings the line readers miss.** `shell:`, `runs-on:` and `continue-on-error:` are
+  read line by line, so `defaults: { run: { shell: "bash {0}" } }`, `shell : bash {0}`,
+  `"shell": bash {0}`, `runs-on : windows-latest`, and a needed job's `continue-on-error : true`,
+  `"continue-on-error": true` or merged `<<: *common` were not seen. Outside step items, every line
+  YAML reads must now be a plain key (a name, unquoted, no space before its colon) or a `- ` list
+  item, with a plain value: no flow mapping, anchor, alias, tag or scalar continued onto the next
+  line. A flow sequence of scalars (`[main]`, `['v*']`) and a `${{ }}` expression are still read.
+- **F2, the pipefail reader.** It read a pipeline as its check segment alone, so
+  `npm test | tee log &` and `npm test | tee log && echo passed` (then another line) were credited.
+  Every side of the pipeline must now be one plain command.
+- **F5, a check that never runs.** `set -n`, `set -o noexec` and `hash -p /usr/bin/true npm` before
+  the check were credited. Rather than add them to a refusal list, only setup commands and a `set`
+  that turns on `errexit`, `nounset`, `pipefail` or `xtrace` may now run before the check in its
+  own step, or before it on its line.
+- **F6, a check or setup step that may not run what it names.** An npm, yarn or pnpm configuration
+  file (`.npmrc`, `.yarnrc`, `.yarnrc.yml`, `pnpm-workspace.yaml`) that sets a script shell, node
+  options or a yarn path, or is not read, a committed `.pnpmfile.cjs` or yarn plugin, or a workflow
+  that names a script shell (`npm_config_script_shell`) means no npm, pnpm, yarn or bun command, or
+  one npx, pnpx or bunx launches, is a check or a setup step. An npm-family install is a setup step
+  only when the root package.json is read and declares no install lifecycle script (`preinstall`,
+  `install`, `postinstall`, `prepublish`, `preprepare`, `prepare`, `postprepare`, `dependencies`),
+  there is no root `binding.gyp`, and it names no package or path. A pip install (`pip`,
+  `python -m pip`, `uv pip`) is a setup step only when it names packages from an index and nothing
+  else: `pip install -e .`, `.[test]`, a path, a URL or `-r` file is not. `uv sync`,
+  `poetry install` and `pdm install` are setup steps only with `--no-install-project`, `--no-root`
+  and `--no-self`; `pipenv install` is no longer one. A check given `--collect-only`, `--co`,
+  `--passWithNoTests`, `--showConfig`, `--no-error-on-unmatched-pattern` or `--exit-zero` is no
+  check.
+
+Two fixtures the second pass counted are excluded by the third: `pytest-before-twine-on-tag` and
+`reusable-publish-needs-test`, each running `pip install -e .` before pytest. Their v17 pin entries
+are unchanged. A test script that does nothing is still recognised by a list (`true`, `:`,
+`echo`, `exit 0`); a positive test (the script runs a known test runner) would exclude real test
+scripts the vocabulary does not name, such as `uvu`, so it is left open.
 
 **B3's note** names each counted publishing workflow in order, and keeps room for a closing "N more
 publishing workflows are counted as CI verification because a check runs before they publish"
@@ -87,8 +134,8 @@ the v27 wording, which adds the check-before-publish clause and the conditions a
 
 **The no-rise property** (`src/witan/__tests__/v27-no-rise.ts`). A counted workflow is counted as
 v17 counts it, so B3 can only return to v17's value, never rise past it. `checkNoRise` and
-`lostFindings` pass on all 53 fixtures of `b3-publishing-with-checks.test.ts`, and the generated
-shards pass.
+`lostFindings` pass on all 97 fixtures of `b3-publishing-with-checks.test.ts` (53 from the second
+pass, 44 from the third), and the generated shards pass.
 
 **Measured.** Main `fe8c261de` and this head scored the same 393 synthetic checkouts (the 53
 fixtures of `b3-publishing-with-checks-fixtures.ts`, every fixture of `false-assurance-fixtures.ts`,
@@ -106,8 +153,38 @@ compared report JSON, HTML and Markdown byte for byte:
   (#620's 12 entries unchanged), and `b3-publishing-with-checks-v17.html` pins one v17
   certificate's HTML whole.
 
-Each new refusal has a fixture only it excludes; removing it, one at a time, fails that fixture
-(the PR lists the nine mutation runs). No behaviour-fingerprint pin moves: the fingerprint corpus
+**Measured again after the third pass.** Main `fe8c261de` and the third pass's head scored 437
+synthetic checkouts: the 97 fixtures of `b3-publishing-with-checks-fixtures.ts`, every fixture of
+`false-assurance-fixtures.ts` and `ci-claims-followups-fixtures.ts`. Each checkout was built once
+on each side and scored under all eleven selectable rubrics, and report JSON, HTML and Markdown
+were compared byte for byte, with the checkout path replaced:
+
+- v17-v26: 4,360 of 4,370 reports byte-identical to main, and their HTML and Markdown too. The other
+  10 are one fixture under each of the ten rubrics: `review4-a4-working-directory-through-tracked-symlink`,
+  whose commit holds a symlink to a freshly made temporary directory. Its head SHA differs between
+  the two builds, and nothing else in its JSON, HTML or Markdown differs.
+- v27: 423 of 437 reports byte-identical to main. Leaving out that same fixture, which differs only
+  by its head SHA, 13 move, in B3 only, each to v17's B3 value:
+  - 7 workflows the second pass counted and the third still counts: `npm-test-then-publish`,
+    `npm-test-in-needed-job`, `npm-test-in-transitively-needed-job`,
+    `publish-if-success-and-fork-guard`, `check-piped-into-tee-with-pipefail`,
+    `twelve-checked-publishing-workflows` and `b3-test-then-publish-workflow`;
+  - the third pass's 6 controls.
+  The two fixtures the third pass excludes are byte-identical to main, which excludes them too.
+  Every v27 HTML and Markdown report differs from main's by the v27 glossary wording.
+- `b3-publishing-with-checks-v17.json` now pins all 97 fixtures. It was written with main
+  `fe8c261de`'s code, and its 53 second-pass entries are unchanged.
+
+Each new refusal has a fixture only it excludes; removing it, one at a time, fails that fixture.
+The second pass's nine mutation runs are listed in the PR. The third pass ran 22, one per refusal,
+and each failed between 1 and 6 of its fixtures. They were: the backslash, the plain key and the
+plain value outside step items, the pipeline sides, the commands before the check, the stricter
+`set`, the workflow script shell, package-manager configuration for a check and for an install,
+install lifecycle scripts, an npm install naming a package or path, the pip package-only install,
+each of `uv sync`, `poetry install` and `pdm install`, the no-fail flags, `binding.gyp`, each of
+the `node-options`, `yarnPath` and `script-shell` settings, the pnpmfile, and yarn plugins. One
+refusal written for the third pass, of a leading blank other than a space or tab, had no fixture
+it alone could exclude, and was dropped. No behaviour-fingerprint pin moves: the fingerprint corpus
 holds no check-then-publish workflow. No published score moved: the board is scored under v17.
 
 ## 2026-11-01 — under v27 a shallow clone gets no composite and no verdict, and says how to fetch the history; F1's composite exclusion of A2 and the verdict cap are removed; v17-v26 byte-identical; v27 full clones byte-identical; no published score moved
