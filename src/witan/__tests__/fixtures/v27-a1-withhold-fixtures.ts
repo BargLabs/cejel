@@ -381,6 +381,18 @@ const REVIEW_626_FIXTURES: readonly WithholdFixture[] = [
     HOOK_REMOVED,
   ),
   caught(
+    'a1wh-r2-helper-add-in-inner-def',
+    'A',
+    "The same-file helper's add sits in a function it defines and never calls, below its own top level.",
+    {
+      'tests/conftest.py': conftestHook(
+        ['    saved = list(items)', '    items.clear()', '    refill(items, saved)'],
+        ['import pytest', '', '', 'def refill(lst, src):', '    def inner():', '        lst.extend(src)', '    return None'],
+      ),
+    },
+    HOOK_REMOVED,
+  ),
+  caught(
     'a1wh-r2-helper-is-a-generator',
     'A',
     'The same-file helper holds a yield, so calling it runs none of its body.',

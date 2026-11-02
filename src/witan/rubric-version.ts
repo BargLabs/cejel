@@ -202,8 +202,10 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     hook's clear only where, at the hook's top level after its last clear, the same hook puts
 //     the items back in a shape the reader understands (extend, +=, a slice assignment, __iadd__,
 //     append or insert on the list or a name bound to it, a top-level loop of them, or a call of a
-//     function the conftest.py defines that adds to the list), from a source not known to be
-//     empty, or rebinds `items` at top level before the clear, never for copying, reporting,
+//     function the conftest.py defines that adds to the list at its own top level before any
+//     branch or exit, and is not a generator), from a source not known to be empty (an empty
+//     literal or zero-length slice, the cleared list, or a copy of it taken after the clear), or
+//     rebinds `items` at top level before the clear, never for copying, reporting,
 //     iterating, a builtin, a logger, an unknown helper or an unknown method; a pytest setting
 //     only for a file a pytest run collects where the setting is in force for that run (the plain
 //     pytest at the root, or a command starting with pytest in a CI step with its

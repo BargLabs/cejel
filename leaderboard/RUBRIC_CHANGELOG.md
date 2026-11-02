@@ -65,9 +65,14 @@ plain `pytest` at the root loads. In every one pytest ran no test and v27 gave v
   `items += src`, `items[a:b] = src`, `items.__iadd__(src)`, `items.append(x)` or
   `items.insert(i, x)`, on `items` or a name bound to it; a top-level `for` loop whose body adds
   that way; or a call of a function the same `conftest.py` defines that adds to its first
-  parameter (given the list first) or, nested in the hook before the call, to the list itself. A
-  source known to be empty (`[]`, `()`, `list()`, `tuple()`, a name bound only to one, or the
-  cleared list itself) restores nothing. A call to a builtin, a logger, a function Cejel cannot see
+  parameter (given the list first) or, nested in the hook before the call, to the list itself,
+  where the hook's own rules hold inside that function too: the add sits at its own top level,
+  before any statement there that branches or exits (`if`, a loop, `try`, `with`, `return`,
+  `raise`, `yield`), and the function is not a generator. A source known to be empty restores
+  nothing: `[]`, `()`, `list()`, `tuple()`, a zero-length slice written `[:0]` or `[0:0]`, the
+  cleared list itself, or a name whose last top-level binding before the restore is one of those
+  or, after the last clear, a copy of the cleared list (`list(items)`, `items[:]`,
+  `items.copy()`, `[*items]`, a comprehension over it), with no mention of the name between. A call to a builtin, a logger, a function Cejel cannot see
   or an unknown method on the list is not a restore, so the hollow rating stands. A hook that
   rebinds the name `items` at its top level before the clear is withheld, since its clear empties
   another list; a rebind after the clear is not, since pytest's list is already empty.
