@@ -15,7 +15,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
-import { WITAN_V27_A2_FAILED_HISTORY_NOTE_PREFIX } from '../witan/abstention.js';
+import { WITAN_ABSTENTION_LABELS, WITAN_V27_A2_FAILED_HISTORY_NOTE_PREFIX } from '../witan/abstention.js';
 import {
   buildCacheLibraryOrigin,
   cloneRepository,
@@ -103,7 +103,42 @@ function renderActionOutputs(summary: unknown): string {
   });
 }
 
+function actionAbstentionVerdicts(): string[] {
+  const evaluation = `
+    import { ACTION_ABSTENTION_VERDICTS } from ${JSON.stringify(ACTION_RUNNER_URL)};
+    process.stdout.write(JSON.stringify(ACTION_ABSTENTION_VERDICTS ?? null));
+  `;
+  return JSON.parse(
+    execFileSync(process.execPath, ['--input-type=module', '--eval', evaluation], { encoding: 'utf8' }),
+  ) as string[];
+}
+
 describe('GitHub Action step summary', () => {
+  // run.mjs ships without the CLI's source, so it keeps its own copy of the abstention labels. A
+  // label the CLI adds and the Action lacks sends an abstained summary down the scored path, which
+  // throws on its null scores and fails the user's step (v27 "Unrated: shallow clone", 2026-11-01).
+  it('REGRESSION GUARD: recognises every label the CLI presents an abstention under', () => {
+    expect(actionAbstentionVerdicts()).toEqual([...WITAN_ABSTENTION_LABELS]);
+  });
+
+  it('renders a v27 history abstention with no scores instead of throwing', () => {
+    for (const verdict of ['Unrated: shallow clone', 'Unrated: history depth unknown']) {
+      const rendered = renderStepSummary({
+        productDisplayName: 'fixture',
+        overallScore: null,
+        codeTrustScore: null,
+        processTrustScore: null,
+        verdict,
+        insufficientSourceReason: 'Fetch the full history and scan again.',
+        findingCount: 0,
+        topFindings: [],
+      });
+      expect(rendered).toContain(`**${verdict}: no composite score and no verdict.**`);
+      expect(rendered).toContain('Fetch the full history and scan again.');
+      expect(rendered).not.toContain('/4.0');
+    }
+  });
+
   it('keeps untrusted identity and finding text on escaped Markdown lines', () => {
     const rendered = renderStepSummary({
       productDisplayName: 'Trusted\n## Forged *identity*',
