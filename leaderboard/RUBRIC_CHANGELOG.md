@@ -123,7 +123,8 @@ ratio no longer reads 0 there.
 **Measured** (after the second review's fixes: branch code and fixtures at `26a7d4795`; `411b5a2d6`
 changes one fixture's tox description only). The third pass (`96c39746f`) scanned the same 393
 repositories again under v17 and v27: every report byte-identical to `26a7d4795`'s. The last round
-(`0aa1116b8`) changes only how a same-file helper call is read and was not re-measured. Main `fe8c261de` and this branch scanned the same 393 synthetic repositories,
+(`0aa1116b8`) changes only how a same-file helper call is read and was not re-measured (it was on
+2026-11-02: see the correction below). Main `fe8c261de` and this branch scanned the same 393 synthetic repositories,
 built once at fixed paths: the 269 false-assurance fixtures, #621's 38 removal fixtures and the 86
 withhold fixtures (this change's 33 and the second review's 53). v17 and v27 scanned all 393; v18
 to v26 scanned the 124 v27 A1 fixtures. Errors: 0 on both sides.
@@ -150,6 +151,17 @@ pytest table) were not genuine, since pytest reads the `pyproject.toml` there, a
 each has a fixture that fails when it alone is removed. No holdout or calibration ran.
 
 No published score moved: the board is scored under v17.
+
+**Correction (2026-11-02, goal_cejel_v27_a1_restore_proof_and_hookwrapper_2026-11-02, item F).**
+The last round, `0aa1116b8`, is now measured. The same 393 synthetic repositories, built once at
+fixed paths from the fixture files at `26a7d4795`, were scanned with the code at `0aa1116b8` and at
+its parent `6010c5521` (whose code is the third pass's; the parent changes only fixtures). v17 and
+v27 scanned all 393, and v18 to v26 the 124 v27 A1 fixtures: 1,902 reports on each side, 0 errors,
+and all 1,902 byte-identical between the two. The last round moves nothing this entry states: none
+of the 393 repositories holds a hook whose reading the round changed (its own fixtures were added
+after the measurement). One count above is corrected: at `26a7d4795` the 124 v27 A1 fixtures are 39
+removal fixtures and 85 withhold fixtures, not 38 and 86; the total, and every count measured over
+it, stand.
 
 ## 2026-11-01 (B3) — under v27 a publishing workflow with no pull-request trigger is counted as CI again only when a failed check really stops every publish; third pass 2026-11-02; v17-v26 byte-identical, certificate text included; no published score moved
 

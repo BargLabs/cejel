@@ -16,6 +16,45 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+v17 remains the default rubric, and every change below applies only when the prospective v27 rubric
+is pinned. v27 carries no precision or recall claim.
+
+### Changed
+
+- **Prospective v27: A1 places every pytest collection hook that touches `items` in one of three
+  outcomes, and none by default (#631, #632, #634).** Under
+  `witan-rubric-v27-prospective-2026-10-19` only. A `pytest_collection_modifyitems` hook is read as
+  one that deselects everything (the run-wide skip rule applies), one that puts the collected
+  items back (the rule is withheld, and A1's note says so), or one Cejel could not read (the rule
+  makes no claim, and A1's note names it: "hook not read: `<reason>` in `<path>`", with the hook
+  cited at its `def`).
+  - **A restore counts only on proof (#631).** It must put back, with `items.extend(S)`,
+    `items += S` or `items[:] = S` (or `S[:]`), a name bound once at the hook's top level, before
+    anything changes the list, to `list(items)`, `items[:]`, `items.copy()`, `[*items]`,
+    `tuple(items)` or `sorted(items, ...)`, and mentioned nowhere else in the hook. The restore may
+    run directly, through a helper the same `conftest.py` defines once (its arguments by position or
+    by its own parameter names), or through a lambda or nested function without parameters called at
+    the hook's top level. Shapes that put nothing back are rated hollow again: a saved copy aliased
+    and cleared, `list(items)[:0]`, `saved[5:5]`, `saved[n:n]` or `sorted(items)[:0]`. A helper
+    that adds `src and []` or `src * 0` is not read. Reporting or iterating over a saved copy is not
+    a restore, so the common deselect-everything hook stays caught.
+  - **Not read, and named (#632, #634).** A hookwrapper (`hookwrapper=True` or `wrapper=True`) is
+    read as the code after its single top-level `yield`, so one that empties `items` after its
+    `yield` is rated hollow. A hook that an `if`, `return`, second `yield` or other conditional
+    statement stops, that has any other decorator, or that uses `items` in a way Cejel does not read
+    (an imported helper, a method, `*` arguments, an `append` loop, an alias, `__iadd__`, a clear
+    inside a loop) is no longer passed silently: the note names it with the reason. A real restore
+    Cejel cannot prove is never rated hollow.
+  - **A wrapped `def` (#634).** A hook whose parameters run onto later lines (black's wrapping, with
+    or without a trailing comma) is read as the hook.
+  - **Exact paths (#634).** In A1's note, a path holding `, `, `; `, ` (`, a backtick or a double
+    quote is written in double quotes, with `\` and `"` escaped; the v27 glossary states the rule.
+    The note says how many of the files rated hollow, or hooks not read, that it names beyond the
+    eight evidence pointers carry none.
+
+  Measured on 393 synthetic repositories against main: v17 to v26 byte-identical; v27 never above
+  v17; the counts are in `leaderboard/RUBRIC_CHANGELOG.md`. No holdout or calibration ran.
+
 ## [0.6.9] — 2026-11-02
 
 v17 remains the default rubric. The prospective v27 rubric stays opt-in, by `--rubric-pin` or the

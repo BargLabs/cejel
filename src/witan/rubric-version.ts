@@ -218,16 +218,29 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     these rules rate hollow, with the rule, and no rule claims where its condition is not read:
 //     a hook without an `items` parameter, or a skip that sits inside another mark's arguments in
 //     pytestmark; from 2026-11-02 (goal_cejel_v27_a1_test_count_overmatch_v2_2026-11-02, which
-//     supersedes #621; as fixed after the #626 review) a rule is withheld only on evidence: a
-//     hook's clear only where, at the hook's top level after its last clear, the same hook puts
-//     the items back in a shape the reader understands (extend, +=, a slice assignment, __iadd__,
-//     append or insert on the list or a name bound to it, a top-level loop of them, or a call of a
-//     function the conftest.py defines that adds to the list at its own top level before any
-//     branch or exit, without rebinding its source, from a copy of the list saved before the
-//     clear, and is not a generator), from a source not known to be empty (an empty
-//     literal or zero-length slice, the cleared list, or a copy of it taken after the clear), or
-//     rebinds `items` at top level before the clear, never for copying, reporting,
-//     iterating, a builtin, a logger, an unknown helper or an unknown method; a pytest setting
+//     supersedes #621; as fixed after the #626 review) a rule is withheld only on evidence; and
+//     from 2026-11-02 (goal_cejel_v27_a1_restore_proof_and_hookwrapper_2026-11-02, #631, #632,
+//     #634) every collection hook that touches `items` reaches one of three outcomes, none by
+//     default: (1) deselects, where the reader proves it leaves `items` empty, and the rule
+//     applies; (2) restores, where it proves the collected items are back when the hook returns
+//     (items.extend(S), items += S or items[:] = S, or S[:], on items itself after the clear,
+//     directly, through a same-file helper called by position or by its own parameter names, or
+//     through a parameterless lambda or nested function called at the top level, from a name S
+//     bound once at the top level before the list changes to list(items), items[:], items.copy(),
+//     [*items], tuple(items) or sorted(items, ...) and mentioned nowhere else), and the rule is
+//     withheld and said; (3) not read, where it proves neither (another source, append, insert,
+//     __iadd__, an alias, an imported or unseen helper, a method, * arguments, a use inside a
+//     loop, a closure stored or called with arguments, a session.items, an if, return, second
+//     yield or other statement the conditional rule stops, an unknown decorator), and the rule
+//     makes no claim while A1's note names the hook ("hook not read: `<reason>` in <path>") and
+//     its evidence cites the def. A source proven empty (an empty literal, range(0), a
+//     zero-length slice x[:0] or x[k:k], a name bound to one, or a copy taken after the clear)
+//     adds nothing. A hookwrapper (hookwrapper=True or wrapper=True) is read as the code after
+//     its single top-level yield, and a def whose parameters run onto later lines is read as the
+//     hook. A hook that rebinds `items` at top level before the clear keeps its withhold. Paths in
+//     A1's note holding ", ", "; ", " (", a backtick or a double quote are written in double
+//     quotes with \ and " escaped, and the note says how many files or hooks it names past the
+//     eight evidence pointers carry none; a pytest setting
 //     only for a file a pytest run collects where the setting is in force for that run (the plain
 //     pytest at the root, or a command starting with pytest in a CI step with its
 //     working-directory, env and if, a reached Makefile or justfile target, or a running tox
