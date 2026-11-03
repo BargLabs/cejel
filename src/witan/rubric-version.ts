@@ -199,7 +199,9 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     committed (else no npm-family command is a check or setup), that a setup install runs no
 //     root lifecycle script and installs no project or path, and that a check carries no flag with
 //     which it cannot fail);
-//   - A1: conftest.py is not a concrete test file, and an unconditional run-wide pytest skip
+//   - A1: conftest.py is not a concrete test file (not cited as one, and rated hollow where it
+//     asserts; from 2026-11-01 test_to_source_ratio counts it as test surface, as v17 does), and
+//     an unconditional run-wide pytest skip
 //     (a collection hook that skips or clears every item, or a module-level pytestmark skip)
 //     marks the test files in its scope hollow (from 2026-10-27 the hook's skip marker may also be
 //     the name "skip", or a name bound once to pytest.mark.skip before the loop); from 2026-10-28
@@ -211,7 +213,32 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     `runTest`, a call or an attribute assignment outside function bodies (Python), JSX, or a call
 //     outside test-case and hook bodies that is not a test, suite or hook global (JavaScript),
 //     and (the #610 review residuals, 2026-10-29) a Python decorator anywhere in the file that is
-//     not a skip form or a pytest mark, or a Python module that names `load_tests`;
+//     not a skip form or a pytest mark, or a Python module that names `load_tests`; from 2026-11-01
+//     (goal_cejel_v27_a1_test_count_overmatch_2026-11-01) A1's note and evidence name each file
+//     these rules rate hollow, with the rule, and no rule claims where its condition is not read:
+//     a hook without an `items` parameter, or a skip that sits inside another mark's arguments in
+//     pytestmark; from 2026-11-02 (goal_cejel_v27_a1_test_count_overmatch_v2_2026-11-02, which
+//     supersedes #621; as fixed after the #626 review) a rule is withheld only on evidence: a
+//     hook's clear only where, at the hook's top level after its last clear, the same hook puts
+//     the items back in a shape the reader understands (extend, +=, a slice assignment, __iadd__,
+//     append or insert on the list or a name bound to it, a top-level loop of them, or a call of a
+//     function the conftest.py defines that adds to the list at its own top level before any
+//     branch or exit, without rebinding its source, from a copy of the list saved before the
+//     clear, and is not a generator), from a source not known to be empty (an empty
+//     literal or zero-length slice, the cleared list, or a copy of it taken after the clear), or
+//     rebinds `items` at top level before the clear, never for copying, reporting,
+//     iterating, a builtin, a logger, an unknown helper or an unknown method; a pytest setting
+//     only for a file a pytest run collects where the setting is in force for that run (the plain
+//     pytest at the root, or a command starting with pytest in a CI step with its
+//     working-directory, env and if, a reached Makefile or justfile target, or a running tox
+//     environment's commands; each set up as pytest 9 does: the first configuration file in
+//     pytest's order walking up from its paths, its root, confcutdir, collected files, flags,
+//     addopts, -o and PYTEST_ADDOPTS) and the value leaves pytest's default reading (python_files
+//     that may match conftest.py withholds the conftest rule, python_functions or python_classes
+//     reaching names not starting with test or Test the Python per-test reader, -p no:skipping
+//     every skip rule); and a hook for a file a run collects with --noconftest or a confcutdir
+//     strictly below the hook's directory, where pytest does not load it. Every withhold is said in
+//     A1's note ("<rule> not applied: <reason>"), never silently;
 //   - every criterion: a read of a Git LFS pointer is a content-read skip, so the criterion that
 //     read it abstains as a read failure instead of scoring the pointer text, unless its
 //     collector made a critical finding (it then scores as under v17);
@@ -245,8 +272,9 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     the report abstains the same way with WITAN_V27_HISTORY_DEPTH_UNKNOWN_REASON; a directory
 //     with no .git entry is scored as before.
 // Every other abstention is a read failure, kept in the composite at 0, and each other change only
-// lowers a metric, adds a zero-valued one or adds a finding, which can only cap a score (A1's non-hollow share stays measured over v17's test
-// list, so excluding conftest.py cannot shrink its denominator). So on a full clone no score,
+// lowers a metric, adds a zero-valued one or adds a finding, which can only cap a score (A1's
+// test_to_source_ratio and non-hollow share are both measured over v17's test list, so excluding
+// conftest.py moves neither denominator nor the ratio). So on a full clone no score,
 // status, composite or verdict can rise against v17 for the same commit (against the earlier v27,
 // A4 rises where that zero is withdrawn). On a shallow clone there is no composite or verdict to
 // rise or fall; v27's history criteria are compared with the same commit's full clone, not with

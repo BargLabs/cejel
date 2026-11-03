@@ -63,6 +63,31 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   are unchanged, certificate text included. No holdout or calibration ran for it, and it carries no
   precision or recall claim. The record is in `leaderboard/RUBRIC_CHANGELOG.md` (2026-11-01, B3).
 
+- **Prospective v27: A1 names every file it rates hollow, and withholds a rule only on evidence,
+  saying so each time.** Under `witan-rubric-v27-prospective-2026-10-19` only. A1's note and
+  evidence name each file the conftest, run-wide skip and every-test-skipped rules rate hollow,
+  with the rule, and `test_to_source_ratio` counts a `conftest.py` as test surface, as v17 does.
+  A rule is withheld only on evidence that pytest would not do what it assumes: a collection hook
+  that empties `items` only where, after its last clear and at its own top level, the same hook
+  puts them back in a shape the reader understands (`extend`, `+=`, a slice assignment, `append`,
+  `insert` or a loop of them, on the list or a name bound to it, from a source not known to be
+  empty, such as a copy taken after the clear, or a same-file helper that adds to the list it is
+  given, at its own top level before any branch or exit and without rebinding its source, from a
+  copy of the list saved before the clear, and is not a generator); copying, reporting, iterating,
+  a builtin, a logger, an unknown helper or an unknown method no longer cancels it, so the common
+  deselect-everything hook is caught again. A pytest setting withholds a rule for a file only
+  where it is in force for a pytest run that collects the file: the plain `pytest` at the root,
+  or a command that starts with pytest in CI (with GitHub Actions' working-directory, env and
+  `if: false`), a reached Makefile or justfile target, or a running tox environment's commands,
+  each set up as pytest 9.2.0 does (the first configuration file in pytest's order walking up
+  from the run's paths, so a shadowed file or one no run reaches does not count; its root,
+  confcutdir, collected files and flags). Not in a comment, an `echo` argument, a heredoc or
+  another section, and not at a value that leaves pytest's default reading. `--noconftest`, or a
+  confcutdir strictly below the hook's directory (from `--confcutdir`, the configuration file or
+  the root), withholds the hook for the files that run collects. Every withhold is said in A1's
+  note ("<rule> not applied: <reason>"). v17, the default, and every other rubric are unchanged; v27 never scores A1 above
+  v17 on the same commit. No precision or recall claim; no holdout or calibration ran.
+
 - **Prospective v27: a shallow clone gets no composite score and no verdict** (operator ruling of
   1 Nov). Under `witan-rubric-v27-prospective-2026-10-19` a scan of a shallow clone abstains
   (`insufficient_source`, null headline scores) and says what to do: run `git fetch --unshallow`

@@ -1,0 +1,24 @@
+[
+  {
+    "statement": "Verifying a merge, a reviewer put the 15 test files that import v27-no-rise in a zsh variable and passed it unquoted to vitest beside 9 named files; zsh does not word-split, so the list arrived as one filter that matched nothing, and vitest reported 9 files passed with no warning. A test runner given a filter that matches nothing runs what remains and reports green. Rules: state the expected file count before a selective run and compare it; in zsh, expand a word list with ${=var} or an array.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "test-selection"
+    ],
+    "tags": [
+      "pass-by-absence",
+      "zsh-word-splitting",
+      "test-filter",
+      "reviewer-error"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-11-02T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 626
+    }
+  }
+]

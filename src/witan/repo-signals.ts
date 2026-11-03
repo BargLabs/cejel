@@ -2067,24 +2067,50 @@ function collectA1TestIntegrityEvidence(
 ): WitanCriterionSignalPayload | null {
   const evidence: WitanEvidencePointer[] = [];
   const findings: WitanCriterionSignalPayload['findings'] = [];
-  // v27 (#518): conftest.py holds pytest fixtures and hooks, not tests, so it does not count as
-  // test surface (test_to_source_ratio) or test evidence. Every other rubric counts it because it
-  // sits in a test directory. The non-hollow share below is still measured over the v17 list:
-  // v17 rates a name-shaped conftest (e.g. under __tests__/) hollow, and dropping it from that
-  // denominator would raise the share.
+  // v27 (#518): conftest.py holds pytest fixtures and hooks, not tests, so it is not cited as test
+  // evidence, and where it asserts it is rated hollow in the non-hollow share. Every other rubric
+  // cites it because it sits in a test directory. Both test_to_source_ratio and the non-hollow
+  // share are measured over the v17 list under every rubric: test_to_source_ratio counts test
+  // surface, which a conftest.py's fixtures are, so it does not move for one
+  // (goal_cejel_v27_a1_test_count_overmatch_2026-11-01, item C), and v17 rates a name-shaped
+  // conftest (e.g. under __tests__/) hollow, so dropping it from the share's denominator would
+  // raise the share. Where the repository sets pytest's python_files, a conftest.py may be a test
+  // module, and v27 reads it as v17 does.
   const v17TestFiles = findConcreteTestFiles(
     repoPath,
     repoFiles,
     reviewableSourceProof ? WITAN_RUBRIC_VERSION_V17 : undefined,
   );
-  const allTestFiles = useV27FalseAssuranceClosure
-    ? v17TestFiles.filter((file) => !PYTEST_CONFTEST_PATTERN.test(file))
-    : v17TestFiles;
+  // Read only where a Python test-shaped file exists: every rule they govern reads Python files.
+  const pytestSettings = useV27FalseAssuranceClosure
+    ? v17TestFiles.some((file) => /\.py$/.test(file))
+      ? readPytestCollectionSettings(repoPath, repoFiles)
+      : PYTEST_DEFAULT_COLLECTION_SETTINGS
+    : undefined;
+  // A conftest.py stays a test file only where a pytest run that collects it sets python_files to
+  // a pattern that may match it.
+  const allTestFiles =
+    pytestSettings !== undefined
+      ? v17TestFiles.filter(
+          (file) => !PYTEST_CONFTEST_PATTERN.test(file) || pytestSettings.forFile(file).pythonFiles !== undefined,
+        )
+      : v17TestFiles;
   // v27 (#518): a conftest.py hook that skips or deselects every collected test disables the
-  // whole suite under it, so those files cannot fail. Read only under v27.
-  const runWideSkips = useV27FalseAssuranceClosure
-    ? findPytestRunWideSkips(repoPath, repoFiles)
-    : [];
+  // whole suite under it, so those files cannot fail. Read only under v27. A hook is not applied
+  // where it puts the items back and, for a file, where a pytest run that collects it disables
+  // pytest's skipping plugin (a hook that skips) or does not load the hook's conftest.py
+  // (goal_cejel_v27_a1_test_count_overmatch_v2_2026-11-02, as fixed after the #626 review).
+  const runWideHooks = pytestSettings ? findPytestRunWideSkips(repoPath, repoFiles) : [];
+  const runWideSkips = runWideHooks.filter((skip) => skip.withheld === undefined);
+  const hookWithheldFor = (skip: PytestRunWideSkip, file: string): string | undefined => {
+    if (skip.withheld !== undefined) return skip.withheld;
+    if (pytestSettings === undefined) return undefined;
+    const settings = pytestSettings.forFile(file);
+    if (skip.kind === 'skip' && settings.disablesSkipping !== undefined) return pytestSettingReason(settings.disablesSkipping);
+    return settings.hookNotLoaded(skip.path, skip.scope);
+  };
+  const hookGoverns = (skip: PytestRunWideSkip, file: string): boolean =>
+    isGovernedPytestFile(skip, file) && hookWithheldFor(skip, file) === undefined;
   const testFiles = allTestFiles.slice(0, 8);
   const sourceFiles = repoFiles.filter(isSourceFile);
   const runnerFiles = repoFiles
@@ -2221,8 +2247,9 @@ function collectA1TestIntegrityEvidence(
     );
   }
   // v27 (#518): where conftest.py files are the only test-shaped files, they are cited as what
-  // they are. A1 then measures a suite with no test file (test_to_source_ratio 0), as v17 measured
-  // it, instead of losing its only evidence and leaving the composite, which could raise it.
+  // they are, instead of A1 losing its only evidence and leaving the composite, which could raise
+  // it. test_to_source_ratio still counts them as test surface, as v17 does (item C of
+  // goal_cejel_v27_a1_test_count_overmatch_2026-11-01).
   if (useV27FalseAssuranceClosure && allTestFiles.length === 0) {
     for (const file of v17TestFiles.slice(0, 8)) {
       evidence.push(
@@ -2393,16 +2420,47 @@ function collectA1TestIntegrityEvidence(
       repoPath,
       v17TestFiles,
       reviewableSourceProof !== undefined,
-      useV27FalseAssuranceClosure
+      pytestSettings
         ? {
-            disabledByRunWideSkip: (file) =>
-              runWideSkips.some((skip) => isGovernedPytestFile(skip, file)),
+            disabledByRunWideSkip: (file) => runWideSkips.find((skip) => hookGoverns(skip, file)),
+            withheldRunWideSkip: (file) => {
+              for (const skip of runWideHooks) {
+                if (!isGovernedPytestFile(skip, file)) continue;
+                const reason = hookWithheldFor(skip, file);
+                if (reason !== undefined) return reason;
+              }
+              return undefined;
+            },
+            pytestSettings,
           }
         : undefined,
     ),
   );
+  // v27, item C of goal_cejel_v27_a1_test_count_overmatch_v2_2026-11-02: every rule withheld is
+  // said, once per rule and reason, in the order met. The conftest rule is withheld for each
+  // conftest.py v17 lists that a pytest run collecting it may collect as a test module.
+  const withheldClauses = [
+    ...new Set([
+      ...v17TestFiles.flatMap((file) => {
+        const source = PYTEST_CONFTEST_PATTERN.test(file) ? pytestSettings?.forFile(file).pythonFiles : undefined;
+        return source === undefined ? [] : [`conftest rule not applied: ${pytestSettingReason(source)}`];
+      }),
+      ...nonHollowShare.withheldRules.map(({ rule, reason }) => `${rule} not applied: ${reason}`),
+    ]),
+  ];
+  // v27 (goal_cejel_v27_a1_test_count_overmatch_2026-11-01, item A): each file a v27 rule rated
+  // hollow is cited with its rule, the first eight as the test files are, so a reviewer can check
+  // that the rule's condition held. Empty under every other rubric.
+  for (const rated of nonHollowShare.ratedHollow.slice(0, 8)) {
+    const label = `Rated hollow under this rubric: runs no test (${rated.rule})`;
+    evidence.push(
+      rated.line === null
+        ? evidenceForRelative(repoPath, rated.path, 'test_run', label)
+        : evidenceForRelativeAtLine(repoPath, rated.path, 'test_run', label, rated.line),
+    );
+  }
   for (const skip of runWideSkips.slice(0, 2)) {
-    const governed = allTestFiles.filter((file) => isGovernedPytestFile(skip, file)).length;
+    const governed = allTestFiles.filter((file) => hookGoverns(skip, file)).length;
     if (governed === 0) continue;
     findings.push({
       severity: 'warning',
@@ -2439,7 +2497,7 @@ function collectA1TestIntegrityEvidence(
       metric(
         'test_to_source_ratio',
         'Test-to-source file ratio',
-        allTestFiles.length,
+        v17TestFiles.length,
         Math.max(sourceFiles.length, 1),
         0.3,
         'ratio',
@@ -2481,11 +2539,110 @@ function collectA1TestIntegrityEvidence(
         'Penalizes skipped or placeholder-only test files; test-directory support scaffolding (helpers/fixtures with no test in them) is excluded from the denominator.',
       ),
     ],
-    notes:
-      coverageFiles.length === 0 && coverageAnalysis.unresolvedFiles.length > 0
-        ? a1CoverageUnresolvedNote(coverageAnalysis.unresolvedFiles)
-        : 'A1 is detected from real test files, test runner configuration, and optional coverage configuration.',
+    notes: withA1V27Sentences(
+      (limit) =>
+        coverageFiles.length === 0 && coverageAnalysis.unresolvedFiles.length > 0
+          ? a1CoverageUnresolvedNote(coverageAnalysis.unresolvedFiles, limit)
+          : 'A1 is detected from real test files, test runner configuration, and optional coverage configuration.',
+      // v27, where conftest.py files are the only test-shaped files: the ratio counts what the
+      // evidence does not cite as test files, so the note says so (item C).
+      useV27FalseAssuranceClosure && allTestFiles.length === 0 && v17TestFiles.length > 0
+        ? a1ConftestSurfaceSentence(v17TestFiles.length)
+        : '',
+      nonHollowShare.ratedHollow,
+      withheldClauses,
+    ),
   };
+}
+
+/**
+ * A1's v27 sentence saying which removal rules were not applied and why
+ * (goal_cejel_v27_a1_test_count_overmatch_v2_2026-11-02, item C), `shown` clauses of them, the
+ * rest counted. With none shown it counts them, so a withhold is never silent.
+ */
+function a1WithheldSentence(clauses: readonly string[], shown: number): string {
+  const count = clauses.length;
+  if (shown === 0) {
+    return `A removal rule was not applied in ${count} case${count === 1 ? '' : 's'}; none is listed, for the note's length limit.`;
+  }
+  const more = count - shown;
+  const text = `${clauses.slice(0, shown).join('; ')}${more === 0 ? '' : `; and ${more} more not listed`}.`;
+  return `${text.charAt(0).toUpperCase()}${text.slice(1)}`;
+}
+
+/** v27: test_to_source_ratio counts conftest.py files that are the only test-shaped files. */
+function a1ConftestSurfaceSentence(count: number): string {
+  return count === 1
+    ? 'test_to_source_ratio counts the 1 conftest.py file as test surface, as v17 does; it is not cited as a test file, and no concrete test file was found.'
+    : `test_to_source_ratio counts the ${count} conftest.py files as test surface, as v17 does; they are not cited as test files, and no concrete test file was found.`;
+}
+
+/**
+ * A1's v27 sentence naming the files a v27 rule rated hollow, `shown` of them with their rules
+ * (goal_cejel_v27_a1_test_count_overmatch_2026-11-01, item A). With none shown it counts them.
+ */
+function a1RatedHollowSentence(rated: readonly RatedHollowFile[], shown: number): string {
+  const count = rated.length;
+  const lead = `${count} file${count === 1 ? '' : 's'} that v17 rates non-hollow ${count === 1 ? 'is' : 'are'} rated hollow here because ${count === 1 ? 'it runs' : 'they run'} no test`;
+  if (shown === 0) return `${lead}; none is listed, for the note's length limit.`;
+  const more = count - shown;
+  const listed = rated
+    .slice(0, shown)
+    .map(({ path, rule }) => `${path} (${rule})`)
+    .join(', ');
+  return `${lead}: ${listed}${more === 0 ? '' : `, and ${more} more not listed`}.`;
+}
+
+/**
+ * A1's note, with v27's sentences after it: `fixed` (or '') and, when any file was rated hollow,
+ * the rated-hollow sentence. The base note is built to leave room for both with the first rated
+ * file named whole (or, where even that cannot fit, with none named); the rated-hollow sentence
+ * then lists as many files as fit within CRITERION_NOTES_MAX_LENGTH and counts the rest. With
+ * neither (every rubric but v27) the base note is built exactly as before.
+ *
+ * goal_cejel_v27_a1_test_count_overmatch_v2_2026-11-02, item C: `withheld` clauses, when any, go
+ * between them as one sentence (a1WithheldSentence). Room is left for its first clause and the
+ * first rated file; the withheld clauses are then listed as far as they fit beside one rated file,
+ * and the rated files as far as they fit after that. Each sentence counts what it does not list.
+ */
+function withA1V27Sentences(
+  base: (limit: number) => string,
+  fixed: string,
+  rated: readonly RatedHollowFile[],
+  withheld: readonly string[] = [],
+): string {
+  if (rated.length === 0 && fixed === '' && withheld.length === 0) return base(CRITERION_NOTES_MAX_LENGTH);
+  const tail = (shownWithheld: number, shownRated: number) =>
+    [
+      fixed,
+      withheld.length === 0 ? '' : a1WithheldSentence(withheld, shownWithheld),
+      rated.length === 0 ? '' : a1RatedHollowSentence(rated, shownRated),
+    ]
+      .filter((part) => part !== '')
+      .join(' ');
+  const firstWithheld = Math.min(withheld.length, 1);
+  const firstRated = Math.min(rated.length, 1);
+  const shortest = tail(0, 0);
+  const roomForOne = tail(firstWithheld, firstRated);
+  const withOne = base(CRITERION_NOTES_MAX_LENGTH - roomForOne.length - 1);
+  const note =
+    `${withOne} ${roomForOne}`.length <= CRITERION_NOTES_MAX_LENGTH
+      ? withOne
+      : base(CRITERION_NOTES_MAX_LENGTH - shortest.length - 1);
+  const fits = (shownWithheld: number, shownRated: number) =>
+    `${note} ${tail(shownWithheld, shownRated)}`.length <= CRITERION_NOTES_MAX_LENGTH;
+  // A note this long names at most a few dozen paths or clauses, so each search starts there.
+  let shownWithheld = 0;
+  for (const ratedShown of [firstRated, 0]) {
+    for (let shown = Math.min(withheld.length, 100); shown > 0 && shownWithheld === 0; shown -= 1) {
+      if (fits(shown, ratedShown)) shownWithheld = shown;
+    }
+    if (shownWithheld > 0) break;
+  }
+  for (let shown = Math.min(rated.length, 100); shown > 0; shown -= 1) {
+    if (fits(shownWithheld, shown)) return `${note} ${tail(shownWithheld, shown)}`;
+  }
+  return `${note} ${tail(shownWithheld, 0)}`;
 }
 
 /**
@@ -2494,16 +2651,20 @@ function collectA1TestIntegrityEvidence(
  * rubric. A note that fits is unchanged; one that does not names fewer paths, the first always
  * whole, and says how many more.
  */
-function a1CoverageUnresolvedNote(unresolvedFiles: readonly string[]): string {
+function a1CoverageUnresolvedNote(
+  unresolvedFiles: readonly string[],
+  // Shorter only under v27, where A1's rated-hollow sentence follows (withA1RatedHollowNote).
+  limit = CRITERION_NOTES_MAX_LENGTH,
+): string {
   const note = (paths: string) =>
     `A1 is detected from real test files, test runner configuration, and optional coverage configuration. Coverage command reachability or flag ownership was unresolved in ${paths}; the no-coverage absence claim was withheld.`;
   const whole = note(unresolvedFiles.slice(0, 4).join(', '));
-  if (whole.length <= CRITERION_NOTES_MAX_LENGTH) return whole;
+  if (whole.length <= limit) return whole;
   const count = unresolvedFiles.length;
   for (let shown = Math.min(count, 4) - 1; shown > 0; shown -= 1) {
     const more = count - shown;
     const shortened = note(`${unresolvedFiles.slice(0, shown).join(', ')} and ${more} more file${more === 1 ? '' : 's'}`);
-    if (shortened.length <= CRITERION_NOTES_MAX_LENGTH) return shortened;
+    if (shortened.length <= limit) return shortened;
   }
   // A single path can be longer than the room left (git allows it): the files are then counted.
   return note(`${count} file${count === 1 ? '' : 's'}`);
@@ -11235,11 +11396,44 @@ interface NonHollowTestShare {
    * in them carries its own unconditional skip. Always empty under every other rubric.
    */
   perTestSkipped: PerTestSkippedFile[];
+  /** witan-rubric-v27 only: every file a v27 rule moved from non-hollow to hollow, in file order. */
+  ratedHollow: RatedHollowFile[];
+  /**
+   * witan-rubric-v27 only (goal_cejel_v27_a1_test_count_overmatch_v2_2026-11-02, item C): each rule
+   * that would have rated a file v17 rates non-hollow as running no test, but was not applied
+   * because of a pytest setting in force or a hook that puts the items back, in file order.
+   */
+  withheldRules: PytestWithheldRule[];
 }
 
 interface RunWideSkipOptions {
-  /** True for a test file a run-wide pytest hook disables (findPytestRunWideSkips). */
-  readonly disabledByRunWideSkip: (file: string) => boolean;
+  /** The run-wide pytest hook that disables a test file (findPytestRunWideSkips), if any. */
+  readonly disabledByRunWideSkip: (file: string) => PytestRunWideSkip | undefined;
+  /**
+   * Why a run-wide hook that would disable a test file was not applied to it (a setting in force,
+   * a hook that puts the items back, or a conftest.py pytest would not load for it), if one was not.
+   */
+  readonly withheldRunWideSkip: (file: string) => string | undefined;
+  /** What the repository's pytest settings leave Cejel able to read (readPytestCollectionSettings). */
+  readonly pytestSettings: PytestCollectionSettings;
+}
+
+/** A v27 A1 rule that was not applied, and why, as A1's note says it. */
+interface PytestWithheldRule {
+  readonly rule: 'conftest rule' | 'run-wide skip rule' | 'every-test-skipped rule';
+  readonly reason: string;
+}
+
+/**
+ * witan-rubric-v27 only: a file v17 rates non-hollow that v27 rates hollow because it runs no
+ * test, with the rule that says so, as A1's note and evidence name it.
+ */
+interface RatedHollowFile {
+  readonly path: string;
+  /** 'conftest', 'run-wide skip: hook in <conftest>', 'run-wide skip: pytestmark in <file>' or 'every test skipped'. */
+  readonly rule: string;
+  /** 1-based line of the first skip, for 'every test skipped'; null otherwise. */
+  readonly line: number | null;
 }
 
 function measureNonHollowTestShare(
@@ -11252,6 +11446,8 @@ function measureNonHollowTestShare(
   let nonHollowCount = 0;
   let ratedCount = 0;
   const perTestSkipped: PerTestSkippedFile[] = [];
+  const ratedHollow: RatedHollowFile[] = [];
+  const withheldRules: PytestWithheldRule[] = [];
   for (const file of files) {
     const fullPath = join(repoPath, file);
     if (!isRegularFile(fullPath)) continue;
@@ -11266,22 +11462,31 @@ function measureNonHollowTestShare(
       hasLiveAvaAssertion(contents) ||
       hasLiveFrameworkAssertion(masked());
     const suiteSkipped = SUITE_LEVEL_SKIP_PATTERN.test(contents);
+    // What v17 rates the file, before any v27 rule.
+    const nonHollowUnderV17 = asserting && !suiteSkipped && !frameworkSuiteSkipped;
     // A file the run cannot execute as a test is hollow however live its assertions read: one a
     // run-wide skip disables, and (v27) a conftest.py, which pytest never collects tests from. It
     // stays where v17 rates it, so this can only lower the share, never shrink the denominator to
-    // the files that still run.
-    const disabledRunWide =
-      runWideSkip !== undefined &&
-      (PYTEST_CONFTEST_PATTERN.test(file) ||
-        runWideSkip.disabledByRunWideSkip(file) ||
-        hasUnconditionalPytestModuleSkip(file, contents));
+    // the files that still run. Each rule claims only where the repository's pytest settings leave
+    // its condition readable (goal_cejel_v27_a1_test_count_overmatch_2026-11-01): a conftest.py
+    // only under pytest's default python_files, a skip mark only while pytest's skipping plugin runs.
+    const runWideRule = runWideSkip === undefined ? undefined : readRunWideRule(file, contents, runWideSkip);
+    const disabledRunWide = runWideRule !== undefined;
     // v27 (F2): so is a file whose every test carries its own unconditional skip. Read only for a
     // file that would otherwise count as non-hollow, so it names only the files it moves.
     const perTestSkip =
-      runWideSkip !== undefined && asserting && !suiteSkipped && !frameworkSuiteSkipped && !disabledRunWide
-        ? readEveryTestUnconditionallySkipped(file, contents)
+      runWideSkip !== undefined && nonHollowUnderV17 && !disabledRunWide
+        ? readEveryTestUnconditionallySkipped(file, contents, runWideSkip.pytestSettings.forFile(file))
         : undefined;
     if (perTestSkip) perTestSkipped.push({ path: file, ...perTestSkip });
+    if (nonHollowUnderV17 && runWideRule !== undefined) ratedHollow.push({ path: file, rule: runWideRule, line: null });
+    else if (perTestSkip) ratedHollow.push({ path: file, rule: 'every test skipped', line: perTestSkip.line });
+    // v27 (goal_cejel_v27_a1_test_count_overmatch_v2_2026-11-02, item C): a rule that would have
+    // moved this file but was withheld is recorded, so A1's note says so instead of falling back to
+    // v17's reading in silence.
+    if (runWideSkip !== undefined && nonHollowUnderV17 && runWideRule === undefined) {
+      withheldRules.push(...readWithheldA1Rules(file, contents, runWideSkip, perTestSkip === undefined));
+    }
     const cannotRunAsTest = disabledRunWide || perTestSkip !== undefined;
     const nonHollow =
       asserting &&
@@ -11300,7 +11505,1477 @@ function measureNonHollowTestShare(
       ratedCount += 1;
     }
   }
-  return { nonHollowCount, ratedCount, perTestSkipped };
+  return { nonHollowCount, ratedCount, perTestSkipped, ratedHollow, withheldRules };
+}
+
+/**
+ * witan-rubric-v27 only (item C): the rules that would have rated `file` as running no test under
+ * pytest's defaults but were withheld for it. Read only for a file v17 rates non-hollow and no
+ * run-wide rule moved; the per-test reader only where it did not move the file either. The conftest
+ * rule's withhold is read once for the repository (collectA1TestIntegrityEvidence).
+ */
+function readWithheldA1Rules(
+  file: string,
+  contents: string,
+  options: RunWideSkipOptions,
+  readPerTest: boolean,
+): PytestWithheldRule[] {
+  const settings = options.pytestSettings.forFile(file);
+  const withheld: PytestWithheldRule[] = [];
+  const hookReason = options.withheldRunWideSkip(file);
+  if (hookReason !== undefined) withheld.push({ rule: 'run-wide skip rule', reason: hookReason });
+  if (settings.disablesSkipping !== undefined && hasUnconditionalPytestModuleSkip(file, contents)) {
+    withheld.push({ rule: 'run-wide skip rule', reason: pytestSettingReason(settings.disablesSkipping) });
+  }
+  const perTestBlocker = settings.disablesSkipping ?? settings.testNames;
+  if (readPerTest && perTestBlocker !== undefined && /\.py$/.test(file) && readEveryPythonTestSkipped(contents)) {
+    withheld.push({ rule: 'every-test-skipped rule', reason: pytestSettingReason(perTestBlocker) });
+  }
+  return withheld;
+}
+
+/**
+ * witan-rubric-v27 only: the run-wide rule that makes a file run no test, as A1 names it, or
+ * undefined. In order: a conftest.py (under pytest's default python_files), a run-wide hook in a
+ * conftest.py above it, or the file's own module-level pytestmark skip (while skip marks apply).
+ */
+function readRunWideRule(file: string, contents: string, options: RunWideSkipOptions): string | undefined {
+  const settings = options.pytestSettings.forFile(file);
+  if (settings.pythonFiles === undefined && PYTEST_CONFTEST_PATTERN.test(file)) return 'conftest';
+  const hook = options.disabledByRunWideSkip(file);
+  if (hook !== undefined) return `run-wide skip: hook in ${hook.path}`;
+  if (settings.disablesSkipping === undefined && hasUnconditionalPytestModuleSkip(file, contents)) {
+    return `run-wide skip: pytestmark in ${file}`;
+  }
+  return undefined;
+}
+
+// ---- pytest settings the v27 removal rules depend on (goal_cejel_v27_a1_test_count_overmatch) --
+//
+// Each v27 A1 removal rule reads pytest's defaults: conftest.py is never a test module only while
+// python_files does not name it, the per-test reader sees every test only while python_functions
+// and python_classes name nothing it does not read as a test, a skip mark skips only while pytest's
+// skipping plugin is loaded, and a conftest.py hook runs only where pytest loads that conftest.py.
+//
+// goal_cejel_v27_a1_test_count_overmatch_v2_2026-11-02, items B and D, as fixed after the #626
+// review: a setting withholds a rule for a file only on evidence that it is in force for a pytest
+// run that collects that file. Cejel reads the pytest runs it can see: the plain `pytest` a
+// developer runs at the repository's root, every pytest command that starts a command in a CI
+// step (GitHub Actions `run:` steps with their working-directory, env and `if: false`; the script
+// keys of other CI files), in a Makefile or justfile recipe the default goal, a test target or CI
+// reaches, and in a tox environment's commands ([testenv], or one envlist or CI names). For each
+// run it works out what pytest 9 does (findpaths.py): the configuration file it reads, found
+// walking up from the common ancestor of the run's path arguments in pytest's own order
+// (pytest.toml, .pytest.toml, pytest.ini, .pytest.ini, pyproject.toml with a pytest table, tox.ini
+// with [pytest], setup.cfg with [tool:pytest]; the first one wins), its root and confcutdir, the
+// files it collects (its paths, testpaths, or its directory), and the flags in force (its own,
+// the configuration's addopts, and PYTEST_ADDOPTS). A run Cejel cannot read whole (a path with a
+// variable, an unknown working directory) is not used. A setting read nowhere else (a comment,
+// an echo, a heredoc, a key outside pytest's section, a configuration file another one shadows or
+// that no run reads, a flag on a run that does not collect the file, or a --rootdir or
+// --confcutdir under which pytest still loads the hook) does not withhold.
+
+/** A setting in force, as A1's note names it: the setting and where it is set. */
+interface PytestSettingSource {
+  /** python_files, python_functions, python_classes, -p no:skipping, --noconftest, --rootdir or --confcutdir. */
+  readonly setting: string;
+  /** 'set in <file>', 'on a pytest command line in <file>' or 'in PYTEST_ADDOPTS in <file>'. */
+  readonly where: string;
+}
+
+/** What the pytest runs that collect one file leave the v27 rules able to read. */
+interface PytestFileSettings {
+  /** A python_files pattern that may match conftest.py: this conftest.py may be collected as a test module. */
+  readonly pythonFiles?: PytestSettingSource;
+  /** A python_functions or python_classes pattern reaching names the per-test reader does not read as tests. */
+  readonly testNames?: PytestSettingSource;
+  /** `-p no:skipping`: pytest's skip marks may not apply. */
+  readonly disablesSkipping?: PytestSettingSource;
+  /** Why a run that collects the file does not load the conftest.py `hookPath` in `scope`, if one does not. */
+  readonly hookNotLoaded: (hookPath: string, scope: string) => string | undefined;
+}
+
+interface PytestCollectionSettings {
+  readonly forFile: (file: string) => PytestFileSettings;
+}
+
+const PYTEST_DEFAULT_FILE_SETTINGS: PytestFileSettings = Object.freeze({ hookNotLoaded: () => undefined });
+const PYTEST_DEFAULT_COLLECTION_SETTINGS: PytestCollectionSettings = Object.freeze({
+  forFile: () => PYTEST_DEFAULT_FILE_SETTINGS,
+});
+
+// pytest 9's configuration files, in the order it tries them in one directory (CONFIG_LOADERS_BY_NAME).
+const PYTEST_CONFIG_FILE_NAMES = ['pytest.toml', '.pytest.toml', 'pytest.ini', '.pytest.ini', 'pyproject.toml', 'tox.ini', 'setup.cfg'] as const;
+const PYTEST_EXECUTABLE_PATTERN = /^(?:pytest|py\.test)(?:\.exe)?$/;
+const PYTEST_ADDOPTS_ASSIGNMENT = 'PYTEST_ADDOPTS=';
+// `PYTEST_ADDOPTS: value` (YAML env) or `PYTEST_ADDOPTS = value`, in a CI file other than GitHub Actions.
+const PYTEST_ADDOPTS_LINE_PATTERN = /^[ \t]*(?:-[ \t]*)?(?:export[ \t]+)?PYTEST_ADDOPTS[ \t]*(?::|[:?+]?=)(.*)$/;
+// CI keys whose value is shell (GitLab, Azure, CircleCI's `command:` and others); `run:` is
+// extractCiRunCommands's.
+const CI_SCRIPT_KEY_PATTERN =
+  /^([ \t]*)(?:-[ \t]*)?(?:script|before_script|after_script|bash|pwsh|powershell|sh|command)[ \t]*:[ \t]*(.*)$/;
+
+/** A1's notes name a path whole up to this length, and its start with `...` beyond it. */
+const A1_NOTE_PATH_MAX_LENGTH = 120;
+
+function a1NotePath(path: string): string {
+  return path.length <= A1_NOTE_PATH_MAX_LENGTH ? path : `${path.slice(0, A1_NOTE_PATH_MAX_LENGTH - 3)}...`;
+}
+
+function pytestSettingReason(source: PytestSettingSource): string {
+  return `${source.setting} ${source.where}`;
+}
+
+/** The directory of a repository-relative path, '' for the root. */
+function repoDirectory(file: string): string {
+  const slash = file.lastIndexOf('/');
+  return slash === -1 ? '' : file.slice(0, slash);
+}
+
+/** True when `ancestor` is a directory strictly above `path` ('' is the root). */
+function isStrictAncestorDirectory(ancestor: string, path: string): boolean {
+  return ancestor !== path && (ancestor === '' || path.startsWith(`${ancestor}/`));
+}
+
+/** True when `path` is `target` or below it ('' is the root). */
+function isAtOrBelow(path: string, target: string): boolean {
+  return target === '' || path === target || path.startsWith(`${target}/`);
+}
+
+/**
+ * A path a command names, resolved against its directory to a repository-relative path, or null
+ * where Cejel cannot resolve it (a variable, a glob, home, an absolute path, or outside the
+ * repository).
+ */
+function resolveCommandPath(directory: string, path: string): string | null {
+  if (path === '' || /[$`{}*?[\]~]/.test(path) || path.startsWith('/') || /^[A-Za-z]:[\\/]/.test(path)) return null;
+  const joined = posix.normalize(posix.join(directory === '' ? '.' : directory, path.replace(/\\/g, '/')));
+  // posix.normalize leaves at most one trailing slash.
+  const trimmed = joined.endsWith('/') ? joined.slice(0, -1) : joined;
+  if (trimmed === '.' || trimmed === '') return '';
+  if (trimmed === '..' || trimmed.startsWith('../')) return null;
+  return trimmed;
+}
+
+/** A pytest option's value as read: ini text, a TOML string or list, or a TOML value Cejel did not parse. */
+type PytestOptionValue =
+  | { readonly kind: 'text'; readonly text: string }
+  | { readonly kind: 'list'; readonly items: readonly string[] }
+  | { readonly kind: 'unknown'; readonly text: string };
+
+const PYTEST_A1_OPTION_NAMES = ['python_files', 'python_functions', 'python_classes', 'addopts', 'testpaths'] as const;
+
+/** One of the repository's pytest configuration files, read as pytest reads it. */
+interface PytestConfigFile {
+  readonly path: string;
+  /** True where pytest takes its configuration from the file when it finds it (its loader returns one). */
+  readonly holdsConfig: boolean;
+  readonly options: ReadonlyMap<string, PytestOptionValue>;
+}
+
+/** Reads a configuration file pytest finds by name, or (`-c`) by suffix. */
+function readPytestConfigFile(path: string, text: string): PytestConfigFile {
+  const name = path.slice(path.lastIndexOf('/') + 1);
+  const options = new Map<string, PytestOptionValue>();
+  const ini = (section: string, always: boolean): PytestConfigFile => {
+    const read = readIniSection(text, section);
+    for (const [key, value] of read.entries) options.set(key, { kind: 'text', text: value });
+    return { path, holdsConfig: always || read.present, options };
+  };
+  const toml = (root: 'tool' | 'pytest', always: boolean): PytestConfigFile => {
+    const read = readPyprojectPytestSettings(text, root);
+    for (const [key, value] of read.entries) options.set(key, value);
+    return { path, holdsConfig: always || read.present, options };
+  };
+  if (name === 'pytest.toml' || name === '.pytest.toml') return toml('pytest', true);
+  if (name === 'pytest.ini' || name === '.pytest.ini') return ini('pytest', true);
+  if (name === 'pyproject.toml') return toml('tool', false);
+  if (name === 'tox.ini' || name.endsWith('.ini')) return ini('pytest', false);
+  if (name === 'setup.cfg' || name.endsWith('.cfg')) return ini('tool:pytest', false);
+  if (name.endsWith('.toml')) {
+    const tool = toml('tool', false);
+    return tool.holdsConfig ? tool : toml('pytest', false);
+  }
+  return { path, holdsConfig: false, options };
+}
+
+/** A pytest command Cejel read: where it is, the directory it runs in, and its words after pytest. */
+interface PytestInvocation {
+  /** The file it is in, as A1's note names it; undefined for the plain `pytest` run at the root. */
+  readonly source?: string;
+  readonly directory: string;
+  readonly args: readonly string[];
+  /** PYTEST_ADDOPTS in force for it, as words, if any. */
+  readonly addopts?: readonly string[];
+}
+
+/** One group of pytest flags, with where A1's note says they are set. */
+interface PytestFlagGroup {
+  readonly words: readonly string[];
+  readonly where: string;
+}
+
+// pytest options (and common plugins') that take a value as the next word.
+const PYTEST_OPTIONS_WITH_VALUE = new Set([
+  '-p', '-o', '-c', '-k', '-m', '-n', '-W', '-r',
+  '--override-ini', '--config-file', '--rootdir', '--confcutdir', '--ignore', '--ignore-glob', '--deselect',
+  '--basetemp', '--tb', '--maxfail', '--durations', '--durations-min', '--log-level', '--log-file',
+  '--log-cli-level', '--log-format', '--log-date-format', '--log-file-level', '--log-file-format',
+  '--junitxml', '--junit-xml', '--junit-prefix', '--import-mode', '--capture', '--color', '--code-highlight',
+  '--pythonwarnings', '--cov', '--cov-report', '--cov-config', '--cov-fail-under', '--cov-context', '--html',
+  '--timeout', '--dist', '--numprocesses', '--maxprocesses', '--reruns', '--reruns-delay', '--only-rerun',
+  '--randomly-seed', '--report-log', '--json-report-file', '--alluredir', '--benchmark-json', '--doctest-glob',
+  '--asyncio-mode', '--ds', '--dc', '--hypothesis-profile', '--hypothesis-seed', '--splits', '--group',
+  '--assert', '--debug', '--setup-plan',
+]);
+
+/** pytest's words read as Cejel needs them. */
+interface PytestArguments {
+  readonly paths: string[];
+  readonly options: { readonly name: string; readonly value?: string }[];
+  readonly pyargs: boolean;
+}
+
+function readPytestArguments(words: readonly string[]): PytestArguments {
+  const paths: string[] = [];
+  const options: { name: string; value?: string }[] = [];
+  let pyargs = false;
+  for (let index = 0; index < words.length; index += 1) {
+    const word = words[index] ?? '';
+    if (word === '--') {
+      paths.push(...words.slice(index + 1));
+      break;
+    }
+    if (!word.startsWith('-') || word === '-') {
+      paths.push(word);
+      continue;
+    }
+    if (word === '--pyargs') pyargs = true;
+    const equals = word.startsWith('--') ? word.indexOf('=') : -1;
+    if (equals > 0) {
+      options.push({ name: word.slice(0, equals), value: word.slice(equals + 1) });
+      continue;
+    }
+    if (PYTEST_OPTIONS_WITH_VALUE.has(word)) {
+      options.push({ name: word, value: words[index + 1] });
+      index += 1;
+      continue;
+    }
+    // A short option with its value attached (`-pno:skipping`, `-ofoo=bar`, `-cfile.ini`).
+    const attached = /^-([pockmnWr])(.+)$/.exec(word);
+    if (attached) {
+      options.push({ name: `-${attached[1]}`, value: attached[2] });
+      continue;
+    }
+    options.push({ name: word });
+  }
+  return { paths, options, pyargs };
+}
+
+/**
+ * The repository's pytest settings, read per file from the pytest runs that collect it (see the
+ * section comment). Linear in the configuration, CI, recipe and tox files.
+ */
+function readPytestCollectionSettings(repoPath: string, repoFiles: readonly string[]): PytestCollectionSettings {
+  const configs = new Map<string, PytestConfigFile>();
+  const fileSet = new Set(repoFiles);
+  const directories = new Set<string>(['']);
+  for (const file of repoFiles) {
+    for (let directory = repoDirectory(file); directory !== ''; directory = repoDirectory(directory)) {
+      if (directories.has(directory)) break;
+      directories.add(directory);
+    }
+  }
+  const readText = (file: string): string | undefined => {
+    const fullPath = join(repoPath, file);
+    return isRegularFile(fullPath) ? readRepoText(fullPath, 'utf8') : undefined;
+  };
+  const configAt = (file: string): PytestConfigFile | undefined => {
+    if (!fileSet.has(file) || GENERATED_OR_VENDOR_PATH_PATTERN.test(file)) return undefined;
+    let config = configs.get(file);
+    if (config === undefined) {
+      const text = readText(file);
+      if (text === undefined) return undefined;
+      config = readPytestConfigFile(file, text);
+      configs.set(file, config);
+    }
+    return config;
+  };
+  const invocations = readPytestInvocations(repoFiles, readText);
+  const runs = invocations
+    .map((invocation) => resolvePytestRun(invocation, { fileSet, directories, configAt }))
+    .filter((run): run is ResolvedPytestRun => run !== undefined);
+  const cache = new Map<string, PytestFileSettings>();
+  return {
+    forFile: (file) => {
+      const cached = cache.get(file);
+      if (cached) return cached;
+      const collecting = runs.filter((run) => run.collects(file));
+      const settings: PytestFileSettings = {
+        ...firstDefined(collecting.map((run) => run.pythonFiles), 'pythonFiles'),
+        ...firstDefined(collecting.map((run) => run.testNames), 'testNames'),
+        ...firstDefined(collecting.map((run) => run.disablesSkipping), 'disablesSkipping'),
+        hookNotLoaded: (hookPath, scope) => {
+          for (const run of collecting) {
+            const reason = run.hookNotLoaded(hookPath, scope);
+            if (reason !== undefined) return reason;
+          }
+          return undefined;
+        },
+      };
+      cache.set(file, settings);
+      return settings;
+    },
+  };
+}
+
+function firstDefined<K extends string>(
+  sources: readonly (PytestSettingSource | undefined)[],
+  key: K,
+): { [key in K]?: PytestSettingSource } {
+  const found = sources.find((source) => source !== undefined);
+  return (found === undefined ? {} : { [key]: found }) as { [key in K]?: PytestSettingSource };
+}
+
+/** A pytest run as pytest would set it up. */
+interface ResolvedPytestRun {
+  readonly collects: (file: string) => boolean;
+  readonly pythonFiles?: PytestSettingSource;
+  readonly testNames?: PytestSettingSource;
+  readonly disablesSkipping?: PytestSettingSource;
+  readonly hookNotLoaded: (hookPath: string, scope: string) => string | undefined;
+}
+
+interface PytestRepositoryView {
+  readonly fileSet: ReadonlySet<string>;
+  readonly directories: ReadonlySet<string>;
+  readonly configAt: (file: string) => PytestConfigFile | undefined;
+}
+
+/**
+ * How pytest 9 sets up one run (findpaths.determine_setup, Config._decide_args and confcutdir),
+ * or undefined where Cejel cannot read the run whole.
+ */
+function resolvePytestRun(invocation: PytestInvocation, repo: PytestRepositoryView): ResolvedPytestRun | undefined {
+  const { directory } = invocation;
+  const commandWhere = `on a pytest command line in ${a1NotePath(invocation.source ?? '')}`;
+  const groups: PytestFlagGroup[] = [];
+  if (invocation.addopts && invocation.addopts.length > 0) {
+    groups.push({ words: invocation.addopts, where: `in PYTEST_ADDOPTS in ${a1NotePath(invocation.source ?? '')}` });
+  }
+  if (invocation.args.length > 0) groups.push({ words: invocation.args, where: commandWhere });
+  const parsed = groups.map((group) => ({ group, read: readPytestArguments(group.words) }));
+  if (parsed.some(({ read }) => read.pyargs)) return undefined;
+  const option = (name: string, alias?: string) => {
+    let found: { value?: string; where: string } | undefined;
+    for (const { group, read } of parsed) {
+      for (const entry of read.options) {
+        if (entry.name === name || entry.name === alias) found = { value: entry.value, where: group.where };
+      }
+    }
+    return found;
+  };
+  // Path arguments: each must resolve to a path in the repository.
+  const paths: string[] = [];
+  for (const { read } of parsed) {
+    for (const word of read.paths) {
+      const resolved = resolveCommandPath(directory, word.split('::')[0] ?? '');
+      if (resolved === null) return undefined;
+      if (repo.fileSet.has(resolved) || repo.directories.has(resolved)) paths.push(resolved);
+    }
+  }
+  const pathDirectories = [...new Set(paths.map((path) => (repo.fileSet.has(path) ? repoDirectory(path) : path)))];
+  const ancestor = commonRepoAncestor(pathDirectories) ?? directory;
+  const rootdirOption = option('--rootdir');
+  const configOption = option('-c', '--config-file');
+  let config: PytestConfigFile | undefined;
+  let rootdir: string | undefined;
+  if (configOption !== undefined) {
+    const path = resolveCommandPath(directory, configOption.value ?? '');
+    if (path === null) return undefined;
+    config = repo.configAt(path);
+    if (config === undefined) return undefined;
+    rootdir = repoDirectory(path);
+  } else {
+    const located = locatePytestConfig([ancestor], repo) ?? (pathDirectories.length > 1 ? locatePytestConfig(pathDirectories, repo) : undefined);
+    if (located !== undefined) {
+      config = located;
+      rootdir = repoDirectory(located.path);
+    } else if (rootdirOption === undefined) {
+      for (let at = ancestor; ; at = repoDirectory(at)) {
+        if (repo.fileSet.has(at === '' ? 'setup.py' : `${at}/setup.py`)) {
+          rootdir = at;
+          break;
+        }
+        if (at === '') break;
+      }
+      rootdir ??= commonRepoAncestor([directory, ancestor]) ?? '';
+    }
+  }
+  let rootdirWhere: string | undefined;
+  if (rootdirOption !== undefined) {
+    const path = resolveCommandPath(directory, rootdirOption.value ?? '');
+    if (path === null) return undefined;
+    rootdir = path;
+    rootdirWhere = rootdirOption.where;
+  }
+  // The configuration's own options, then its addopts as flags, then -o overrides from any group.
+  const configWhere = config === undefined ? '' : `set in ${a1NotePath(config.path)}`;
+  const values = new Map<string, { value: PytestOptionValue; where: string }>();
+  for (const [key, value] of config?.options ?? []) values.set(key, { value, where: configWhere });
+  const addopts = values.get('addopts');
+  if (addopts !== undefined) {
+    const words = addopts.value.kind === 'list' ? addopts.value.items : shellWords(addopts.value.text);
+    const read = readPytestArguments(words);
+    parsed.unshift({ group: { words, where: configWhere }, read });
+  }
+  for (const { group, read } of parsed) {
+    for (const entry of read.options) {
+      if ((entry.name === '-o' || entry.name === '--override-ini') && entry.value !== undefined) {
+        const equals = entry.value.indexOf('=');
+        if (equals > 0) {
+          values.set(entry.value.slice(0, equals).trim(), {
+            value: { kind: 'text', text: entry.value.slice(equals + 1) },
+            where: group.where,
+          });
+        }
+      }
+    }
+  }
+  const flag = (test: (entry: { name: string; value?: string }) => boolean, setting: string): PytestSettingSource | undefined => {
+    let found: PytestSettingSource | undefined;
+    for (const { group, read } of parsed) {
+      if (read.options.some(test)) found ??= { setting, where: group.where };
+    }
+    return found;
+  };
+  const noConftest = flag(({ name }) => name === '--noconftest', '--noconftest');
+  const disablesSkipping = flag(({ name, value }) => name === '-p' && value === 'no:skipping', '-p no:skipping');
+  // confcutdir: the option (from any group, the last one wins), else the configuration file's
+  // directory, else the root.
+  let confcutdirOption: { value?: string; where: string } | undefined;
+  for (const { group, read } of parsed) {
+    for (const entry of read.options) if (entry.name === '--confcutdir') confcutdirOption = { value: entry.value, where: group.where };
+  }
+  let confcutdir: string;
+  let confcutdirReason: (hookPath: string) => string;
+  if (confcutdirOption !== undefined) {
+    const path = resolveCommandPath(directory, confcutdirOption.value ?? '');
+    if (path === null) return undefined;
+    confcutdir = path;
+    confcutdirReason = () => `--confcutdir ${confcutdirOption?.where ?? ''}`;
+  } else if (config !== undefined) {
+    confcutdir = repoDirectory(config.path);
+    const shown = a1NotePath(config.path);
+    confcutdirReason = (hookPath) =>
+      `${shown} is pytest's configuration for the pytest command line in ${a1NotePath(invocation.source ?? '')}, so it does not load ${a1NotePath(hookPath)}`;
+  } else {
+    confcutdir = rootdir ?? '';
+    confcutdirReason = (hookPath) =>
+      rootdirWhere !== undefined
+        ? `--rootdir ${rootdirWhere}`
+        : `pytest's root is ${confcutdir === '' ? 'the repository root' : a1NotePath(confcutdir)} for the pytest command line in ${a1NotePath(invocation.source ?? '')}, so it does not load ${a1NotePath(hookPath)}`;
+  }
+  // What the run collects: its paths, else testpaths where it runs in its root, else its directory.
+  let targets = paths;
+  if (parsed.every(({ read }) => read.paths.length === 0)) {
+    targets = [];
+    const testpaths = values.get('testpaths');
+    if (directory === rootdir && testpaths !== undefined) {
+      const patterns = optionWords(testpaths.value);
+      if (patterns === undefined) return undefined;
+      for (const pattern of patterns) {
+        // A glob is read as the directory holding its first glob character: a superset of its matches.
+        const glob = pattern.search(/[*?[]/);
+        const literal = glob === -1 ? pattern : pattern.slice(0, glob).replace(/[^/]*$/, '');
+        const resolved = resolveCommandPath(rootdir, literal === '' ? '.' : literal);
+        if (resolved !== null && (repo.fileSet.has(resolved) || repo.directories.has(resolved))) targets.push(resolved);
+      }
+    }
+    if (targets.length === 0) targets = [directory];
+  }
+  const ignores: string[] = [];
+  for (const { read } of parsed) {
+    for (const entry of read.options) {
+      if (entry.name !== '--ignore' || entry.value === undefined) continue;
+      const resolved = resolveCommandPath(directory, entry.value);
+      if (resolved !== null) ignores.push(resolved);
+    }
+  }
+  const pythonFilesValue = values.get('python_files');
+  const pythonFilesPatterns = pythonFilesValue === undefined ? undefined : optionWords(pythonFilesValue.value);
+  const pythonFiles =
+    pythonFilesValue !== undefined && (pythonFilesPatterns === undefined || pythonFilesPatterns.some(pythonFilesPatternMayMatchConftest))
+      ? { setting: 'python_files', where: pythonFilesValue.where }
+      : undefined;
+  let testNames: PytestSettingSource | undefined;
+  for (const name of ['python_functions', 'python_classes']) {
+    const entry = values.get(name);
+    if (entry === undefined || testNames !== undefined) continue;
+    const patterns = optionWords(entry.value);
+    if (patterns === undefined || patterns.some(pytestNamePatternReachesBeyondTest)) testNames = { setting: name, where: entry.where };
+  }
+  return {
+    collects: (file) => targets.some((target) => isAtOrBelow(file, target)) && !ignores.some((ignored) => isAtOrBelow(file, ignored)),
+    ...(pythonFiles === undefined ? {} : { pythonFiles }),
+    ...(testNames === undefined ? {} : { testNames }),
+    ...(disablesSkipping === undefined ? {} : { disablesSkipping }),
+    hookNotLoaded: (hookPath, scope) => {
+      if (noConftest !== undefined) return pytestSettingReason(noConftest);
+      // pytest loads no conftest.py from a directory strictly above its confcutdir (_is_in_confcutdir).
+      return isStrictAncestorDirectory(scope, confcutdir) ? confcutdirReason(hookPath) : undefined;
+    },
+  };
+}
+
+/** An option's value as whitespace-separated words, or undefined for a value Cejel did not parse. */
+function optionWords(value: PytestOptionValue): string[] | undefined {
+  if (value.kind === 'unknown') return undefined;
+  return (value.kind === 'text' ? [value.text] : value.items).flatMap((item) => item.split(/\s+/)).filter((item) => item !== '');
+}
+
+/** The deepest directory every given repository-relative directory is at or below, or undefined for none. */
+function commonRepoAncestor(paths: readonly string[]): string | undefined {
+  if (paths.length === 0) return undefined;
+  let common = paths[0] ?? '';
+  for (const path of paths.slice(1)) {
+    while (!isAtOrBelow(path, common)) common = repoDirectory(common);
+  }
+  return common;
+}
+
+/**
+ * pytest's locate_config over repository directories: each directory and its parents, the first
+ * configuration file that holds pytest's configuration, in pytest's order; failing that, the first
+ * pyproject.toml found (pytest then roots there with no options).
+ */
+function locatePytestConfig(starts: readonly string[], repo: PytestRepositoryView): PytestConfigFile | undefined {
+  let firstPyproject: PytestConfigFile | undefined;
+  for (const start of starts) {
+    for (let at = start; ; at = repoDirectory(at)) {
+      for (const name of PYTEST_CONFIG_FILE_NAMES) {
+        const config = repo.configAt(at === '' ? name : `${at}/${name}`);
+        if (config === undefined) continue;
+        if (name === 'pyproject.toml') firstPyproject ??= config;
+        if (config.holdsConfig) return config;
+      }
+      if (at === '') break;
+    }
+  }
+  return firstPyproject === undefined ? undefined : { path: firstPyproject.path, holdsConfig: true, options: new Map() };
+}
+
+/**
+ * Shell text a CI configuration runs: `run:` steps (extractCiRunCommands), the values of the
+ * script-family keys (inline, block scalar or block sequence), and a Jenkinsfile's one-line `sh`
+ * steps. Linear in the file.
+ */
+function ciShellTexts(contents: string): string[] {
+  const texts = extractCiRunCommands(contents);
+  const lines = contents.split(/\r?\n/);
+  for (let index = 0; index < lines.length; index += 1) {
+    const match = CI_SCRIPT_KEY_PATTERN.exec(lines[index] ?? '');
+    if (!match) continue;
+    const indent = match[1]?.length ?? 0;
+    const value = (match[2] ?? '').trim();
+    if (value !== '' && !/^[|>]/.test(value)) {
+      texts.push(unquoteYamlListItem(value.replace(/^\[(.*)\]$/, '$1')));
+      continue;
+    }
+    for (index += 1; index < lines.length; index += 1) {
+      const nested = lines[index] ?? '';
+      if (nested.trim() === '') continue;
+      if (nested.length - nested.trimStart().length <= indent) {
+        index -= 1;
+        break;
+      }
+      const item = nested.trim().replace(/^-[ \t]*/, '').replace(/^[|>][-+]?$/, '');
+      if (item !== '') texts.push(unquoteYamlListItem(item));
+    }
+  }
+  for (const match of contents.matchAll(/\bsh[ \t]*\(?[ \t]*(['"])([^'"\n]*)\1/g)) texts.push(match[2] ?? '');
+  return texts;
+}
+
+/** A YAML scalar with its one pair of enclosing quotes removed, if it has them. */
+function unquoteYamlListItem(value: string): string {
+  const quoted = /^(?:"(.*)"|'(.*)')$/.exec(value);
+  return quoted ? (quoted[1] ?? quoted[2] ?? '') : value;
+}
+
+/**
+ * The entries of one section of an ini-style file, as pytest's ini reader takes them: a line
+ * starting `#` or `;` is a comment, a line starting with whitespace continues the previous value,
+ * and a key ends at its first `=` or `:`. `outside` holds the other non-comment lines (tox's
+ * commands). Linear in the file.
+ */
+function readIniSection(
+  text: string,
+  section: string,
+): { present: boolean; entries: [string, string][]; outside: string[] } {
+  let present = false;
+  let current: string | undefined;
+  let last: [string, string] | undefined;
+  const entries: [string, string][] = [];
+  const outside: string[] = [];
+  for (const raw of text.split(/\r?\n/)) {
+    const trimmed = raw.trim();
+    if (trimmed === '' || trimmed.startsWith('#') || trimmed.startsWith(';')) continue;
+    if (raw.startsWith('[')) {
+      const close = raw.indexOf(']');
+      current = close === -1 ? undefined : raw.slice(1, close).trim();
+      last = undefined;
+      if (current === section) present = true;
+      continue;
+    }
+    if (current !== section) {
+      outside.push(trimmed);
+      continue;
+    }
+    if (/^[ \t]/.test(raw)) {
+      if (last) last[1] = `${last[1]}\n${trimmed}`;
+      continue;
+    }
+    const match = /^([^=:]+)[=:](.*)$/.exec(raw);
+    last = match ? [(match[1] ?? '').trim(), (match[2] ?? '').trim()] : undefined;
+    if (last) entries.push(last);
+  }
+  return { present, entries, outside };
+}
+
+/**
+ * pytest's options in pyproject.toml: under [tool.pytest.ini_options], or pytest 9's native
+ * [tool.pytest], however the key is dotted. Comments are not read; an array or a multi-line string
+ * runs to its end. An inline table naming one of the options counts it as set to a value Cejel did
+ * not parse. Linear in the file.
+ */
+function readPyprojectPytestSettings(
+  text: string,
+  // 'tool' for pyproject.toml's [tool.pytest] and [tool.pytest.ini_options]; 'pytest' for pytest.toml's [pytest].
+  root: 'tool' | 'pytest' = 'tool',
+): { present: boolean; entries: [string, PytestOptionValue][] } {
+  const lines = text.split(/\r?\n/);
+  const entries: [string, PytestOptionValue][] = [];
+  let present = false;
+  let table: string[] = [];
+  for (let index = 0; index < lines.length; index += 1) {
+    const trimmed = (lines[index] ?? '').trim();
+    if (trimmed === '' || trimmed.startsWith('#')) continue;
+    const header = /^\[\[?([^\]]*)\]\]?/.exec(trimmed);
+    if (header) {
+      table = tomlKeyPath(header[1] ?? '');
+      if (pytestTomlOptionPath(table, root)?.length === 0) present = true;
+      continue;
+    }
+    const equals = tomlKeyEnd(trimmed);
+    if (equals === -1) continue;
+    const scanner = new TomlValueScanner();
+    scanner.feed(trimmed.slice(equals + 1));
+    while (!scanner.complete() && index + 1 < lines.length) {
+      index += 1;
+      scanner.feed(`\n${lines[index] ?? ''}`);
+    }
+    const path = [...table, ...tomlKeyPath(trimmed.slice(0, equals))];
+    const rest = pytestTomlOptionPath(path, root);
+    if (rest === undefined || rest.length > 1) continue;
+    present = true;
+    const value = scanner.value();
+    if (rest.length === 1) {
+      entries.push([rest[0] ?? '', value]);
+      continue;
+    }
+    for (const name of PYTEST_A1_OPTION_NAMES) {
+      if (containsPythonIdentifier(scanner.code(), name)) entries.push([name, { kind: 'unknown', text: value.kind === 'unknown' ? value.text : '' }]);
+    }
+  }
+  return { present, entries };
+}
+
+/** The part of a TOML key path below pytest's table, or undefined outside it. */
+function pytestTomlOptionPath(path: readonly string[], root: 'tool' | 'pytest'): string[] | undefined {
+  if (root === 'pytest') return path[0] === 'pytest' ? path.slice(1) : undefined;
+  if (path[0] !== 'tool' || path[1] !== 'pytest') return undefined;
+  return path[2] === 'ini_options' ? path.slice(3) : path.slice(2);
+}
+
+/** A TOML key's dotted path, each part unquoted. */
+function tomlKeyPath(key: string): string[] {
+  return key
+    .split('.')
+    .map((part) => part.trim().replace(/^"(.*)"$|^'(.*)'$/, '$1$2'))
+    .filter((part) => part !== '');
+}
+
+/** The index of a TOML key line's `=`, outside quotes, or -1. */
+function tomlKeyEnd(line: string): number {
+  let quote: string | undefined;
+  for (let index = 0; index < line.length; index += 1) {
+    const character = line[index];
+    if (quote !== undefined) {
+      if (character === quote) quote = undefined;
+    } else if (character === '"' || character === "'") {
+      quote = character;
+    } else if (character === '=') {
+      return index;
+    }
+  }
+  return -1;
+}
+
+/**
+ * Reads a TOML value fed in chunks: its strings (basic, literal and multi-line), the code outside
+ * strings and comments, and whether every bracket and string has closed. Linear in what it is fed.
+ */
+class TomlValueScanner {
+  private quote: '"' | "'" | '"""' | "'''" | undefined;
+  private escaped = false;
+  private comment = false;
+  private depth = 0;
+  private current = '';
+  private readonly strings: string[] = [];
+  private outside = '';
+
+  feed(chunk: string): void {
+    for (let index = 0; index < chunk.length; index += 1) {
+      const character = chunk[index] ?? '';
+      if (this.comment) {
+        if (character === '\n') this.comment = false;
+        continue;
+      }
+      if (this.quote !== undefined) {
+        if (this.escaped) {
+          this.current += character;
+          this.escaped = false;
+          continue;
+        }
+        if (character === '\\' && (this.quote === '"' || this.quote === '"""')) {
+          this.escaped = true;
+          continue;
+        }
+        if (chunk.startsWith(this.quote, index)) {
+          this.strings.push(this.current);
+          this.current = '';
+          index += this.quote.length - 1;
+          this.quote = undefined;
+          continue;
+        }
+        this.current += character;
+        continue;
+      }
+      if (character === '#') {
+        this.comment = true;
+        continue;
+      }
+      if (character === '"' || character === "'") {
+        const triple = character.repeat(3);
+        this.quote = chunk.startsWith(triple, index) ? (triple as '"""' | "'''") : character;
+        index += this.quote.length - 1;
+        continue;
+      }
+      if (character === '[' || character === '{') this.depth += 1;
+      else if (character === ']' || character === '}') this.depth -= 1;
+      this.outside += character;
+    }
+  }
+
+  complete(): boolean {
+    return this.quote === undefined && this.depth <= 0;
+  }
+
+  code(): string {
+    return this.outside;
+  }
+
+  value(): PytestOptionValue {
+    const code = this.outside.trim();
+    if (code.startsWith('[') && /^\[[\s,]*\]$/.test(code.replace(/[^\[\],\s]/g, ''))) {
+      return { kind: 'list', items: this.strings };
+    }
+    if (code === '' && this.strings.length === 1) return { kind: 'text', text: this.strings[0] ?? '' };
+    return { kind: 'unknown', text: this.strings.join(' ') };
+  }
+}
+
+/**
+ * True when a python_files pattern may match conftest.py: its last path part, matched as Python's
+ * fnmatch does and case-insensitively (so it errs towards withholding).
+ */
+function pythonFilesPatternMayMatchConftest(pattern: string): boolean {
+  const last = pattern.slice(Math.max(pattern.lastIndexOf('/'), pattern.lastIndexOf('\\')) + 1);
+  return fnmatchWhole(last.toLowerCase(), 'conftest.py');
+}
+
+/**
+ * True when a python_functions or python_classes pattern may reach a name that does not start with
+ * test or Test, which the Python per-test reader does not read as a test. pytest takes a pattern as a
+ * prefix, or as a glob where it holds a glob character, so its literal start decides.
+ */
+function pytestNamePatternReachesBeyondTest(pattern: string): boolean {
+  const glob = pattern.search(/[*?[]/);
+  const literal = glob === -1 ? pattern : pattern.slice(0, glob);
+  return !literal.startsWith('test') && !literal.startsWith('Test');
+}
+
+/**
+ * Python's fnmatch over a whole name: `*` any run, `?` one character, `[seq]` and `[!seq]` a set
+ * (with ranges; an unclosed `[` is literal). Dynamic programming, linear in pattern times name.
+ */
+function fnmatchWhole(pattern: string, name: string): boolean {
+  let reach = new Array<boolean>(name.length + 1).fill(false);
+  reach[0] = true;
+  let index = 0;
+  while (index < pattern.length) {
+    const character = pattern[index] ?? '';
+    const next = new Array<boolean>(name.length + 1).fill(false);
+    if (character === '*') {
+      let any = false;
+      for (let at = 0; at <= name.length; at += 1) {
+        any ||= reach[at] === true;
+        next[at] = any;
+      }
+      index += 1;
+    } else {
+      let test: (candidate: string) => boolean = (candidate) => candidate === character;
+      let width = 1;
+      if (character === '?') {
+        test = () => true;
+      } else if (character === '[') {
+        let end = index + 1;
+        if (pattern[end] === '!') end += 1;
+        if (pattern[end] === ']') end += 1;
+        while (end < pattern.length && pattern[end] !== ']') end += 1;
+        if (end < pattern.length) {
+          const negate = pattern[index + 1] === '!';
+          const body = pattern.slice(index + (negate ? 2 : 1), end);
+          test = (candidate) => {
+            let inSet = false;
+            for (let at = 0; at < body.length; at += 1) {
+              const low = body[at] ?? '';
+              if (body[at + 1] === '-' && at + 2 < body.length) {
+                const high = body[at + 2] ?? '';
+                if (candidate >= low && candidate <= high) inSet = true;
+                at += 2;
+              } else if (candidate === low) {
+                inSet = true;
+              }
+            }
+            return inSet !== negate;
+          };
+          width = end - index + 1;
+        }
+      }
+      for (let at = 0; at < name.length; at += 1) {
+        if (reach[at] && test(name[at] ?? '')) next[at + 1] = true;
+      }
+      index += width;
+    }
+    reach = next;
+  }
+  return reach[name.length] === true;
+}
+
+// ---- The pytest commands a repository runs (fix pass after the #626 review, items B and D) ----
+
+/** A command read from shell text: its words, the directory it runs in (null: unknown) and PYTEST_ADDOPTS in force. */
+type ShellCommandVisitor = (words: readonly string[], directory: string | null, addopts: readonly string[] | undefined) => void;
+
+/** Shell text with each heredoc's body removed: it is the command's input, not commands. */
+function stripShellHeredocBodies(text: string): string {
+  const lines = text.split('\n');
+  const kept: string[] = [];
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index] ?? '';
+    kept.push(line);
+    const heredoc = /(?<!<)<<-?[ \t]*(['"]?)([A-Za-z_][\w-]*)\1/.exec(line);
+    if (!heredoc) continue;
+    const terminator = heredoc[2] ?? '';
+    for (index += 1; index < lines.length && (lines[index] ?? '').trim() !== terminator; index += 1);
+  }
+  return kept.join('\n');
+}
+
+/**
+ * Visits each command in shell text, tracking `cd`/`pushd` and `export PYTEST_ADDOPTS=...` across
+ * the commands that follow, and a leading `PYTEST_ADDOPTS=...` for its own command. Comments,
+ * heredoc bodies and quoted text are not commands. Linear in the text.
+ */
+function readShellCommands(
+  text: string,
+  directory: string | null,
+  addopts: readonly string[] | undefined,
+  visit: ShellCommandVisitor,
+): void {
+  let current = directory;
+  let exported = addopts;
+  const joined = stripShellHeredocBodies(text).replace(/\\\r?\n/g, ' ');
+  for (const segment of splitShellCommandSegments(joined)) {
+    const all = shellWords(segment.trim());
+    // A subshell or group opener, and make's @, - or + prefix, are not part of the command's name.
+    let start = 0;
+    while (start < all.length && /^[({]+$/.test(all[start] ?? '')) start += 1;
+    if (start >= all.length) continue;
+    all[start] = (all[start] ?? '').replace(/^[({]+/, '').replace(/^[@+-]+(?=[A-Za-z./{$])/, '');
+    let local = exported;
+    // Leading assignments, read by index: shifting each off would be quadratic in their number.
+    while (start < all.length && /^[A-Za-z_]\w*=/.test(all[start] ?? '')) {
+      const assignment = all[start] ?? '';
+      if (assignment.startsWith(PYTEST_ADDOPTS_ASSIGNMENT)) local = shellWords(assignment.slice(PYTEST_ADDOPTS_ASSIGNMENT.length));
+      start += 1;
+    }
+    const words = start === 0 ? all : all.slice(start);
+    if (words.length === 0) {
+      exported = local;
+      continue;
+    }
+    const name = words[0] ?? '';
+    if (name === 'export') {
+      for (const word of words.slice(1)) {
+        if (word.startsWith(PYTEST_ADDOPTS_ASSIGNMENT)) exported = shellWords(word.slice(PYTEST_ADDOPTS_ASSIGNMENT.length));
+      }
+      continue;
+    }
+    if (name === 'cd' || name === 'pushd') {
+      const target = words[1];
+      current = current === null || target === undefined || target === '-' ? null : resolveCommandPath(current, target);
+      continue;
+    }
+    if (name === 'popd') {
+      current = null;
+      continue;
+    }
+    visit(words, current, local);
+  }
+}
+
+const PYTHON_INTERPRETER_PATTERN = /^(?:python(?:\d+(?:\.\d+)*)?|pypy\d*(?:\.\d+)?|py)(?:\.exe)?$/i;
+// `{envpython}` (tox) or a make or shell variable naming a Python (`$(PYTHON)`, `${PY}`, `$PYTHON`).
+const PYTHON_INTERPRETER_VARIABLE_PATTERN = /^(?:\{envpython\}|\$[({]?[A-Za-z_]*PY[A-Za-z_]*[)}]?)$/i;
+// Runner options that take a value as the next word (uv run, pipx run, pdm run, hatch run).
+const RUNNER_OPTIONS_WITH_VALUE = new Set([
+  '--with', '--with-editable', '--with-requirements', '--python', '-p', '--extra', '--group', '--only-group',
+  '--no-group', '--package', '--project', '--directory', '--env-file', '--index', '--default-index',
+  '--index-url', '--extra-index-url', '--find-links', '-f', '--python-platform', '-w', '--spec', '--isolated-env',
+]);
+
+/**
+ * pytest's words, when a command runs pytest: `pytest`/`py.test` (any path), `python -m pytest`,
+ * `coverage run -m pytest`, or one of those through `uv run`, `poetry run`, `pdm run`,
+ * `pipenv run`, `rye run`, `hatch run`, `pipx run`, `exec`, `time`, `command`, `nice` or `env`.
+ * pytest named as another command's argument (`echo pytest`, `pip install pytest`) is not a run.
+ * `directory` is set where the runner changes it (`uv run --directory`).
+ */
+function pytestCommandArguments(
+  words: readonly string[],
+  depth = 0,
+): { args: readonly string[]; directory?: string; addopts?: readonly string[] } | undefined {
+  if (depth > 4) return undefined;
+  let index = 0;
+  let addopts: readonly string[] | undefined;
+  for (;;) {
+    const word = words[index] ?? '';
+    if (word === 'exec' || word === 'time' || word === 'command' || word === 'nice' || word === 'nohup') {
+      index += 1;
+      while ((words[index] ?? '').startsWith('-')) index += 1;
+      continue;
+    }
+    if (word === 'env') {
+      index += 1;
+      while ((words[index] ?? '').startsWith('-') || /^[A-Za-z_]\w*=/.test(words[index] ?? '')) {
+        const assignment = words[index] ?? '';
+        if (assignment.startsWith(PYTEST_ADDOPTS_ASSIGNMENT)) addopts = shellWords(assignment.slice(PYTEST_ADDOPTS_ASSIGNMENT.length));
+        index += 1;
+      }
+      continue;
+    }
+    break;
+  }
+  const head = words[index] ?? '';
+  const name = basename(head.replace(/\\/g, '/'));
+  const rest = words.slice(index + 1);
+  const withAddopts = <T extends object>(found: T | undefined): (T & { addopts?: readonly string[] }) | undefined =>
+    found === undefined ? undefined : addopts === undefined ? found : { addopts, ...found };
+  if (PYTEST_EXECUTABLE_PATTERN.test(name)) return withAddopts({ args: rest });
+  const moduleArgs = (after: readonly string[]): readonly string[] | undefined => {
+    for (let at = 0; at < after.length; at += 1) {
+      const option = after[at] ?? '';
+      if (option === '-m' && after[at + 1] === 'pytest') return after.slice(at + 2);
+      if (option === '-mpytest') return after.slice(at + 1);
+      if (option === '-c' || !option.startsWith('-')) return undefined;
+      if (option === '-X' || option === '-W') at += 1;
+    }
+    return undefined;
+  };
+  if (PYTHON_INTERPRETER_PATTERN.test(name) || PYTHON_INTERPRETER_VARIABLE_PATTERN.test(head)) {
+    const args = moduleArgs(rest);
+    return args === undefined ? undefined : withAddopts({ args });
+  }
+  if (name === 'coverage' && rest[0] === 'run') {
+    for (let at = 1; at < rest.length; at += 1) {
+      if (rest[at] === '-m') return rest[at + 1] === 'pytest' ? withAddopts({ args: rest.slice(at + 2) }) : undefined;
+      if (!(rest[at] ?? '').startsWith('-')) return undefined;
+      if (/^--(?:source|rcfile|omit|include|data-file|context|concurrency)$/.test(rest[at] ?? '')) at += 1;
+    }
+    return undefined;
+  }
+  const runner = ['uv', 'poetry', 'pdm', 'pipenv', 'rye', 'hatch', 'pipx'].includes(name) && rest[0] === 'run';
+  if (!runner) return undefined;
+  let at = 1;
+  let directory: string | undefined;
+  while ((rest[at] ?? '').startsWith('-')) {
+    const option = rest[at] ?? '';
+    if (option === '-m' || option === '--module') {
+      return rest[at + 1] === 'pytest' ? withAddopts({ args: rest.slice(at + 2), ...(directory === undefined ? {} : { directory }) }) : undefined;
+    }
+    const equals = option.indexOf('=');
+    const optionName = equals > 0 ? option.slice(0, equals) : option;
+    const value = equals > 0 ? option.slice(equals + 1) : RUNNER_OPTIONS_WITH_VALUE.has(option) ? rest[at + 1] : undefined;
+    if (optionName === '--directory') directory = value ?? '';
+    at += equals > 0 || !RUNNER_OPTIONS_WITH_VALUE.has(option) ? 1 : 2;
+  }
+  const inner = pytestCommandArguments(rest.slice(at), depth + 1);
+  if (inner === undefined) return undefined;
+  return withAddopts({ ...inner, ...(directory === undefined ? {} : { directory }) });
+}
+
+/** The names a `make`, `gmake` or `just` command asks for, or [] for another command. */
+function recipeTargetsNamed(words: readonly string[]): string[] {
+  const name = basename(words[0] ?? '');
+  if (name !== 'make' && name !== 'gmake' && name !== 'just' && !/^\$[({]MAKE[)}]$/.test(words[0] ?? '')) return [];
+  const targets: string[] = [];
+  for (let index = 1; index < words.length; index += 1) {
+    const word = words[index] ?? '';
+    if (/^-[Cf]$|^--(?:directory|file|makefile|justfile|working-directory)$/.test(word)) index += 1;
+    else if (!word.startsWith('-') && !word.includes('=')) targets.push(word);
+  }
+  return targets;
+}
+
+/** The environments a `tox` command asks for with -e / --env, or []. */
+function toxEnvironmentsNamed(words: readonly string[]): string[] {
+  if (basename(words[0] ?? '') !== 'tox') return [];
+  const names: string[] = [];
+  for (let index = 1; index < words.length; index += 1) {
+    const word = words[index] ?? '';
+    const value = word === '-e' || word === '--env' ? words[(index += 1)] : /^-e(.+)$/.exec(word)?.[1] ?? /^--env=(.+)$/.exec(word)?.[1];
+    if (value !== undefined) names.push(...value.split(',').map((part) => part.trim()).filter((part) => part !== ''));
+  }
+  return names;
+}
+
+/** tox's envlist entries with `{a,b}` expanded, as names. */
+function expandToxEnvironmentList(text: string): string[] {
+  const entries: string[] = [];
+  let depth = 0;
+  let start = 0;
+  for (let index = 0; index <= text.length; index += 1) {
+    const character = text[index];
+    if (character === '{') depth += 1;
+    else if (character === '}') depth -= 1;
+    else if (index === text.length || (depth === 0 && (character === ',' || character === '\n'))) {
+      const entry = text.slice(start, index).trim();
+      if (entry !== '') entries.push(entry);
+      start = index + 1;
+    }
+  }
+  const expand = (entry: string): string[] => {
+    const open = entry.indexOf('{');
+    const close = open === -1 ? -1 : entry.indexOf('}', open);
+    if (open === -1 || close === -1) return [entry];
+    return entry
+      .slice(open + 1, close)
+      .split(',')
+      .flatMap((choice) => expand(`${entry.slice(0, open)}${choice.trim()}${entry.slice(close + 1)}`));
+  };
+  return entries.flatMap(expand);
+}
+
+/** The sections of an ini file: name to its keys, each value with continuation lines joined by '\n'. */
+function readIniSections(text: string): Map<string, Map<string, string>> {
+  const sections = new Map<string, Map<string, string>>();
+  let current: Map<string, string> | undefined;
+  let lastKey: string | undefined;
+  for (const raw of text.split(/\r?\n/)) {
+    const trimmed = raw.trim();
+    if (trimmed === '' || trimmed.startsWith('#') || trimmed.startsWith(';')) continue;
+    if (raw.startsWith('[')) {
+      const close = raw.indexOf(']');
+      const name = close === -1 ? '' : raw.slice(1, close).trim();
+      current = sections.get(name) ?? new Map<string, string>();
+      sections.set(name, current);
+      lastKey = undefined;
+      continue;
+    }
+    if (current === undefined) continue;
+    if (/^[ \t]/.test(raw)) {
+      if (lastKey !== undefined) current.set(lastKey, `${current.get(lastKey) ?? ''}\n${trimmed}`);
+      continue;
+    }
+    const match = /^([^=:]+)[=:](.*)$/.exec(raw);
+    lastKey = match ? (match[1] ?? '').trim() : undefined;
+    if (match && lastKey !== undefined) current.set(lastKey, (match[2] ?? '').trim());
+  }
+  return sections;
+}
+
+interface YamlLine {
+  readonly blank: boolean;
+  readonly indent: number;
+  readonly dash: boolean;
+  /** The column the line's key (or, for a dash line, its item) starts at. */
+  readonly keyColumn: number;
+  readonly key?: string;
+  readonly value: string;
+}
+
+/** A YAML file's lines with their structure: a block scalar's lines and comments are blank. Linear. */
+function readYamlLines(text: string): YamlLine[] {
+  const lines: YamlLine[] = [];
+  let scalarAbove = -1;
+  for (const line of text.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    const indent = line.length - line.trimStart().length;
+    if (scalarAbove >= 0) {
+      if (trimmed === '' || indent > scalarAbove) {
+        lines.push({ blank: true, indent, dash: false, keyColumn: indent, value: line });
+        continue;
+      }
+      scalarAbove = -1;
+    }
+    if (trimmed === '' || trimmed.startsWith('#')) {
+      lines.push({ blank: true, indent, dash: false, keyColumn: indent, value: '' });
+      continue;
+    }
+    const dash = /^-(?:[ \t]+|$)/.exec(trimmed);
+    const item = dash ? trimmed.slice(dash[0].length) : trimmed;
+    const keyColumn = indent + (dash ? dash[0].length : 0);
+    const key = yamlMappingKey(item);
+    const value = key ? key.value : item;
+    lines.push({
+      blank: false,
+      indent,
+      dash: dash !== null,
+      keyColumn,
+      ...(key ? { key: key.key } : {}),
+      value,
+    });
+    if (key && /^[|>][-+0-9]*(?:[ \t]+#.*)?$/.test(value)) scalarAbove = keyColumn;
+  }
+  return lines;
+}
+
+/**
+ * A YAML block-mapping line's key and value: a quoted key, or a plain one up to the first `:`
+ * followed by a blank or the line's end (a `#` first makes it no key). Linear in the line.
+ */
+function yamlMappingKey(item: string): { key: string; value: string } | undefined {
+  let end: number;
+  let key: string;
+  const quote = item[0];
+  if (quote === '"' || quote === "'") {
+    const close = item.indexOf(quote, 1);
+    if (close === -1) return undefined;
+    key = item.slice(1, close);
+    end = close + 1;
+    while (item[end] === ' ' || item[end] === '\t') end += 1;
+    if (item[end] !== ':') return undefined;
+  } else {
+    end = -1;
+    for (let index = 0; index < item.length; index += 1) {
+      const character = item[index];
+      if (character === '#') return undefined;
+      if (character === ':' && (index + 1 === item.length || item[index + 1] === ' ' || item[index + 1] === '\t')) {
+        end = index;
+        break;
+      }
+    }
+    if (end <= 0) return undefined;
+    key = item.slice(0, end).trim();
+    if (key === '') return undefined;
+  }
+  return { key, value: item.slice(end + 1).trim() };
+}
+
+/** The index of a YAML or shell comment's `#` (one at the start or after a blank), or -1. Linear. */
+function trailingCommentStart(value: string): number {
+  for (let index = 0; index < value.length; index += 1) {
+    if (value[index] === '#' && (index === 0 || value[index - 1] === ' ' || value[index - 1] === '\t')) return index;
+  }
+  return -1;
+}
+
+/** A plain or quoted YAML scalar's value, its trailing comment removed. Linear in the value. */
+function yamlPlainScalar(value: string): string {
+  const quote = value[0];
+  if (quote === '"' || quote === "'") {
+    const close = value.lastIndexOf(quote);
+    if (close > 0) {
+      const after = value.slice(close + 1);
+      const comment = trailingCommentStart(after);
+      if ((comment === -1 ? after : after.slice(0, comment)).trim() === '') return value.slice(1, close);
+    }
+  }
+  const comment = trailingCommentStart(value);
+  return (comment === -1 ? value : value.slice(0, comment)).trim();
+}
+
+/**
+ * GitHub Actions `run:` steps, each with the directory it runs in (step working-directory, else
+ * job, else workflow defaults.run.working-directory; null where it holds an expression) and the
+ * PYTEST_ADDOPTS its env sets (step, else job, else workflow). A step or job whose `if:` is false
+ * never runs and is left out. Linear in the file times its nesting.
+ */
+function readGithubRunSteps(text: string): { command: string; directory: string | null; addopts?: readonly string[] }[] {
+  const lines = readYamlLines(text);
+  const raw = text.split(/\r?\n/);
+  const steps: { command: string; directory: string | null; addopts?: readonly string[] }[] = [];
+  // One pass: each line's parent (the nearest non-blank line above it at a smaller key column) and
+  // the dash line that opens the mapping its key sits in, each by a stack, so the per-step reads
+  // below stay linear in the file however many steps or jobs it holds.
+  const parent = new Array<number>(lines.length).fill(-1);
+  const itemStart = new Array<number>(lines.length).fill(-1);
+  const open: number[] = [];
+  const items: { column: number; index: number }[] = [];
+  lines.forEach((line, index) => {
+    if (line.blank) return;
+    while (open.length > 0 && (lines[open[open.length - 1] ?? 0]?.keyColumn ?? 0) >= line.keyColumn) open.pop();
+    parent[index] = open[open.length - 1] ?? -1;
+    open.push(index);
+    while (items.length > 0 && (items[items.length - 1]?.column ?? 0) > line.keyColumn) items.pop();
+    const top = items[items.length - 1];
+    if (line.dash) {
+      if (top?.column === line.keyColumn) items.pop();
+      items.push({ column: line.keyColumn, index });
+      itemStart[index] = index;
+    } else if (top?.column === line.keyColumn) {
+      itemStart[index] = top.index;
+    }
+  });
+  const mappingKeys = (start: number, column: number): Map<string, number> => {
+    const keys = new Map<string, number>();
+    for (let index = start; index < lines.length; index += 1) {
+      const line = lines[index];
+      if (!line || line.blank) continue;
+      if (index > start && (line.keyColumn < column || (line.dash && line.keyColumn <= column))) break;
+      if (line.keyColumn === column && line.key !== undefined && (index === start || !line.dash)) keys.set(line.key, index);
+    }
+    return keys;
+  };
+  const childKeys = (keyIndex: number | undefined): Map<string, number> => {
+    if (keyIndex === undefined) return new Map();
+    const column = lines[keyIndex]?.keyColumn ?? 0;
+    for (let index = keyIndex + 1; index < lines.length; index += 1) {
+      const line = lines[index];
+      if (!line || line.blank) continue;
+      return line.keyColumn > column ? mappingKeys(index, line.keyColumn) : new Map();
+    }
+    return new Map();
+  };
+  const scalarAt = (index: number | undefined): string | undefined =>
+    index === undefined ? undefined : yamlPlainScalar(lines[index]?.value ?? '');
+  const isFalse = (value: string | undefined) => value !== undefined && /^(?:false|\$\{\{\s*false\s*\}\})$/.test(value);
+  const defaultDirectory = (keys: Map<string, number>) => scalarAt(childKeys(childKeys(keys.get('defaults')).get('run')).get('working-directory'));
+  const addoptsIn = (keys: Map<string, number>) => scalarAt(childKeys(keys.get('env')).get('PYTEST_ADDOPTS'));
+  interface MappingFacts {
+    readonly never: boolean;
+    readonly directory?: string;
+    readonly addopts?: string;
+  }
+  const factsOf = (keys: Map<string, number>): MappingFacts => {
+    const directory = defaultDirectory(keys);
+    const addopts = addoptsIn(keys);
+    return {
+      never: isFalse(scalarAt(keys.get('if'))),
+      ...(directory === undefined ? {} : { directory }),
+      ...(addopts === undefined ? {} : { addopts }),
+    };
+  };
+  const firstRootLine = lines.findIndex((line) => !line.blank);
+  const root = factsOf(firstRootLine === -1 ? new Map() : mappingKeys(firstRootLine, lines[firstRootLine]?.keyColumn ?? 0));
+  const jobs = new Map<number, MappingFacts>();
+  const jobFacts = (header: number, column: number): MappingFacts => {
+    let facts = jobs.get(header);
+    if (facts === undefined) {
+      let start = header + 1;
+      while (start < lines.length && lines[start]?.blank) start += 1;
+      facts = start < lines.length ? factsOf(mappingKeys(start, column)) : { never: false };
+      jobs.set(header, facts);
+    }
+    return facts;
+  };
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    if (!line || line.blank || line.key !== 'run' || line.value === '') continue;
+    const column = line.keyColumn;
+    // The step's first key is the dash line at this column; its other keys sit at the column too.
+    const stepStart = itemStart[index] ?? -1;
+    if (stepStart === -1) continue;
+    const stepKeys = mappingKeys(stepStart, column);
+    const list = parent[stepStart] ?? -1;
+    const jobHeader = list === -1 ? -1 : (parent[list] ?? -1);
+    const job = jobHeader === -1 ? { never: false } : jobFacts(jobHeader, lines[list]?.keyColumn ?? 0);
+    if (isFalse(scalarAt(stepKeys.get('if'))) || job.never) continue;
+    const directoryValue = scalarAt(stepKeys.get('working-directory')) ?? job.directory ?? root.directory;
+    const directory = directoryValue === undefined ? '' : directoryValue.includes('${{') ? null : resolveCommandPath('', directoryValue);
+    const addoptsValue = addoptsIn(stepKeys) ?? job.addopts ?? root.addopts;
+    let command: string;
+    if (/^[|>]/.test(line.value)) {
+      const block: string[] = [];
+      for (let next = index + 1; next < raw.length; next += 1) {
+        const text = raw[next] ?? '';
+        if (text.trim() !== '' && text.length - text.trimStart().length <= column) break;
+        block.push(text);
+      }
+      let indent = Number.POSITIVE_INFINITY;
+      for (const text of block) if (text.trim() !== '') indent = Math.min(indent, text.length - text.trimStart().length);
+      const dedented = block.map((text) => text.slice(Number.isFinite(indent) ? indent : 0));
+      command = dedented.join(line.value.startsWith('>') ? ' ' : '\n');
+    } else {
+      command = yamlPlainScalar(line.value);
+    }
+    steps.push({
+      command,
+      directory,
+      ...(addoptsValue === undefined || addoptsValue.includes('${{') ? {} : { addopts: shellWords(addoptsValue) }),
+    });
+  }
+  return steps;
+}
+
+/**
+ * Every pytest command Cejel reads (see the section comment), the plain `pytest` at the root
+ * first. `readText` reads a repository file, or undefined.
+ */
+function readPytestInvocations(
+  repoFiles: readonly string[],
+  readText: (file: string) => string | undefined,
+): PytestInvocation[] {
+  const invocations: PytestInvocation[] = [{ directory: '', args: [] }];
+  const namedTargets = new Set<string>();
+  const namedToxEnvironments = new Set<string>();
+  const visitor = (source: string): ShellCommandVisitor => (words, directory, addopts) => {
+    for (const target of recipeTargetsNamed(words)) namedTargets.add(target);
+    for (const environment of toxEnvironmentsNamed(words)) namedToxEnvironments.add(environment);
+    const found = pytestCommandArguments(words);
+    if (found === undefined || directory === null) return;
+    const runIn = found.directory === undefined ? directory : resolveCommandPath(directory, found.directory);
+    if (runIn === null) return;
+    const inForce = found.addopts ?? addopts;
+    invocations.push({ source, directory: runIn, args: found.args, ...(inForce === undefined ? {} : { addopts: inForce }) });
+  };
+  const usable = repoFiles.filter((file) => !GENERATED_OR_VENDOR_PATH_PATTERN.test(file));
+  // CI first: it names the make targets and tox environments that run.
+  for (const file of usable.filter(isCiWorkflow)) {
+    const text = readText(file);
+    if (text === undefined) continue;
+    const source = a1NotePath(file);
+    if (/^\.github\/workflows\//.test(file)) {
+      for (const step of readGithubRunSteps(text)) readShellCommands(step.command, step.directory, step.addopts, visitor(source));
+      continue;
+    }
+    // Jenkins' dir('...') { } changes the directory in a way Cejel does not follow.
+    if (file === 'Jenkinsfile' && /\bdir[ \t]*\(/.test(text)) continue;
+    const addopts = readCiAddopts(text);
+    for (const command of ciShellTexts(text)) readShellCommands(command, '', addopts, visitor(source));
+  }
+  for (const file of usable.filter(isRecipeFile)) {
+    const text = readText(file);
+    if (text === undefined) continue;
+    const targets = readRecipeTargets(text);
+    const exported = /^export[ \t]+PYTEST_ADDOPTS[ \t]*[:?+]?=[ \t]*(.*)$/m.exec(text)?.[1];
+    const addopts = exported === undefined ? undefined : shellWords(shellWords(exported.trim()).join(' '));
+    const reached = new Set<string>();
+    const queue = [[...targets.keys()][0], 'test', 'tests', 'check', ...namedTargets].filter(
+      (name): name is string => name !== undefined && targets.has(name),
+    );
+    while (queue.length > 0) {
+      const name = queue.shift() ?? '';
+      if (reached.has(name)) continue;
+      reached.add(name);
+      const target = targets.get(name);
+      if (!target) continue;
+      queue.push(...target.dependencies.filter((dependency) => targets.has(dependency)));
+      const commands = joinRecipeContinuations(target.commands);
+      for (const command of commands) {
+        readShellCommands(command, repoDirectory(file), addopts, (words, directory, inForce) => {
+          queue.push(...recipeTargetsNamed(words).filter((named) => targets.has(named)));
+          visitor(a1NotePath(file))(words, directory, inForce);
+        });
+      }
+    }
+  }
+  for (const file of usable.filter((candidate) => basename(candidate) === 'tox.ini')) {
+    const text = readText(file);
+    if (text === undefined) continue;
+    readToxCommands(file, text, namedToxEnvironments, visitor(a1NotePath(file)));
+  }
+  return invocations;
+}
+
+/** Recipe lines with a trailing backslash joined to the next. */
+function joinRecipeContinuations(commands: readonly string[]): string[] {
+  const joined: string[] = [];
+  let pending = '';
+  for (const command of commands) {
+    if (command.endsWith('\\')) {
+      pending += `${command.slice(0, -1)} `;
+      continue;
+    }
+    joined.push(`${pending}${command}`);
+    pending = '';
+  }
+  if (pending !== '') joined.push(pending);
+  return joined;
+}
+
+/** PYTEST_ADDOPTS set in a CI file other than GitHub Actions (a variables or env key), as words. */
+function readCiAddopts(text: string): readonly string[] | undefined {
+  if (!text.includes('PYTEST_ADDOPTS')) return undefined;
+  for (const line of text.split(/\r?\n/)) {
+    const value = PYTEST_ADDOPTS_LINE_PATTERN.exec(line)?.[1];
+    if (value === undefined) continue;
+    const [segment] = splitShellCommandSegments(value);
+    const words = shellWords((segment ?? '').trim());
+    // A quoted YAML value is one word holding the flags.
+    return words.length === 1 ? shellWords(words[0] ?? '') : words;
+  }
+  return undefined;
+}
+
+/**
+ * The commands of a tox.ini's environments that run: [testenv], and [testenv:<name>] where its
+ * envlist or a CI or recipe `tox -e` names it. Each runs in its changedir (default the tox.ini's
+ * directory) with its setenv's PYTEST_ADDOPTS. A factor-conditional line (`py38: ...`) is not read.
+ */
+function readToxCommands(file: string, text: string, named: ReadonlySet<string>, visit: ShellCommandVisitor): void {
+  const sections = readIniSections(text);
+  const toxDirectory = repoDirectory(file);
+  const tox = sections.get('tox');
+  const listed = new Set([...expandToxEnvironmentList(tox?.get('envlist') ?? tox?.get('env_list') ?? ''), ...named]);
+  const base = sections.get('testenv');
+  const environments = [base, ...[...listed].map((name) => sections.get(`testenv:${name}`))].filter(
+    (section): section is Map<string, string> => section !== undefined,
+  );
+  for (const section of new Set(environments)) {
+    const changedir = section.get('changedir') ?? base?.get('changedir');
+    const directory =
+      changedir === undefined
+        ? toxDirectory
+        : resolveCommandPath(toxDirectory, changedir.replace(/\{(?:toxinidir|tox_root)\}/g, '.'));
+    const setenv = section.get('setenv') ?? base?.get('setenv') ?? '';
+    const addoptsLine = /^PYTEST_ADDOPTS[ \t]*=[ \t]*(.*)$/m.exec(setenv)?.[1];
+    const addopts = addoptsLine === undefined ? undefined : shellWords(addoptsLine);
+    for (const key of ['commands_pre', 'commands', 'commands_post']) {
+      for (const line of (section.get(key) ?? '').split('\n')) {
+        if (line.trim() === '' || /^[\w.,!{}-]+:[ \t]/.test(line.trim())) continue;
+        const relative = directory === null ? '.' : posix.relative(directory === '' ? '.' : directory, toxDirectory === '' ? '.' : toxDirectory) || '.';
+        const substituted = line
+          .replace(/\{posargs\}/g, '')
+          .replace(/\{posargs:([^}]*)\}/g, '$1')
+          .replace(/\{(?:toxinidir|tox_root)\}/g, relative);
+        readShellCommands(substituted, directory, addopts, visit);
+      }
+    }
+  }
 }
 
 // ---- Run-wide pytest skips (witan-rubric-v27, #518) ----------------------------------------
@@ -11382,7 +13057,7 @@ function hasUnconditionalPytestModuleSkip(file: string, contents: string): boole
   // read as fewer claims than its first line alone.
   if (
     !PYTEST_MODULE_SKIP_ASSIGNMENT_PATTERN.test(first) ||
-    !PYTEST_MODULE_SKIP_MARK_PATTERN.test(pythonCodeOutsideStrings(first))
+    !pytestmarkNamesSkipAsMark(pythonCodeOutsideStrings(first))
   ) {
     return false;
   }
@@ -11402,6 +13077,38 @@ function hasUnconditionalPytestModuleSkip(file: string, contents: string): boole
   }
   if (depth > 0) return false;
   return !/\bif\b/.test(statement.join('\n'));
+}
+
+const PYTEST_MODULE_SKIP_MARK_GLOBAL_PATTERN = new RegExp(PYTEST_MODULE_SKIP_MARK_PATTERN.source, 'g');
+
+/**
+ * True when the first line of a `pytestmark = ...` statement (code, string contents blanked) names
+ * pytest's skip as one of the module's marks: the whole value, or an item of the list or tuple the
+ * value opens with. A skip inside another mark's arguments marks only what that mark gives it
+ * (`pytest.mark.parametrize("b", [pytest.param("x", marks=pytest.mark.skip), "y"])` skips one
+ * parameter), so it is not read as skipping the module
+ * (goal_cejel_v27_a1_test_count_overmatch_2026-11-01). Linear in the line.
+ */
+function pytestmarkNamesSkipAsMark(code: string): boolean {
+  const equals = code.indexOf('=');
+  if (equals === -1) return false;
+  const value = code.slice(equals + 1);
+  const valueStart = value.length - value.trimStart().length;
+  const opensWithSequence = value[valueStart] === '[' || value[valueStart] === '(';
+  const skips = new Set([...value.matchAll(PYTEST_MODULE_SKIP_MARK_GLOBAL_PATTERN)].map((match) => match.index ?? -1));
+  if (skips.size === 0) return false;
+  let depth = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    if (skips.has(index) && (depth === 0 || (depth === 1 && opensWithSequence))) return true;
+    const character = value[index];
+    if (character === '(' || character === '[' || character === '{') depth += 1;
+    else if (character === ')' || character === ']' || character === '}') depth -= 1;
+    // The opening list or tuple closed before the end: the value is an expression on it, not a list of marks.
+    if (depth === 0 && index > valueStart && opensWithSequence && value.slice(index + 1).trim() !== '') {
+      return false;
+    }
+  }
+  return false;
 }
 
 /** The line up to its first `#` (a comment start, or a `#` in a string, which only shortens it). */
@@ -11429,17 +13136,9 @@ const PYTEST_HOOK_CONDITIONAL_PATTERN =
 const PYTEST_HOOK_FOR_EVERY_ITEM_PATTERN = /^for[ \t]+([A-Za-z_]\w*)[ \t]+in[ \t]+items[ \t]*:(.*)$/;
 // A statement that rebinds `items` itself, so a later loop over it may not cover every item.
 const PYTEST_HOOK_REBIND_ITEMS_PATTERN = /^(?:del[ \t]+)?items[ \t]*(?:[-+*/%&|^@]?=(?!=)|,|$)|\bitems[ \t]*:=/;
+// An empty tuple counts as an empty list (fix pass after the #626 review: `items[:] = ()` empties it too).
 const PYTEST_HOOK_CLEAR_ITEMS_PATTERN =
-  /^(?:items\.clear\(\s*\)|items\[\s*:\s*\][ \t]*=[ \t]*\[\s*\]|del[ \t]+items\[\s*:\s*\])/;
-// Any statement that puts items back (`items.clear()` then `items.extend(ordered)` is how a hook
-// reorders the run): the list is not left empty, so the hook is not read as removing the suite.
-const PYTEST_HOOK_REFILL_ITEMS_PATTERN =
-  /^items(?:[ \t]*\.[ \t]*(?:extend|append|insert)[ \t]*\(|[ \t]*\+=|[ \t]*\[[^\]]*\][ \t]*=(?!=))/;
-// ...except one that puts back an empty literal (`items.extend([])`, `items += ()`), which leaves
-// the list empty.
-const PYTEST_HOOK_EMPTY_REFILL_PATTERN =
-  /^items(?:[ \t]*\.[ \t]*extend[ \t]*\([ \t]*|[ \t]*\+=[ \t]*)(?:\[[ \t]*\]|\([ \t]*\))[ \t]*(?:\)[ \t]*)?$/;
-
+  /^(?:items\.clear\(\s*\)|items\[\s*:\s*\][ \t]*=[ \t]*(?:\[\s*\]|\(\s*\))|del[ \t]+items\[\s*:\s*\])/;
 /**
  * A hook body line's statements: split at `;` unless the line holds a quote, where a `;` may be
  * inside a string and the line is kept whole.
@@ -11585,6 +13284,410 @@ function hookSkipsEveryItem(
   return false;
 }
 
+const PYTEST_HOOK_PARAMETERS_PATTERN = /^def[ \t]+pytest_collection_modifyitems[ \t]*\(([^)]*)\)/;
+
+/** True when the hook's `def` line closes its parameter list and names a parameter `items`. */
+function pytestHookTakesItems(defLine: string): boolean {
+  const parameters = PYTEST_HOOK_PARAMETERS_PATTERN.exec(defLine)?.[1];
+  if (parameters === undefined) return false;
+  return parameters.split(',').some((parameter) => /^[ \t]*items(?![\w])/.test(parameter));
+}
+
+// ---- How a hook that empties `items` may leave pytest's list holding them --------------------
+//
+// goal_cejel_v27_a1_test_count_overmatch_v2_2026-11-02, item A, as fixed after the #626 review: a
+// clear is withheld only on a restore of a shape the reader understands, read where it runs. Each
+// shape is a statement at the hook body's own indent, after the last such clear, outside any
+// lambda, nested function or class:
+//   - `items.extend(src)`, `items += src`, `items[a:b] = src`, `items.__iadd__(src)`,
+//     `items.append(x)` or `items.insert(i, x)`, on `items` or another name bound to it;
+//   - a top-level `for x in src:` loop whose body adds to the list that way;
+//   - a call of a function the conftest.py defines (at module level, or nested in the hook before
+//     the call) that adds to its first parameter, given the list first, or (nested) adds to the
+//     list itself.
+// A source the reader knows is empty (`[]`, `()`, `list()`, `tuple()`, a name bound only to one
+// of those, or the cleared list itself) restores nothing. Any other use of the list (a copy, a
+// report, a loop over it, a call to a builtin, a logger or a function Cejel cannot see, an
+// unknown method) is not read as a restore, so the hollow rating stands.
+
+/** The names a statement binds to the list (`a = items`, `a = b = items`), or []. Linear. */
+function pytestItemsAliases(code: string): string[] {
+  const parts = code.split('=').map((part) => part.trim());
+  if (parts.length < 2 || parts[parts.length - 1] !== 'items') return [];
+  const names = parts.slice(0, -1);
+  return names.every((name) => /^[A-Za-z_]\w*$/.test(name)) ? names : [];
+}
+const PYTHON_ZERO_LENGTH_SLICE_PATTERN = /^[A-Za-z_][\w.]*[ \t]*\[[ \t]*(?:0[ \t]*)?:[ \t]*0[ \t]*\]$/;
+const PYTHON_EMPTY_SEQUENCE_LITERAL_PATTERN = /^(?:\[[ \t]*\]|\([ \t]*\)|list[ \t]*\([ \t]*\)|tuple[ \t]*\([ \t]*\))$/;
+const PYTHON_DEF_WITH_PARAMETERS_PATTERN = /^(?:async[ \t]+)?def[ \t]+([A-Za-z_]\w*)[ \t]*\(([^)]*)\)/;
+/** A `for <target> in <source>:` statement's source and inline body, or undefined. Linear. */
+function pythonForLoop(code: string): { source: string; body: string } | undefined {
+  if (!/^for[ \t]/.test(code)) return undefined;
+  let depth = 0;
+  let colon = -1;
+  for (let index = 0; index < code.length; index += 1) {
+    const character = code[index];
+    if (character === '(' || character === '[' || character === '{') depth += 1;
+    else if (character === ')' || character === ']' || character === '}') depth -= 1;
+    else if (character === ':' && depth === 0) {
+      colon = index;
+      break;
+    }
+  }
+  if (colon === -1) return undefined;
+  const head = code.slice(0, colon);
+  const at = head.search(/[ \t]in[ \t]/);
+  if (at === -1) return undefined;
+  return { source: head.slice(at + 4).trim(), body: code.slice(colon + 1).trim() };
+}
+// A call statement, optionally assigning its result: callee in group 1, the text after `(` in 2.
+const PYTHON_CALL_STATEMENT_PATTERN = /^(?:[A-Za-z_]\w*[ \t]*=[ \t]*)?([A-Za-z_]\w*)[ \t]*\((.*)$/;
+// Marks an adding call whose argument is one value (append, insert): never an empty source.
+const PYTHON_ONE_VALUE_SOURCE = '\u0000one value';
+
+/**
+ * The source a statement adds to the list named `name` from, as written ('' where it is on later
+ * lines, PYTHON_ONE_VALUE_SOURCE for append and insert), or undefined where it adds nothing.
+ * `code` has its strings blanked. Linear in the statement.
+ */
+function pythonListAddSource(code: string, name: string): string | undefined {
+  if (!code.startsWith(name)) return undefined;
+  const rest = code.slice(name.length);
+  if (/^\w/.test(rest)) return undefined;
+  const method = /^[ \t]*\.[ \t]*(extend|append|insert|__iadd__)[ \t]*\((.*)$/.exec(rest);
+  if (method) {
+    if (method[1] === 'append' || method[1] === 'insert') return PYTHON_ONE_VALUE_SOURCE;
+    const argument = method[2] ?? '';
+    const close = argument.lastIndexOf(')');
+    return (close === -1 ? argument : argument.slice(0, close)).trim();
+  }
+  const augmented = /^[ \t]*\+=[ \t]*(.*)$/.exec(rest);
+  if (augmented) return (augmented[1] ?? '').trim();
+  const open = rest.trimStart();
+  const close = open.startsWith('[') ? open.indexOf(']') : -1;
+  if (close === -1 || !open.slice(1, close).includes(':')) return undefined;
+  const assigned = /^[ \t]*=(?!=)[ \t]*(.*)$/.exec(open.slice(close + 1));
+  return assigned ? (assigned[1] ?? '').trim() : undefined;
+}
+
+/** True when a restore's source is known to be empty: an empty literal, a name bound only to one, or the cleared list. */
+function pythonSourceKnownEmpty(
+  source: string,
+  emptyName: (name: string) => boolean,
+  listNames: ReadonlySet<string>,
+): boolean {
+  if (source === PYTHON_ONE_VALUE_SOURCE || source === '') return false;
+  if (PYTHON_EMPTY_SEQUENCE_LITERAL_PATTERN.test(source)) return true;
+  // A zero-length slice written as `[:0]` or `[0:0]` (third pass; other empty slices are not read).
+  if (PYTHON_ZERO_LENGTH_SLICE_PATTERN.test(source)) return true;
+  if (/^[A-Za-z_]\w*$/.test(source) && emptyName(source)) return true;
+  for (const name of listNames) {
+    // After the clear the list is empty, and so is a copy, a sort or a comprehension over it alone.
+    const built = new RegExp(
+      `^(?:${name}(?:[ \\t]*\\[[ \\t]*:[ \\t]*\\]|[ \\t]*\\.[ \\t]*copy[ \\t]*\\([ \\t]*\\))?$|(?:sorted|list|tuple|reversed)[ \\t]*\\([ \\t]*${name}\\b|\\[[ \\t]*\\*[ \\t]*${name}[ \\t]*\\]$)`,
+    );
+    if (built.test(source)) return true;
+    // A comprehension over the cleared list alone (each test is linear: no two open runs).
+    if (source.startsWith('[') && source.endsWith(']') && new RegExp(`[ \\t]in[ \\t]+${name}\\b`).test(source)) return true;
+  }
+  return false;
+}
+
+/** The first parameter's name in a `def` line's parameter text, or undefined (none, or self/cls). */
+function pythonFirstParameter(parameters: string): string | undefined {
+  const first = (parameters.split(',')[0] ?? '').replace(/[:=].*$/, '').replace(/^\*+/, '').trim();
+  return /^[A-Za-z_]\w*$/.test(first) && first !== 'self' && first !== 'cls' ? first : undefined;
+}
+
+interface PythonListMutator {
+  /** Where it adds to its first parameter: the other parameters' positions its source names. */
+  readonly sourceParameters: readonly number[];
+  /** Where it adds to the hook's list itself (a function nested in the hook): the source, as written. */
+  readonly closureSource?: string;
+  /** The hook statement that defines it (a nested function), or -1 (a module-level one). */
+  readonly definedAt: number;
+}
+
+// A statement at a function's top level after which a later statement may not run (or runs only
+// on some calls): the hook's own conditional rule, plus return, raise and yield.
+const PYTHON_BODY_EXIT_OR_BRANCH_PATTERN =
+  /^(?:if|elif|else|while|for|try|except|finally|with|match|case|return|raise|yield|break|continue|async|await)\b/;
+
+/**
+ * True when a function body adds, from a source not known to be empty, to one of `targets`, at the
+ * body's own top level and before any statement there that branches or exits; never for a
+ * generator (a body holding `yield`), whose call runs none of it (third pass: the hook's own rules
+ * apply inside a helper). Linear in the body.
+ */
+function pythonBodyAddsTo(
+  body: readonly { readonly indent: number; readonly code: string }[],
+  targets: ReadonlySet<string>,
+  knownEmpty: (source: string) => boolean,
+): string | undefined {
+  if (body.some(({ code }) => containsPythonIdentifier(code, 'yield'))) return undefined;
+  const top = body[0]?.indent;
+  // Names a top-level statement before the add binds or changes (`src = []`, `src.clear()`): an add
+  // from one of them no longer adds what the caller passed (last round of the #626 review).
+  const touched = new Set<string>();
+  for (const { indent, code } of body) {
+    if (indent !== top) continue;
+    if (PYTHON_BODY_EXIT_OR_BRANCH_PATTERN.test(code)) return undefined;
+    for (const target of targets) {
+      const source = pythonListAddSource(code, target);
+      if (source === undefined || knownEmpty(source)) continue;
+      const names = [...source.matchAll(PYTHON_IDENTIFIER_PATTERN)].map((match) => match[0]);
+      return names.some((name) => touched.has(name)) ? undefined : source;
+    }
+    const changed = PYTHON_CHANGED_NAME_PATTERN.exec(code);
+    if (changed) touched.add(changed[1] ?? '');
+  }
+  return undefined;
+}
+
+// A statement that binds or changes the name in group 1: `x = `, `x += `, `x, y = `, `del x`,
+// `x.method(`, `x[...] =`.
+const PYTHON_CHANGED_NAME_PATTERN = /^(?:del[ \t]+)?([A-Za-z_]\w*)[ \t]*(?:[-+*/%&|^@]?=(?!=)|,|\.|\[)/;
+
+/** A call's positional and keyword arguments' texts, at its top level, from the text after `(`. Linear. */
+function pythonCallArguments(afterParen: string): string[] {
+  const parts: string[] = [];
+  let depth = 0;
+  let start = 0;
+  for (let index = 0; index < afterParen.length; index += 1) {
+    const character = afterParen[index];
+    if (character === '(' || character === '[' || character === '{') depth += 1;
+    else if (character === ')' || character === ']' || character === '}') {
+      if (depth === 0) {
+        parts.push(afterParen.slice(start, index).trim());
+        return parts.filter((part) => part !== '');
+      }
+      depth -= 1;
+    } else if (character === ',' && depth === 0) {
+      parts.push(afterParen.slice(start, index).trim());
+      start = index + 1;
+    }
+  }
+  return parts;
+}
+
+/** A `def` line's parameter names, in order ('' where one is not a plain name). */
+function pythonParameterNames(parameters: string): string[] {
+  return parameters.split(',').map((parameter) => {
+    const name = parameter.replace(/[:=].*$/, '').replace(/^\*+/, '').trim();
+    return /^[A-Za-z_]\w*$/.test(name) ? name : '';
+  });
+}
+
+/** The positions (from 1) of the parameters a source names. */
+function pythonSourceParameters(source: string | undefined, parameters: readonly string[]): number[] {
+  if (source === undefined) return [];
+  const named = new Set([...source.matchAll(PYTHON_IDENTIFIER_PATTERN)].map((match) => match[0]));
+  return parameters.flatMap((parameter, position) => (position > 0 && parameter !== '' && named.has(parameter) ? [position] : []));
+}
+
+/**
+ * Module-level functions of a conftest.py that add to their first parameter, by name. Read from
+ * each top-level `def` whose parameter list closes on its line, over the indented lines below it.
+ */
+function pythonModuleListMutators(lines: readonly string[]): Map<string, PythonListMutator> {
+  const mutators = new Map<string, PythonListMutator>();
+  for (let index = 0; index < lines.length; index += 1) {
+    const match = PYTHON_DEF_WITH_PARAMETERS_PATTERN.exec(lines[index] ?? '');
+    if (!match) continue;
+    const parameter = pythonFirstParameter(match[2] ?? '');
+    const body: { indent: number; code: string }[] = [];
+    for (let next = index + 1; next < lines.length; next += 1) {
+      const raw = lines[next] ?? '';
+      if (raw.trim() === '' || raw.trimStart().startsWith('#')) continue;
+      if (!/^[ \t]/.test(raw)) break;
+      const indent = raw.length - raw.trimStart().length;
+      for (const code of pythonLineStatements(pythonCodeOutsideStrings(raw.trim()).trim())) body.push({ indent, code });
+    }
+    const source =
+      parameter === undefined
+        ? undefined
+        : pythonBodyAddsTo(body, new Set([parameter]), (candidate) => pythonSourceKnownEmpty(candidate, () => false, new Set([parameter])));
+    mutators.set(match[1] ?? '', { sourceParameters: pythonSourceParameters(source, pythonParameterNames(match[2] ?? '')), definedAt: -1 });
+  }
+  return mutators;
+}
+
+/**
+ * How a hook that empties `items` may leave pytest's list holding the collected items:
+ * 'restores' where a statement of a shape listed above puts items back after the last clear,
+ * 'rebinds' where a top-level statement before that clear binds the name `items` to something
+ * else (so the clear empties another list), or undefined. A rebind after the clear, or inside a
+ * loop that may run zero times, leaves pytest's list empty and is not read.
+ */
+function pytestItemsRestoreKind(
+  statements: readonly PythonHookStatement[],
+  hookIndent: number,
+  lines: readonly string[],
+): 'restores' | 'rebinds' | undefined {
+  const codes = statements.map(({ indent, text }) => ({ indent, code: pythonCodeOutsideStrings(text).trim() }));
+  const topLevel = (index: number) => codes[index]?.indent === hookIndent;
+  let lastClear = -1;
+  codes.forEach(({ code }, index) => {
+    if (topLevel(index) && PYTEST_HOOK_CLEAR_ITEMS_PATTERN.test(code)) lastClear = index;
+  });
+  if (lastClear === -1) return undefined;
+  for (let index = 0; index < lastClear; index += 1) {
+    if (topLevel(index) && PYTEST_HOOK_REBIND_ITEMS_PATTERN.test(codes[index]?.code ?? '')) return 'rebinds';
+  }
+  const listNames = new Set(['items']);
+  codes.forEach(({ code }, index) => {
+    if (topLevel(index)) for (const name of pytestItemsAliases(code)) listNames.add(name);
+  });
+  const addSource = (code: string): string | undefined => {
+    for (const name of listNames) {
+      const source = pythonListAddSource(code, name);
+      if (source !== undefined) return source;
+    }
+    return undefined;
+  };
+  // A name is known empty at a statement where its last top-level binding before it is an empty
+  // literal, a zero-length slice, or (after the last clear) a copy of the cleared list, and nothing
+  // between them mentions it (third pass: a copy taken after the clear is empty).
+  // Indexed once, so each question below is answered by binary search, not a rescan.
+  const bindings = new Map<string, number[]>();
+  const mentions = new Map<string, number[]>();
+  const changes = new Map<string, number[]>();
+  codes.forEach(({ code }, index) => {
+    const seen = new Set<string>();
+    for (const match of code.matchAll(PYTHON_IDENTIFIER_PATTERN)) {
+      if (seen.has(match[0])) continue;
+      seen.add(match[0]);
+      const list = mentions.get(match[0]) ?? [];
+      list.push(index);
+      mentions.set(match[0], list);
+    }
+    const binding = topLevel(index) ? /^([A-Za-z_]\w*)[ \t]*=(?!=)/.exec(code) : null;
+    if (binding) {
+      const list = bindings.get(binding[1] ?? '') ?? [];
+      list.push(index);
+      bindings.set(binding[1] ?? '', list);
+    }
+    const changed = topLevel(index) ? PYTHON_CHANGED_NAME_PATTERN.exec(code) : null;
+    if (changed) {
+      const list = changes.get(changed[1] ?? '') ?? [];
+      list.push(index);
+      changes.set(changed[1] ?? '', list);
+    }
+  });
+  // The last entry below `at` in an ascending list, or -1; and the first entry above `after`, or -1.
+  const lastBelow = (list: readonly number[], at: number): number => {
+    let low = 0;
+    let high = list.length - 1;
+    let found = -1;
+    while (low <= high) {
+      const middle = (low + high) >> 1;
+      if ((list[middle] ?? 0) < at) {
+        found = list[middle] ?? -1;
+        low = middle + 1;
+      } else high = middle - 1;
+    }
+    return found;
+  };
+  const firstAbove = (list: readonly number[], after: number): number => {
+    let low = 0;
+    let high = list.length - 1;
+    let found = -1;
+    while (low <= high) {
+      const middle = (low + high) >> 1;
+      if ((list[middle] ?? 0) > after) {
+        found = list[middle] ?? -1;
+        high = middle - 1;
+      } else low = middle + 1;
+    }
+    return found;
+  };
+  const emptyBinding = new Map<number, boolean>();
+  const knownEmptyAt = (name: string, at: number): boolean => {
+    const bound = lastBelow(bindings.get(name) ?? [], at);
+    if (bound === -1) return false;
+    let empty = emptyBinding.get(bound);
+    if (empty === undefined) {
+      const value = (/^[A-Za-z_]\w*[ \t]*=(?!=)[ \t]*(.*)$/.exec(codes[bound]?.code ?? '')?.[1] ?? '').trim();
+      empty =
+        PYTHON_EMPTY_SEQUENCE_LITERAL_PATTERN.test(value) ||
+        PYTHON_ZERO_LENGTH_SLICE_PATTERN.test(value) ||
+        (bound > lastClear && pythonSourceKnownEmpty(value, () => false, listNames));
+      emptyBinding.set(bound, empty);
+    }
+    if (!empty) return false;
+    const next = firstAbove(mentions.get(name) ?? [], bound);
+    return next === -1 || next >= at;
+  };
+  // A name bound, at top level before the last clear, to a copy of the list, and not changed at top
+  // level since: the saved items a helper may put back.
+  const savedCopyAt = (name: string, at: number): boolean => {
+    if (!/^[A-Za-z_]\w*$/.test(name)) return false;
+    const bound = lastBelow(bindings.get(name) ?? [], at);
+    if (bound === -1 || bound >= lastClear) return false;
+    const value = (/^[A-Za-z_]\w*[ \t]*=(?!=)[ \t]*(.*)$/.exec(codes[bound]?.code ?? '')?.[1] ?? '').trim();
+    // A copy, not the list itself (an alias empties with it), an empty literal or a zero-length slice.
+    if (
+      listNames.has(value) ||
+      PYTHON_EMPTY_SEQUENCE_LITERAL_PATTERN.test(value) ||
+      PYTHON_ZERO_LENGTH_SLICE_PATTERN.test(value) ||
+      !pythonSourceKnownEmpty(value, () => false, listNames)
+    ) {
+      return false;
+    }
+    const next = firstAbove(changes.get(name) ?? [], bound);
+    return next === -1 || next >= at;
+  };
+  const restoresFrom = (source: string | undefined, at: number) =>
+    source !== undefined && !pythonSourceKnownEmpty(source, (name) => knownEmptyAt(name, at), listNames);
+  const mutators = pythonModuleListMutators(lines);
+  // Nested functions defined in the hook, top level, with what they add to.
+  for (let index = 0; index < codes.length; index += 1) {
+    const match = topLevel(index) ? PYTHON_DEF_WITH_PARAMETERS_PATTERN.exec(codes[index]?.code ?? '') : null;
+    if (!match) continue;
+    const parameter = pythonFirstParameter(match[2] ?? '');
+    const body: { indent: number; code: string }[] = [];
+    for (let next = index + 1; next < codes.length && !topLevel(next); next += 1) {
+      body.push({ indent: codes[next]?.indent ?? 0, code: codes[next]?.code ?? '' });
+    }
+    const closureSource = pythonBodyAddsTo(body, listNames, (source) => !restoresFrom(source, index));
+    const ownSource =
+      parameter === undefined
+        ? undefined
+        : pythonBodyAddsTo(body, new Set([parameter]), (source) => pythonSourceKnownEmpty(source, () => false, new Set([parameter])));
+    mutators.set(match[1] ?? '', {
+      sourceParameters: pythonSourceParameters(ownSource, pythonParameterNames(match[2] ?? '')),
+      ...(closureSource === undefined ? {} : { closureSource }),
+      definedAt: index,
+    });
+  }
+  for (let index = lastClear + 1; index < codes.length; index += 1) {
+    if (!topLevel(index)) continue;
+    // A lambda, def or class line never starts with the list or a call of a known function, so only
+    // a statement that runs here is read (the mutation run showed an exclusion of them unreachable).
+    const code = codes[index]?.code ?? '';
+    if (restoresFrom(addSource(code), index)) return 'restores';
+    const loop = pythonForLoop(code);
+    if (loop && !pythonSourceKnownEmpty(loop.source, (name) => knownEmptyAt(name, index), listNames)) {
+      const body = [loop.body];
+      for (let next = index + 1; next < codes.length && !topLevel(next); next += 1) body.push(codes[next]?.code ?? '');
+      if (body.some((statement) => restoresFrom(addSource(statement), index))) return 'restores';
+    }
+    const call = PYTHON_CALL_STATEMENT_PATTERN.exec(code);
+    const mutator = call ? mutators.get(call[1] ?? '') : undefined;
+    if (call && mutator && mutator.definedAt < index) {
+      // A helper restores only from a copy of the list saved before the clear: named in its source
+      // (a nested function) or passed where its source parameter is (last round of the #626 review).
+      const closureNames = [...(mutator.closureSource ?? '').matchAll(PYTHON_IDENTIFIER_PATTERN)].map((match) => match[0]);
+      if (closureNames.some((name) => savedCopyAt(name, index))) return 'restores';
+      const args = pythonCallArguments(call[2] ?? '');
+      if (listNames.has(args[0] ?? '') && mutator.sourceParameters.some((position) => savedCopyAt(args[position] ?? '', index))) {
+        return 'restores';
+      }
+    }
+  }
+  return undefined;
+}
+
 interface PytestRunWideSkip {
   /** The conftest.py, repository-relative. */
   readonly path: string;
@@ -11593,6 +13696,11 @@ interface PytestRunWideSkip {
   /** The directory the conftest governs, '' for the repository root. */
   readonly scope: string;
   readonly kind: 'skip' | 'clear';
+  /**
+   * Set on a hook that empties `items` but may leave pytest's list holding them (item A): why the
+   * clear is not applied, as A1's note says it. Such a hook disables no file.
+   */
+  readonly withheld?: string;
 }
 
 /**
@@ -11634,6 +13742,10 @@ function findPytestRunWideSkips(
     }
     // At most one pass, over that last definition (a loop so `continue` withholds the claim).
     for (let index = last; index !== -1; index = -1) {
+      // pytest passes the collected items only to a hook that names an `items` parameter; a hook
+      // without one may loop over some other `items` (goal_cejel_v27_a1_test_count_overmatch).
+      // The parameters are read from the `def` line alone, closed there.
+      if (!pytestHookTakesItems(lines[index] ?? '')) continue;
       const indented: PythonHookStatement[] = [];
       for (let next = index + 1; next < lines.length; next += 1) {
         const raw = lines[next] ?? '';
@@ -11653,20 +13765,34 @@ function findPytestRunWideSkips(
       const clears = indented.some(
         ({ indent, text }) => indent === hookIndent && PYTEST_HOOK_CLEAR_ITEMS_PATTERN.test(text),
       );
-      const refills = body.some(
-        (statement) =>
-          !PYTEST_HOOK_CLEAR_ITEMS_PATTERN.test(statement) &&
-          !PYTEST_HOOK_EMPTY_REFILL_PATTERN.test(statement) &&
-          PYTEST_HOOK_REFILL_ITEMS_PATTERN.test(statement),
-      );
-      const kind = clears && !refills
-        ? ('clear' as const)
-        : hookSkipsEveryItem(indented, pytestHeldSkipMarkers(lines, indented))
-          ? ('skip' as const)
-          : undefined;
+      // goal_cejel_v27_a1_test_count_overmatch_v2_2026-11-02, item A: a clear is withheld only where
+      // the hook demonstrably may put the collected items back (or rebinds the name), and the
+      // withhold is kept, with its reason, so A1's note says it. Any other use of `items` (a copy,
+      // a report, a loop) leaves the clear standing.
+      const restore = clears && hookIndent !== undefined ? pytestItemsRestoreKind(indented, hookIndent, lines) : undefined;
+      const kind =
+        clears && restore === undefined
+          ? ('clear' as const)
+          : hookSkipsEveryItem(indented, pytestHeldSkipMarkers(lines, indented))
+            ? ('skip' as const)
+            : clears
+              ? ('clear' as const)
+              : undefined;
       if (!kind) continue;
       const scope = dirname(file);
-      found.push({ path: file, line: index + 1, scope: scope === '.' ? '' : scope, kind });
+      const withheld =
+        kind === 'clear' && restore !== undefined
+          ? restore === 'restores'
+            ? `the hook in ${a1NotePath(file)} puts the collected items back`
+            : `the hook in ${a1NotePath(file)} rebinds items, so its clear may not empty pytest's list`
+          : undefined;
+      found.push({
+        path: file,
+        line: index + 1,
+        scope: scope === '.' ? '' : scope,
+        kind,
+        ...(withheld === undefined ? {} : { withheld }),
+      });
     }
   }
   return found;
@@ -11693,8 +13819,18 @@ interface PerTestSkippedFile extends PerTestSkipReading {
 
 const JS_OR_TS_TEST_SOURCE_PATTERN = /\.[cm]?[jt]sx?$/;
 
-function readEveryTestUnconditionallySkipped(file: string, contents: string): PerTestSkipReading | undefined {
-  if (/\.py$/.test(file)) return readEveryPythonTestSkipped(contents);
+function readEveryTestUnconditionallySkipped(
+  file: string,
+  contents: string,
+  pytestSettings: PytestFileSettings,
+): PerTestSkipReading | undefined {
+  // The Python reader assumes pytest's own test names and its skipping plugin
+  // (goal_cejel_v27_a1_test_count_overmatch_2026-11-01): either set otherwise, no claim.
+  if (/\.py$/.test(file)) {
+    return pytestSettings.testNames !== undefined || pytestSettings.disablesSkipping !== undefined
+      ? undefined
+      : readEveryPythonTestSkipped(contents);
+  }
   if (JS_OR_TS_TEST_SOURCE_PATTERN.test(file)) return readEveryJavaScriptTestSkipped(contents);
   return undefined;
 }
