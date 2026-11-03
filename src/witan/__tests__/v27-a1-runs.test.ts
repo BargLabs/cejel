@@ -98,7 +98,7 @@ function expectPointers(fixture: RunFixture): void {
   }
 }
 
-for (const item of ['A', 'B', 'C', 'E'] as const) {
+for (const item of ['A', 'B', 'C', 'E', 'F'] as const) {
   describe(`item ${item}`, () => {
     for (const fixture of RUN_FIXTURES.filter((entry) => entry.item === item)) {
       if (fixture.withheld.length === 0) {

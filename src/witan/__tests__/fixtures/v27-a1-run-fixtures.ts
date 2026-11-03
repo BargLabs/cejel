@@ -22,7 +22,7 @@ import { PYPROJECT, PY_BASE, SKIPPED_CACHE_TEST, conftestHook, lines } from './v
 // does. `pointers` lists the evidence pointers (path, line, label) v27 must cite.
 
 export interface RunFixture extends FalseAssuranceFixture {
-  readonly item: 'A' | 'B' | 'C' | 'E';
+  readonly item: 'A' | 'B' | 'C' | 'E' | 'F' | 'G';
   readonly removed: readonly (readonly [path: string, rule: string])[];
   readonly withheld: readonly string[];
   readonly pointers?: readonly (readonly [path: string, line: number, label: string])[];
@@ -413,6 +413,64 @@ export const RUN_FIXTURES: readonly RunFixture[] = [
     },
     [`every-test-skipped rule not applied: -p no:skipping in PYTEST_ADDOPTS in ${CI_PATH}`],
     [[CI_PATH, 8, 'pytest setting in force: -p no:skipping']],
+  ),
+
+  // ---- item F: nox posargs (goal_cejel_v27_a1_gaps_2026-11-03, item B; #649, 1) -------------
+  // `*session.posargs` holds the words after `--` on a CI or recipe nox command (`nox -s tests --
+  // ...`, or nox run as a Python module); a nox command with no `--` passes none; a word holding `$`,
+  // a backtick or braces leaves the run not read, as do more than 16 distinct sets. nox was not run
+  // on these fixtures (no Python package could be run in this session): each claim rests on nox's
+  // documented posargs, not on a run.
+  caught(
+    'a1gap-nox-posargs-ci-passes-none',
+    'F',
+    'CI runs nox -s tests with no --, so *session.posargs is empty and the session runs plain pytest, which loads the clear hook.',
+    { 'tests/conftest.py': CLEAR_HOOK, 'noxfile.py': NOXFILE('session.run("pytest", *session.posargs)'), [CI_PATH]: ciWorkflow(['pip install nox', 'nox -s tests']) },
+    HOOK_REMOVED,
+  ),
+  caught(
+    'a1gap-nox-posargs-ci-passes-a-path',
+    'F',
+    'CI runs nox -s tests -- tests: the session runs pytest tests, which loads the clear hook.',
+    { 'tests/conftest.py': CLEAR_HOOK, 'noxfile.py': NOXFILE('session.run("pytest", "-q", *session.posargs)'), [CI_PATH]: ciWorkflow(['nox -s tests -- tests']) },
+    HOOK_REMOVED,
+  ),
+  withheld(
+    'a1gap-nox-posargs-ci-passes-no-skipping',
+    'F',
+    'CI runs nox -s tests -- -p no:skipping, which nox passes to pytest through *session.posargs.',
+    { 'tests/test_cache.py': SKIPPED_CACHE_TEST, 'noxfile.py': NOXFILE('session.run("pytest", *session.posargs)'), [CI_PATH]: ciWorkflow(['nox -s tests -- -p no:skipping']) },
+    [NO_SKIPPING('noxfile.py')],
+  ),
+  withheld(
+    'a1gap-nox-python-module-posargs-in-makefile',
+    'F',
+    'A Makefile recipe CI runs calls python -m nox -s tests -- --noconftest; the session passes it to pytest.',
+    {
+      'tests/conftest.py': CLEAR_HOOK,
+      'noxfile.py': NOXFILE('session.run("pytest", *session.posargs)'),
+      Makefile: 'test:\n\tpython -m nox -s tests -- --noconftest\n',
+      [CI_PATH]: ciWorkflow(['make test']),
+    },
+    [NO_CONFTEST('noxfile.py')],
+  ),
+  withheld(
+    'a1gap-nox-posargs-variable',
+    'F',
+    'CI passes a shell variable after --: the posargs cannot be known, so the run is not read.',
+    { 'tests/conftest.py': CLEAR_HOOK, 'noxfile.py': NOXFILE('session.run("pytest", *session.posargs)'), [CI_PATH]: ciWorkflow(['nox -s tests -- $PYTEST_ARGS']) },
+    [runNotRead('nox -s tests -- $PYTEST_ARGS', CI_PATH)],
+  ),
+  withheld(
+    'a1gap-nox-posargs-past-sixteen-sets',
+    'F',
+    'CI passes 17 distinct posargs sets: past the 16-set limit the 17th is named as not read, not read in part.',
+    {
+      'tests/conftest.py': CLEAR_HOOK,
+      'noxfile.py': NOXFILE('session.run("pytest", *session.posargs)'),
+      [CI_PATH]: ciWorkflow(Array.from({ length: 17 }, (_, index) => `nox -s tests -- -k t${index}`)),
+    },
+    [runNotRead('nox -s tests -- -k t16', CI_PATH)],
   ),
 ];
 
