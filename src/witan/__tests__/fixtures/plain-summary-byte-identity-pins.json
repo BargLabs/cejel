@@ -1,0 +1,242 @@
+{
+  "witan-rubric-v17-2026-07-24/complete-node-service": {
+    "reportSha256": "22460855e604df1cc8d6d6ba4a3ffe7f8bbc7c8dfafebbf5983e849b4962762e",
+    "attestationSha256": "71b386523a48857df468bd7ba514736ce5c05f529f1d14d0f70f8f6f09653f81"
+  },
+  "witan-rubric-v27-prospective-2026-10-19/complete-node-service": {
+    "reportSha256": "a32eb497cb5719c7facdf6e866eb1504d6c02a0662c7a2829a2933901066fd7c",
+    "attestationSha256": "4cbd6477ba2a89a7789471b17372d180d70d12405c72ba497551e17ae6956c30"
+  },
+  "witan-rubric-v17-2026-07-24/minimal-source-no-process": {
+    "reportSha256": "23bff50ac2d27905a48a51aff3ccf92165a4b9484c7a3682ddf5e707c13af549",
+    "attestationSha256": "faee1fbf6b0bc22ce7f43ea4064d04986ab31e6bcb0e2e9b19d7eba1a5fcfb10"
+  },
+  "witan-rubric-v27-prospective-2026-10-19/minimal-source-no-process": {
+    "reportSha256": "938d3a6c416a133c595fbf0024e44da753e0b0b6b86056b7839e61b105b5ce76",
+    "attestationSha256": "342b354d05f7355832f205332cf7465cecc74f0cfbfe779420e7585e0ba22d61"
+  },
+  "witan-rubric-v17-2026-07-24/committed-secret-and-pem": {
+    "reportSha256": "76528cbd58828c67315d3f36daa1ab95e9a482abc2eca6caf44187ff9a875319",
+    "attestationSha256": "e981c86242e642b683b8605ecd83bb2086c41532eb2e51daea67218909a647e2"
+  },
+  "witan-rubric-v27-prospective-2026-10-19/committed-secret-and-pem": {
+    "reportSha256": "4652bde7179d281c1e932d0d04a586ffd6fcf262afe20f1c39b11335719750f1",
+    "attestationSha256": "4ad8fede2d7062f3e2101a7d275488a442e5b397ede15aa23e8e12c9f82edf1a"
+  },
+  "witan-rubric-v17-2026-07-24/placeholder-test-script": {
+    "reportSha256": "b595417ce80fcc3d4f7cab7f8fc28db12f2ff58e6ca06240a5d995bec8a6a8da",
+    "attestationSha256": "9c4f0cb766e400a96ac42025fb2f9dcad47d8ee5e1a543df2e214bf3c981d952"
+  },
+  "witan-rubric-v27-prospective-2026-10-19/placeholder-test-script": {
+    "reportSha256": "bb27a1ec8b0291f7f090f4787b2aab501a792305507168e5684a3e16be446f08",
+    "attestationSha256": "dad6e952cb56b08794a5941e57f04c6ce8f1d698cead115aea6c8eca8453b51a"
+  },
+  "witan-rubric-v17-2026-07-24/lint-typecheck-no-tests": {
+    "reportSha256": "acff8d83b62471df2a562d9bca7c1c5a6a3da37e5e36c731922a8655f0d5cdde",
+    "attestationSha256": "4a890fa7f365aa2f55b044bbb6dfa187a3304f02ba2dbfd61d7a9ce53be4767b"
+  },
+  "witan-rubric-v27-prospective-2026-10-19/lint-typecheck-no-tests": {
+    "reportSha256": "85f258075ff0da67a94ce02f71c3a09259d8a57729eb1f8fa688fb931dd2238a",
+    "attestationSha256": "16e92f1d6f4fb7bf7bf45cc6f2d788dfcccdc3a4df24a1ac04857e6bc0e2f2fe"
+  },
+  "witan-rubric-v17-2026-07-24/pr-template-directory-form": {
+    "reportSha256": "a2cdb5494dd50df29d58e2a66e8ce6df0df8e8133a8bc9d69e4b0e77fd64bf22",
+    "attestationSha256": "8ae1e9b69471e729961fd438bbba3fb11b0c575a9cb285fd2150d8ba5fe72b2b"
+  },
+  "witan-rubric-v27-prospective-2026-10-19/pr-template-directory-form": {
+    "reportSha256": "9aeefc6df7c213cc21d13725e943cab3baa20cba73d3eff142fd65af83683075",
+    "attestationSha256": "29dbebc8e6940ce1034f61163204f53e001f47f874cd06c598345b0848ac3656"
+  },
+  "witan-rubric-v17-2026-07-24/python-service": {
+    "reportSha256": "6b6078d47864c629e036e62214ba2db6675d390eca04a4641a952832c9e93efb",
+    "attestationSha256": "e7d1ed060541fbbad82907d9c3c9c308e2a63d07208f038321e6f93fbf7a1bab"
+  },
+  "witan-rubric-v27-prospective-2026-10-19/python-service": {
+    "reportSha256": "d0cc1da21a6c0069ecdc260f862e504fc37270f856969556b8f27826c246745f",
+    "attestationSha256": "37ed658d022786c0b2515f8757fb22e41a46a4a8c227261faeacff089af99347"
+  },
+  "witan-rubric-v17-2026-07-24/docs-only-repository": {
+    "reportSha256": "e2c2fe7db12819a307163e9cd61ea0fa31331e60b73cf9e399dabfbb2e1baa75",
+    "attestationSha256": "3a4398156db13d2a16997e605e3d5449b38b66da1427faebeb5c3a79050edd9d"
+  },
+  "witan-rubric-v27-prospective-2026-10-19/docs-only-repository": {
+    "reportSha256": "e5d42940d01ce322f998c7ebb4792355215a134cf42351c22b11ac1400c889b9",
+    "attestationSha256": "c83338a04e42370044db1145ce866043b3fb39ec07627f9a0cf3730108d593de"
+  },
+  "witan-rubric-v17-2026-07-24/oversized-withheld-source": {
+    "reportSha256": "7c09cd15835c944c6189cbd9bb173c7063e0417b276c1846606d69c1ed72e407",
+    "attestationSha256": "ca50bc8ed3e23da14f488340e2804d8e5e561f315ee7f8fbcb95dfdb952c3864"
+  },
+  "witan-rubric-v27-prospective-2026-10-19/oversized-withheld-source": {
+    "reportSha256": "8432479373ee31da9e08a7790914fe03e78519686dcd9bd2fd78d390eae4a78d",
+    "attestationSha256": "ef5bcd8e11d903d14772f743458001740990923a824873a77b9785841dc72b53"
+  },
+  "witan-rubric-v17-2026-07-24/privileged-migrations": {
+    "reportSha256": "6247aab0da706b99e490f4fe17a669e39f54b9ef0aad8dca4631db1c3518601b",
+    "attestationSha256": "406df6554c8be26a134cb4b47cb1a91028f00e3c0c66cb921a48335c869d5777"
+  },
+  "witan-rubric-v27-prospective-2026-10-19/privileged-migrations": {
+    "reportSha256": "30f7235593eb01de37493203eee8cc671fc3f3dca86ecace2159f35fd4018e91",
+    "attestationSha256": "1988490baa7394efdef039fc1e959922aa2cbaa0f3734ec96b778d296c0468bf"
+  },
+  "witan-rubric-v17-2026-07-24/direct-http-entrypoint-no-health": {
+    "reportSha256": "65beaaaed4f554462c1856af8cc6597cea3988a3302e1a99616f21762424991a",
+    "attestationSha256": "7cb2bb2d6d0ae8b3f1a69f8245338e6460b798c542bec1c414898a62addcb1c9"
+  },
+  "witan-rubric-v27-prospective-2026-10-19/direct-http-entrypoint-no-health": {
+    "reportSha256": "d025a74bebad3cece4855d262226d0db437e48337040c912be9bda52d4d6714e",
+    "attestationSha256": "02d8e3fbc3aeeedf8872e3968e9bf40c47f564aab42bc21015ee1a059df8d641"
+  },
+  "witan-rubric-v17-2026-07-24/start-declared-http-entrypoint": {
+    "reportSha256": "68841f2a04d464b8c2652cc69e0c9d08b0e3d16c29e2f351732a9b6893635998",
+    "attestationSha256": "34567b97a0ff693ab105219b735c8e137960d2a01775f98523ab1e851070ec68"
+  },
+  "witan-rubric-v27-prospective-2026-10-19/start-declared-http-entrypoint": {
+    "reportSha256": "04801ca0ebe72c0860499fc150ccc97647a4af3ad4cefbbd136802b9ecb5d5e7",
+    "attestationSha256": "9a84c0f65b37e60102bf7be21ca8640a8f49cd1652765995fb0261b62833f681"
+  },
+  "witan-rubric-v17-2026-07-24/stale-audit-trail": {
+    "reportSha256": "0c0fbe6d8acb0d20e44789932c50f82719fcf1985ba0021e4fb99e1515b19a06",
+    "attestationSha256": "956123908f91dbeb3e45a8bc951f4411658c3dbe15d6e286ad3581b85f35aae0"
+  },
+  "witan-rubric-v27-prospective-2026-10-19/stale-audit-trail": {
+    "reportSha256": "b03cf31dc5e95e7b984832421df4365ffb9f8e91a4fc4773c96604b3100ba6d2",
+    "attestationSha256": "920055307acbbcc763d49a70a568be642ae3403e183c35568c039f050a5a00d7"
+  },
+  "witan-rubric-v17-2026-07-24/real-credential-in-docs": {
+    "reportSha256": "3157fa05e39c075b3adf567ccb09b0afdb12e054dcb3621fc138a9ebcb4abc4d",
+    "attestationSha256": "d864c989e99301fbbf7ac8b3e936f1966df0316c32693d653418970dd61da13a"
+  },
+  "witan-rubric-v27-prospective-2026-10-19/real-credential-in-docs": {
+    "reportSha256": "46f1e25b98d15686045df25393c37db2e159fdb72caf3f84afee0ac6086b862d",
+    "attestationSha256": "d8a0c5ce694cb1e11b0b15b479dc68a175807d28dec6ae7b28ab4023cb128035"
+  },
+  "witan-rubric-v17-2026-07-24/control-described-not-built": {
+    "reportSha256": "a84c360c05b1816cf03948531822d6821f9c043066c025c47917b6b4b8292a82",
+    "attestationSha256": "1900c3a40108305b65adac4ae963c9f14732a239dbf46f796b97002306fa1a5a"
+  },
+  "witan-rubric-v27-prospective-2026-10-19/control-described-not-built": {
+    "reportSha256": "9d75df08bf0be9e185b33bb46662fade864781c8fb6b129bf3575acfe899754d",
+    "attestationSha256": "9b0987f46c83e9ff291a2a9e9519d000e9621a3149447488bf45c5f71f1c7ec3"
+  },
+  "witan-rubric-v17-2026-07-24/inline-health-route-and-prettier-handler": {
+    "reportSha256": "736c00571d20c14c7b99aac0a2dc70efd6493fe8af8d8be868125dc16c887384",
+    "attestationSha256": "4e2dd9d0563380c1ef01c578b7d51d79a7a0b770b920ffecc956b35e8935c554"
+  },
+  "witan-rubric-v27-prospective-2026-10-19/inline-health-route-and-prettier-handler": {
+    "reportSha256": "1b87f7d79b328ff3094370513e8562394e9beb26f5a60d4dc912da8b21321c98",
+    "attestationSha256": "37704c530d7b62519423b8848eeeba6bce40afd7a888a307dae1089d6dddadf8"
+  },
+  "witan-rubric-v17-2026-07-24/ava-live-assertions": {
+    "reportSha256": "8fe5dcef98ec881fa03abdc34afd2a6b58cb2a802ee7f99dac84b0fc1c3ba37b",
+    "attestationSha256": "3e989605636fee725aae7cf02cd19ef143d0ea954938d96137cd8fa51b8c93ca"
+  },
+  "witan-rubric-v27-prospective-2026-10-19/ava-live-assertions": {
+    "reportSha256": "f286d5b1149c49e7a49bf7b6f371032602318474af37299a1ba711a1e97a357d",
+    "attestationSha256": "e6827bda9265fad863d9b723441685dd15352406e2d48fe3f9b89f743f081917"
+  },
+  "witan-rubric-v17-2026-07-24/public-digest-lookup": {
+    "reportSha256": "6462834daf582f6bc4836ef492405038f816767f19b6e6db8f0bc531704c0288",
+    "attestationSha256": "35a2db054ecc6636dfdfb7a9fc978ce31772c790122d118bd517c7cfe40607e0"
+  },
+  "witan-rubric-v27-prospective-2026-10-19/public-digest-lookup": {
+    "reportSha256": "276b0fdd0a69b0bf30c7635ff3ca228e7d815a8037dd5dae2f88a04d0591e18e",
+    "attestationSha256": "fe7b6d1bb16e95f7383698e9d3c344e304105ef5c8e7f31006aa074246a60cf1"
+  },
+  "witan-rubric-v17-2026-07-24/workspace-package-scripts": {
+    "reportSha256": "7fff367a687c61efbd91db10ce9483f691e6c890326d7c9ddbd16d4d39f9a497",
+    "attestationSha256": "e9f07499c2d6b3815454aa05c7d3dc5f1d22d53a8aa015f953c10f0a7e32a42b"
+  },
+  "witan-rubric-v27-prospective-2026-10-19/workspace-package-scripts": {
+    "reportSha256": "32726594779c0ca65befcfa2fc8e6f55dfd64a04e521b560f768628d36c9dc3d",
+    "attestationSha256": "3a6a3b4f5ded7d2ba7df410f671cd73cd128465a6b5fd8e0bd6aaf38cc89c2fc"
+  },
+  "witan-rubric-v17-2026-07-24/coverage-config-setup-cfg": {
+    "reportSha256": "abf6aea554a649fca6512df878489d8773b55d5372b48894df8020cca0a8217c",
+    "attestationSha256": "fc52bc9c48c278886736787386da65c02761e59a289a9622a30faabb2c3ff5dc"
+  },
+  "witan-rubric-v27-prospective-2026-10-19/coverage-config-setup-cfg": {
+    "reportSha256": "59bc09232a1f7e7e8245f87f850c9739b03ccefdd5c81012292b5639002ce3cc",
+    "attestationSha256": "18025768b247d692b0c9204a71e6edaea2682df13a1821f6d016de2ff7c82666"
+  },
+  "witan-rubric-v17-2026-07-24/coverage-config-maven-jacoco": {
+    "reportSha256": "f7c1ad318e657410d46aa1773729b17dca83412dd7d2119388f1469dde27d58a",
+    "attestationSha256": "6ab97f953a523f87ae4d6760e62b040a88e2c1488ab415c899b486afaa049820"
+  },
+  "witan-rubric-v27-prospective-2026-10-19/coverage-config-maven-jacoco": {
+    "reportSha256": "284b8d20b1f39e3d8b833dad8d7866e7c0f178146b5b1d5fd90c5668198fc134",
+    "attestationSha256": "4fbc8a82f1069b9ad423d74f7a0b58dd09eaec891a599942dfb175c2dcb3b414"
+  },
+  "witan-rubric-v17-2026-07-24/coverage-command-go-ci": {
+    "reportSha256": "888c5121b3447213573e3c5fee1570496b73c5225ed2ea268376101742f95109",
+    "attestationSha256": "cb8cf4975e56b11c629fc89c2e4550f240ae60ed9436a80e8cbb6c57310f9750"
+  },
+  "witan-rubric-v27-prospective-2026-10-19/coverage-command-go-ci": {
+    "reportSha256": "022a5853b4a138c6cf68efb7794058eac7efaf7ff9e76cf32c74a84c04bb8254",
+    "attestationSha256": "79ec7a33a06a655fdc1157b1c023487d140db7e5db68aee662598e2f2e143aa4"
+  },
+  "witan-rubric-v17-2026-07-24/xunit-assertions": {
+    "reportSha256": "4fc80c6696f4fd776a54cfcf83af419239ef0aa9f96485b9de6974c4884a1d84",
+    "attestationSha256": "91ceb74ff0084425816bdca2655c6a00b6ddaab0c2996d59da16721b3423827f"
+  },
+  "witan-rubric-v27-prospective-2026-10-19/xunit-assertions": {
+    "reportSha256": "351cf04bd65cd407b28083911cc180afb51b79535166400eb0a31a3403c63cb0",
+    "attestationSha256": "d3e1e24e54b9b089456437ee7edf7cbe01f736cce67ef6de56a487adc6e348d3"
+  },
+  "witan-rubric-v17-2026-07-24/nunit-ignored-fixture": {
+    "reportSha256": "411e1a90a4feccb85a3702213c3122f511d939a331c29b92852f3901077a742b",
+    "attestationSha256": "918e821398d7b1f4620989a30a3eee80f47ea8b6c38a9767f2a68a23a10a2a5b"
+  },
+  "witan-rubric-v27-prospective-2026-10-19/nunit-ignored-fixture": {
+    "reportSha256": "85b4348d9cd8c4b31eccc27256af8b1fb6f5903299460ede49221c78fb43382e",
+    "attestationSha256": "7b9a0a527b3413794163e183554d53bc4caffd29c1073fae641216ff16b3da38"
+  },
+  "witan-rubric-v17-2026-07-24/xctest-assertions": {
+    "reportSha256": "f5f3dca306fcd7c25e397d4edee49cf8b6cd78c8b06e233b40ac48a22ecfa5f8",
+    "attestationSha256": "df1d5eebb6a92166f7d5897b3cd6307b4332dbc02d57ad7b119f2554f253d822"
+  },
+  "witan-rubric-v27-prospective-2026-10-19/xctest-assertions": {
+    "reportSha256": "d8b4a49bf8dc4d346d15c1cc053357c19bce9f8b6673ccf47daf5adda917b6d9",
+    "attestationSha256": "c833271fe697aac4b37e31c5f4cd21b308e0154abb5a4131f2c114d725f7d773"
+  },
+  "witan-rubric-v17-2026-07-24/scalatest-assertions": {
+    "reportSha256": "16bc79db922e1ce3a6352c41c26871367eac5e62d10d8ed6b9aa141dbf1755dd",
+    "attestationSha256": "db7a12a247086414b4038f58d350fc3a9f598a3c049050ac330faa4af58770e3"
+  },
+  "witan-rubric-v27-prospective-2026-10-19/scalatest-assertions": {
+    "reportSha256": "24e45b9a7daf029d40ec61aa79e0b0a6bd3a3bc66a16db7a77f2cafc3958363e",
+    "attestationSha256": "94a8cdedd5fa9c3f727c1843756d087965d76a84fc8abe24938994e2f6d43545"
+  },
+  "witan-rubric-v17-2026-07-24/kotest-matchers": {
+    "reportSha256": "54515f322115cdc767fbfa6ee196e2f87edc2301a0a9c9fda6a7035739b65694",
+    "attestationSha256": "f37539563c649e7f58042d4e4fd0cdcc8737ea734200db431fd0a52c96e23cce"
+  },
+  "witan-rubric-v27-prospective-2026-10-19/kotest-matchers": {
+    "reportSha256": "56a0f681cef0ac4197e8ed2fa4d2710f3f34cc58a114f370128140b7727a6eda",
+    "attestationSha256": "fe48ed341f227ecb2bb0fd2afb8709bec323cfefdb2520fee73f02539227ecb4"
+  },
+  "witan-rubric-v17-2026-07-24/tape-assertions": {
+    "reportSha256": "f1ee072a41121cecb8e99dc08c5fb7dd5effb5a96c7c49218fd566daa056ab95",
+    "attestationSha256": "4808f0d27c92cf4b972cdb36c82296b729a1316bb80d1bcf4238436950aa3f41"
+  },
+  "witan-rubric-v27-prospective-2026-10-19/tape-assertions": {
+    "reportSha256": "beaf5f99b62df0a46556162e7a26624e4e6444726cdc4f583190c4b8726c2b28",
+    "attestationSha256": "9db3e2b77f8829cf53be180e785ffbacabecf57d820e6c31ee332da5b79699d4"
+  },
+  "witan-rubric-v17-2026-07-24/hmac-digest-compare": {
+    "reportSha256": "ded34729c6501672f003eb42896843955100abd0ad98c794d83e387e777902ab",
+    "attestationSha256": "ded92eabd387623e8eb7fcf7a11b12e197e7bbb1854666f131af4e2844490687"
+  },
+  "witan-rubric-v27-prospective-2026-10-19/hmac-digest-compare": {
+    "reportSha256": "7228e8e627a2991599b967df228b09ce39f275b880202496f5899e4228698340",
+    "attestationSha256": "68506c05b6378c38229db1a7554a5b0c91b10361dc32b07fbd2a9f11bf928d0a"
+  },
+  "witan-rubric-v17-2026-07-24/unkeyed-digest-controls": {
+    "reportSha256": "cbf31641072fbe930522d8594a4aa159cc6988df03bcb4d42c7edd0d1cc2be0a",
+    "attestationSha256": "841a22a6d7c637b7eccf8ca2034861ad4fd89cda0bbf7d9b56865ee2b1290795"
+  },
+  "witan-rubric-v27-prospective-2026-10-19/unkeyed-digest-controls": {
+    "reportSha256": "02ef6844f3a66d40fe5570d4eee2af3c45c2049a30dbbf3c66e83a368569adae",
+    "attestationSha256": "28e1aedd25b04f8af59cccb7f159b5a5aed349573652706fc185b1ee30ac772c"
+  }
+}

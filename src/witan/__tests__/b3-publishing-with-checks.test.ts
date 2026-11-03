@@ -8,6 +8,7 @@ import type { WitanCriterionScore, WitanReport } from '../schemas.js';
 import { scoreRepoWithPublicCejel } from '../public-scan.js';
 import { WITAN_RUBRIC_VERSION_V17, WITAN_RUBRIC_VERSION_V27 } from '../rubric-version.js';
 import { renderWitanHtmlReport } from '../html.js';
+import { certificateWithoutFirstPage } from '../../__tests__/plain-first-page-helpers.js';
 import {
   COUNTED,
   EDGE_COUNTED,
@@ -275,7 +276,12 @@ describe('v17 output is identical on these fixtures', () => {
   it.skipIf(process.env.B3_PUBLISHING_CHECKS_V17_PIN !== undefined)(
     "item H — a v17 certificate's HTML is byte-identical to the pinned commit's",
     () => {
-      expect(html(HTML_PIN_FIXTURE, V17) === readFileSync(HTML_PIN_PATH, 'utf8')).toBe(true);
+      // goal_cejel_four_question_summary_2026-11-02 puts a plain first page above the certificate
+      // and adds the anchor ids it links to. Everything else must still be the pinned bytes, so
+      // only those two additions are removed before comparing.
+      expect(
+        certificateWithoutFirstPage(html(HTML_PIN_FIXTURE, V17)) === readFileSync(HTML_PIN_PATH, 'utf8'),
+      ).toBe(true);
     },
   );
 });
