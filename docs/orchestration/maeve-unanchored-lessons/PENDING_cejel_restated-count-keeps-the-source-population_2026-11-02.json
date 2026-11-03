@@ -1,0 +1,25 @@
+[
+  {
+    "statement": "Building cejel's plain first page (goal_cejel_four_question_summary_2026-11-02), the first draft said \"1 file was held back\" on a scan whose certificate, a few lines below, said \"12 content entries were withheld\". The draft had counted only the withheld files some check would have read, a filtered subset, and printed it under the same noun. Every test passed, because no test compared the two numbers; the mismatch showed only when the output was read on a real repository. Rules: when a summary restates a count the artifact below it already prints, compute it from the same population; when the summary needs a subset, print both numbers and name the filter. Read a summary's output on a real input before calling it done; synthetic fixtures rarely carry the populations that diverge.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "evidence-discipline",
+      "presentation"
+    ],
+    "tags": [
+      "shared-denominator",
+      "first-reader-legibility",
+      "count-population",
+      "own-error"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-11-02T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 635
+    }
+  }
+]
