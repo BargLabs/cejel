@@ -237,7 +237,7 @@ three source files this branch changes (`repo-signals.ts`, `certificate-presenta
     `LD_PRELOAD`, `PYTHONPATH` or `NODE_ENV` in an `env:` mapping; a job `container:` with or
     without `env:`; a `services:` container with `env:`; a credential key without a secret), 3
     commands written as a path that main credited through the `./` it stripped (`./pytest`,
-    `./make test`, `npx ./jest`) and 1 local archive given to `pip install`;
+    `./make test`, `./jest` run by npx) and 1 local archive given to `pip install`;
   - 21 change in B3's note only: it now says why a check was not counted (no-op and help or version
     test scripts, `npm test --if-present`, `github-path-write-before-check`, five tsc builds whose
     output is not admitted, three commands written as a path that main already excluded), or, for
@@ -257,7 +257,7 @@ three source files this branch changes (`repo-signals.ts`, `certificate-presenta
 
 **This round** (the adversarial review of #645 at `5b3a622d5`, four false-credit blockers and three
 should-fix items). Red fixtures `78e1e536e`; fix `690bd8ee3`. (1) A command word holding a `/`
-(`./ruff format .`, `./eslint --fix .`, `./make test`, `npx ./jest`, `bin/pytest`) runs that file,
+(`./ruff format .`, `./eslint --fix .`, `./make test`, `./jest` run by npx, `bin/pytest`) runs that file,
 so it is no check, runner, lint form or setup step; `isCheckCommand` stripped a leading `./` before
 its vocabulary match, while its lint gate read the word unstripped, so the gate was skipped and the
 match succeeded. B3's note says such a command runs a file in the repository or on the runner. The
