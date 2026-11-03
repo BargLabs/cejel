@@ -315,7 +315,32 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     reaching names not starting with test or Test the Python per-test reader, -p no:skipping
 //     every skip rule); and a hook for a file a run collects with --noconftest or a confcutdir
 //     strictly below the hook's directory, where pytest does not load it. Every withhold is said in
-//     A1's note ("<rule> not applied: <reason>"), never silently;
+//     A1's note ("<rule> not applied: <reason>"), never silently. From 2026-11-03
+//     (goal_cejel_v27_a1_pytest_runs_and_config_2026-11-02, #633, #643) the runs read also include
+//     a noxfile's session.run("pytest", ...) with literal arguments, `tox -- <args>` passed into
+//     {posargs}, a tox factor-conditional command line for an environment whose factors meet it,
+//     variables the same Makefile defines (and literal justfile variables), justfile recipes with
+//     parameters, `hatch run [env:]script` through the hatch scripts of hatch.toml or pyproject.toml,
+//     and a local composite action's steps; a run whose arguments or directory cannot be known from
+//     the repository (nox posargs, `tox -- $VAR`, a Makefile variable it does not define or a make
+//     command sets, a justfile parameter, an expression or `cd` to a variable, -c outside the
+//     repository, --pyargs, a working-directory expression, Jenkins dir(), a reusable workflow in
+//     another repository, or an option the reader does not know before a word that may be its
+//     value or a path) is named in A1's note as "pytest run not read: `<reason>` in <path>" (#644's
+//     not-read clause, for a run), and switches off every removal rule for every file, since any
+//     option may be in force for any file it collects. A remote step action is not named: nearly
+//     every workflow uses one. --cov takes its value only where the next word does not start with
+//     `-` (pytest-cov's nargs="?"), testpaths globs are expanded as glob.glob does, and the
+//     configuration search follows determine_setup (a setup.py at or above the common ancestor is
+//     the root before the per-argument search). A run that finds no configuration file in the
+//     repository may read one above its root, which the scan cannot see; A1's note says so once
+//     where a file is rated hollow on such a run, and nothing is rated on what it might hold. Two
+//     choices are kept, for the operator to confirm: a plain `pytest` at the root always counts as
+//     a run, as the documented default invocation, so the root configuration is always in force;
+//     and a Makefile `PYTEST_ADDOPTS = ...` without export is not read, since make does not pass it
+//     to a recipe (#626's first pass, 892a95a40, read it; an `export PYTEST_ADDOPTS` line, a bare
+//     `export` or .EXPORT_ALL_VARIABLES exports it). Each setting, command-line and not-read clause
+//     carries an evidence pointer at its line, sharing the eight with the hooks, the rest counted;
 //   - every criterion: a read of a Git LFS pointer is a content-read skip, so the criterion that
 //     read it abstains as a read failure instead of scoring the pointer text, unless its
 //     collector made a critical finding (it then scores as under v17);

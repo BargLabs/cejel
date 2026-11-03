@@ -21,6 +21,49 @@ is pinned. v27 carries no precision or recall claim.
 
 ### Changed
 
+- **Prospective v27: A1 reads the pytest runs, options and configuration search pytest itself
+  uses, names a run it cannot read instead of rating its files hollow, and points each setting
+  clause at its line (#633, #643).** Under `witan-rubric-v27-prospective-2026-10-19` only. Each gap
+  meant a setting really in force was not seen, so a file pytest runs was rated "runs no test".
+  - **Runs read whole.** A noxfile's `session.run("pytest", ...)` with literal arguments; `tox --
+    <args>` passed into `{posargs}`; a tox factor-conditional command line (`py312-fast: pytest
+    ...`) for an environment whose factors meet it; `$(PYTEST)` and other variables the same
+    Makefile defines (and literal justfile variables); a justfile recipe with parameters; `hatch
+    run [env:]script`, resolved through the hatch scripts in `hatch.toml` or `pyproject.toml`; and a
+    local composite action's `run:` steps.
+  - **Runs named as not read.** Where a run's arguments or directory cannot be known from the
+    repository (nox's `*session.posargs`, `tox -- $VAR`, a Makefile variable it does not define or a
+    make command sets, a justfile parameter, a `${{ }}` expression or a `cd` to a variable, `-c`
+    outside the repository, `--pyargs`, a `working-directory` expression, Jenkins `dir()`, a reusable
+    workflow in another repository), any option could be in force for any file it collects, so no
+    removal rule is applied to a file it may collect, and A1's note says "pytest run not read:
+    `<reason>` in `<path>`" (#644's "not read" clause, for a run).
+  - **Options.** An option the reader does not know, before a word that may be its value or a path,
+    leaves the run not read. `--cov` takes a value only where the next word does not start with
+    `-`, as pytest-cov's `nargs="?"` parses it, so `pytest --cov -p no:skipping` keeps `-p
+    no:skipping`. `testpaths` globs are expanded as `glob.glob(..., recursive=True)` does, not read
+    as their literal directory prefix.
+  - **Configuration search.** pytest 9's `determine_setup` order: a `setup.py` at or above the
+    common ancestor is the root before the per-argument search runs. Where a run finds no
+    configuration file in the repository, pytest may read one above its root, which the scan cannot
+    see; A1's note says so once where a file is rated hollow on such a run, and nothing is rated on
+    what that file might hold.
+  - **Kept, for the operator to confirm.** A plain `pytest` at the repository's root always counts
+    as a run (the documented default invocation), so the root configuration is always in force; and
+    a Makefile `PYTEST_ADDOPTS = ...` without `export` is not read, since make does not pass it to a
+    recipe's environment (this changes #626's first pass, `892a95a40`, which read it). An `export
+    PYTEST_ADDOPTS` line, a bare `export` or `.EXPORT_ALL_VARIABLES` does export it, and is read.
+  - **Evidence pointers for setting clauses (#643).** Each file a withhold clause names ("-p
+    no:skipping set in pyproject.toml", "on a pytest command line in .github/workflows/ci.yml",
+    "in PYTEST_ADDOPTS in ...", a run not read) is cited at the line that holds the setting, the
+    pytest command line or the run. They share the eight pointers with the hooks the note names, in
+    the note's order, and the note counts those past eight ("the N named after the first 8 carry no
+    evidence pointer"). The v27 glossary's non-hollow sentence says so, and names "pytest run not
+    read".
+  - A remote step action (`uses: owner/action@ref`) is not named as a run not read: nearly every
+    workflow uses one, so naming each would withhold every rule everywhere. Only a remote reusable
+    workflow (`uses: .../.github/workflows/...@ref`) is.
+
 - **Prospective v27: A1 places every pytest collection hook that touches `items` in one of three
   outcomes, and none by default (#631, #632, #634; revised by the allowlist round, which supersedes
   #638).** Under `witan-rubric-v27-prospective-2026-10-19` only. A `pytest_collection_modifyitems`
