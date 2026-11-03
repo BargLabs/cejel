@@ -7803,7 +7803,8 @@ function isSetupCommand(input: readonly string[], reading: CheckReading): boolea
     reading.buildScriptRunsOnlyTsc &&
     reading.packageManagerConfigPlain &&
     ((own.length === 3 && first === 'run' && second === 'build') || (own.length === 2 && first === 'build' && tool !== 'npm'));
-  const pipPackages = (args: readonly string[]) => pipArgumentsNamePackagesOnly(args, reading.requirementsFileIsPlain);
+  const pipPackages = (args: readonly string[]) =>
+    pipArgumentsNamePackagesOnly(args, reading.requirementsFileIsPlain, (name) => reading.pathMayExist(name, reading.pipNamesFromRoot));
   switch (tool) {
     case 'npm':
       return (javaScriptInstall && (first === 'ci' || first === 'install' || first === 'i')) || tscBuild;
@@ -7846,8 +7847,35 @@ const PIP_PACKAGE_ONLY_FLAGS: ReadonlySet<string> = new Set([
 ]);
 // A requirement naming a package on an index: a name, optional extras, then only version-specifier
 // characters. No `/`, `:` or `@`, so no path, URL or direct reference.
-const PIP_PACKAGE_NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]*(?:\[[A-Za-z0-9._,-]+\])?/;
+// Fifth pass (item A, review of #640): the name is a PEP 508 project name, which begins and ends
+// with a letter or digit; pipRequirementNamesIndexProject also refuses one pip reads as a file.
+const PIP_PROJECT_NAME_PATTERN = /^[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?/;
+const PIP_EXTRAS_PATTERN = /^\[[A-Za-z0-9._,-]+\]/;
 const PIP_VERSION_SPECIFIER_PATTERN = /^(?:[<>=!~][<>=!~A-Za-z0-9.*+_,-]*)?$/;
+// Fifth pass (item A): the suffixes with which pip reads a requirement as an archive or wheel file
+// (pip's archive extensions, and `.egg`), compared case-insensitively. A name ending in one is
+// refused whether or not the file is in the repository.
+const PIP_ARCHIVE_SUFFIXES: readonly string[] = [
+  '.tar.gz', '.tgz', '.tar', '.zip', '.whl', '.egg', '.tar.bz2', '.tbz', '.tar.xz', '.txz', '.tlz', '.tar.lz', '.tar.lzma',
+];
+
+/**
+ * Fifth pass (item A, review of #640): true when `requirement` (its blanks removed) is a PEP 508
+ * project name, optional extras and an optional version specifier, and the name neither ends in a
+ * PIP_ARCHIVE_SUFFIXES suffix nor is a path `pathMayExist` says may exist. A name such as
+ * `stub.tar.gz` or `stub-1.0-py3-none-any.whl` is installed by pip from the file, running its
+ * build code or a `.pth` file before the check; it is refused, not looked up.
+ */
+function pipRequirementNamesIndexProject(requirement: string, pathMayExist: (name: string) => boolean): boolean {
+  const name = PIP_PROJECT_NAME_PATTERN.exec(requirement)?.[0];
+  if (name === undefined) return false;
+  const lower = name.toLowerCase();
+  if (PIP_ARCHIVE_SUFFIXES.some((suffix) => lower.endsWith(suffix)) || pathMayExist(name)) return false;
+  let rest = requirement.slice(name.length);
+  const extras = PIP_EXTRAS_PATTERN.exec(rest);
+  if (extras) rest = rest.slice(extras[0].length);
+  return PIP_VERSION_SPECIFIER_PATTERN.test(rest);
+}
 
 // Fourth pass (#629): the flags a `pipenv install` of the Pipfile may carry.
 const PIPENV_INSTALL_FLAGS: ReadonlySet<string> = new Set(['--dev', '-d', '--deploy', '--system']);
@@ -7858,8 +7886,14 @@ const PIPENV_INSTALL_FLAGS: ReadonlySet<string> = new Set(['--dev', '-d', '--dep
  * any other flag are refused: a local install builds the project, running its build code before any
  * check. Fourth pass (#629): a requirements file (`-r <file>`, `--requirement <file>`) is admitted
  * when `requirementsPlain` reads it as naming only index packages (requirementsFileIsPlain).
+ * Fifth pass (item A): each package is read by pipRequirementNamesIndexProject, so a name pip reads
+ * as a file is refused.
  */
-function pipArgumentsNamePackagesOnly(args: readonly string[], requirementsPlain: (path: string) => boolean = () => false): boolean {
+function pipArgumentsNamePackagesOnly(
+  args: readonly string[],
+  requirementsPlain: (path: string) => boolean,
+  pathMayExist: (name: string) => boolean,
+): boolean {
   let packages = 0;
   for (let index = 0; index < args.length; index += 1) {
     const arg = unquoteYamlScalar(args[index] ?? '');
@@ -7870,8 +7904,7 @@ function pipArgumentsNamePackagesOnly(args: readonly string[], requirementsPlain
       continue;
     }
     if (PIP_PACKAGE_ONLY_FLAGS.has(arg)) continue;
-    const name = PIP_PACKAGE_NAME_PATTERN.exec(arg);
-    if (!name || !PIP_VERSION_SPECIFIER_PATTERN.test(arg.slice(name[0].length))) return false;
+    if (!pipRequirementNamesIndexProject(arg, pathMayExist)) return false;
     packages += 1;
   }
   return packages > 0;
@@ -8386,6 +8419,17 @@ interface CheckReading {
   /** Fourth pass (#629): Pipfile, and Pipfile.lock when present, name only index packages. */
   readonly pipfileIsPlain: boolean;
   /**
+   * Fifth pass (item A): whether a pip argument names a path from the root (true), or from a
+   * directory the reader does not know (false: a working-directory or a `cd`).
+   */
+  readonly pipNamesFromRoot: boolean;
+  /**
+   * Fifth pass (item A): true when `name` may be a file or directory pip would read: from the root,
+   * when the repository holds that path; from an unknown directory, when any path in the repository
+   * has a part of that name. True for every name when the inventory is not read.
+   */
+  readonly pathMayExist: (name: string, fromRoot: boolean) => boolean;
+  /**
    * Third pass on #625 (F6): the root package.json is read and declares no script npm, pnpm, yarn
    * or bun runs on install (INSTALL_LIFECYCLE_SCRIPTS), and there is no binding.gyp, whose build an
    * install runs (rootInstallRunsNoProjectScript).
@@ -8408,10 +8452,12 @@ const ROOT_FILES_UNREAD = {
   buildScriptRunsOnlyTsc: false,
   requirementsFileIsPlain: () => false,
   pipfileIsPlain: false,
+  pipNamesFromRoot: false,
 } as const satisfies Partial<CheckReading>;
 
 const UNREAD_CHECK_READING: CheckReading = {
   ...ROOT_FILES_UNREAD,
+  pathMayExist: () => true,
   installRunsNoProjectScript: false,
   packageManagerConfigPlain: false,
 };
@@ -8426,6 +8472,8 @@ function checkReading(root: string, inventory: PublishOnlyInventory): CheckReadi
     buildScriptRunsOnlyTsc: rootBuildScriptRunsOnlyTsc(root, inventory),
     requirementsFileIsPlain: (path) => requirementsFileIsPlain(root, inventory, path),
     pipfileIsPlain: pipfileIsPlain(root, inventory),
+    pipNamesFromRoot: true,
+    pathMayExist: (name, fromRoot) => (fromRoot ? inventory.entries.has(name) : inventory.pathParts.has(name)),
     installRunsNoProjectScript: rootInstallRunsNoProjectScript(root, inventory),
     packageManagerConfigPlain: packageManagerConfigIsPlain(root, inventory),
   };
@@ -8469,11 +8517,6 @@ const PIP_HASH_OPTION_PATTERN = /^--hash=(?:sha256|sha384|sha512):[0-9A-Fa-f]+$/
 const PIP_INCLUDE_LINE_PATTERN = /^(?:-r|-c|--requirement|--constraint)(?:[ \t]+|=)(\S+)$/;
 const PYPI_SIMPLE_INDEX_URL = 'https://pypi.org/simple';
 
-/** True when `requirement` (with its blanks removed) is a name, optional extras and a specifier. */
-function isIndexRequirement(requirement: string): boolean {
-  const name = PIP_PACKAGE_NAME_PATTERN.exec(requirement);
-  return name !== null && PIP_VERSION_SPECIFIER_PATTERN.test(requirement.slice(name[0].length));
-}
 
 /** `path` joined to `base` (a directory from the root, '' for the root); undefined when it leaves the root. */
 function pathWithinRoot(base: string, path: string): string | undefined {
@@ -8519,7 +8562,9 @@ function requirementsFileIsPlain(root: string, inventory: PublishOnlyInventory, 
       const words = line.split(/[ \t]+/);
       const hashes = words.findIndex((word) => word.startsWith('--'));
       const requirement = (hashes === -1 ? words : words.slice(0, hashes)).join('');
-      if (!isIndexRequirement(requirement)) return false;
+      // Fifth pass (item A): a name pip reads as a file, from the root or this file's directory.
+      const mayExist = (name: string) => inventory.entries.has(name) || (directory !== '' && inventory.entries.has(`${directory}/${name}`));
+      if (!pipRequirementNamesIndexProject(requirement, mayExist)) return false;
       if (hashes !== -1 && !words.slice(hashes).every((word) => PIP_HASH_OPTION_PATTERN.test(word))) return false;
     }
     return true;
@@ -8989,9 +9034,21 @@ function uncreditedCiWorkflows(
  */
 function ownPublishOnlyInventory(repoFiles: readonly string[]): PublishOnlyInventory {
   const knownPaths = [...repoFiles, ...withheldRepoPaths().map(({ path }) => path)];
+  // Fifth pass (items A and E): every known path and each directory above it, and every part of a path.
+  const entries = new Set<string>();
+  const pathParts = new Set<string>();
+  for (const path of knownPaths) {
+    const parts = path.split('/');
+    for (let index = 0; index < parts.length; index += 1) {
+      pathParts.add(parts[index] ?? '');
+      entries.add(parts.slice(0, index + 1).join('/'));
+    }
+  }
   return {
     scanned: new Set(repoFiles),
     known: new Set(knownPaths),
+    entries,
+    pathParts,
     hasYarnPlugins: knownPaths.some((path) => path.startsWith('.yarn/plugins/')),
     hasCargoConfiguration: knownPaths.some((path) => CARGO_CONFIGURATION_PATH_PATTERN.test(path)),
     hasPoetryProjectConfiguration: knownPaths.some((path) => POETRY_PROJECT_CONFIGURATION_PATH_PATTERN.test(path)),
@@ -9654,6 +9711,10 @@ function pyprojectMayMatch(root: string, inventory: PublishOnlyInventory, patter
 interface PublishOnlyInventory {
   readonly scanned: ReadonlySet<string>;
   readonly known: ReadonlySet<string>;
+  /** Fifth pass (items A and E): every known path and every directory above one, from the root. */
+  readonly entries: ReadonlySet<string>;
+  /** Fifth pass (item A): every part (file or directory name) of every known path. */
+  readonly pathParts: ReadonlySet<string>;
   /** Decided once per scan, so each workflow's check stays constant-time in the inventory. */
   readonly hasYarnPlugins: boolean;
   /**
