@@ -228,7 +228,16 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     rest withhold the credit; counts a make target only when it and every target on its path are
 //     `.PHONY` or have no file or directory of their name in the repository, and reads no Makefile
 //     that assigns PATH; B3's note names each reason. Its glossary sentence states these as what
-//     the reader reads, not a proof that the check can fail);
+//     the reader reads, not a proof that the check can fail; the sixth pass (review of #645,
+//     2026-11-03) refuses a command word written as a path (`./ruff`, `bin/pytest`, `npx ./jest`)
+//     as a check, runner, lint form or setup step, where a leading `./` was stripped before the
+//     match; compares make targets with repository paths case-insensitively, and reads no Makefile
+//     beside a `GNUmakefile` or `makefile` in any case; credits no target of a Makefile that
+//     assigns any variable (make exports one the environment also sets); admits a tsc build, or tsc
+//     before a runner, only when every place it writes is a directory holding no tracked file and
+//     not under node_modules and tsconfig.json has no `extends`; drops `CI` and `NODE_ENV` from the
+//     inert environment keys; and says in B3's note when a credited check is a lint or format
+//     command whose configuration is not read);
 //   - A1: conftest.py is not a concrete test file (not cited as one, and rated hollow where it
 //     asserts; from 2026-11-01 test_to_source_ratio counts it as test surface, as v17 does), and
 //     an unconditional run-wide pytest skip

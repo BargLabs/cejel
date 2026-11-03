@@ -122,8 +122,9 @@ describe('v27 (#517 correction) — a publishing workflow that checks before it 
 
     it(`v27's B3 note says ${name} is counted because a check runs before it publishes`, () => {
       const file = publishingFile(name);
+      const clause = LINT_CREDITED.includes(name) ? LINT_CONFIGURATION_CLAUSE : '';
       expect(criterion(name, V27, 'B3').notes, name).toBe(
-        `${file} is counted as CI verification because a check runs before it publishes; it ${COUNTED_DETAILS[name]}`,
+        `${file} is counted as CI verification because a check runs before it publishes${clause}; it ${COUNTED_DETAILS[name]}`,
       );
     });
   }

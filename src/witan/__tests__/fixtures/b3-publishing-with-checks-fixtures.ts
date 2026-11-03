@@ -788,10 +788,10 @@ export const V3_COUNTED: readonly Shape[] = [
   ],
   [
     'job-level-keys-written-plainly',
-    'Counted: job-level `timeout-minutes`, `env` and `defaults` written as plain block keys, with `shell: bash`.',
+    'Counted: job-level `timeout-minutes`, `env` and `defaults` written as plain block keys, with `shell: bash`. (The sixth pass, review of #645, made its `env:` key `TZ`; `CI` is no longer inert.)',
     {
       ...JS_BASE,
-      [RELEASE]: testJobWithKeysThenPublish('    timeout-minutes: 10\n    env:\n      CI: true\n    defaults:\n      run:\n        shell: bash\n'),
+      [RELEASE]: testJobWithKeysThenPublish('    timeout-minutes: 10\n    env:\n      TZ: UTC\n    defaults:\n      run:\n        shell: bash\n'),
     },
   ],
 ];
@@ -1042,13 +1042,13 @@ export const ENVIRONMENT_EXCLUDED: readonly Shape[] = [
 export const ENVIRONMENT_COUNTED: readonly Shape[] = [
   [
     'env-inert-keys-and-secret-token',
-    'Counted: the workflow sets `CI` and `NODE_ENV`, the job sets `NODE_AUTH_TOKEN` from a secret, and the check step sets `FORCE_COLOR`.',
+    'Counted: the workflow sets `TZ` and `LANG`, the job sets `NODE_AUTH_TOKEN` from a secret, and the check step sets `FORCE_COLOR`. (The sixth pass, review of #645, replaced `CI` and `NODE_ENV`, which are no longer inert.)',
     {
       ...JS_BASE,
       [RELEASE]: oneJobReleaseWithJobKeys(
         '    env:\n      NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}\n',
         `      - run: npm ci\n      - run: npm test\n        env:\n          FORCE_COLOR: "1"\n      - run: npm publish\n`,
-      ).replace(PUSH_MAIN, `${PUSH_MAIN}env:\n  CI: true\n  NODE_ENV: test\n`),
+      ).replace(PUSH_MAIN, `${PUSH_MAIN}env:\n  TZ: UTC\n  LANG: C.UTF-8\n`),
     },
   ],
 ];
@@ -1393,7 +1393,11 @@ export const UNREAD_ENVIRONMENT_EXCLUDED: readonly Shape[] = [
 
 /** Item C, the other side: an inert assignment and a known npm flag leave the check counted. */
 export const READ_ENVIRONMENT_COUNTED: readonly Shape[] = [
-  ['check-line-assignment-inert', 'Counted: `run: CI=true npm test`; `CI` is an inert key.', { ...JS_BASE, [RELEASE]: releaseAfterInstall(`      - run: CI=true npm test\n${NPM_PUBLISH}`) }],
+  [
+    'check-line-assignment-inert',
+    'Counted: `run: FORCE_COLOR=1 npm test`; `FORCE_COLOR` is an inert key. (The sixth pass, review of #645, replaced `CI=true`; `CI` is no longer inert.)',
+    { ...JS_BASE, [RELEASE]: releaseAfterInstall(`      - run: FORCE_COLOR=1 npm test\n${NPM_PUBLISH}`) },
+  ],
   ['npm-test-silent', 'Counted: `run: npm test --silent`; `--silent` only quiets npm.', { ...JS_BASE, [RELEASE]: releaseAfterInstall(`      - run: npm test --silent\n${NPM_PUBLISH}`) }],
 ];
 

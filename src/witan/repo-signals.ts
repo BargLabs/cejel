@@ -6632,8 +6632,8 @@ function collectB3CiDisciplineEvidence(
   // before every publish is counted after all; its clause is kept for B3's note.
   const publishingDetails = new Map<string, string>();
   const rootPublishingDetails = new Map<string, string>();
-  const checkedPublishingDetails = new Map<string, string>();
-  const rootCheckedPublishingDetails = new Map<string, string>();
+  const checkedPublishingDetails = new Map<string, CheckedPublishingDetail>();
+  const rootCheckedPublishingDetails = new Map<string, CheckedPublishingDetail>();
   const uncreditedWorkflows: ReadonlyMap<string, UncreditedCiWorkflowReason> = useV27FalseAssuranceClosure
     ? withContentReadSignals('B3', ['ci_script_depth', 'default_branch_ci_depth'], () => {
         const inventory = ownPublishOnlyInventory(repoFiles);
@@ -6677,7 +6677,7 @@ function collectB3CiDisciplineEvidence(
     ),
   ]);
   // Each counted publishing workflow's name, as the note names it, with its F3-b clause.
-  const b3CheckedPublishing: ReadonlyMap<string, string> = new Map([
+  const b3CheckedPublishing: ReadonlyMap<string, CheckedPublishingDetail> = new Map([
     ...checkedPublishingDetails,
     ...[...rootCheckedPublishingDetails].map(([file, detail]) => [`${file} at the monorepo root`, detail] as const),
   ]);
@@ -6906,22 +6906,26 @@ function collectB3CiDisciplineEvidence(
  */
 function b3NoteWithCheckedPublishing(
   uncreditedNote: ((budget: number | undefined) => string) | undefined,
-  checked: ReadonlyMap<string, string>,
+  checked: ReadonlyMap<string, CheckedPublishingDetail>,
 ): string | undefined {
   const entries = [...checked];
-  const countSentence = (rest: number, more: boolean) =>
-    `${rest}${more ? ' more' : ''} publishing workflow${rest === 1 ? ' is' : 's are'} counted as CI verification because a check runs before ${rest === 1 ? 'it publishes' : 'they publish'}.`;
+  // Sixth pass (should-fix 6, review of #645): where a credited check is a lint or format command,
+  // the sentence says that Cejel does not read the tool's configuration, in each form it takes.
+  const lintClause = (lint: boolean) => (lint ? LINT_CONFIGURATION_CLAUSE : '');
+  const lintFrom = (index: number) => entries.slice(index).some(([, { lint }]) => lint);
+  const countSentence = (rest: number, more: boolean, lint: boolean) =>
+    `${rest}${more ? ' more' : ''} publishing workflow${rest === 1 ? ' is' : 's are'} counted as CI verification because a check runs before ${rest === 1 ? 'it publishes' : 'they publish'}${lint ? (rest === 1 ? LINT_CONFIGURATION_CLAUSE : LINT_CONFIGURATION_SOME_CLAUSE) : ''}.`;
   let note =
     uncreditedNote === undefined
       ? ''
-      : uncreditedNote(entries.length === 0 ? undefined : CRITERION_NOTES_MAX_LENGTH - 1 - countSentence(entries.length, true).length);
+      : uncreditedNote(entries.length === 0 ? undefined : CRITERION_NOTES_MAX_LENGTH - 1 - countSentence(entries.length, true, lintFrom(0)).length);
   const joined = (base: string, sentence: string) => (base === '' ? sentence : `${base} ${sentence}`);
   const fits = (text: string) => text.length <= CRITERION_NOTES_MAX_LENGTH;
-  for (const [index, [name, detail]] of entries.entries()) {
+  for (const [index, [name, { detail, lint }]] of entries.entries()) {
     const rest = entries.length - index - 1;
     // Room is kept for the sentence counting what is left after this one, if anything is.
-    const leavesRoom = (text: string) => fits(text) && (rest === 0 || fits(joined(text, countSentence(rest, true))));
-    const counted = `${name} is counted as CI verification because a check runs before it publishes`;
+    const leavesRoom = (text: string) => fits(text) && (rest === 0 || fits(joined(text, countSentence(rest, true, lintFrom(index + 1)))));
+    const counted = `${name} is counted as CI verification because a check runs before it publishes${lintClause(lint)}`;
     const full = joined(note, `${counted}; it ${detail}`);
     if (leavesRoom(full)) {
       note = full;
@@ -6932,11 +6936,15 @@ function b3NoteWithCheckedPublishing(
       note = short;
       continue;
     }
-    note = joined(note, countSentence(rest + 1, index > 0));
+    note = joined(note, countSentence(rest + 1, index > 0, lintFrom(index)));
     break;
   }
   return note === '' ? undefined : note;
 }
+
+// Sixth pass (should-fix 6): what B3's note adds where a credited check is a lint or format command.
+const LINT_CONFIGURATION_CLAUSE = ' (a lint or format check, whose configuration Cejel does not read)';
+const LINT_CONFIGURATION_SOME_CLAUSE = ' (some on a lint or format check, whose configuration Cejel does not read)';
 
 function b3Disclosures(unshown: B3UnshownCheckWorkflows, ...uncredited: string[]): { disclosures?: string[] } {
   const sentences = [b3UnshownCheckDisclosure(unshown, CRITERION_DISCLOSURE_MAX_LENGTH), ...uncredited].filter(
@@ -7078,7 +7086,7 @@ function publishingWorkflowReasons(
   workflows: readonly string[],
   uncredited: ReadonlyMap<string, UncreditedCiWorkflowReason>,
   details: Map<string, string>,
-  checkedDetails: Map<string, string>,
+  checkedDetails: Map<string, CheckedPublishingDetail>,
   reading: CheckReading,
 ): Map<string, UncreditedCiWorkflowReason> {
   const reasons = new Map<string, UncreditedCiWorkflowReason>();
@@ -7091,7 +7099,7 @@ function publishingWorkflowReasons(
     const read = publishingWorkflowDetail(root, file, reading);
     if (read === undefined) continue;
     if (read.checked) {
-      checkedDetails.set(file, read.detail);
+      checkedDetails.set(file, { detail: read.detail, lint: read.lint });
       continue;
     }
     reasons.set(file, 'publishes');
@@ -7477,8 +7485,9 @@ function publishingJobsOnEveryRun(
   depth: number,
   reading: CheckReading,
 ): PublishingJobsReading {
-  const none: PublishingJobsReading = { environments: [], checkedBeforePublish: false, notCredited: [] };
+  const none: PublishingJobsReading = { environments: [], checkedBeforePublish: false, notCredited: [], lintCredited: false };
   const notCredited: string[] = [];
+  const credit = { lint: false };
   if (YAML_LINE_BREAK_NOT_SPLIT_PATTERN.test(contents)) return none;
   const isGuardLine = (line: string) => isStepOrJobGuard(line) && !isAlwaysTrueIfLine(line, context);
   const jobs = workflowJobs(contents, isGuardLine);
@@ -7520,8 +7529,9 @@ function publishingJobsOnEveryRun(
           const job = jobs.find(({ start, end }) => start < stepsKey && stepsKey < end);
           return job ? jobEnvironment(lines, indents, inBlockScalar, job) : { kind: 'unread' };
         }),
-      checkedBeforePublish: depth === 0 && checksBeforeEveryPublish(contents, jobs, publishes, isGuardLine, reading, notCredited),
+      checkedBeforePublish: depth === 0 && checksBeforeEveryPublish(contents, jobs, publishes, isGuardLine, reading, notCredited, credit),
       notCredited,
+      lintCredited: credit.lint,
     };
   }
   if (depth >= REUSABLE_WORKFLOW_MAX_DEPTH) return none;
@@ -7535,8 +7545,9 @@ function publishingJobsOnEveryRun(
     if (called.environments.length > 0) {
       return {
         environments: called.environments,
-        checkedBeforePublish: depth === 0 && checksBeforeEveryPublish(contents, jobs, publishes, isGuardLine, reading, notCredited),
+        checkedBeforePublish: depth === 0 && checksBeforeEveryPublish(contents, jobs, publishes, isGuardLine, reading, notCredited, credit),
         notCredited,
+        lintCredited: credit.lint,
       };
     }
   }
@@ -7553,6 +7564,17 @@ interface PublishingJobsReading {
    * script or make target, an environment key on its path), in the order found, for B3's note.
    */
   readonly notCredited: readonly string[];
+  /**
+   * Sixth pass (should-fix 6, review of #645): a check credited for the workflow is a lint or format
+   * command, whose configuration the reader does not read, for B3's note.
+   */
+  readonly lintCredited: boolean;
+}
+
+/** Sixth pass (should-fix 6): a counted publishing workflow's F3-b clause, and whether a lint check is credited in it. */
+interface CheckedPublishingDetail {
+  readonly detail: string;
+  readonly lint: boolean;
 }
 
 /**
@@ -7799,6 +7821,8 @@ function isSetupCommand(input: readonly string[], reading: CheckReading): boolea
     start += 1;
   }
   const [tool = '', first = '', second = ''] = words.slice(start);
+  // Sixth pass (blocker 1, review of #645): a command written as a path runs that file.
+  if (isPathCommandWord(tool)) return false;
   // An npm-family install of the project's own dependencies: flags only, no package or path named.
   const javaScriptInstall =
     reading.installRunsNoProjectScript && reading.packageManagerConfigPlain && words.slice(start + 2).every((word) => word.startsWith('-'));
@@ -7945,6 +7969,7 @@ function checksBeforeEveryPublish(
   isGuardLine: (line: string) => boolean,
   rootReading: CheckReading,
   notCredited: string[],
+  credit: { lint: boolean },
 ): boolean {
   if (!workflowStructureIsPlain(contents)) return false;
   if (SCRIPT_SHELL_SETTING_PATTERN.test(contents)) return false;
@@ -8001,7 +8026,7 @@ function checksBeforeEveryPublish(
       setupItems.add(step.itemLine);
     }
   }
-  return jobs.every((job) => {
+  const checked = jobs.every((job) => {
     if (needsCheck(job)) return true;
     if (job.target !== undefined) return false;
     const stepsKey = checkJobs.find((key) => job.start < key && key < job.end);
@@ -8009,6 +8034,9 @@ function checksBeforeEveryPublish(
     if (stepsKey === undefined || first === undefined) return false;
     return items.every((item) => item.stepsKey !== stepsKey || item.line >= first.itemLine || setupItems.has(item.line));
   });
+  // Sixth pass (should-fix 6): whether any credited check is a lint or format command.
+  if (checked) credit.lint = [...firstCheck.values()].some(({ lint }) => lint);
+  return checked;
 }
 
 // ---- Fourth pass (#628): the environment on a check's path ---------------------------------------
@@ -8018,8 +8046,11 @@ function checksBeforeEveryPublish(
 // runs unchanged are admitted on the path to a credited check; any other key withholds the credit.
 
 // Keys that change no program a command runs and nothing it loads.
+// Sixth pass (should-fix 5, review of #645): `CI` and `NODE_ENV` are not among them. With `CI=false`
+// jest writes missing snapshots instead of failing, and `NODE_ENV` chooses what code and
+// configuration a test run loads.
 const INERT_ENVIRONMENT_KEYS: ReadonlySet<string> = new Set([
-  'CI', 'NODE_ENV', 'TZ', 'LANG', 'LANGUAGE', 'LC_ALL', 'FORCE_COLOR', 'NO_COLOR', 'TERM', 'COLUMNS', 'PYTHONUNBUFFERED',
+  'TZ', 'LANG', 'LANGUAGE', 'LC_ALL', 'FORCE_COLOR', 'NO_COLOR', 'TERM', 'COLUMNS', 'PYTHONUNBUFFERED',
   'PYTHONDONTWRITEBYTECODE', 'PYTHONHASHSEED', 'PYTHONIOENCODING', 'PYTHONUTF8', 'RUST_BACKTRACE', 'CARGO_TERM_COLOR',
   'CARGO_INCREMENTAL', 'DEBIAN_FRONTEND', 'HUSKY',
 ]);
@@ -8276,7 +8307,7 @@ function firstCheckLineByJob(
     // Fourth pass (#627): a test script or make target the reader read and found to run no known
     // runner is named in B3's note.
     for (const { words } of commands) {
-      const reason = unrecognisedCheckReason(words, stepReading) ?? checkLineReason(words, stepReading);
+      const reason = unrecognisedCheckReason(words, stepReading) ?? checkLineReason(words, stepReading) ?? buildLineReason(words, stepReading);
       if (reason !== undefined) notCredited.push(reason);
     }
     const check = step.lines.find(({ text }) => shellCommands(text).some(isCheck));
@@ -8291,7 +8322,9 @@ function firstCheckLineByJob(
     const list = shellCommandList(check.text);
     const command = list.findIndex(({ words }) => isCheck(words));
     if (known === undefined || check.line < known.line) {
-      first.set(step.job, { line: check.line, command, andChainEnd: andChainEnds(list)[command] ?? command, itemLine: step.itemLine });
+      const checkWords = checkCommandWords(list[command]?.words ?? [])?.words ?? [];
+      const lint = LINT_OR_FORMAT_COMMANDS.has((checkWords[0] ?? '').toLowerCase());
+      first.set(step.job, { line: check.line, command, andChainEnd: andChainEnds(list)[command] ?? command, itemLine: step.itemLine, lint });
     }
   }
   return first;
@@ -8307,6 +8340,8 @@ interface FirstCheck {
   readonly command: number;
   readonly andChainEnd: number;
   readonly itemLine: number;
+  /** Sixth pass (should-fix 6): the check is a lint or format command (LINT_OR_FORMAT_COMMANDS). */
+  readonly lint: boolean;
 }
 
 /**
@@ -8329,7 +8364,24 @@ function unrecognisedCheckReason(input: readonly string[], reading: CheckReading
   if (words[0] === 'make' && words.length === 2 && reading.makeTargets.get(target) === 'not-run') {
     return `the Makefile's ${target} target, or one it needs, is not .PHONY and has the name of a file or directory in the repository, so make may not run it`;
   }
+  // Sixth pass (blocker 3, review of #645).
+  if (words[0] === 'make' && words.length === 2 && reading.makeTargets.get(target) === 'assigns') return MAKE_ASSIGNMENT_REASON;
   return undefined;
+}
+
+// Sixth pass (blockers 3 and 4, review of #645): the reasons B3's note gives for a Makefile that
+// assigns a variable and for a tsc build whose output is not admitted.
+const MAKE_ASSIGNMENT_REASON = 'the Makefile assigns a variable, which make exports to what the target runs when the environment also sets it';
+const TSC_OUTPUT_REASON = 'the build script in package.json runs tsc, whose output may overwrite what the check runs';
+
+/**
+ * Sixth pass (blocker 4): TSC_OUTPUT_REASON when one command runs the root build script, would be a
+ * setup step were that build admitted, and is not one because its tsc output is not
+ * (CheckReading.buildScriptTscOutputUnread); undefined otherwise.
+ */
+function buildLineReason(input: readonly string[], reading: CheckReading): string | undefined {
+  if (!reading.buildScriptTscOutputUnread || isSetupCommand(input, reading)) return undefined;
+  return isSetupCommand(input, { ...reading, buildScriptRunsOnlyTsc: true }) ? TSC_OUTPUT_REASON : undefined;
 }
 
 /**
@@ -8446,8 +8498,13 @@ interface CheckReading {
   readonly testScriptUnrecognised: boolean;
   /** Fourth pass (#627): `test` and `check` in the root Makefile (rootMakeTargetReadings). */
   readonly makeTargets: ReadonlyMap<string, ScriptReading>;
-  /** Fourth pass (#630 C2): the root `build` script runs only tsc (rootBuildScriptRunsOnlyTsc). */
+  /**
+   * Fourth pass (#630 C2): the root `build` script runs only tsc (rootBuildScriptReading); sixth pass
+   * (blocker 4): and writes only where the reader admits.
+   */
   readonly buildScriptRunsOnlyTsc: boolean;
+  /** Sixth pass (blocker 4): the root `build` script runs only tsc, writing where it is not admitted. */
+  readonly buildScriptTscOutputUnread: boolean;
   /** Fourth pass (#629): a requirements file, by its path from the root, names only index packages. */
   readonly requirementsFileIsPlain: (path: string) => boolean;
   /** Fourth pass (#629): Pipfile, and Pipfile.lock when present, name only index packages. */
@@ -8484,6 +8541,7 @@ const ROOT_FILES_UNREAD = {
   testScriptUnrecognised: false,
   makeTargets: new Map<string, ScriptReading>(),
   buildScriptRunsOnlyTsc: false,
+  buildScriptTscOutputUnread: false,
   requirementsFileIsPlain: () => false,
   pipfileIsPlain: false,
   pipNamesFromRoot: false,
@@ -8498,16 +8556,23 @@ const UNREAD_CHECK_READING: CheckReading = {
 
 /** The CheckReading of a checkout's root, read from its inventory. */
 function checkReading(root: string, inventory: PublishOnlyInventory): CheckReading {
-  const testScript = rootTestScriptReading(root, inventory);
+  // Sixth pass (blocker 4): read once, for every tsc run a build, test script or recipe makes.
+  const tsconfig = rootTsconfigReading(root, inventory);
+  const tscAdmitted = (words: readonly string[]) => tscRunWritesNothingRead(words, tsconfig, inventory);
+  const testScript = rootTestScriptReading(root, inventory, tscAdmitted);
+  const build = rootBuildScriptReading(root, inventory, tscAdmitted);
   return {
     testScriptRuns: testScript === 'runner',
     testScriptUnrecognised: testScript === 'unrecognised',
-    makeTargets: rootMakeTargetReadings(root, inventory),
-    buildScriptRunsOnlyTsc: rootBuildScriptRunsOnlyTsc(root, inventory),
+    makeTargets: rootMakeTargetReadings(root, inventory, tscAdmitted),
+    buildScriptRunsOnlyTsc: build === 'admitted',
+    buildScriptTscOutputUnread: build === 'output-unread',
     requirementsFileIsPlain: (path) => requirementsFileIsPlain(root, inventory, path),
     pipfileIsPlain: pipfileIsPlain(root, inventory),
     pipNamesFromRoot: true,
-    pathMayExist: (name, fromRoot) => (fromRoot ? inventory.entries.has(name) : inventory.pathParts.has(name)),
+    // Sixth pass (blocker 2): compared case-insensitively, as a case-insensitive file system resolves a name.
+    pathMayExist: (name, fromRoot) =>
+      fromRoot ? inventory.entriesLower.has(name.toLowerCase()) : inventory.pathPartsLower.has(name.toLowerCase()),
     installRunsNoProjectScript: rootInstallRunsNoProjectScript(root, inventory),
     packageManagerConfigPlain: packageManagerConfigIsPlain(root, inventory),
   };
@@ -8770,7 +8835,7 @@ function publishingWorkflowDetail(
   root: string,
   file: string,
   reading: CheckReading,
-): { readonly detail: string; readonly checked: boolean } | undefined {
+): { readonly detail: string; readonly checked: boolean; readonly lint: boolean } | undefined {
   if (!isGitHubActionsWorkflow(file)) return undefined;
   const fullPath = join(root, file);
   if (!isRegularFile(fullPath)) return undefined;
@@ -8786,12 +8851,13 @@ function publishingWorkflowDetail(
     triggers,
     pushBranches: triggers.has('push') ? githubPushBranchFilter(contents) : null,
   };
-  const { environments, checkedBeforePublish, notCredited } = publishingJobsOnEveryRun(root, contents, context, 0, reading);
+  const { environments, checkedBeforePublish, notCredited, lintCredited } = publishingJobsOnEveryRun(root, contents, context, 0, reading);
   if (environments.length === 0) return undefined;
   const detail = `is triggered by ${publishingTriggerText(contents, triggers)}, and ${publishingEnvironmentText(environments)}.`;
   return {
     detail: checkedBeforePublish ? detail : `${detail}${notCreditedSentence(notCredited)}`,
     checked: checkedBeforePublish,
+    lint: checkedBeforePublish && lintCredited,
   };
 }
 
@@ -9078,11 +9144,23 @@ function ownPublishOnlyInventory(repoFiles: readonly string[]): PublishOnlyInven
       entries.add(parts.slice(0, index + 1).join('/'));
     }
   }
+  const rootPathsLower = new Map<string, string[]>();
+  for (const path of knownPaths) {
+    if (path.includes('/')) continue;
+    const lower = path.toLowerCase();
+    rootPathsLower.set(lower, [...(rootPathsLower.get(lower) ?? []), path]);
+  }
+  const makefiles = [...(rootPathsLower.get('gnumakefile') ?? []), ...(rootPathsLower.get('makefile') ?? [])];
   return {
     scanned: new Set(repoFiles),
     known: new Set(knownPaths),
     entries,
     pathParts,
+    entriesLower: new Set([...entries].map((path) => path.toLowerCase())),
+    knownLower: new Set(knownPaths.map((path) => path.toLowerCase())),
+    pathPartsLower: new Set([...pathParts].map((part) => part.toLowerCase())),
+    rootPathsLower,
+    otherMakefile: makefiles.some((path) => path !== 'Makefile'),
     hasYarnPlugins: knownPaths.some((path) => path.startsWith('.yarn/plugins/')),
     hasCargoConfiguration: knownPaths.some((path) => CARGO_CONFIGURATION_PATH_PATTERN.test(path)),
     hasPoetryProjectConfiguration: knownPaths.some((path) => POETRY_PROJECT_CONFIGURATION_PATH_PATTERN.test(path)),
@@ -9333,13 +9411,17 @@ function peelCommandLaunchers(input: readonly string[]): string[] | null {
  * before one (PRE_RUNNER_CHECK_WORDS), or anything else. A command given `--if-present`, a
  * report-only flag or a NO_FAIL_FLAGS flag is neither.
  */
-function scriptCommandKind(words: readonly string[]): 'runner' | 'check' | 'other' {
+function scriptCommandKind(words: readonly string[], tscAdmitted: (words: readonly string[]) => boolean): 'runner' | 'check' | 'other' {
   if (words.length === 0 || words.includes('--if-present')) return 'other';
+  // Sixth pass (blocker 1): a command written as a path runs that file, whatever it is named.
+  if (isPathCommandWord(words[0] ?? '')) return 'other';
   if (words.some((word) => REPORT_ONLY_FLAGS.has(word) || NO_FAIL_FLAGS.has(word.split('=')[0] ?? word))) return 'other';
   const [first = '', second = '', third = ''] = words;
   const python = (first === 'python' || first === 'python3') && second === '-m';
   if (KNOWN_TEST_RUNNER_WORDS.has(first) || KNOWN_TEST_RUNNER_SUBCOMMANDS.get(first)?.includes(second)) return 'runner';
   if (python && KNOWN_TEST_RUNNER_MODULES.has(third)) return 'runner';
+  // Sixth pass (blocker 4): tsc before the runner only where it writes nothing the runner reads.
+  if (first === 'tsc') return tscAdmitted(words) ? 'check' : 'other';
   if (PRE_RUNNER_CHECK_WORDS.has(first) || (python && PRE_RUNNER_CHECK_WORDS.has(third))) return 'check';
   return 'other';
 }
@@ -9412,19 +9494,24 @@ function rootPackageScripts(root: string, inventory: PublishOnlyInventory): Read
  * runs a known test runner (packageScriptCommands, kindsRunKnownRunner); 'unrecognised' when it is
  * a string that does not; 'unread' when there is none or the manifest is not read.
  */
-function rootTestScriptReading(root: string, inventory: PublishOnlyInventory): ScriptReading {
+function rootTestScriptReading(
+  root: string,
+  inventory: PublishOnlyInventory,
+  tscAdmitted: (words: readonly string[]) => boolean,
+): ScriptReading {
   const scripts = rootPackageScripts(root, inventory);
   if (scripts === undefined || typeof scripts.test !== 'string') return 'unread';
   const commands = packageScriptCommands(scripts, 'test');
-  const kinds = (commands ?? []).map((words) => (words === null ? 'other' : scriptCommandKind(words)));
+  const kinds = (commands ?? []).map((words) => (words === null ? 'other' : scriptCommandKind(words, tscAdmitted)));
   return commands !== undefined && kindsRunKnownRunner(kinds) ? 'runner' : 'unrecognised';
 }
 
 /**
  * Whether a script or make target runs a known test runner, or was not read. Fifth pass (item E):
- * 'not-run' for a make target make may skip as up to date (makeTargetCommandKinds).
+ * 'not-run' for a make target make may skip as up to date (makeTargetCommandKinds). Sixth pass
+ * (blocker 3, review of #645): 'assigns' for a target of a Makefile that assigns a variable.
  */
-type ScriptReading = 'runner' | 'unrecognised' | 'unread' | 'not-run';
+type ScriptReading = 'runner' | 'unrecognised' | 'unread' | 'not-run' | 'assigns';
 
 // Fourth pass (#627): make targets a CI step may run as a check.
 const MAKE_CHECK_TARGETS: readonly string[] = ['test', 'check'];
@@ -9450,9 +9537,10 @@ interface MakefileRule {
  * recorded. Null when the reader cannot place the file: a line continuation, a setting
  * MAKEFILE_UNREAD_SETTING_PATTERN names, a target or prerequisite holding `$`, `%`, `|` or `=`, a
  * double-colon rule, two recipes for one target, or any other line (a directive such as `include`
- * or `export`). Linear in the file.
+ * or `export`). Linear in the file. Sixth pass (blocker 3, review of #645): `assigns` says whether
+ * any line assigns a variable.
  */
-function readMakefileRules(text: string): Map<string, MakefileRule> | null {
+function readMakefileRules(text: string): { readonly rules: Map<string, MakefileRule>; readonly assigns: boolean } | null {
   if (/\\\r?\n/.test(text) || MAKEFILE_UNREAD_SETTING_PATTERN.test(text)) return null;
   const rules = new Map<string, MakefileRule>();
   let targets: string[] = [];
@@ -9469,6 +9557,7 @@ function readMakefileRules(text: string): Map<string, MakefileRule> | null {
     return true;
   };
   let inRule = false;
+  let assigns = false;
   for (const line of text.split(/\r?\n/)) {
     if (line.startsWith('\t')) {
       if (!inRule) return null;
@@ -9478,11 +9567,13 @@ function readMakefileRules(text: string): Map<string, MakefileRule> | null {
     if (line.trim() === '' || line.startsWith('#')) continue;
     if (!close()) return null;
     inRule = false;
-    const assignment = MAKEFILE_ASSIGNMENT_PATTERN.exec(line);
-    // Fifth pass (item E, review of #640): a Makefile that assigns PATH may run a repository script
-    // in place of the runner a recipe names (SHELL and .SHELLFLAGS are refused anywhere, above).
-    if (assignment) {
-      if (assignment[1] === 'PATH') return null;
+    // Fifth pass (item E, review of #640) refused a Makefile that assigns PATH, by name. Sixth pass
+    // (blocker 3, review of #645): make exports a variable that came from the environment with the
+    // Makefile's value (`HOME := fakehome` points python at a user site with a `.pth` file), and
+    // which keys a runner or tool reads from the environment is no fixed list. So any assignment is
+    // recorded, and rootMakeTargetReadings credits no target of such a Makefile.
+    if (MAKEFILE_ASSIGNMENT_PATTERN.test(line)) {
+      assigns = true;
       continue;
     }
     const rule = MAKEFILE_RULE_PATTERN.exec(line);
@@ -9503,7 +9594,7 @@ function readMakefileRules(text: string): Map<string, MakefileRule> | null {
     targets = named;
     if (semicolon !== -1 && rest.slice(semicolon + 1).trim() !== '') recipe.push(rest.slice(semicolon + 1));
   }
-  return close() ? rules : null;
+  return close() ? { rules, assigns } : null;
 }
 
 /**
@@ -9518,6 +9609,7 @@ function makeTargetCommandKinds(
   rules: ReadonlyMap<string, MakefileRule>,
   target: string,
   mayBeUpToDate: (name: string) => boolean,
+  tscAdmitted: (words: readonly string[]) => boolean,
 ): ('runner' | 'check' | 'other')[] | 'not-run' | undefined {
   const kinds: ('runner' | 'check' | 'other')[] = [];
   const made = new Set<string>();
@@ -9551,7 +9643,7 @@ function makeTargetCommandKinds(
       else {
         for (const words of shellCommands(text)) {
           const peeled = peelCommandLaunchers(words);
-          kinds.push(peeled === null ? 'other' : scriptCommandKind(peeled));
+          kinds.push(peeled === null ? 'other' : scriptCommandKind(peeled, tscAdmitted));
         }
       }
       if (kinds.length > SCRIPT_EXPANSION_MAX_COMMANDS) return false;
@@ -9567,18 +9659,34 @@ function makeTargetCommandKinds(
  * rule runs a known test runner. Empty when the Makefile is not scanned, when a `GNUmakefile` or
  * `makefile` (which make reads first) exists, or when readMakefileRules cannot place it; a target
  * with no explicit rule is left out, as not read.
+ *
+ * Sixth pass (blocker 2, review of #645): file names are compared case-insensitively, as a
+ * case-insensitive file system (macOS) resolves them, on every runner; that only withholds more. A
+ * root path that is `GNUmakefile` or `makefile` in any case, and a target or prerequisite with the
+ * name of a file or directory in any case, count. Sixth pass (blocker 3): every target of a Makefile
+ * that assigns a variable is 'assigns', never 'runner'.
  */
-function rootMakeTargetReadings(root: string, inventory: PublishOnlyInventory): ReadonlyMap<string, ScriptReading> {
+function rootMakeTargetReadings(
+  root: string,
+  inventory: PublishOnlyInventory,
+  tscAdmitted: (words: readonly string[]) => boolean,
+): ReadonlyMap<string, ScriptReading> {
   const readings = new Map<string, ScriptReading>();
-  if (!inventory.scanned.has('Makefile') || inventory.known.has('GNUmakefile') || inventory.known.has('makefile')) return readings;
-  const rules = readMakefileRules(readRepoText(join(root, 'Makefile'), 'utf8'));
-  if (rules === null) return readings;
-  // Fifth pass (item E): the targets `.PHONY` names, which make runs whatever files exist.
+  if (!inventory.scanned.has('Makefile') || inventory.otherMakefile) return readings;
+  const read = readMakefileRules(readRepoText(join(root, 'Makefile'), 'utf8'));
+  if (read === null) return readings;
+  const { rules, assigns } = read;
+  // Fifth pass (item E): the targets `.PHONY` names, which make runs whatever files exist. make's
+  // own target names are case-sensitive, so `.PHONY` is matched exactly.
   const phony = new Set(rules.get('.PHONY')?.prerequisites ?? []);
-  const mayBeUpToDate = (name: string) => !phony.has(name) && inventory.entries.has(name);
+  const mayBeUpToDate = (name: string) => !phony.has(name) && inventory.entriesLower.has(name.toLowerCase());
   for (const target of MAKE_CHECK_TARGETS) {
     if (!rules.has(target)) continue;
-    const kinds = makeTargetCommandKinds(rules, target, mayBeUpToDate);
+    if (assigns) {
+      readings.set(target, 'assigns');
+      continue;
+    }
+    const kinds = makeTargetCommandKinds(rules, target, mayBeUpToDate, tscAdmitted);
     if (kinds === 'not-run') readings.set(target, 'not-run');
     else readings.set(target, kinds !== undefined && kindsRunKnownRunner(kinds) ? 'runner' : 'unrecognised');
   }
@@ -9586,27 +9694,132 @@ function rootMakeTargetReadings(root: string, inventory: PublishOnlyInventory): 
 }
 
 /**
- * Fourth pass (#630 C2): true when the root package.json's `build` script (with its pre and post
- * scripts) runs only `tsc`, whose configuration is JSON, not code, and `tsconfig.json` is scanned.
- * A build with a code configuration (vite, webpack, rollup) runs that code before any check.
+ * Fourth pass (#630 C2): 'admitted' when the root package.json's `build` script (with its pre and
+ * post scripts) runs only `tsc`, whose configuration is JSON, not code, and `tsconfig.json` is
+ * scanned. A build with a code configuration (vite, webpack, rollup) runs that code before any check.
+ * Sixth pass (blocker 4, review of #645): and every tsc run writes only where `tscAdmitted` says
+ * (tscRunWritesNothingRead); a build that runs only tsc but is not admitted so is 'output-unread',
+ * which B3's note names. 'other' otherwise.
  */
-function rootBuildScriptRunsOnlyTsc(root: string, inventory: PublishOnlyInventory): boolean {
+function rootBuildScriptReading(
+  root: string,
+  inventory: PublishOnlyInventory,
+  tscAdmitted: (words: readonly string[]) => boolean,
+): 'admitted' | 'output-unread' | 'other' {
   const scripts = rootPackageScripts(root, inventory);
-  if (scripts === undefined || !inventory.scanned.has('tsconfig.json')) return false;
+  if (scripts === undefined || !inventory.scanned.has('tsconfig.json')) return 'other';
   const commands = packageScriptCommands(scripts, 'build');
-  return (
+  const runsOnlyTsc =
     commands !== undefined &&
     commands.length > 0 &&
-    commands.every((words) => words !== null && words[0] === 'tsc' && !words.includes('--if-present'))
-  );
+    commands.every((words) => words !== null && words[0] === 'tsc' && !words.includes('--if-present'));
+  if (!runsOnlyTsc) return 'other';
+  return commands.every((words) => words !== null && tscAdmitted(words)) ? 'admitted' : 'output-unread';
+}
+
+// ---- Sixth pass (blocker 4, review of #645): where a tsc run writes ------------------------------
+//
+// A tsc build before the check was credited whatever its `outDir`: `node_modules/uvu` or `test/`
+// overwrites the runner or the tests the check then runs. A tsc run is now admitted only when every
+// place it writes is read, and is a directory that holds no tracked file and is not under
+// node_modules; a tsconfig.json that `extends` another file, or that the reader cannot read, refuses.
+
+// compilerOptions that choose whether or where tsc writes. Matched case-insensitively, so a key
+// that is one of these in another case (which tsc may or may not honour) refuses.
+const TSC_OUTPUT_OPTION_NAMES: ReadonlySet<string> = new Set([
+  'outDir', 'outFile', 'out', 'declarationDir', 'noEmit', 'emitDeclarationOnly', 'declaration', 'incremental', 'composite',
+  'tsBuildInfoFile', 'rootDir',
+]);
+const TSC_OUTPUT_OPTION_NAMES_LOWER: ReadonlySet<string> = new Set([...TSC_OUTPUT_OPTION_NAMES].map((name) => name.toLowerCase()));
+
+/** The root tsconfig.json as tsc reads it: absent, not read, or its compilerOptions. */
+type TsconfigReading =
+  | { readonly kind: 'absent' }
+  | { readonly kind: 'unread' }
+  | { readonly kind: 'read'; readonly options: Readonly<Record<string, unknown>> };
+
+/**
+ * Sixth pass (blocker 4): the root tsconfig.json. 'absent' when no root path is `tsconfig.json` in
+ * any case; 'unread' when one is spelled in another case or is not scanned, does not parse as a JSON
+ * object, has a top-level `extends` (in any case), a `compilerOptions` key spelled in another case
+ * or that is not an object, or a TSC_OUTPUT_OPTION_NAMES option spelled in another case.
+ */
+function rootTsconfigReading(root: string, inventory: PublishOnlyInventory): TsconfigReading {
+  const spellings = inventory.rootPathsLower.get('tsconfig.json') ?? [];
+  if (spellings.length === 0) return { kind: 'absent' };
+  if (spellings.length > 1 || spellings[0] !== 'tsconfig.json' || !inventory.scanned.has('tsconfig.json')) return { kind: 'unread' };
+  const parsed = parseJsonObject(readRepoText(join(root, 'tsconfig.json'), 'utf8'));
+  if (parsed === null) return { kind: 'unread' };
+  for (const key of Object.keys(parsed)) {
+    const lower = key.toLowerCase();
+    if (lower === 'extends' || (lower === 'compileroptions' && key !== 'compilerOptions')) return { kind: 'unread' };
+  }
+  const options = parsed.compilerOptions ?? {};
+  if (!isRecord(options)) return { kind: 'unread' };
+  for (const key of Object.keys(options)) {
+    if (TSC_OUTPUT_OPTION_NAMES_LOWER.has(key.toLowerCase()) && !TSC_OUTPUT_OPTION_NAMES.has(key)) return { kind: 'unread' };
+  }
+  return { kind: 'read', options };
+}
+
+/**
+ * Sixth pass (blocker 4): true when one tsc run, `words` (`tsc` or `tsc --noEmit`, nothing else),
+ * writes nothing a later command reads: with `--noEmit` or `noEmit: true` it writes nothing, unless
+ * `incremental`, `composite` or `tsBuildInfoFile` asks for a build-info file; otherwise every place
+ * it writes (`outDir`, `declarationDir`, the directory of `outFile`), one of `outDir` or `outFile`
+ * present, is a directory tsc may create afresh (tscOutputDirectoryIsFresh). With no tsconfig.json,
+ * only `tsc --noEmit` is admitted. Any other flag, the deprecated `out`, or a value that is not a
+ * string refuses.
+ */
+function tscRunWritesNothingRead(words: readonly string[], config: TsconfigReading, inventory: PublishOnlyInventory): boolean {
+  if (words[0] !== 'tsc' || words.length > 2 || (words.length === 2 && words[1] !== '--noEmit')) return false;
+  const noEmitFlag = words.length === 2;
+  if (config.kind === 'unread') return false;
+  if (config.kind === 'absent') return noEmitFlag;
+  const options = config.options;
+  const off = (name: string) => options[name] === undefined || options[name] === false;
+  if (!off('incremental') || !off('composite') || options.tsBuildInfoFile !== undefined || options.out !== undefined) return false;
+  if (noEmitFlag || options.noEmit === true) return true;
+  if (!off('noEmit')) return false;
+  if (options.outDir === undefined && options.outFile === undefined) return false;
+  const locations: string[] = [];
+  for (const name of ['outDir', 'declarationDir', 'outFile']) {
+    const value = options[name];
+    if (value === undefined) continue;
+    if (typeof value !== 'string') return false;
+    locations.push(name === 'outFile' ? value.slice(0, Math.max(0, value.lastIndexOf('/'))) : value);
+  }
+  return locations.every((location) => tscOutputDirectoryIsFresh(location, inventory));
+}
+
+/**
+ * Sixth pass (blocker 4): true when `location`, a path from the root as tsconfig.json writes it, is
+ * a plain relative directory (no `\`, `$`, glob, `.` or `..` part, not the root itself, not
+ * absolute) with no part named node_modules (in any case), that holds no tracked file, is no
+ * tracked path, and has no tracked path where a directory above it would be. Compared
+ * case-insensitively.
+ */
+function tscOutputDirectoryIsFresh(location: string, inventory: PublishOnlyInventory): boolean {
+  if (/[\\$*?[\]{}]/.test(location) || location.startsWith('/') || /^[A-Za-z]:/.test(location)) return false;
+  let path = stripTrailingSlashes(location);
+  while (path.startsWith('./')) path = path.slice(2);
+  if (path === '' || path === '.') return false;
+  const parts = path.toLowerCase().split('/');
+  if (parts.some((part) => part === '' || part === '.' || part === '..' || part === 'node_modules')) return false;
+  if (inventory.entriesLower.has(parts.join('/'))) return false;
+  for (let index = 1; index < parts.length; index += 1) {
+    if (inventory.knownLower.has(parts.slice(0, index).join('/'))) return false;
+  }
+  return true;
 }
 
 /**
  * v27 (#517 correction): true when one shell command, read from its command position, runs a check.
  * After any leading `(`, `{` and `NAME=value` assignments, then one launcher (`npx`, `bunx`, `pnpx`,
- * `uvx`, `python -m`, `python3 -m`, or `uv`, `poetry`, `pdm`, `pipenv` or `hatch` then `run`), and a
- * leading `./`, the command's own words must begin with a command namesVerificationCommand
- * recognises, ending at a word's end (`tsc`, never `tsc-alias`). So a check named in `echo` text or
+ * `uvx`, `python -m`, `python3 -m`, or `uv`, `poetry`, `pdm`, `pipenv` or `hatch` then `run`), the
+ * command's own words must begin with a command namesVerificationCommand recognises, ending at a
+ * word's end (`tsc`, never `tsc-alias`). Sixth pass (blocker 1, review of #645): a first word written
+ * as a path (isPathCommandWord) is no check; until then a leading `./` was stripped before the match. So a check named in `echo` text or
  * as an argument (`pip install pytest`) is not one. A status-inverted command is not one, nor one
  * with `--if-present`, which runs nothing when the script is missing.
  *
@@ -9618,7 +9831,7 @@ function rootBuildScriptRunsOnlyTsc(root: string, inventory: PublishOnlyInventor
  * Third pass on #625 (F6): nor is a command given a NO_FAIL_FLAGS flag, nor an npm, pnpm, yarn or bun
  * command (or one npx, pnpx or bunx launches) unless the package-manager configuration is plain.
  */
-function isCheckCommand(input: readonly string[], reading: CheckReading, assignmentsRead = true): boolean {
+function isCheckCommand(input: readonly string[], reading: CheckReading, assignmentsRead = true, pathsRead = true): boolean {
   const read = checkCommandWords(input);
   if (read === undefined) return false;
   if (read.packageManager && !reading.packageManagerConfigPlain) return false;
@@ -9626,8 +9839,13 @@ function isCheckCommand(input: readonly string[], reading: CheckReading, assignm
   // an inert key, as in a script (peelCommandLaunchers). `assignmentsRead` false asks what the
   // command would be without that rule, for B3's note (lineAssignmentReason).
   if (assignmentsRead && read.assignments.some((key) => !isInertEnvironmentKey(key))) return false;
-  const { words } = read;
+  // Sixth pass (blocker 1, review of #645): a command word holding a `/` (`./ruff`, `bin/pytest`,
+  // `/abs/x`, `../x`) runs that file, not the tool of its name, so it is never a check. The words
+  // are matched as written: no leading `./` is stripped. `pathsRead` false asks what the command
+  // would be were its first word the tool of that name, for B3's note (checkLineReason).
+  const words = pathsRead ? read.words : [commandWordName(read.words[0] ?? ''), ...read.words.slice(1)];
   if (words.length === 0 || words.includes('--if-present')) return false;
+  if (isPathCommandWord(words[0] ?? '')) return false;
   // Fourth pass (#627): `make test` and `make check` are checks only when the root Makefile's rule
   // runs a known test runner (rootMakeTargetReadings), and only written exactly so: another word
   // names another target or overrides a variable the recipe reads.
@@ -9637,7 +9855,7 @@ function isCheckCommand(input: readonly string[], reading: CheckReading, assignm
   // Fifth pass (item B, review of #640): a lint or format command is a check only in a form that
   // fails on a finding (lintCommandFailsOnFinding).
   if (LINT_OR_FORMAT_COMMANDS.has((words[0] ?? '').toLowerCase())) return lintCommandFailsOnFinding(words);
-  const text = words.join(' ').replace(/^\.\//, '');
+  const text = words.join(' ');
   if (NPM_FAMILY_TEST_SCRIPT_PATTERN.test(text)) {
     if (!reading.testScriptRuns) return false;
     // Fifth pass (items C and D): only words known not to change what runs or which package's
@@ -9684,6 +9902,24 @@ const LINT_CHECK_FORMS: ReadonlyMap<string, LintCheckForm> = new Map<string, Lin
 ]);
 // The command words whose every form is read by LINT_CHECK_FORMS (pylint has none, so is no check).
 const LINT_OR_FORMAT_COMMANDS: ReadonlySet<string> = new Set(['ruff', 'black', 'eslint', 'mypy', 'flake8', 'pylint']);
+
+/**
+ * Sixth pass (blocker 1, review of #645): true for a command word written as a path, holding a `/`
+ * (`./x`, `bin/x`, `/abs/x`, `../x`). Such a word runs that file, from the repository or the runner,
+ * whatever its last part is named, so it is never a check, a known test runner, a lint form or a
+ * setup step. Every vocabulary in this reader is matched against the word as written.
+ */
+function isPathCommandWord(word: string): boolean {
+  return word.includes('/');
+}
+
+/** Sixth pass (blocker 1): a command word's last part, after its final `/`, for B3's note only. */
+function commandWordName(word: string): string {
+  return word.slice(word.lastIndexOf('/') + 1);
+}
+
+// Sixth pass (blocker 1): the reason B3's note gives for a check command written as a path.
+const PATH_COMMAND_REASON = 'a check command is written as a path, so it runs a file in the repository or on the runner, not the tool of that name';
 
 /**
  * Fifth pass (item B): true when `words` (launcher-free, as isCheckCommand reads them) are one of
@@ -9783,10 +10019,16 @@ function checkLineReason(input: readonly string[], reading: CheckReading): strin
   if (read === undefined || (read.packageManager && !reading.packageManagerConfigPlain)) return undefined;
   const key = read.assignments.find((name) => !isInertEnvironmentKey(name));
   if (key !== undefined) {
-    if (!isCheckCommand(input, reading, false)) return undefined;
+    if (!isCheckCommand(input, reading, false, false)) return undefined;
     return NAMEABLE_ENVIRONMENT_KEY_PATTERN.test(key)
       ? `the environment key ${key} may change what the check runs`
       : 'an environment key Cejel does not name may change what the check runs';
+  }
+  // Sixth pass (blocker 1): a command written as a path that would be a check under the tool's name.
+  // A lint or format tool's name is enough: whatever its form, `./ruff` is not ruff.
+  if (isPathCommandWord(read.words[0] ?? '')) {
+    const named = LINT_OR_FORMAT_COMMANDS.has(commandWordName(read.words[0] ?? '').toLowerCase());
+    return named || isCheckCommand(input, reading, true, false) ? PATH_COMMAND_REASON : undefined;
   }
   const text = read.words.join(' ');
   if (!NPM_FAMILY_TEST_SCRIPT_PATTERN.test(text) || !reading.testScriptRuns) return undefined;
@@ -9906,6 +10148,17 @@ interface PublishOnlyInventory {
   readonly entries: ReadonlySet<string>;
   /** Fifth pass (item A): every part (file or directory name) of every known path. */
   readonly pathParts: ReadonlySet<string>;
+  /** Sixth pass (blocker 2, review of #645): `entries`, `known` and `pathParts`, lower-cased. */
+  readonly entriesLower: ReadonlySet<string>;
+  readonly knownLower: ReadonlySet<string>;
+  readonly pathPartsLower: ReadonlySet<string>;
+  /** Sixth pass (blocker 4): each root path's spellings, by its lower-cased name. */
+  readonly rootPathsLower: ReadonlyMap<string, readonly string[]>;
+  /**
+   * Sixth pass (blocker 2): a root path that is `GNUmakefile` or `makefile` in any case, or
+   * `Makefile` in another case, which make on a case-insensitive file system may read first.
+   */
+  readonly otherMakefile: boolean;
   /** Decided once per scan, so each workflow's check stays constant-time in the inventory. */
   readonly hasYarnPlugins: boolean;
   /**
