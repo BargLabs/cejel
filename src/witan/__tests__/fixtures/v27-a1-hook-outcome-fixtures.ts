@@ -135,6 +135,26 @@ export const HOOK_OUTCOME_FIXTURES: readonly HookOutcomeFixture[] = [
     deselects,
   ),
   fixture(
+    'a1ho-a-loop-then-clear-then-call',
+    'A',
+    'Control: the hook loops over items to print them, clears, then reports a copy taken before: the loop only reads the list.',
+    hook([
+      '    dropped = list(items)',
+      '    for item in items:',
+      '        print(item.nodeid)',
+      '    items.clear()',
+      '    config.hook.pytest_deselected(items=dropped)',
+    ]),
+    deselects,
+  ),
+  fixture(
+    'a1ho-a-marker-loop-untouched',
+    'A',
+    'Control: an unconditional loop adds a timeout marker to every item; it never empties the list and is not named.',
+    hook(['    for item in items:', '        item.add_marker(pytest.mark.timeout(5))']),
+    untouched,
+  ),
+  fixture(
     'a1ho-a-real-restore-control',
     'A',
     "Control: #626's real restore (save a full copy, clear, extend from the bare name).",

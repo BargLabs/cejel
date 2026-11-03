@@ -14215,7 +14215,9 @@ function readPythonList(
       }
       const loop = pythonForLoop(code);
       if (loop) {
-        if (!pythonListMentionsReadOnly(loop.source, listNames) || pythonNameMentions(loop.source, closureNames()).length > 0) {
+        // The header with its `in`, so a loop over the list itself reads it, and a loop rebinding a list name does not.
+        const head = code.slice(0, code.length - loop.body.length);
+        if (!pythonListMentionsReadOnly(head, listNames) || pythonNameMentions(head, closureNames()).length > 0) {
           setUnknown(statement);
         } else if (!knownEmpty(loop.source, ordinal, inline > 0)) {
           if (loop.body !== '') inBlock({ ...statement, code: loop.body }, ordinal);
