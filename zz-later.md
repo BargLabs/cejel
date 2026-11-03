@@ -1,8 +1,0 @@
-Found while fixing #627-#630 (goal_cejel_v27_b3_admit_known_checks_2026-11-02). Under v27, B3's check-before-publish reading still credits some checks by name without reading the configuration that decides what they run. Each is the same class as #627: a refusal-free name match that a repository can point at a command that never fails.
-
-1. **Task runners counted by name.** `just test`, `tox`, `nox`, `pre-commit`, `turbo run test`, `gradle test|check|build`, `mvn verify|test|package` and `bazel test` are checks without reading the justfile, tox.ini, noxfile, turbo.json or build file. The fourth pass reads only npm-family test scripts and `make test` / `make check`.
-2. **`<tool> run <name>` aliases.** `pdm run <name>` runs a `[tool.pdm.scripts]` entry and `hatch run <name>` a hatch env script of that name in place of the command; `pipenv run <name>` is refused only where `pipenv install` is the setup (via the plain-Pipfile rule), not where another install precedes it.
-3. **Flags with which a runner cannot fail, still a list.** `NO_FAIL_FLAGS` names `--collect-only`, `--passWithNoTests`, ...; others with the same effect (for example `jest --listTests`) pass. And arguments appended after `npm test --` reach the script's last command.
-4. **Install under a `working-directory`.** `installRunsNoProjectScript` reads the root package.json even when the workflow sets a `working-directory`, where the install runs another directory's manifest. The fourth pass applies the working-directory rule to its own root readings only.
-
-Synthetic fixtures only for any fix. v17 and every rubric but v27 must stay byte-identical.
