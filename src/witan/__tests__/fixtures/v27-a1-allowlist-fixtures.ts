@@ -16,7 +16,7 @@ import { LIVE_PY_TEST, PY_BASE, conftestHook, lines } from './v27-a1-removal-fix
 // fixture's claim rests on reading pytest's collection and hook-calling code, as the purpose says.
 
 export interface AllowlistFixture extends Omit<HookOutcomeFixture, 'item' | 'clause'> {
-  readonly item: 'A' | 'B' | 'C' | 'D' | 'E' | 'F';
+  readonly item: 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G';
   /** For 'restores' and 'not read': the clause A1's note must hold, or a pattern it must match. */
   readonly clause?: string | RegExp;
   /** For 'deselects': a withheld clause the note must also hold (another hook's, or a run's). */
@@ -44,6 +44,9 @@ const fixture = (
 const deselects = { outcome: 'deselects', removed: HOOK_REMOVED } as const;
 const restores = { outcome: 'restores', clause: RESTORED } as const;
 const unread = (reason: string | RegExp) => ({ outcome: 'not read', clause: typeof reason === 'string' ? notRead(reason) : reason }) as const;
+/** Item G: the statement that calls a builtin, and the file that names builtins. */
+const builtinUnread = (statement: string, file: string) =>
+  ({ outcome: 'not read', clause: `${notRead(statement)} calls a builtin, and ${file} names builtins` }) as const;
 
 const hook = (body: readonly string[], preamble?: readonly string[]) => ({ 'tests/conftest.py': conftestHook(body, preamble) });
 /** R: save a full copy, clear, extend from it. pytest runs every collected test. */
@@ -624,6 +627,87 @@ export const ALLOWLIST_FIXTURES: readonly AllowlistFixture[] = [
     'F',
     'Control: the strict same-file helper restores the saved copy; pytest runs every test.',
     hook(['    saved = list(items)', '    items.clear()', '    refill(items, saved)'], ['import pytest', '', '', ...REFILL]),
+    restores,
+  ),
+
+  // ---- item G: a builtin copy where another file can patch builtins (#646) ----------------
+  // goal_cejel_v27_a1_gaps_2026-11-03, item A. A copy that calls a builtin (`list(items)`,
+  // `tuple(items)`, a helper restoring from `list(src)`) is credited only where no Python file in
+  // the repository names `builtins` or `__builtins__`: a module the conftest.py imports, a second
+  // conftest.py or a plugin can patch the builtin at import time, and the "copy" is then whatever
+  // the patch returns. The copy forms that call no builtin (`items[:]`, `items.copy()`, `[*items]`)
+  // stay credited: built-in types cannot be patched. pytest was not run on these fixtures (no Python
+  // package could be run in this session); each claim rests on Python's name lookup (a module global,
+  // then `builtins`), not on a run.
+  fixture(
+    'a1al-g-imported-module-patches-builtins-list',
+    'G',
+    'R in a conftest.py that imports helpers, whose import narrows builtins.list so that a list of pytest items copies as empty; the "copy" is empty, and pytest runs no test.',
+    {
+      ...hook([...R], ['import pytest', '', 'import helpers']),
+      'tests/helpers.py': lines(
+        'import builtins',
+        '',
+        '_real = builtins.list',
+        '',
+        '',
+        'def _narrow(xs=()):',
+        '    out = _real(xs)',
+        '    return [] if out and hasattr(out[0], "nodeid") else out',
+        '',
+        '',
+        'builtins.list = _narrow',
+      ),
+    },
+    builtinUnread('saved = list(items)', 'tests/helpers.py'),
+  ),
+  fixture(
+    'a1al-g-second-conftest-dunder-builtins-tuple',
+    'G',
+    'A tuple copy restored in tests/conftest.py, while the root conftest.py rebinds tuple through __builtins__; pytest loads the root conftest.py first, the "copy" is empty, and pytest runs no test.',
+    {
+      ...hook(['    saved = tuple(items)', '    items.clear()', '    items.extend(saved)']),
+      'conftest.py': lines('_t = tuple', '__builtins__["tuple"] = lambda xs=(): () if xs is not None else _t()'),
+    },
+    builtinUnread('saved = tuple(items)', 'conftest.py'),
+  ),
+  fixture(
+    'a1al-g-plugin-names-builtins-helper-list-copy',
+    'G',
+    'A slice copy restored by a strict helper that extends from list(src), beside a plugin module that names builtins; the helper calls the builtin, so the hook is named, not credited.',
+    {
+      ...hook(['    saved = items[:]', '    items.clear()', '    refill(items, saved)'], ['import pytest', '', '', 'def refill(lst, src):', '    lst.extend(list(src))']),
+      'conftest.py': lines('pytest_plugins = ["plugins.patch"]'),
+      'plugins/__init__.py': '',
+      'plugins/patch.py': lines('import builtins', '', 'builtins.list = lambda xs=(): []'),
+    },
+    builtinUnread('refill(items, saved)', 'plugins/patch.py'),
+  ),
+  fixture(
+    'a1al-g-control-slice-copy-beside-builtins',
+    'G',
+    'Control: a slice copy (no builtin call) restored by extend, beside a module that names builtins; built-in types cannot be patched, so pytest runs every test.',
+    {
+      ...hook(['    saved = items[:]', '    items.clear()', '    items.extend(saved)'], ['import pytest', '', 'import helpers']),
+      'tests/helpers.py': lines('import builtins', '', 'builtins.list = lambda xs=(): []'),
+    },
+    restores,
+  ),
+  fixture(
+    'a1al-g-control-star-copy-beside-builtins',
+    'G',
+    'Control: a [*items] copy (no builtin call) restored by a whole-slice assignment, beside a module that names __builtins__; pytest runs every test.',
+    {
+      ...hook(['    saved = [*items]', '    items.clear()', '    items[:] = saved'], ['import pytest', '', 'import helpers']),
+      'tests/helpers.py': lines('__builtins__["tuple"] = lambda xs=(): ()'),
+    },
+    restores,
+  ),
+  fixture(
+    'a1al-g-control-list-copy-no-builtins-named',
+    'G',
+    'Control: R where no Python file in the repository names builtins; pytest runs every test, and the hook stays credited.',
+    { ...hook([...R], ['import pytest', '', 'import helpers']), 'tests/helpers.py': lines('def answer():', '    return 42') },
     restores,
   ),
 ];

@@ -136,7 +136,7 @@ for (const item of ['A', 'B', 'C', 'D', 'E'] as const) {
 
 // goal_cejel_v27_a1_restore_proof_v2_2026-11-02 (supersedes #638): outcome 2 is an allowlist over
 // the whole hook body, read as tokenised logical statements; nothing else reaches it.
-for (const item of ['A', 'B', 'C', 'D', 'E', 'F'] as const) {
+for (const item of ['A', 'B', 'C', 'D', 'E', 'F', 'G'] as const) {
   describe(`allowlist round, item ${item}`, () => {
     for (const fixture of ALLOWLIST_FIXTURES.filter((entry) => entry.item === item)) {
       it(`${fixture.outcome}: ${fixture.name} — ${fixture.purpose}`, () => expectOutcome(fixture));
