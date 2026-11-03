@@ -278,9 +278,16 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     setattr or delattr, builtins or __builtins__, sys.modules, a module __getattr__, exec, eval,
 //     compile, globals, vars or locals, __dict__, __import__ or importlib, an uncalled attribute
 //     named list or tuple, or any attribute named after the helper), from the #644 review at
-//     bca7ebfbf. Only that conftest.py is read: a builtin or helper patched from another file (a
-//     module it imports, a second conftest.py or a plugin) is not, cejel #646. The list reading must
-//     agree that the items are back; (3) not
+//     bca7ebfbf. Only that conftest.py is read for those names. From 2026-11-03
+//     (goal_cejel_v27_a1_gaps_2026-11-03, item A, cejel #646) a copy that calls a builtin
+//     (S = list(items) or tuple(items), or a strict helper restoring from list(src) or tuple(src))
+//     is credited only where no Python file in the repository names builtins or __builtins__ (in
+//     code, a string or a comment), since a module it imports, a second conftest.py or a plugin can
+//     patch the builtin at import time; otherwise the hook is not read, named with that statement and
+//     the file ("hook not read: `<statement>` in <path> calls a builtin, and <file> names
+//     builtins"). items[:], items.copy() and [*items] call no builtin and stay credited. A name
+//     spelled any other way (joined strings) and a helper patched from another file are not read.
+//     The list reading must agree that the items are back; (3) not
 //     read, for anything else that empties or may empty the list (a lambda, a nested, decorated or
 //     async def, sorted, a slice that is not the whole list, another name bound to the list, an
 //     f-string field, exec or getattr, an append, an imported or unseen helper, a method, a use
@@ -322,7 +329,7 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     variables the same Makefile defines (and literal justfile variables), justfile recipes with
 //     parameters, `hatch run [env:]script` through the hatch scripts of hatch.toml or pyproject.toml,
 //     and a local composite action's steps; a run whose arguments or directory cannot be known from
-//     the repository (nox posargs, `tox -- $VAR`, a Makefile variable it does not define or a make
+//     the repository (nox posargs, read from 2026-11-03 as below, `tox -- $VAR`, a Makefile variable it does not define or a make
 //     command sets, a justfile parameter, an expression or `cd` to a variable, -c outside the
 //     repository, --pyargs, a working-directory expression, Jenkins dir(), a reusable workflow in
 //     another repository, or an option the reader does not know before a word that may be its
@@ -346,7 +353,17 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     and a Makefile `PYTEST_ADDOPTS = ...` without export is not read, since make does not pass it
 //     to a recipe (#626's first pass, 892a95a40, read it; an `export PYTEST_ADDOPTS` line, a bare
 //     `export` or .EXPORT_ALL_VARIABLES exports it). Each setting, command-line and not-read clause
-//     carries an evidence pointer at its line, sharing the eight with the hooks, the rest counted;
+//     carries an evidence pointer at its line, sharing the eight with the hooks, the rest counted.
+//     From 2026-11-03 (goal_cejel_v27_a1_gaps_2026-11-03, items B and C, cejel #649) a noxfile's
+//     *session.posargs holds the words after `--` of each CI or recipe nox command (nox, python -m
+//     nox, uvx, uv run or pipx run nox), read as tox's posargs are (the empty set always, at most 16
+//     distinct literal sets; a word holding $, a backtick or braces, or a set past the 16th, is a
+//     run not read, named with that nox command); and a long option the reader does not know, before
+//     a word, is looked up in the repository's conftest.py files: declared by .addoption("--name",
+//     ...) with action store_true, store_false, count, store_const or append_const it takes no value
+//     and the word is a path; with any other literal action, or none, it takes the word; declared
+//     nowhere, through a name, with *args or **kwargs, a non-literal action or nargs=, or twice
+//     with different readings, the run stays not read;
 //   - every criterion: a read of a Git LFS pointer is a content-read skip, so the criterion that
 //     read it abstains as a read failure instead of scoring the pointer text, unless its
 //     collector made a critical finding (it then scores as under v17);

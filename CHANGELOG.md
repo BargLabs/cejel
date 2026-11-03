@@ -21,6 +21,32 @@ is pinned. v27 carries no precision or recall claim.
 
 ### Changed
 
+- **Prospective v27: A1 credits a builtin copy only where no file can patch builtins, reads nox
+  posargs and the options a conftest.py declares, and pins #634's remaining shapes (#646, #649,
+  #634).** Under `witan-rubric-v27-prospective-2026-10-19` only.
+  - **A builtin copy (#646).** A collection hook that copies the items through `list(items)` or
+    `tuple(items)` (or a same-file helper that restores from `list(src)`) is credited with "puts the
+    collected items back" only where no Python file in the repository names `builtins` or
+    `__builtins__`. A module the `conftest.py` imports, a second `conftest.py` or a plugin can
+    replace the builtin at import time, so pytest may then run no test. Otherwise A1's note names
+    the hook as not read, with the statement and the file that names builtins. `items[:]`,
+    `items.copy()` and `[*items]` call no builtin and stay credited. This only changes which
+    sentence A1's note holds: a hook not read keeps v17's reading.
+  - **nox posargs (#649).** A noxfile's `*session.posargs` is now read as the words after `--` on
+    each CI or recipe nox command (`nox -s tests -- -p no:skipping`, or nox run as a Python
+    module), with no `--` passing none. A word holding `$`, a backtick or braces, or more than 16
+    distinct sets, leaves the run not read and named. Before, every such run was named "pytest run
+    not read", which switched off every removal rule in almost every nox repository.
+  - **Options a conftest.py declares (#649).** An unknown long option before a word is looked up
+    in the repository's `conftest.py` files: `parser.addoption("--runslow", action="store_true")`
+    (or `store_false`, `count`, `store_const`, `append_const`) takes no value, so `pytest --runslow
+    tests` is read like `pytest tests --runslow`; any other action, or none, takes the word as its
+    value. An option declared nowhere, through a name, with `*args` or `**kwargs`, a non-literal
+    action or `nargs=` still leaves the run not read.
+  - **#634.** Six more shapes are pinned: a restoring lambda bound after the clear and called, `**`
+    and mixed `*` helper arguments, `self.refill(...)` in a registered plugin class, a hanging-indent
+    hook `def` with `items` on the next line, and quoted paths past the first eight evidence
+    pointers. Each already read correctly or was named as not read on main, so none needed a fix.
 - **Prospective v27: A1 reads the pytest runs, options and configuration search pytest itself
   uses, names a run it cannot read instead of rating its files hollow, and points each setting
   clause at its line (#633, #643).** Under `witan-rubric-v27-prospective-2026-10-19` only. Each gap
