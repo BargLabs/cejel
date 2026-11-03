@@ -22,6 +22,283 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
+## 2026-11-02 (B3 fourth and fifth passes) — under v27 a check before a publish is credited only where the reader reads a known test runner, a lint form that fails on a finding, and an environment and package it admits, and safe check-then-publish shapes are read (#627, #628, #629, #630; the fifth pass from the review of #640, which this supersedes); v17-v26 byte-identical; no published score moved
+
+**Status.** A scoring change under `witan-rubric-v27-prospective-2026-10-19` only, with no
+identifier change. It reaches only GitHub Actions workflows with no pull-request trigger that
+publish, release or deploy on every run, which #625's entry (2026-11-01, below) counts when a check
+runs before every publish. No holdout or calibration ran for it, and this entry makes no precision
+or recall claim. The default stays v17.
+
+**Why.** The review of #625 left four follow-ups. Two were false credit, confirmed on main
+`5600f75c8` with a synthetic checkout: B3 said "counted as CI verification because a check runs
+before it publishes" where no real check ran. #627: a root test script `/bin/true`, `node -e 0` or
+`printf ok`, or a `make test` recipe `@true`, before `run: npm publish`; only a refusal list (`true`,
+`:`, `echo`, `exit 0`) stood in the way. #628: `NODE_OPTIONS: --require ./x.cjs` on the job, or
+`PATH: ./fake-bin` on the check step; `PYTHONPATH`, `LD_PRELOAD` and similar keys were not refused
+either. Two were false exclusions of safe shapes: #629 (setup refused more broadly than its risk:
+`pip install -r`, `pipenv install`, any root `prepare` script) and #630 (C1 step items at the key's
+indent, C2 a build before the check, C3 a `needs:` list at the key's indent, C4 the check and publish
+in one step, C5 `ruff check .`, whose `.` was read as the `source` builtin). #625's lesson applies
+throughout: a refusal list of spellings is evaded by any other spelling with the same effect, so
+this pass admits what the reader proves rather than refusing spellings.
+
+**Why a fifth pass.** The fourth pass was opened as #640 and held by its adversarial review for six
+false-credit blockers, each confirmed on #640's head merged with main `bfd4d5965` (the fixtures
+below were committed red there, `0a5272474`): (1) a requirements line, or a name given to
+`pip install`, naming a local archive (`stub.tar.gz`, `stub.zip` through `-r more.txt`,
+`stub-1.0-py3-none-any.whl` through `python -m pip`), which pip installs from the file, running its
+build code or a `.pth` file before the check; (2) C5 crediting lint and format commands that cannot
+fail on a finding (`ruff check -e .`, `ruff check --fix .`, `eslint --fix .`, `black .`,
+`ruff format .`); (3) the v27 glossary sentence, which said no environment setting on the check's
+path can change what it runs, which was not true; (4) environment the reader did not read: an
+assignment on the check's own line (`NODE_OPTIONS=--require=./x.cjs npm test`,
+`PATH=./fake-bin:/usr/bin npm test`, `PYTEST_ADDOPTS=--co pytest`), a job `container:` (with or
+without its own `env:`), a `services:` container with `env:`, and `npm test --node-options=...`;
+(5) a test command that runs another package's script (`npm test --prefix stub`, `--workspaces`,
+`-w packages/a`, `yarn test --cwd stub`, `pnpm test --filter a`), while the reader read the root's;
+(6) make targets whose recipe never runs: `test:` without `.PHONY` beside a `test/` directory, a
+prerequisite named after an existing file, and `PATH := fake-bin:$(PATH)` in the Makefile. #640
+closes unmerged; its commits are this branch's base, so this entry replaces its entry.
+
+**Change.** Under v27, on the credit path of #625's reading only:
+
+- **A — a test script or make target is a check only when it runs a known test runner (#627).**
+  An npm, pnpm or yarn run of the root `test` script, and `make test` or `make check` written
+  exactly so, is a check only when the reader proves the script or target runs a runner from a
+  fixed vocabulary: jest, vitest, mocha, ava, uvu, tap, tape, jasmine, qunit, lab, ts-mocha, pytest,
+  rspec, phpunit, ctest; `node --test`, `tsx --test`, `bun test`, `deno test`, `playwright test`,
+  `cypress run`, `karma start`, `go test`, `cargo test` or `cargo nextest`, `dotnet test`, `mvn test`
+  or `mvn verify`, `gradle test` or `gradle check`; `python -m pytest` or `python -m unittest`. The
+  vocabulary was widened first, so no runner the fixtures already used (uvu, in the fixtures' base
+  package) is excluded. The reader follows `npm run` chains and the `pre` and `post` scripts npm
+  runs around each, and make prerequisites (each once) and `$(MAKE) <target>` lines, to a depth of 8
+  and 64 commands. Launchers it reads: `npx`, `pnpx`, `bunx`, `pnpm exec`, `env` and `cross-env`,
+  the coverage wrappers `c8`, `nyc` and `coverage run`, `uv`, `poetry`, `pdm`, `pipenv` or `hatch`
+  then `run`, `bundle exec`, and `NAME=value` assignments of the inert keys of item B. Every command
+  must be joined by `&&` alone, with no background `&`, substitution, subshell, group or line break,
+  and nothing may run before the runner but tsc, pyright, ruff or black, whose configuration is not
+  code (eslint, mypy, pylint and flake8 can load repository code, so are not admitted before it). A
+  recipe line with make's `-` prefix is not a runner. The Makefile is read only when it is the one
+  make reads (no `GNUmakefile` or `makefile`) and every line is placed: a rule, an assignment, a
+  recipe line, a comment or a blank; a line continuation, a setting that changes how recipes run or
+  fail (`.ONESHELL`, `.IGNORE`, `SHELL`, `.SHELLFLAGS`, `MAKEFLAGS`, ...), a `$`, `%`, `|` or `=` in a
+  target or prerequisite, a double-colon rule or two recipes for one target leave it unread, and a
+  directive (`include`, `export`, `define`, a conditional) is no placed line. Where the script or
+  target is read and runs no known runner, B3's note names it: "A check in it was not counted: the
+  test script in package.json does not run a test runner Cejel recognises." (or "the Makefile's
+  test target ..."), never quoting its text. `just test`, `tox`, `nox`, `turbo run test`, gradle and
+  maven still count by name; their configuration is not read (left open, see the PR).
+- **B — the check's environment cannot change what runs (#628).** A check is credited only when
+  every `env:` key on its path is admitted: the workflow's, its job's, and every step item's of its
+  job up to and including the check's (a setup step run with `NODE_OPTIONS` runs repository code
+  before the check). Admitted: `CI`, `NODE_ENV`, `TZ`, `LANG`, `LANGUAGE`, `LC_ALL`, `FORCE_COLOR`,
+  `NO_COLOR`, `TERM`, `COLUMNS`, `PYTHONUNBUFFERED`, `PYTHONDONTWRITEBYTECODE`, `PYTHONHASHSEED`,
+  `PYTHONIOENCODING`, `PYTHONUTF8`, `RUST_BACKTRACE`, `CARGO_TERM_COLOR`, `CARGO_INCREMENTAL`,
+  `DEBIAN_FRONTEND`, `HUSKY`; and `NODE_AUTH_TOKEN`, `NPM_TOKEN`, `GITHUB_TOKEN` and `TWINE_*` only
+  when set to one `${{ secrets.NAME }}` or `${{ github.token }}` expression. Any other key, an
+  `env:` mapping the reader cannot place, and a `run:` step before the check's that writes to
+  `$GITHUB_PATH`, or writes to `$GITHUB_ENV` a key that is not admitted (or one it cannot read),
+  withholds the credit, and the note names the key ("the environment key NODE_OPTIONS may change
+  what the check runs", "the environment key NPM_TOKEN is not set from a secret"), at most three
+  reasons then a count.
+- **C — setup refusals narrowed (#629).** (1) `pip install -r <file>` (also `--requirement`, with
+  `pip`, `python -m pip` or `uv pip`) is a setup step when the file, from the root, is scanned and
+  every line is a plain index requirement: a name, optional extras and an optional version
+  specifier, then only `--hash=<algorithm>:<hex>`; a comment or blank is passed over, and an include
+  (`-r`, `-c`) of another scanned file inside the repository is read the same way. A URL, a path,
+  `-e`, an index or any other option, an environment marker, a backslash or an include outside the
+  repository refuses. (2) `pipenv install` (with `--dev`, `-d`, `--deploy` or `--system` only) is a
+  setup step when the root Pipfile is scanned and its entries are only in `[[source]]` (the PyPI
+  index), `[packages]` and `[dev-packages]` (each `"*"`, a version specifier or `{version = "..."}`),
+  `[requires]` and `[pipenv]` (`allow_prereleases`); never `[scripts]`, whose names `pipenv run`
+  runs in place of the command; and Pipfile.lock, when present, is scanned, lists only that index,
+  and every entry carries only `hashes`, `index` ("pypi"), `version`, `markers` and `extras`. A root
+  `.env`, which pipenv loads, refuses. (3) A root `prepare` script exactly `husky` or `husky install`
+  no longer stops an npm-family install being a setup step; every other install lifecycle script
+  still does. (4) `yarnPath` stays refused, by design: a committed yarn release cannot be verified
+  offline. (5) A package-manager configuration that is present but not read (here an `.npmrc` too
+  large to scan) now has a fixture, and refuses, as on main.
+- **D — safe shapes read (#630).** C1: step items written at the `steps:` key's own indent are read
+  as YAML reads them, while the lines at that indent are `- ` items. C3: a `needs:` block list at
+  the key's own indent is read. C2: `npm run build`, `pnpm run build`, `pnpm build`, `yarn build` or
+  `yarn run build`, written exactly so, is a setup step when the root `build` script (with its pre
+  and post scripts) runs only `tsc` and `tsconfig.json` is scanned; a vite, webpack or rollup build
+  runs its code configuration before the check, so stays excluded. C4: a publish on the check's own
+  line counts as after it when the two are one `&&` chain, in a one-line step (separate lines under
+  bash -e were already read); no publish can precede the check on its line, since only setup
+  commands may. C5: in a check's step, `.` is read as the `source` builtin only as a command's first
+  word or after `builtin` or `command`, so `ruff check .` and `mypy .` are checks; A4's reading of
+  the same words is unchanged.
+- **Root readings.** Every reading of a root file (the test script, the Makefile, the build script,
+  requirements files, the Pipfile) holds only where the workflow sets no `working-directory` and the
+  check's step changes no directory, as item E already required of the test script.
+- **Fifth pass A — requirements (blocker 1).** A requirements line (and each line of an included
+  file) or a name given directly to `pip install` on the credit path is admitted only as a PEP 508
+  project name (beginning and ending with a letter or digit), with optional extras, a version
+  specifier and, in a file, `--hash` options. A name ending in an archive or wheel suffix (`.tar.gz`,
+  `.tgz`, `.tar`, `.zip`, `.whl`, `.egg`, and pip's other archive extensions, in any case) is
+  refused whether or not the file exists, and so is a name that is a path in the repository: from
+  the root, or from the requirements file's own directory; under a `working-directory` or after a
+  `cd`, any path part of that name. Environment markers stay refused, as in the fourth pass.
+- **Fifth pass B — lint and format (blocker 2).** A lint or format command is a check only as
+  `ruff check` (no `--fix`, `--fix-only`, `--exit-zero` or `-e`), `ruff format --check`,
+  `black --check`, `eslint` (no `--fix` or `--fix-dry-run`), `mypy` or `flake8`, each with only
+  flags from a list known to keep the exit code (for example `--quiet`, `--no-cache`,
+  `--output-format`, `--diff`, `--max-warnings`, `--strict`, `--count`); any other flag, any other
+  subcommand, and pylint, which is not listed, are not a check. Paths and C5's `.` are arguments.
+- **Fifth pass C — environment on every path (blocker 4).** The workflow-line reader applies the
+  script reader's assignment rule: an assignment before a check command, or before a setup command,
+  is admitted only for an inert key of item B, and B3's note names the key. A job with a
+  `container:` (any image, with or without `env:`), or a `services:` container that sets `env:`,
+  withholds the credit of its checks, and the note says so. After the name of an npm, pnpm or yarn
+  test script, only npm's `--silent` and `-s` are admitted (yarn and pnpm pass any later word to the
+  script), so `npm test --node-options=...` and any other word withhold the credit.
+- **Fifth pass D — which package runs (blocker 5).** `--prefix`, `-C`, `--dir`, `--cwd`, `-w`,
+  `--workspace`, `--workspaces` and `--filter` (and `-F`, `--recursive`, `-r`) after the script's
+  name withhold the credit; the reader does not follow them to the named package's `package.json`.
+  The note says the test command runs another package's script.
+- **Fifth pass E — a make recipe that runs (blocker 6).** `make test` or `make check` is a check
+  only when the target and every target on its path (each prerequisite, each `$(MAKE) <target>`)
+  is declared `.PHONY` or has no file or directory of its name in the repository; otherwise make may
+  report it up to date and run nothing, and the note says so. A Makefile that assigns `PATH` is not
+  read (`SHELL` and `.SHELLFLAGS` already were not).
+- **Certificate text (blocker 3).** The PR-gate CI count's v27 glossary sentence (v27 certificates
+  only) now lists the conditions as what Cejel reads: a test script or make target the check runs
+  reaches a test runner from a fixed list; a lint or format command is in a form that fails on a
+  finding; every environment key it reads on the check's path (in `env:` mappings, in an assignment
+  on a command's line, or written to `GITHUB_ENV`) is from a fixed list of keys that do not choose
+  what runs; no earlier step writes to `GITHUB_PATH`; the job runs in no container and has no
+  service container that sets `env:`. It then says that this is not a proof that the check can
+  fail, since Cejel does not read a test runner's or linter's own configuration. #640's wording
+  ("no environment setting on its path can change what it runs") is gone. v17's sentence is
+  unchanged.
+- **Not in this change** (cejel #641): no-fail flags that still list tests (a runner's list or
+  dry-run modes) and runners that are repository code (a runner installed from a path, `tsc`
+  writing into `node_modules`); and two false exclusions, `NODE_OPTIONS=--experimental-vm-modules`
+  before jest and `eslint . && vitest`.
+
+**The no-rise property** (`src/witan/__tests__/v27-no-rise.ts`). A counted workflow is counted as
+v17 counts it, so B3 can only return to v17's value, never rise past it. `checkNoRise` and
+`lostFindings` pass on every fixture of `b3-publishing-with-checks.test.ts`, and the generated
+shards pass.
+
+**Fixtures** (`b3-publishing-with-checks-fixtures.ts`; counts re-derived from the file at this
+entry's last commit: the fourth pass's `V4_COUNTED` 16 and `V4_EXCLUDED` 42, the fifth pass's
+`V5_COUNTED` 7 and `V5_EXCLUDED` 36, the sixth pass's `V6_COUNTED` 3 and `V6_EXCLUDED` 20; 221 in
+all, with the 155 of #625 and earlier). The fourth pass's 53 written first were committed red against main
+`d2d178233` (`46326b381`): 55 of 202 tests of
+`b3-publishing-with-checks.test.ts` failed, exactly the new credit paths, the false-credit fixtures
+and the note assertions. One of those 55, a mutation fixture (`npm test || true` then `npm publish`
+in one block), was invalid: a `||` in the step makes its publish conditional, so main does not read
+the workflow as publishing at all. It was replaced by a backgrounded check before the commit, and
+its own test was re-run and passes on main; the commit's "54 of 202" is that count less one, not a
+whole-suite re-run. Five more fixtures were added after the red run, from the mutation runs below.
+The fifth pass's fixtures were committed red at `0a5272474`, and the sixth pass's at `78e1e536e`
+(42 of 322 tests failed at `5b3a622d5`, exactly its new fixtures, note assertions and the pin
+check). `b3-publishing-with-checks-v17.json` pins v17's projection of all 221 fixtures, written with
+main `bfd4d5965`'s code (the scoring source swapped in for the run); the fourth pass first pinned
+its 155 with `d2d178233`, and each later re-pin left every earlier entry and the HTML pin
+byte-identical. The sixth pass changed three counted controls whose `env:` or line assignment used
+`CI` or `NODE_ENV` (`job-level-keys-written-plainly`, `env-inert-keys-and-secret-token`,
+`check-line-assignment-inert`) to keys that stay inert (`TZ`, `LANG`, `FORCE_COLOR`); their v17
+projections match the pin unchanged.
+
+**Measured** (at the sixth pass's final code `690bd8ee3`, after its last code commit). Main
+`bfd4d5965` and this head scored the same 561 synthetic checkouts: the 221 fixtures of
+`b3-publishing-with-checks-fixtures.ts` (fourth, fifth and sixth passes included), every fixture of
+`false-assurance-fixtures.ts` and `ci-claims-followups-fixtures.ts`. Each checkout was built once
+on each side and scored under all eleven selectable rubrics; report JSON, HTML and Markdown were
+compared by hash, with the checkout path replaced. Errors: 0 on both sides. For main's side, the
+three source files this branch changes (`repo-signals.ts`, `certificate-presentation.ts`,
+`rubric-version.ts`) were main's.
+
+- v17-v26: 5,600 of 5,610 reports byte-identical to main, and their HTML and Markdown too. The
+  other 10 are `review4-a4-working-directory-through-tracked-symlink` under each of the ten rubrics,
+  which #625's entry describes: its commit holds a symlink to a freshly made temporary directory, so
+  its head SHA differs between builds; no criterion differs.
+- v27: 477 of 561 reports byte-identical to main. Leaving out that same fixture, 83 move, in B3
+  only:
+  - 14 rise to v17's B3 value, the new credit paths: `pip-install-requirements-plain`,
+    `pip-install-requirements-hashed-and-included`, `pipenv-install-plain-pipfile`,
+    `prepare-husky-before-check`, `steps-at-key-indent`, `build-tsc-before-check`,
+    `build-tsc-outdir-fresh-lib`, `needs-block-list-at-key-indent`, `check-and-publish-one-line`,
+    `ruff-check-dot`, `ruff-format-check`, `black-check`, `eslint-dot-max-warnings` and `mypy-dot`;
+  - 48 fall from v17's value, the false credit main gave: 14 test commands (scripts that run
+    `/bin/true`, `node -e 0`, `printf ok`, a chain to a no-op, a runner `|| true`, a `pretest` that
+    runs repository code or a `NODE_OPTIONS=` assignment, a `tsc` before the runner writing into
+    `node_modules/uvu`; `npm test --node-options=...`, `--prefix`, `-w`, `--workspaces`,
+    `pnpm test --filter`, `yarn test --cwd`), 15 make targets (an `@true` recipe, a no-op
+    prerequisite, a `-` line, a prerequisite that runs repository code first, `.ONESHELL`, an
+    `export`, a target that is not `.PHONY` beside a `test/` or `Test/` directory or a `CHECK` file,
+    a prerequisite named after a file, a committed `GNUMAKEFILE`, and four Makefile assignments:
+    `PATH`, `HOME`, `PYTEST_ADDOPTS` and an unreferenced `VERSION`), 15 environments (an assignment
+    on the check's or a setup command's line, including `CI=false`; `NODE_OPTIONS`, `PATH`,
+    `LD_PRELOAD`, `PYTHONPATH` or `NODE_ENV` in an `env:` mapping; a job `container:` with or
+    without `env:`; a `services:` container with `env:`; a credential key without a secret), 3
+    commands written as a path that main credited through the `./` it stripped (`./pytest`,
+    `./make test`, `./jest` run by npx) and 1 local archive given to `pip install`;
+  - 21 change in B3's note only: it now says why a check was not counted (no-op and help or version
+    test scripts, `npm test --if-present`, `github-path-write-before-check`, five tsc builds whose
+    output is not admitted, three commands written as a path that main already excluded), or, for
+    `flake8-src`, which main also counted, that the lint configuration is not read.
+- v27 B3 above v17 B3 on the same commit: 0.
+- Every v27 HTML and Markdown report differs from main's, because the v27 glossary sentence
+  changed. Rendering is a function of the report and the presentation code, and for the 477
+  reports whose JSON is identical the only presentation change is that sentence.
+- The Makefile assignment rule (blocker 3) moves 3 checkouts beyond what the fifth pass's `PATH`
+  refusal already moved: `make-home-assignment-pth`, `make-pytest-addopts-assignment` and
+  `make-unreferenced-assignment`, all added by this round; none of the 538 checkouts measured
+  before it moves. `make-unreferenced-assignment` is the false exclusion it causes by design: a
+  Makefile whose only assignment (`VERSION = 1.0`) is never exported and never read by a runner is
+  no longer credited. An exception for such variables was not made: make exports any variable the
+  environment also sets, and which names a runner or tool reads from the environment is no fixed
+  list, so the exception would itself be a list of names.
+
+**This round** (the adversarial review of #645 at `5b3a622d5`, four false-credit blockers and three
+should-fix items). Red fixtures `78e1e536e`; fix `690bd8ee3`. (1) A command word holding a `/`
+(`./ruff format .`, `./eslint --fix .`, `./make test`, `./jest` run by npx, `bin/pytest`) runs that file,
+so it is no check, runner, lint form or setup step; `isCheckCommand` stripped a leading `./` before
+its vocabulary match, while its lint gate read the word unstripped, so the gate was skipped and the
+match succeeded. B3's note says such a command runs a file in the repository or on the runner. The
+script, recipe and setup readers already matched words exactly; each now refuses a path word
+explicitly. (2) Make targets are compared with repository paths case-insensitively on every runner,
+as macOS resolves them (`test:` beside `Test/`, `check:` beside `CHECK`), and no Makefile is read
+beside a `GNUmakefile` or `makefile` in any case; pip path lookups on the credit path compare the
+same way. `.PHONY` stays exact, as make matches it. (3) Any Makefile assignment withholds the credit
+of every target, with a note; see the last Measured item for its false exclusion. (4) A tsc build,
+or tsc before a runner in a test script or recipe, is admitted only as `tsc` or `tsc --noEmit`
+where every place it writes (`outDir`, `declarationDir`, `outFile`'s directory) holds no tracked
+file, is no tracked path, has none above it, and has no `node_modules` part, compared
+case-insensitively; a tsconfig.json with `extends`, a build-info file (`incremental`, `composite`,
+`tsBuildInfoFile`), the deprecated `out`, an output option spelled in another case, or no `outDir`
+or `outFile`, refuses. (5) `CI` and `NODE_ENV` left the inert keys; three counted controls moved to
+`TZ`, `LANG` and `FORCE_COLOR`. (6) B3's note adds "(a lint or format check, whose configuration
+Cejel does not read)" to a counted workflow whose credited check is one, in its long and short
+sentence and, as "some on ...", in the closing count; the note's 1,000-character budget is
+unchanged. (7) The Fixtures paragraph above was corrected. Left open: `python -m pytest` with a
+committed `pytest/` package runs the repository's module, not the runner (cejel #647), and #641's items.
+
+**Mutation runs.** Each refusal was disabled alone and the fourth pass's fixtures scored under v27;
+each run below failed the fixtures named. The runner vocabulary read as "runs anything" (9
+fixtures); pre and post scripts not read (1); a separator other than `&&` admitted in a script (1);
+any assignment admitted before a runner (1); make's `-` prefix not read (1); make prerequisites not
+read (2, one counted fixture lost); the make settings list (1, `.ONESHELL`); environment problems
+ignored (6); a credential without a secret admitted (1); earlier steps' `env:` not read (1); a
+requirements include outside the repository admitted (1); requirements option lines admitted (2);
+any Pipfile package value admitted (1); Pipfile `[scripts]` entries admitted (1); any `prepare`
+script admitted (1); any build command admitted (1, after the vite fixture was given the
+`tsconfig.json` its counted twin has, which before then excluded it); the `&&` bound on a publish on
+the check's line (1, `npm test | npm publish` after pipefail); `.` read as `source` anywhere (1).
+Three refusals no fixture could make load-bearing were dropped, each already enforced by a broader
+rule: a Makefile directive list (no directive line is a placed line), a Pipfile section list (an
+unknown section's entries refuse), and an order test for a publish before the check on its line
+(only setup commands may precede the check, and none publishes). Two readings have no fixture of
+their own: a `$GITHUB_ENV` write of a named key, and an `env:` mapping the reader cannot place.
+
+No holdout or calibration ran. No behaviour-fingerprint pin moves: the fingerprint corpus holds no
+check-then-publish workflow. No published score moved: the board is scored under v17.
+
 ## 2026-11-02 (allowlist) — v27 A1 says a collection hook puts the items back only when every statement of its body is on an allowlist; a deselect-everything hook in any conftest.py reaches every collected test; v17-v26 byte-identical, certificate text included; v27 never above v17; no published score moved
 
 **Status.** A scoring change under `witan-rubric-v27-prospective-2026-10-19` only, with no

@@ -198,7 +198,46 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     workflow names a script shell, node options or a yarn path and no pnpmfile or yarn plugin is
 //     committed (else no npm-family command is a check or setup), that a setup install runs no
 //     root lifecycle script and installs no project or path, and that a check carries no flag with
-//     which it cannot fail);
+//     which it cannot fail; the fourth pass (#627-#630, 2026-11-02) admits an npm, pnpm or yarn test
+//     script, or `make test` / `make check`, as a check only when the reader proves it runs a test
+//     runner from a fixed vocabulary (jest, vitest, mocha, ava, uvu, tap, tape, jasmine, node --test,
+//     pytest, python -m pytest or unittest, go test, cargo test, and others), through `npm run`
+//     chains, pre and post scripts and make prerequisites, joined only by `&&`, with nothing before
+//     the runner but tsc, pyright, ruff or black, and B3's note names the script or target where it
+//     does not; credits a check only when every `env:` key on its path (the workflow's, its job's,
+//     and every step's up to and including the check's) is one known not to change what runs, or a
+//     publish credential (NODE_AUTH_TOKEN, NPM_TOKEN, GITHUB_TOKEN, TWINE_*) set from a secret, and
+//     reads an earlier $GITHUB_ENV or $GITHUB_PATH write the same way, the note naming the key;
+//     admits as setup `pip install -r` of a requirements file whose every line is a plain index
+//     requirement (includes inside the repository followed), `pipenv install` of a Pipfile and
+//     Pipfile.lock that name only index packages and no `[scripts]`, a `prepare` script that is
+//     exactly `husky` or `husky install`, and a root `build` script that runs only tsc beside a
+//     tsconfig.json (a vite, webpack or rollup build runs its code configuration first, so stays
+//     excluded); reads step items and a `needs:` block list written at their key's own indent;
+//     counts a publish on the check's own line when the two are one `&&` chain; and reads `.` as
+//     the source builtin only in command position. A committed yarn release (`yarnPath`) stays
+//     refused by design: Cejel cannot verify offline what that file runs; the fifth pass (review of
+//     #640, 2026-11-02) admits a requirements line or pip argument only as a PEP 508 project name
+//     that ends in no archive or wheel suffix and is no path in the repository; counts a lint or
+//     format command only as `ruff check`, `ruff format --check`, `black --check`, `eslint`, `mypy`
+//     or `flake8`, with only flags known to keep the exit code (so no `--fix`, `--exit-zero` or
+//     `-e`, and no pylint); admits an assignment on the check's or a setup command's own line only
+//     for an inert key; withholds the credit of a check whose job runs in a `container:` or has a
+//     `services:` container that sets `env:`; admits after an npm-family test script's name only
+//     npm's `--silent` and `-s`, so `--prefix`, `-w`, `--workspaces`, `--cwd`, `--filter` and the
+//     rest withhold the credit; counts a make target only when it and every target on its path are
+//     `.PHONY` or have no file or directory of their name in the repository, and reads no Makefile
+//     that assigns PATH; B3's note names each reason. Its glossary sentence states these as what
+//     the reader reads, not a proof that the check can fail; the sixth pass (review of #645,
+//     2026-11-03) refuses a command word written as a path (`./ruff`, `bin/pytest`, `npx ./jest`)
+//     as a check, runner, lint form or setup step, where a leading `./` was stripped before the
+//     match; compares make targets with repository paths case-insensitively, and reads no Makefile
+//     beside a `GNUmakefile` or `makefile` in any case; credits no target of a Makefile that
+//     assigns any variable (make exports one the environment also sets); admits a tsc build, or tsc
+//     before a runner, only when every place it writes is a directory holding no tracked file and
+//     not under node_modules and tsconfig.json has no `extends`; drops `CI` and `NODE_ENV` from the
+//     inert environment keys; and says in B3's note when a credited check is a lint or format
+//     command whose configuration is not read);
 //   - A1: conftest.py is not a concrete test file (not cited as one, and rated hollow where it
 //     asserts; from 2026-11-01 test_to_source_ratio counts it as test surface, as v17 does), and
 //     an unconditional run-wide pytest skip

@@ -1,0 +1,24 @@
+[
+  {
+    "statement": "A card's expected_runtime_minutes is a note to the agent, not a limit it keeps. After #640's run hit the 90-minute watchdog, the reviewing session re-sized its successor card to 60 minutes and told the agent to commit after each item. The agent finished every item by minute 27, then spent the slack on an unrequested extra fix (B3's note on a backgrounded check, 07461359f at minute 73) and was stopped by the same watchdog during its measurement, leaving a draft PR (#645) whose RUBRIC_CHANGELOG still carried the previous pass's numbers and whose own measurement predated its last fix. Rule: put the records and the hand-back before any optional work in the card's step order, measure only after the last code commit, and treat an agent's measurement as stale if any code commit follows it.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "goal-card-authoring",
+      "dispatch"
+    ],
+    "tags": [
+      "card-sizing",
+      "watchdog",
+      "reviewer-error",
+      "stale-measurement"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-11-03T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 645
+    }
+  }
+]

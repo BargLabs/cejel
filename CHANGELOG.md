@@ -86,6 +86,72 @@ is pinned. v27 carries no precision or recall claim.
   Measured on 393 synthetic repositories against main: v17 to v26 byte-identical; v27 never above
   v17; the counts are in `leaderboard/RUBRIC_CHANGELOG.md`. No holdout or calibration ran.
 
+- **Prospective v27: B3 credits a check before a publish only where the reader reads a known test
+  runner, a lint form that fails on a finding, and an environment and package it admits; safe
+  check-then-publish shapes are now read** (#627, #628, #629, #630; the fourth pass on #517's
+  check-before-publish reading, with the fifth pass from the review of #640, which this
+  supersedes, and the sixth from the review of #645). Under `witan-rubric-v27-prospective-2026-10-19`:
+  - *A test script or make target is a check only when it runs a known test runner* (#627). Before,
+    an npm, pnpm or yarn test script counted unless it was only `true`, `:`, `echo` or `exit 0`, so
+    `/bin/true`, `node -e 0` or `printf ok` passed, and `make test` counted whatever its recipe
+    ran. Now the reader follows `npm run` chains, pre and post scripts and make prerequisites, and
+    admits the script or target only when it reaches a runner from a fixed vocabulary (jest,
+    vitest, mocha, ava, uvu, tap, node --test, pytest, go test, cargo test and others), joined only
+    by `&&`, with nothing before it but a check whose configuration is not code. B3's note names
+    the script or target when it does not.
+  - *The environment on the check's path is read* (#628). Every `env:` key on the check's path
+    (the workflow's, its job's, and each step's up to the check) must be one known not to change
+    which program runs or what it loads, or a publish credential set from a secret. `NODE_OPTIONS`,
+    `PATH`, `PYTHONPATH`, `LD_PRELOAD` and any other key withhold the credit, and so does an earlier
+    write to `$GITHUB_PATH`, or of such a key to `$GITHUB_ENV`. The note names the key.
+  - *Setup steps refused more broadly than their risk are read* (#629): `pip install -r` of a
+    requirements file whose every line names an index package (with optional `--hash`, and includes
+    inside the repository), `pipenv install` of a Pipfile and lock that name only index packages,
+    and a `prepare` script that is exactly `husky` or `husky install`. A committed yarn release
+    (`yarnPath`) stays refused by design: Cejel cannot verify offline what that file runs.
+  - *Safe shapes are read* (#630): step items and a `needs:` list written at their key's own indent;
+    a `build` script that runs only tsc beside a `tsconfig.json`, before the check (a vite, webpack
+    or rollup build still is not, since its configuration is code that runs first); a check and
+    publish on one line joined by `&&`; and `.` passed as an argument (`ruff check .`, `mypy .`),
+    which is read as the `source` builtin only in command position.
+  - *Fifth pass: what the review of #640 found still credited* (six blockers, each now a fixture).
+    A requirements line or a name given to `pip install` is admitted only as a PEP 508 project
+    name, never one ending in an archive or wheel suffix (`stub.tar.gz`, `stub.zip`,
+    `stub-1.0-py3-none-any.whl`) or naming a path in the repository, which pip would install from
+    the file. A lint or format command counts only as `ruff check`, `ruff format --check`,
+    `black --check`, `eslint`, `mypy` or `flake8`, with only flags known to keep the exit code, so
+    `ruff check -e`, `--fix`, `eslint --fix`, `black .` and `ruff format .` no longer count. An
+    assignment on the check's own line, or a setup command's, is admitted only for an inert key
+    (`NODE_OPTIONS=... npm test`, `PATH=... npm test` and `PYTEST_ADDOPTS=--co pytest` no longer
+    count). A job with a `container:`, or a `services:` container that sets `env:`, withholds the
+    credit. After an npm-family test script's name only npm's `--silent` and `-s` are admitted, so
+    `--node-options`, `--prefix`, `-w`, `--workspaces`, `yarn --cwd` and `pnpm --filter`, which can
+    run another package's script, withhold the credit. A make target counts only when it and every
+    target on its path are `.PHONY` or have no file or directory of their name in the repository,
+    and a Makefile that assigns `PATH` is not read. B3's note names each reason.
+  - *Sixth pass: what the review of #645 found still credited* (four blockers and three should-fix
+    items, each now a fixture). A command word written as a path (`./ruff`, `bin/pytest`,
+    `npx ./jest`, `./make test`) runs that file, not the tool of its name, so it is never a check, a
+    test runner, a lint form or a setup step; before, a leading `./` was stripped before the match.
+    A make target's name is compared to the repository's paths case-insensitively, as macOS does, so
+    `test:` beside `Test/` and a committed `GNUMAKEFILE` withhold the credit. A Makefile that assigns
+    any variable credits none of its targets, since make exports a variable the environment also
+    sets with the Makefile's value (`HOME := fakehome` with a `.pth` file under it); this also
+    excludes a Makefile whose assignments are harmless, a false exclusion by design. A tsc build
+    before the check, or tsc before the runner in a test script or recipe, is admitted only when
+    every place it writes is a directory that holds no tracked file and is not under
+    `node_modules`, and `tsconfig.json` does not `extends` another file. `CI` and `NODE_ENV` are no
+    longer inert environment keys (with `CI=false`, jest writes missing snapshots instead of
+    failing). Where the credit rests on a lint or format check, B3's note says Cejel does not read
+    the tool's configuration.
+  - The v27 certificate's glossary sentence for the PR-gate CI count states these conditions as
+    what Cejel reads (the sixth pass adds the path, Makefile-assignment and tsc-output conditions),
+    and says that this is not a proof that the check can fail. #640's wording,
+    which said no environment setting could change what the check runs, was not true.
+
+  v17 and every rubric but v27 are unchanged. The measured effect is in
+  `leaderboard/RUBRIC_CHANGELOG.md`.
+
 ### Fixed
 
 - **The v27 scan timing guard on long CI lines failed on main and stopped the 0.6.9 npm publish.**
