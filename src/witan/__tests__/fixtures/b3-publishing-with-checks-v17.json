@@ -14622,6 +14622,128 @@
         }
       }
     },
+    "make-test-exports-variable": {
+      "overallScore": 1.9,
+      "codeTrustScore": 1.4,
+      "processTrustScore": 2.4,
+      "criteria": {
+        "A1": {
+          "score": 2.3,
+          "status": "verified",
+          "notes": "A1 is detected from real test files, test runner configuration, and optional coverage configuration.",
+          "disclosures": [],
+          "metrics": {
+            "test_to_source_ratio": 1,
+            "coverage_percent": 0,
+            "verification_script_ratio": 2,
+            "non_hollow_test_share": 1
+          },
+          "findings": [
+            "Test suite files are present, but the tracked scan-eligible inventory matched no coverage configuration."
+          ]
+        },
+        "A2": {
+          "score": 0,
+          "status": "not_applicable",
+          "notes": "No data layer (DB/ORM/migrations) or ratable secrets surface detected — A2 not applicable to this repo archetype. A ratable surface requires .env* files, .gitignore .env rule, committed/history .env path, or detected signing/HMAC/secret-comparison code; bare env reads (process.env / os.environ / std::env::) do not qualify.",
+          "disclosures": [],
+          "metrics": {},
+          "findings": []
+        },
+        "A3": {
+          "score": 0,
+          "status": "not_applicable",
+          "notes": "No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). A Dockerfile without an explicit runtime start/service command is ambiguous and does not qualify.",
+          "disclosures": [],
+          "metrics": {},
+          "findings": []
+        },
+        "A4": {
+          "score": 0.5,
+          "status": "critical",
+          "notes": "A4 scored against library/CLI norms (no deploy surface detected — same archetype line as A3): declared version ranges are correct library behavior; a committed lockfile is credited but not required.",
+          "disclosures": [],
+          "metrics": {
+            "declared_version_range_ratio": 0,
+            "dependency_automation_ratio": 0,
+            "dependency_count_sanity": 1
+          },
+          "findings": [
+            "A4 metric-derived score is 0.5/4.0, in the critical band — no single finding drove this; it reflects the combined metric weighting below."
+          ]
+        },
+        "A5": {
+          "score": 1.4,
+          "status": "warning",
+          "notes": null,
+          "disclosures": [],
+          "metrics": {
+            "claim_match_rate": 1,
+            "claim_source_depth": 1,
+            "reconciliation_artifact_depth": 0
+          },
+          "findings": [
+            "Claim-source and implementation-file signals are present, while the tracked scan-eligible inventory matched no dedicated claim-reality report artifact."
+          ]
+        },
+        "B1": {
+          "score": 0,
+          "status": "not_applicable",
+          "notes": "Repository scans do not evaluate the dispatch-trace process dimension.",
+          "disclosures": [],
+          "metrics": {},
+          "findings": []
+        },
+        "B2": {
+          "score": 3.2,
+          "status": "warning",
+          "notes": null,
+          "disclosures": [],
+          "metrics": {
+            "pr_trace_primitives": 2,
+            "pr_merge_ratio": 0
+          },
+          "findings": [
+            "B2 metric-derived score is 3.2/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below."
+          ]
+        },
+        "B3": {
+          "score": 1.6,
+          "status": "verified",
+          "notes": null,
+          "disclosures": [],
+          "metrics": {
+            "ci_script_depth": 1,
+            "default_branch_ci_depth": 2
+          },
+          "findings": []
+        },
+        "B4": {
+          "score": 0,
+          "status": "not_applicable",
+          "notes": "No audit-trail artifact detected (CHANGELOG/CHANGES/HISTORY/NEWS/SECURITY/AUDIT/STATUS/ release-notes/runbook/provenance file) — B4 not applicable to this repo.",
+          "disclosures": [],
+          "metrics": {},
+          "findings": []
+        },
+        "B5": {
+          "score": 0,
+          "status": "not_applicable",
+          "notes": "Repository scans do not evaluate the learning-trace process dimension.",
+          "disclosures": [],
+          "metrics": {},
+          "findings": []
+        },
+        "B6": {
+          "score": 0,
+          "status": "not_applicable",
+          "notes": "No privileged-operation surface (prod DB admin GRANT/privilege DDL, role escalation, or documented human-gate governance) detected in this repo.",
+          "disclosures": [],
+          "metrics": {},
+          "findings": []
+        }
+      }
+    },
     "job-env-node-options-require": {
       "overallScore": 2.6,
       "codeTrustScore": 2.5,
@@ -16477,6 +16599,129 @@
           },
           "findings": [
             "A4 metric-derived score is 1.6/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below."
+          ]
+        },
+        "A5": {
+          "score": 1.4,
+          "status": "warning",
+          "notes": null,
+          "disclosures": [],
+          "metrics": {
+            "claim_match_rate": 1,
+            "claim_source_depth": 1,
+            "reconciliation_artifact_depth": 0
+          },
+          "findings": [
+            "Claim-source and implementation-file signals are present, while the tracked scan-eligible inventory matched no dedicated claim-reality report artifact."
+          ]
+        },
+        "B1": {
+          "score": 0,
+          "status": "not_applicable",
+          "notes": "Repository scans do not evaluate the dispatch-trace process dimension.",
+          "disclosures": [],
+          "metrics": {},
+          "findings": []
+        },
+        "B2": {
+          "score": 3.2,
+          "status": "warning",
+          "notes": null,
+          "disclosures": [],
+          "metrics": {
+            "pr_trace_primitives": 2,
+            "pr_merge_ratio": 0
+          },
+          "findings": [
+            "B2 metric-derived score is 3.2/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below."
+          ]
+        },
+        "B3": {
+          "score": 1.6,
+          "status": "verified",
+          "notes": null,
+          "disclosures": [],
+          "metrics": {
+            "ci_script_depth": 1,
+            "default_branch_ci_depth": 2
+          },
+          "findings": []
+        },
+        "B4": {
+          "score": 0,
+          "status": "not_applicable",
+          "notes": "No audit-trail artifact detected (CHANGELOG/CHANGES/HISTORY/NEWS/SECURITY/AUDIT/STATUS/ release-notes/runbook/provenance file) — B4 not applicable to this repo.",
+          "disclosures": [],
+          "metrics": {},
+          "findings": []
+        },
+        "B5": {
+          "score": 0,
+          "status": "not_applicable",
+          "notes": "Repository scans do not evaluate the learning-trace process dimension.",
+          "disclosures": [],
+          "metrics": {},
+          "findings": []
+        },
+        "B6": {
+          "score": 0,
+          "status": "not_applicable",
+          "notes": "No privileged-operation surface (prod DB admin GRANT/privilege DDL, role escalation, or documented human-gate governance) detected in this repo.",
+          "disclosures": [],
+          "metrics": {},
+          "findings": []
+        }
+      }
+    },
+    "pipenv-pipfile-scripts-section": {
+      "overallScore": 2.2,
+      "codeTrustScore": 1.9,
+      "processTrustScore": 2.4,
+      "criteria": {
+        "A1": {
+          "score": 2.1,
+          "status": "verified",
+          "notes": "A1 is detected from real test files, test runner configuration, and optional coverage configuration.",
+          "disclosures": [],
+          "metrics": {
+            "test_to_source_ratio": 1,
+            "coverage_percent": 0,
+            "verification_script_ratio": 1,
+            "non_hollow_test_share": 1
+          },
+          "findings": [
+            "Test suite files are present, but the tracked scan-eligible inventory matched no coverage configuration."
+          ]
+        },
+        "A2": {
+          "score": 0,
+          "status": "not_applicable",
+          "notes": "No data layer (DB/ORM/migrations) or ratable secrets surface detected — A2 not applicable to this repo archetype. A ratable surface requires .env* files, .gitignore .env rule, committed/history .env path, or detected signing/HMAC/secret-comparison code; bare env reads (process.env / os.environ / std::env::) do not qualify.",
+          "disclosures": [],
+          "metrics": {},
+          "findings": []
+        },
+        "A3": {
+          "score": 0,
+          "status": "not_applicable",
+          "notes": "No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). A Dockerfile without an explicit runtime start/service command is ambiguous and does not qualify.",
+          "disclosures": [],
+          "metrics": {},
+          "findings": []
+        },
+        "A4": {
+          "score": 2.3,
+          "status": "warning",
+          "notes": "A4 scored against library/CLI norms (no deploy surface detected — same archetype line as A3): declared version ranges are correct library behavior; a committed lockfile is credited but not required.",
+          "disclosures": [],
+          "metrics": {
+            "declared_version_range_ratio": 1,
+            "lockfile_coverage": 1,
+            "dependency_automation_ratio": 0,
+            "dependency_count_sanity": 1
+          },
+          "findings": [
+            "A4 metric-derived score is 2.3/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below."
           ]
         },
         "A5": {
