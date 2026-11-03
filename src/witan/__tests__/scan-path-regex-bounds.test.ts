@@ -5,7 +5,11 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
-import { analyzeCoverageConfiguration } from '../repo-signals.js';
+import {
+  analyzeCoverageConfiguration,
+  findPytestRunWideSkips,
+  readPytestInvocations,
+} from '../repo-signals.js';
 import {
   WITAN_RUBRIC_VERSION_V17,
   WITAN_RUBRIC_VERSION_V26,
@@ -346,6 +350,76 @@ describe('timing guards: the real scan finishes on pathological repository input
     },
     KILL_AFTER_MS + 10_000,
   );
+});
+
+// goal_cejel_v27_conftest_timing_guard_2026-11-02, item C. The whole-scan budget above is absolute,
+// so a reader whose cost grows faster than its input can sit just under it on a fast machine and
+// fail on a slower runner (the v27 guard on CI_LINE_FIXTURE did, after #626). This check times each
+// v27 A1 reader the guard exercises, on its own, at an input length L and at 2L, and refuses a
+// ratio above 3: a linear reader roughly doubles, one that grows with the square quadruples. The
+// fastest of five timed runs, after one warm-up, is compared, so a single stall on a loaded runner
+// does not decide it. Each reader must return the same answer at both lengths, so a reader that
+// stops early cannot pass by being fast.
+const SCALING_LENGTH = 240_000;
+const SCALING_RATIO_LIMIT = 3;
+const CI_LINE_UNITS = ['yarn ', 'uv run ', 'cargo b ', 'pnpm i ', 'npm npm ', 'poetry check '];
+
+function fastestMs(read: () => unknown): number {
+  read();
+  let fastest = Number.POSITIVE_INFINITY;
+  for (let run = 0; run < 5; run += 1) {
+    const started = performance.now();
+    read();
+    fastest = Math.min(fastest, performance.now() - started);
+  }
+  return fastest;
+}
+
+function scalingRatio<T>(read: (length: number) => T): { ratio: number; atL: T; at2L: T } {
+  const atL = read(SCALING_LENGTH);
+  const at2L = read(2 * SCALING_LENGTH);
+  const ratio = fastestMs(() => read(2 * SCALING_LENGTH)) / fastestMs(() => read(SCALING_LENGTH));
+  return { ratio, atL, at2L };
+}
+
+describe('scaling: each v27 A1 reader the CI-line guard exercises grows no faster than linearly', () => {
+  it('the conftest hook reader, on a whitespace run inside the hook loop of length L and 2L', () => {
+    const repos = new Map<number, string>();
+    const repoFor = (length: number): string => {
+      const existing = repos.get(length);
+      if (existing) return existing;
+      const repo = makeRepo({
+        'tests/test_lines.py': 'def test_value():\n    assert 1 == 1\n',
+        'tests/conftest.py': `def pytest_collection_modifyitems(config, items):\n    for item in items:${' '.repeat(length)}#\n        item.add_marker(pytest.mark.skip)\n`,
+      });
+      repos.set(length, repo);
+      return repo;
+    };
+    const files = ['tests/conftest.py', 'tests/test_lines.py'];
+    const { ratio, atL, at2L } = scalingRatio((length) => findPytestRunWideSkips(repoFor(length), files));
+    expect(atL.map((skip) => skip.kind)).toEqual(['skip']);
+    expect(at2L).toEqual(atL);
+    expect(ratio).toBeLessThan(SCALING_RATIO_LIMIT);
+  }, 60_000);
+
+  it('the pytest run reader, on six CI lines of length L and 2L, each ending in a pytest run', () => {
+    const files = CI_LINE_UNITS.map((_, index) => `.github/workflows/w${index}.yml`);
+    const textsFor = (length: number): Map<string, string> =>
+      new Map(
+        CI_LINE_UNITS.map((unit, index) => [
+          `.github/workflows/w${index}.yml`,
+          `name: w${index}\non: push\njobs:\n  t:\n    runs-on: ubuntu-latest\n    steps:\n      - run: ${unit.repeat(Math.floor(length / unit.length))}&& pytest\n`,
+        ]),
+      );
+    const texts = new Map([SCALING_LENGTH, 2 * SCALING_LENGTH].map((length) => [length, textsFor(length)]));
+    const { ratio, atL, at2L } = scalingRatio((length) =>
+      readPytestInvocations(files, (file) => texts.get(length)?.get(file)),
+    );
+    // The root default, then the `pytest` at the end of each line: every line was read to its end.
+    expect(atL).toHaveLength(1 + CI_LINE_UNITS.length);
+    expect(at2L).toEqual(atL);
+    expect(ratio).toBeLessThan(SCALING_RATIO_LIMIT);
+  }, 60_000);
 });
 
 describe('a `pnpm run /…/` selector is a dynamic reference, never an evaluated regex', () => {

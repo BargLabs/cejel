@@ -12843,9 +12843,10 @@ function readGithubRunSteps(text: string): { command: string; directory: string 
 
 /**
  * Every pytest command Cejel reads (see the section comment), the plain `pytest` at the root
- * first. `readText` reads a repository file, or undefined.
+ * first. `readText` reads a repository file, or undefined. Exported for the scaling check in
+ * scan-path-regex-bounds.test.ts (goal_cejel_v27_conftest_timing_guard_2026-11-02, item C).
  */
-function readPytestInvocations(
+export function readPytestInvocations(
   repoFiles: readonly string[],
   readText: (file: string) => string | undefined,
 ): PytestInvocation[] {
@@ -13707,9 +13708,10 @@ interface PytestRunWideSkip {
  * Finds conftest.py hooks that disable every test they collect: a `pytest_collection_modifyitems`
  * whose body, with no conditional anywhere in it, either loops over `items` adding a skip marker
  * or empties the list. Anything conditional is not reported, so a hook that skips only slow tests,
- * or only on one platform, is never read as disabling the suite.
+ * or only on one platform, is never read as disabling the suite. Exported for the scaling check in
+ * scan-path-regex-bounds.test.ts (goal_cejel_v27_conftest_timing_guard_2026-11-02, item C).
  */
-function findPytestRunWideSkips(
+export function findPytestRunWideSkips(
   repoPath: string,
   repoFiles: readonly string[],
 ): PytestRunWideSkip[] {
