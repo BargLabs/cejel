@@ -9777,6 +9777,8 @@ function packageTestArgumentsProblem(words: readonly string[]): string | undefin
  * test script's name; undefined otherwise.
  */
 function checkLineReason(input: readonly string[], reading: CheckReading): string | undefined {
+  // A backgrounded command is no check whatever its words; its `&` is not an argument to name.
+  if (commandIsBackgrounded(input)) return undefined;
   const read = checkCommandWords(input);
   if (read === undefined || (read.packageManager && !reading.packageManagerConfigPlain)) return undefined;
   const key = read.assignments.find((name) => !isInertEnvironmentKey(name));
