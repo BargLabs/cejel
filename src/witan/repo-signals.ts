@@ -17272,6 +17272,30 @@ interface PythonStrictHelper {
   readonly list: number;
   readonly source: number;
   readonly replaces: boolean;
+  /** True where its restore copies through a builtin call (`list(src)`, `tuple(src)`). */
+  readonly callsBuiltin: boolean;
+}
+
+// goal_cejel_v27_a1_gaps_2026-11-03, item A (#646). A copy that calls a builtin (`list(items)`,
+// `tuple(items)`) is the builtin's result, and any module pytest imports (one the conftest.py
+// imports, another conftest.py, a plugin) can replace `builtins.list` at import time. The copy forms
+// that call no builtin (`items[:]`, `items.copy()`, `[*items]`) are read from the list's own type,
+// which cannot be patched. So a builtin copy is credited only where no Python file in the repository
+// names `builtins` or `__builtins__` (in code, a string or a comment: a name spelled any other way,
+// such as by joining strings, is not read).
+const PYTHON_BUILTIN_COPY_CALL_PATTERN = /^(?:list|tuple)[ \t]*\(/;
+const PYTHON_BUILTINS_NAME_PATTERN = /(?<![A-Za-z0-9_])(?:__builtins__|builtins)(?![A-Za-z0-9_])/;
+
+/** The first Python file of the repository whose text names `builtins` or `__builtins__`, or undefined. Linear. */
+function firstPythonFileNamingBuiltins(repoPath: string, repoFiles: readonly string[]): string | undefined {
+  for (const file of repoFiles) {
+    if (!file.endsWith('.py')) continue;
+    const fullPath = join(repoPath, file);
+    if (!isRegularFile(fullPath)) continue;
+    const text = readRepoText(fullPath, 'utf8');
+    if (text.includes('builtins') && PYTHON_BUILTINS_NAME_PATTERN.test(text)) return file;
+  }
+  return undefined;
 }
 
 /** What the allowlist needs to know about a conftest.py's module: read on demand, each once. */
@@ -17356,7 +17380,13 @@ function pythonModuleFacts(source: PythonSourceLines): PythonModuleFacts {
       if (emptying !== undefined && !pythonEmptiesList(emptying.code, target)) continue;
       const restored = pythonRestoreFrom(restore.code, target, unbound);
       if (restored === undefined || restored.copy !== origin) continue;
-      return { parameters, list, source: from, replaces: emptying !== undefined || restored.replace };
+      return {
+        parameters,
+        list,
+        source: from,
+        replaces: emptying !== undefined || restored.replace,
+        callsBuiltin: PYTHON_BUILTIN_COPY_CALL_PATTERN.test(restored.source),
+      };
     }
     return undefined;
   };
@@ -17485,8 +17515,14 @@ function pythonStatementMayRebind(code: string, name: string): boolean {
   return mentions.some(({ at, next }) => at < lastAssignment && !next.startsWith('[') && !next.startsWith('.'));
 }
 
-/** Why the allowlist does not credit a hook: the first statement outside it, or none where the body ends without the list put back. */
-type PytestAllowlistVerdict = { readonly restores: true } | { readonly restores: false; readonly at?: PythonCodeStatement };
+/**
+ * Why the allowlist does not credit a hook: the first statement outside it, or none where the body
+ * ends without the list put back. A credited body names its first statement that copies through a
+ * builtin call, if any (item A).
+ */
+type PytestAllowlistVerdict =
+  | { readonly restores: true; readonly builtin?: PythonCodeStatement }
+  | { readonly restores: false; readonly at?: PythonCodeStatement };
 
 function pytestHookRestoreAllowlist(
   body: readonly PythonCodeStatement[],
@@ -17508,17 +17544,20 @@ function pytestHookRestoreAllowlist(
   let state: 'collected' | 'empty' | 'restored' = 'collected';
   const copies = new Map<string, boolean>();
   const unusedCopy = (name: string): boolean => copies.get(name) === false;
+  let builtin: PythonCodeStatement | undefined;
   for (const statement of body) {
     const code = statement.code;
     if (statement.indent !== indent) return refuse(statement);
     if (PYTHON_STRING_ONLY_PATTERN.test(code)) continue;
     const binding = /^([A-Za-z_]\w*)[ \t]*=(?!=)[ \t]*(.*)$/.exec(code);
-    if (binding && pythonItemsCopyOf((binding[2] ?? '').trim(), facts.unbound) === 'items') {
+    const value = (binding?.[2] ?? '').trim();
+    if (binding && pythonItemsCopyOf(value, facts.unbound) === 'items') {
       const name = binding[1] ?? '';
       if (state !== 'collected' || name === 'items' || parameters.includes(name) || copies.has(name) || (counts.get(name) ?? 0) > 2) {
         return refuse(statement);
       }
       copies.set(name, false);
+      if (builtin === undefined && PYTHON_BUILTIN_COPY_CALL_PATTERN.test(value)) builtin = statement;
       continue;
     }
     if (pythonEmptiesList(code, 'items')) {
@@ -17546,6 +17585,7 @@ function pytestHookRestoreAllowlist(
         if (state === 'restored' || (state === 'collected' && !helper.replaces)) return refuse(statement);
         copies.set(copy, true);
         state = 'restored';
+        if (builtin === undefined && helper.callsBuiltin) builtin = statement;
         continue;
       }
     }
@@ -17554,7 +17594,8 @@ function pytestHookRestoreAllowlist(
   if (state !== 'restored') return refuse();
   // A body the allowlist reads whole is still refused where the module may rebind what it trusts.
   const hazard = facts.hazard();
-  return hazard === undefined ? { restores: true } : refuse(hazard);
+  if (hazard !== undefined) return refuse(hazard);
+  return builtin === undefined ? { restores: true } : { restores: true, builtin };
 }
 
 /** True when `code` names the hook's `items` (not as an attribute or keyword), or a `.items` attribute. */
@@ -17564,14 +17605,20 @@ function pytestMentionsItems(code: string): boolean {
 
 type PytestHookReading =
   | { readonly kind: 'skip' | 'clear' | 'restores' | 'rebinds' }
-  | { readonly kind: 'not read'; readonly reason: string };
+  /** `builtins`: the file naming builtins, where the reason is a statement copying through a builtin (item A). */
+  | { readonly kind: 'not read'; readonly reason: string; readonly builtins?: string };
 
 /**
  * Reads the last top-level `pytest_collection_modifyitems` of a conftest.py, at line `index`: what
  * the run-wide skip rule may say about it, or undefined where it has nothing to say (the hook takes
- * no `items`, never names it, or never empties or skips it).
+ * no `items`, never names it, or never empties or skips it). `builtinsNamedIn` gives the first
+ * Python file of the repository naming builtins, read only where a credit rests on a builtin copy.
  */
-function readPytestCollectionHook(source: PythonSourceLines, index: number): PytestHookReading | undefined {
+function readPytestCollectionHook(
+  source: PythonSourceLines,
+  index: number,
+  builtinsNamedIn: () => string | undefined = () => undefined,
+): PytestHookReading | undefined {
   const lines = source.raw;
   const masked = source.masked;
   // pytest passes the collected items only to a hook that names an `items` parameter (#621); the
@@ -17666,7 +17713,12 @@ function readPytestCollectionHook(source: PythonSourceLines, index: number): Pyt
   if (reading.rebinds) return { kind: 'rebinds' };
   // Outcome 2 only for a body the allowlist reads whole, and the list reading agrees.
   const allowlist = pytestHookRestoreAllowlist(read, beforeYield, parameters, pythonModuleFacts(source));
-  if (allowlist.restores && reading.state === 'restored' && reading.cleared) return { kind: 'restores' };
+  if (allowlist.restores && reading.state === 'restored' && reading.cleared) {
+    // item A (#646): a copy through a builtin call is the builtin's result, which another file may patch.
+    const named = allowlist.builtin === undefined ? undefined : builtinsNamedIn();
+    if (allowlist.builtin !== undefined && named !== undefined) return { kind: 'not read', reason: allowlist.builtin.shown, builtins: named };
+    return { kind: 'restores' };
+  }
   if (reading.state === 'unknown') return notRead(reading.reason ?? 'items');
   if (reading.state === 'empty' || (reading.state === 'restored' && reading.cleared)) {
     return notRead(allowlist.restores ? 'items' : (allowlist.at?.shown ?? 'items'));
@@ -17717,6 +17769,16 @@ export function findPytestRunWideSkips(
 ): PytestRunWideSkip[] {
   const found: Omit<PytestRunWideSkip, 'beyondScope'>[] = [];
   let ignoresCollection = false;
+  // item A (#646): read once, and only where a credit rests on a builtin copy.
+  let builtinsRead = false;
+  let builtinsFile: string | undefined;
+  const builtinsNamedIn = (): string | undefined => {
+    if (!builtinsRead) {
+      builtinsRead = true;
+      builtinsFile = firstPythonFileNamingBuiltins(repoPath, repoFiles);
+    }
+    return builtinsFile;
+  };
   for (const file of repoFiles) {
     // Test directories are where a conftest.py lives, so only generated or vendored copies are
     // excluded here, not test paths.
@@ -17757,16 +17819,17 @@ export function findPytestRunWideSkips(
       }
     }
     if (last === -1) continue;
-    const reading = readPytestCollectionHook(source, last);
+    const reading = readPytestCollectionHook(source, last, builtinsNamedIn);
     if (reading === undefined) continue;
     const scope = dirname(file);
     const where = { path: file, line: last + 1, scope: scope === '.' ? '' : scope };
     if (reading.kind === 'not read') {
+      const because = reading.builtins === undefined ? '' : ` calls a builtin, and ${a1NotePath(reading.builtins)} names builtins`;
       found.push({
         ...where,
         kind: 'unread',
         unread: reading.reason,
-        withheld: `${A1_HOOK_NOT_READ}\`${reading.reason}\` in ${a1NotePath(file)}`,
+        withheld: `${A1_HOOK_NOT_READ}\`${reading.reason}\` in ${a1NotePath(file)}${because}`,
       });
     } else if (reading.kind === 'restores') {
       found.push({ ...where, kind: 'clear', withheld: `the hook in ${a1NotePath(file)} puts the collected items back` });
