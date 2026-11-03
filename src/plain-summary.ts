@@ -10,7 +10,7 @@ import {
   WITAN_B3_PUBLISHING_CI_WORKFLOW_PREFIX,
   WITAN_B3_UNCREDITED_CI_WORKFLOW_PREFIX,
   WITAN_B3_UNSHOWN_CHECK_PREFIX,
-  type WitanAbstentionLabel,
+  WITAN_NO_MEASUREMENT_REASON,
   renderWitanAbstentionLabel,
 } from './witan/abstention.js';
 import {
@@ -22,10 +22,17 @@ import {
 } from './witan/certificate-presentation.js';
 import { computeMeasuredCoverage } from './witan/coverage.js';
 import { METRIC_DERIVED_FINDING_PATTERN } from './witan/finding-presentation.js';
-import { SHALLOW_HISTORY_LIMITATION, SHALLOW_HISTORY_V27_ABSTENTION } from './witan/history-depth.js';
+import {
+  SHALLOW_HISTORY_LIMITATION,
+  SHALLOW_HISTORY_V27_ABSTENTION,
+  WITAN_V27_HISTORY_DEPTH_UNKNOWN_REASON,
+  WITAN_V27_SHALLOW_HISTORY_REASON,
+} from './witan/history-depth.js';
 import {
   type NextCheckKind,
+  PLAIN_INSUFFICIENT_SOURCE_KINDS,
   type PlainDisclosureKind,
+  type PlainInsufficientSourceKind,
   resolveNextCheck,
 } from './witan/next-checks.js';
 import type {
@@ -194,14 +201,139 @@ const VERDICT_SCALE = '(from best to worst, the results are Verified, Conditiona
 export const PLAIN_NOT_COVERED =
   "What this result does not cover: Cejel read the repository's files and history and did not run the code or its tests, so this result does not show that the code works as intended or that it has no vulnerabilities.";
 
-const ABSTENTION_SENTENCES: Readonly<Record<WitanAbstentionLabel, string>> = {
-  'Insufficient source': 'Cejel found no source code here that it can rate, so it gives no score and no verdict.',
-  'Insufficient evidence': 'nothing Cejel checks produced a measurement, so it gives no score and no verdict.',
-  'Unrated: shallow clone':
-    'Cejel read a shallow clone (only part of the commit history), so it gives no score and no verdict.',
-  'Unrated: history depth unknown':
-    'Cejel could not tell how much of the commit history it read, so it gives no score and no verdict.',
-};
+// ---- no overall result: the reason, in plain words (v2 item B) ------------------------------------
+//
+// Every insufficientSourceReason the engine produces is recognised by its producer's fixed wording
+// and given one plain sentence, built from the reason's own counts where it has them. The #635
+// version printed one sentence ("found no source code here that it can rate") for every reason,
+// which was false for most of them. A reason no entry matches (a caller-supplied one, or a new
+// producer) is shown as PLAIN_INSUFFICIENT_SOURCE_FALLBACK.
+
+export const PLAIN_INSUFFICIENT_SOURCE_FALLBACK = 'Cejel could not rate the source here; see the certificate below.';
+
+const NO_MEASUREMENT_COVERAGE_PATTERN = new RegExp(
+  `^${escapeRegExp(WITAN_NO_MEASUREMENT_REASON)} Source coverage: (\\d+) of (\\d+) source-shaped files \\(([\\d.]+)%\\) are criterion-ratable, below the (\\d+)% reviewable-source threshold \\((\\d+) tracked files in total\\)\\.$`,
+);
+
+const INSUFFICIENT_SOURCE_TABLE: ReadonlyArray<{
+  readonly kind: Exclude<PlainInsufficientSourceKind, 'other'>;
+  readonly pattern: RegExp;
+  readonly plain: (match: RegExpExecArray) => string;
+}> = [
+  {
+    kind: 'shallow-history',
+    pattern: new RegExp(`^${escapeRegExp(WITAN_V27_SHALLOW_HISTORY_REASON)}$`),
+    plain: () =>
+      "Cejel read a shallow clone (only part of the commit history), and under these scoring rules a shallow clone gets no score and no verdict; each area's own reading is still shown in the certificate below.",
+  },
+  {
+    kind: 'history-depth-unknown',
+    pattern: new RegExp(`^${escapeRegExp(WITAN_V27_HISTORY_DEPTH_UNKNOWN_REASON)}$`),
+    plain: () =>
+      "Cejel could not tell how much of the commit history it read, and under these scoring rules that gives no score and no verdict; each area's own reading is still shown in the certificate below.",
+  },
+  {
+    kind: 'no-measurement',
+    pattern: new RegExp(`^${escapeRegExp(WITAN_NO_MEASUREMENT_REASON)}$`),
+    plain: () => 'None of the checks Cejel runs produced a measurement here, so it gives no score rather than a zero.',
+  },
+  {
+    kind: 'no-measurement-source-coverage',
+    pattern: NO_MEASUREMENT_COVERAGE_PATTERN,
+    plain: (m) =>
+      `None of the checks Cejel runs produced a measurement here, and only ${m[1]} of ${m[2]} source-shaped files (${m[3]}%) are files those checks rate, below the ${m[4]}% Cejel needs; it gives no score rather than a zero.`,
+  },
+  {
+    kind: 'empty',
+    pattern: /^Repository has no tracked files — there is nothing to certify\.$/,
+    plain: () => 'The repository has no tracked files, so there is nothing to rate.',
+  },
+  {
+    kind: 'ignored-target',
+    pattern: /^The requested scan path \(.*\) is excluded by this repository's Git ignore rules, so Cejel found no tracked source to evaluate\./s,
+    plain: () => "The folder scanned is excluded by the repository's Git ignore rules, so Cejel found no tracked files there to rate.",
+  },
+  {
+    kind: 'generated-only',
+    pattern:
+      /^(\d+) of (\d+) source-shaped file\(s\) are under generated, vendor, build, distribution, coverage, or bundled-asset paths; only (\d+) authored source-shaped file\(s\) remain\./,
+    plain: (m) =>
+      `${m[1]} of ${m[2]} source-shaped files are generated, vendored or built output, and only ${m[3]} written by hand remain, too few to rate.`,
+  },
+  {
+    kind: 'independent-catalog',
+    pattern:
+      /^(\d+) of (\d+) source-shaped file\(s\) are under independent solution, exercise, challenge, or algorithm catalog paths; only (\d+) source-shaped file\(s\) remain outside that catalog\./,
+    plain: (m) =>
+      `${m[1]} of ${m[2]} source-shaped files sit in separate solution, exercise, challenge or algorithm folders, so there is no single product to rate.`,
+  },
+  {
+    kind: 'docs-source-role',
+    pattern: /^(\d+) source-shaped file\(s\) are tests\/fixtures around a documentation tree; no authored product source remains\./,
+    plain: () => 'The only source-shaped files are tests or fixtures around documentation, so there is no product source to rate.',
+  },
+  {
+    kind: 'artifact-dominance',
+    pattern: /^(\d+) authored source-shaped file\(s\) accompany (\d+) packaged, font, image, or media artifact\(s\)/,
+    plain: (m) =>
+      `Only ${m[1]} hand-written source-shaped ${m[1] === '1' ? 'file sits' : 'files sit'} beside ${m[2]} packaged, font, image or media files, too little of the repository to rate.`,
+  },
+  {
+    kind: 'binary-distribution',
+    pattern: /^0 source file\(s\) found among (\d+) tracked file\(s\); repo appears to be a binary\/bundled-distribution tree/,
+    plain: (m) =>
+      `No source file was found among ${m[1]} tracked files; the repository looks like packaged or bundled files, and Cejel rates source, not packaged files.`,
+  },
+  {
+    kind: 'docs-distribution',
+    pattern: /^0 source file\(s\) found among (\d+) tracked file\(s\); repo appears to be a docs\/distribution tree/,
+    plain: (m) =>
+      `No source file was found among ${m[1]} tracked files; the repository looks like documentation and media, and Cejel rates source, not documents.`,
+  },
+  {
+    kind: 'readable-representation',
+    pattern:
+      /^Readable source representation covers ([\d.]+) of (\d+) authored source-shaped file\(s\) \(([\d.]+)%\); this is below the (\d+)% representation threshold\./,
+    plain: (m) =>
+      `Only ${m[1]} of ${m[2]} hand-written source-shaped files (${m[3]}%) could be read as ordinary text, below the ${m[4]}% Cejel needs; the rest look compressed, binary or otherwise unreadable.`,
+  },
+  {
+    kind: 'semantic-auxiliary-only',
+    pattern: /^(\d+) (?:redirect metadata|package metadata|localization or style metadata) file\(s\) provide no representative product implementation\./,
+    plain: () =>
+      'The only source-shaped files are translation, style, package-recipe or redirect files, with no product code to rate.',
+  },
+  {
+    kind: 'semantic-auxiliary-dominant',
+    pattern: /^(\d+) of (\d+) authored source-shaped file\(s\) are localization, style, package, or redirect auxiliary material\./,
+    plain: (m) =>
+      `${m[1]} of ${m[2]} hand-written source-shaped files are translation, style, package-recipe or redirect files, too little product code to rate.`,
+  },
+  {
+    kind: 'unrecognised-ecosystem',
+    pattern: /^Cejel does not yet read this repository's dominant source language\(s\) \(([^)]*)\) — /,
+    plain: (m) => {
+      const sample = m[1] ?? '';
+      return `Most of the source is in a language Cejel does not read yet${sample && isPlainText(sample) ? ` (${sample})` : ''}, so it gives no score.`;
+    },
+  },
+];
+
+/** The kind of an insufficientSourceReason, or 'other' when no table entry matches. */
+export function insufficientSourceKind(reason: string): PlainInsufficientSourceKind {
+  return INSUFFICIENT_SOURCE_TABLE.find(({ pattern }) => pattern.test(reason))?.kind ?? 'other';
+}
+
+/** One plain sentence for an insufficientSourceReason; the fallback when its kind is not known. */
+export function plainInsufficientSourceSentence(reason: string): string {
+  for (const entry of INSUFFICIENT_SOURCE_TABLE) {
+    const match = entry.pattern.exec(reason);
+    if (match) return entry.plain(match);
+  }
+  return PLAIN_INSUFFICIENT_SOURCE_FALLBACK;
+}
+
+export { PLAIN_INSUFFICIENT_SOURCE_KINDS };
 
 const SETTLING_SENTENCES: ReadonlyArray<{ criterionId: string; sentence: string; plain: string }> = [
   {
@@ -278,7 +410,7 @@ const PLAIN_ABSENCE_FINDINGS: Readonly<Record<string, string>> = {
 export function plainSummaryFixedSentences(): string[] {
   return [
     ...Object.values(PLAIN_AREA_NAMES),
-    ...Object.values(ABSTENTION_SENTENCES),
+    PLAIN_INSUFFICIENT_SOURCE_FALLBACK,
     ...SETTLING_SENTENCES.map(({ plain }) => plain),
     ...Object.values(DISCLOSURE_SENTENCES),
     ...Object.values(PLAIN_ABSENCE_FINDINGS),
@@ -716,18 +848,17 @@ function buildNotKnown(report: WitanReport): PendingCheck[] {
   if (report.verdict === 'insufficient_source') {
     const label = renderWitanAbstentionLabel(report);
     const reason = report.insufficientSourceReason;
-    const reasonText = isPlainText(reason) ? ` The reason Cejel gives: ${reason}` : '';
     add(
       {
         id: 'not-known/verdict',
         area: 'Overall result',
-        text: `${label}: ${ABSTENTION_SENTENCES[label]}${reasonText}`,
+        text: `${label}: ${plainInsufficientSourceSentence(reason)}`,
         source: { kind: 'verdict' },
         anchor: PLAIN_ANCHOR_VERDICT,
       },
       'abstention',
       'the summary panel',
-      label,
+      insufficientSourceKind(reason),
     );
   } else if (report.verdictCap) {
     add(

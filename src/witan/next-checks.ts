@@ -1,4 +1,3 @@
-import { WITAN_ABSTENTION_LABELS } from './abstention.js';
 import { WITAN_CRITERION_IDS, WITAN_TRADING_RUBRIC_V0_CRITERION_IDS } from './schemas.js';
 
 // goal_cejel_four_question_summary_2026-11-02, item A: the "What to check next" sentence for each
@@ -63,6 +62,34 @@ export const PLAIN_READ_GAP_QUALIFIERS = [
   'files-and-history-other',
 ] as const;
 
+/**
+ * The kinds of insufficientSourceReason the engine produces (goal_cejel_four_question_summary_v2_2026-11-03,
+ * item B). Each is recognised by its producer's fixed wording (plain-summary.ts,
+ * INSUFFICIENT_SOURCE_TABLE); a reason no entry matches is 'other'. The producers:
+ * repo-signals.ts (classifyRepoArchetype, the readable-source and semantic-source gates,
+ * explainIgnoredScanTarget, explainNoMeasurementSourceCoverage), scoring.ts
+ * (WITAN_NO_MEASUREMENT_REASON) and history-depth.ts (the two v27 history reasons).
+ */
+export const PLAIN_INSUFFICIENT_SOURCE_KINDS = [
+  'empty',
+  'ignored-target',
+  'generated-only',
+  'independent-catalog',
+  'docs-source-role',
+  'artifact-dominance',
+  'binary-distribution',
+  'docs-distribution',
+  'readable-representation',
+  'semantic-auxiliary-only',
+  'semantic-auxiliary-dominant',
+  'unrecognised-ecosystem',
+  'no-measurement',
+  'no-measurement-source-coverage',
+  'shallow-history',
+  'history-depth-unknown',
+] as const;
+export type PlainInsufficientSourceKind = (typeof PLAIN_INSUFFICIENT_SOURCE_KINDS)[number] | 'other';
+
 /** The criteria whose notes can carry a "cannot be settled from static evidence" sentence. */
 export const SETTLING_CRITERIA = ['A2', 'A3', 'A5'] as const;
 
@@ -108,13 +135,35 @@ const NEXT_CHECKS: Readonly<Record<string, string>> = {
   'no-evidence': 'Supply the evidence this area asks for, then scan again; until then it counts as zero.',
   'no-measurement':
     'Treat this area as unchecked; the certificate below shows what was recorded for it.',
-  'abstention:Insufficient source':
-    'Point Cejel at a folder that holds source code in a language it reads, then scan again.',
-  'abstention:Insufficient evidence':
+  // No overall result, keyed by the kind of reason the report gives (v2 item B). A reason of no
+  // known kind ('abstention:other') falls back to the summary panel.
+  'abstention:empty': 'Point Cejel at a folder whose files are committed to Git, then scan again.',
+  'abstention:ignored-target':
+    'Scan a folder that Git tracks, or add this folder to version control on purpose, then scan again.',
+  'abstention:generated-only':
+    'Point Cejel at the source written by hand rather than at generated, vendored or built output, then scan again.',
+  'abstention:independent-catalog':
+    "Scan one product's folder rather than a collection of separate exercises or solutions, then scan again.",
+  'abstention:docs-source-role': 'Point Cejel at a repository that holds product source code, then scan again.',
+  'abstention:artifact-dominance': 'Point Cejel at a repository that holds product source code, then scan again.',
+  'abstention:binary-distribution':
+    "Scan the tool's source instead, or give Cejel a scanner's output file with --ingest.",
+  'abstention:docs-distribution': 'Point Cejel at a repository that holds product source code, then scan again.',
+  'abstention:readable-representation':
+    'Check that the source files are plain text (not compressed, minified into one line, or binary), then scan again.',
+  'abstention:semantic-auxiliary-only':
+    "Point Cejel at the product's code rather than translation, style, package-recipe or redirect files, then scan again.",
+  'abstention:semantic-auxiliary-dominant':
+    "Point Cejel at the product's code rather than translation, style, package-recipe or redirect files, then scan again.",
+  'abstention:unrecognised-ecosystem':
+    "Cejel does not read this language yet; to assess the code, give Cejel a scanner's output file with --ingest.",
+  'abstention:no-measurement':
     'Check that the repository holds the files Cejel reads (tests, CI workflows, dependency files), then scan again.',
-  'abstention:Unrated: shallow clone':
+  'abstention:no-measurement-source-coverage':
+    'Check that the repository holds source files in a language Cejel reads, outside generated or vendored folders, then scan again.',
+  'abstention:shallow-history':
     'Run git fetch --unshallow (or check out with fetch-depth: 0 in actions/checkout), then scan again.',
-  'abstention:Unrated: history depth unknown':
+  'abstention:history-depth-unknown':
     'Make sure git is installed and can open this repository (git rev-parse --is-shallow-repository prints true or false), then scan again.',
   'verdict-capped': `To get a result that is not lowered, ${FULL_CLONE}.`,
   'scan-limitation': 'Fix what this limit describes, for example by making the files readable, then scan again.',
@@ -191,7 +240,7 @@ export function nextCheckKeySpace(): ReadonlyArray<{ kind: NextCheckKind; qualif
   return [
     ...perCriterion.flatMap((kind) => ALL_CRITERION_IDS.map((qualifier) => ({ kind, qualifier }))),
     ...PLAIN_READ_GAP_QUALIFIERS.map((qualifier) => ({ kind: 'not-read' as const, qualifier })),
-    ...WITAN_ABSTENTION_LABELS.map((qualifier) => ({ kind: 'abstention' as const, qualifier })),
+    ...[...PLAIN_INSUFFICIENT_SOURCE_KINDS, 'other'].map((qualifier) => ({ kind: 'abstention' as const, qualifier })),
     ...PLAIN_DISCLOSURE_KINDS.map((qualifier) => ({ kind: 'disclosure' as const, qualifier })),
     ...SETTLING_CRITERIA.map((qualifier) => ({ kind: 'settling' as const, qualifier })),
     ...(

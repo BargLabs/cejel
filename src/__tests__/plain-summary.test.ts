@@ -185,9 +185,11 @@ describe('buildPlainSummary — what is not known carries everything the report 
       expect(verdictItems[0]?.text, label).toContain(label);
       expect(plain.verdictLine, label).toContain(label);
     }
+    // v2 (#635 review): the engine never emits this reason, so it has no table entry and is shown
+    // as the fixed fallback. The reasons the engine does emit are fed in plain-summary-v2.test.ts.
     const docsOnly = buildPlainSummary(abstained(base, 'Repository contains only documentation files.'));
-    expect(docsOnly.notKnown.find((item) => item.source.kind === 'verdict')?.text).toContain(
-      'Repository contains only documentation files.',
+    expect(docsOnly.notKnown.find((item) => item.source.kind === 'verdict')?.text).toBe(
+      'Insufficient source: Cejel could not rate the source here; see the certificate below.',
     );
   });
 });
@@ -253,6 +255,7 @@ describe('buildPlainSummary — what to check next', () => {
     // The hand-back lists these. A key added to the table leaves this list; a new kind with no
     // entry joins it. Either way the change is visible here.
     expect(listNextCheckFallbackKeys()).toEqual([
+      'abstention:other',
       'disclosure:other',
       'finding:audit-completeness',
       'finding:calibration',
