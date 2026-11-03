@@ -16,7 +16,7 @@ import { LIVE_PY_TEST, PY_BASE, conftestHook, lines } from './v27-a1-removal-fix
 // fixture's claim rests on reading pytest's collection and hook-calling code, as the purpose says.
 
 export interface AllowlistFixture extends Omit<HookOutcomeFixture, 'item' | 'clause'> {
-  readonly item: 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G';
+  readonly item: 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H';
   /** For 'restores' and 'not read': the clause A1's note must hold, or a pattern it must match. */
   readonly clause?: string | RegExp;
   /** For 'deselects': a withheld clause the note must also hold (another hook's, or a run's). */
@@ -709,5 +709,87 @@ export const ALLOWLIST_FIXTURES: readonly AllowlistFixture[] = [
     'Control: R where no Python file in the repository names builtins; pytest runs every test, and the hook stays credited.',
     { ...hook([...R], ['import pytest', '', 'import helpers']), 'tests/helpers.py': lines('def answer():', '    return 42') },
     restores,
+  ),
+
+  // ---- item H: #634's remaining shapes, checked against origin/main --------------------------
+  // goal_cejel_v27_a1_gaps_2026-11-03, item D. #634 was deferred from #626, before #644 replaced the
+  // restore reader with an allowlist. Each fixture below was committed and run against origin/main
+  // 4cf09b263 first; each was already read as it is or named as not read there, so each is a pin,
+  // not a fix. The hook-outcome fixtures' items C, D and E hold the first shape of each #634 item;
+  // these are the variants the card names that they do not hold. pytest was not run on them (no
+  // Python package could be run in this session).
+  fixture(
+    'a1al-h-lambda-bound-after-clear-then-called',
+    'H',
+    '#634 item 1: cb = lambda: items.extend(saved), bound after the clear, then cb(): a real restore, which the allowlist does not read, so the hook is named.',
+    hook(['    saved = list(items)', '    items.clear()', '    cb = lambda: items.extend(saved)', '    cb()']),
+    unread('cb = lambda: items.extend(saved)'),
+  ),
+  fixture(
+    'a1al-h-helper-double-star-arguments',
+    'H',
+    '#634 item 2: the strict helper called with ** arguments, which the reader does not unpack: named, not credited.',
+    hook(['    saved = list(items)', '    items.clear()', '    refill(**{"lst": items, "src": saved})'], ['import pytest', '', '', ...REFILL]),
+    unread(/hook not read: `refill\(\*\*/i),
+  ),
+  fixture(
+    'a1al-h-helper-mixed-star-argument',
+    'H',
+    '#634 item 2: the strict helper called with items, then *[saved]: named, not credited.',
+    hook(['    saved = list(items)', '    items.clear()', '    refill(items, *[saved])'], ['import pytest', '', '', ...REFILL]),
+    unread('refill(items, *[saved])'),
+  ),
+  fixture(
+    'a1al-h-self-method-helper-in-plugin-class',
+    'H',
+    "#634 item 3: a plugin class registered from pytest_configure whose hook calls self.refill(items, saved); the module-level reader reads no hook in a class, so it makes no claim and the files keep v17's reading.",
+    {
+      'tests/conftest.py': lines(
+        'import pytest',
+        '',
+        '',
+        'class Keeper:',
+        '    def refill(self, lst, src):',
+        '        lst.extend(src)',
+        '',
+        '    def pytest_collection_modifyitems(self, config, items):',
+        '        saved = list(items)',
+        '        items.clear()',
+        '        self.refill(items, saved)',
+        '',
+        '',
+        'def pytest_configure(config):',
+        '    config.pluginmanager.register(Keeper())',
+      ),
+    },
+    { outcome: 'untouched' },
+  ),
+  fixture(
+    'a1al-h-hanging-indent-def-items-next-line',
+    'H',
+    "#634 item 4: the def line wrapped after config, with items on the next line at a hanging indent: read as the hook, which deselects everything.",
+    { 'tests/conftest.py': lines('import pytest', '', '', 'def pytest_collection_modifyitems(config,', '                                   items):', '    items.clear()') },
+    deselects,
+  ),
+  fixture(
+    'a1al-h-quoted-paths-past-eight-pointers',
+    'H',
+    "#634 item 5: one clear hook rates 13 files hollow; the two whose directories hold ', ' and ' (' come after the first eight pointers, and the note still quotes them.",
+    {
+      'tests/conftest.py': conftestHook(['    items.clear()']),
+      ...Object.fromEntries(Array.from({ length: 9 }, (_, index) => [`tests/test_more_${String(index).padStart(2, '0')}.py`, LIVE_PY_TEST(`more_${index}`)])),
+      'tests/zz, late/test_late.py': LIVE_PY_TEST('late'),
+      'tests/zz (old)/test_old.py': LIVE_PY_TEST('old'),
+    },
+    {
+      outcome: 'deselects',
+      removed: [
+        ['tests/test_cache.py', HOOK_RULE],
+        ['tests/test_lru.py', HOOK_RULE],
+        ...Array.from({ length: 9 }, (_, index) => [`tests/test_more_${String(index).padStart(2, '0')}.py`, HOOK_RULE] as const),
+        ['tests/zz, late/test_late.py', HOOK_RULE],
+        ['tests/zz (old)/test_old.py', HOOK_RULE],
+      ],
+    },
   ),
 ];
