@@ -9571,6 +9571,9 @@ function isCheckCommand(input: readonly string[], reading: CheckReading): boolea
   if (words[0] === 'make') return words.length === 2 && reading.makeTargets.get(words[1] ?? '') === 'runner';
   if (words.some((word) => REPORT_ONLY_FLAGS.has(word))) return false;
   if (words.some((word) => NO_FAIL_FLAGS.has(word.split('=')[0] ?? word))) return false;
+  // Fifth pass (item B, review of #640): a lint or format command is a check only in a form that
+  // fails on a finding (lintCommandFailsOnFinding).
+  if (LINT_OR_FORMAT_COMMANDS.has((words[0] ?? '').toLowerCase())) return lintCommandFailsOnFinding(words);
   const text = words.join(' ').replace(/^\.\//, '');
   if (NPM_FAMILY_TEST_SCRIPT_PATTERN.test(text) && !reading.testScriptRuns) return false;
   return verificationCommandPatterns().some((pattern) => {
@@ -9579,6 +9582,69 @@ function isCheckCommand(input: readonly string[], reading: CheckReading): boolea
     const after = text[match[0].length];
     return after === undefined || after === ' ';
   });
+}
+
+// ---- Fifth pass (item B, review of #640): lint and format commands that fail on a finding -------
+//
+// `ruff check -e .`, `ruff check --fix .`, `eslint --fix .`, `black .` and `ruff format .` were
+// credited by name, though none fails on what it finds. A lint or format command is now a check only
+// in one of the forms below, with only flags known to keep its exit code; any other flag, a
+// subcommand not listed and pylint (not listed) are not a check. Paths and `.` are its arguments.
+
+interface LintCheckForm {
+  /** The flag the form must carry (`--check`), if any. */
+  readonly required?: string;
+  /** Flags that keep the exit code. */
+  readonly flags: ReadonlySet<string>;
+  /** Flags that keep the exit code and take a value, as the next word or after `=`. */
+  readonly valueFlags: ReadonlySet<string>;
+}
+
+const LINT_CHECK_FORMS: ReadonlyMap<string, LintCheckForm> = new Map<string, LintCheckForm>([
+  ['ruff check', { flags: new Set(['--no-cache', '-q', '--quiet', '-v', '--verbose', '--no-fix', '--exit-non-zero-on-fix']), valueFlags: new Set(['--output-format']) }],
+  ['ruff format', { required: '--check', flags: new Set(['--check', '--diff', '--no-cache', '-q', '--quiet', '-v', '--verbose']), valueFlags: new Set() }],
+  ['black', { required: '--check', flags: new Set(['--check', '--diff', '-q', '--quiet', '-v', '--verbose', '--color', '--no-color']), valueFlags: new Set() }],
+  ['eslint', { flags: new Set(['--cache', '--quiet', '--report-unused-disable-directives', '--color', '--no-color']), valueFlags: new Set(['--max-warnings']) }],
+  [
+    'mypy',
+    {
+      flags: new Set(['--strict', '--pretty', '--show-error-codes', '--show-column-numbers', '--no-incremental', '--ignore-missing-imports', '--warn-unused-ignores', '--check-untyped-defs', '--disallow-untyped-defs']),
+      valueFlags: new Set(),
+    },
+  ],
+  ['flake8', { flags: new Set(['--count', '--statistics', '--show-source']), valueFlags: new Set(['--max-line-length', '--max-complexity']) }],
+]);
+// The command words whose every form is read by LINT_CHECK_FORMS (pylint has none, so is no check).
+const LINT_OR_FORMAT_COMMANDS: ReadonlySet<string> = new Set(['ruff', 'black', 'eslint', 'mypy', 'flake8', 'pylint']);
+
+/**
+ * Fifth pass (item B): true when `words` (launcher-free, as isCheckCommand reads them) are one of
+ * LINT_CHECK_FORMS: `ruff check`, `ruff format --check`, `black --check`, `eslint`, `mypy` or
+ * `flake8`, carrying the form's required flag and no flag outside its lists. So `ruff check -e`,
+ * `--exit-zero`, `--fix` or `--fix-only`, `eslint --fix` or `--fix-dry-run`, `black .` and
+ * `ruff format .` are not checks.
+ */
+function lintCommandFailsOnFinding(words: readonly string[]): boolean {
+  const tool = (words[0] ?? '').toLowerCase();
+  const sub = tool === 'ruff' ? (words[1] ?? '') : undefined;
+  const form = LINT_CHECK_FORMS.get(sub === undefined ? tool : `${tool} ${sub}`);
+  if (form === undefined) return false;
+  const args = words.slice(sub === undefined ? 1 : 2);
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index] ?? '';
+    if (!arg.startsWith('-')) continue;
+    const equals = arg.indexOf('=');
+    if (equals !== -1) {
+      if (!form.valueFlags.has(arg.slice(0, equals))) return false;
+      continue;
+    }
+    if (form.valueFlags.has(arg)) {
+      index += 1;
+      continue;
+    }
+    if (!form.flags.has(arg)) return false;
+  }
+  return form.required === undefined || args.includes(form.required);
 }
 
 /**
