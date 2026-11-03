@@ -1,0 +1,24 @@
+[
+  {
+    "statement": "A reviewing session wrote one goal card for four v27 B3 issues (#627 to #630, twelve sub-items) and set expected_runtime_minutes to 90, equal to the session watchdog (5400 s). The agent committed every fix and the measured records, then the watchdog stopped it during its final full-suite run: no PR description, no hand-back, a scratch note auto-committed, and a vitest run left orphaned in the worktree. The grammar check only warns above the limit, so a card sized to exactly the limit passes clean. Rule: size a card to leave a third of the limit for the final suite and the hand-back; split work that needs the whole limit, ordering the false-credit items first.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "goal-card-authoring",
+      "dispatch"
+    ],
+    "tags": [
+      "card-sizing",
+      "watchdog",
+      "reviewer-error",
+      "stranded-work"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-11-02T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 640
+    }
+  }
+]
