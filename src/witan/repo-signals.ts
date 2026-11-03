@@ -12843,9 +12843,10 @@ function readGithubRunSteps(text: string): { command: string; directory: string 
 
 /**
  * Every pytest command Cejel reads (see the section comment), the plain `pytest` at the root
- * first. `readText` reads a repository file, or undefined.
+ * first. `readText` reads a repository file, or undefined. Exported for the scaling check in
+ * scan-path-regex-bounds.test.ts (goal_cejel_v27_conftest_timing_guard_2026-11-02, item C).
  */
-function readPytestInvocations(
+export function readPytestInvocations(
   repoFiles: readonly string[],
   readText: (file: string) => string | undefined,
 ): PytestInvocation[] {
@@ -13707,9 +13708,10 @@ interface PytestRunWideSkip {
  * Finds conftest.py hooks that disable every test they collect: a `pytest_collection_modifyitems`
  * whose body, with no conditional anywhere in it, either loops over `items` adding a skip marker
  * or empties the list. Anything conditional is not reported, so a hook that skips only slow tests,
- * or only on one platform, is never read as disabling the suite.
+ * or only on one platform, is never read as disabling the suite. Exported for the scaling check in
+ * scan-path-regex-bounds.test.ts (goal_cejel_v27_conftest_timing_guard_2026-11-02, item C).
  */
-function findPytestRunWideSkips(
+export function findPytestRunWideSkips(
   repoPath: string,
   repoFiles: readonly string[],
 ): PytestRunWideSkip[] {
@@ -16737,7 +16739,8 @@ function combineCoverageCommandStates(states: readonly CoverageCommandState[]): 
   return states.includes('unresolved') ? 'unresolved' : 'none';
 }
 
-function shellWords(segment: string): string[] {
+/** Exported for the equivalence check in scan-path-regex-bounds.test.ts. */
+export function shellWords(segment: string): string[] {
   const words: string[] = [];
   let offset = 0;
   while (offset < segment.length) {
@@ -17333,56 +17336,97 @@ function parseSupportedShellOptionCluster(
   };
 }
 
+/**
+ * Whether a UTF-16 code unit is one `/\s/u` matches: ECMAScript's WhiteSpace and LineTerminator
+ * code points (tab, LF, VT, FF, CR, space, NBSP, U+1680, U+2000-U+200A, LS, PS, U+202F, U+205F,
+ * U+3000, BOM). A comparison, not a regex test, so a scanner pays nothing per character for it
+ * (goal_cejel_v27_conftest_timing_guard_2026-11-02). Pinned against `/\s/u` for every code unit in
+ * scan-path-regex-bounds.test.ts.
+ */
+export function isShellWhitespaceCode(code: number): boolean {
+  if (code <= 0x20) return code === 0x20 || (code >= 0x09 && code <= 0x0d);
+  if (code < 0xa0) return false;
+  return (
+    code === 0xa0 ||
+    code === 0x1680 ||
+    (code >= 0x2000 && code <= 0x200a) ||
+    code === 0x2028 ||
+    code === 0x2029 ||
+    code === 0x202f ||
+    code === 0x205f ||
+    code === 0x3000 ||
+    code === 0xfeff
+  );
+}
+
+const SHELL_BACKSLASH = 0x5c;
+const SHELL_SINGLE_QUOTE = 0x27;
+const SHELL_DOUBLE_QUOTE = 0x22;
+const SHELL_NEWLINE = 0x0a;
+const SHELL_DOLLAR = 0x24;
+const SHELL_BACKTICK = 0x60;
+
+/**
+ * One shell word from `start`: leading white space skipped, quotes removed, a backslash escape
+ * applied (outside single quotes; inside double quotes only before $ ` " \ or a newline), and an
+ * escaped newline dropped. Null when the text ends inside a quote or an escape, or holds no word.
+ * Characters kept as written are copied a run at a time, not appended one by one, so a long word
+ * costs one pass (goal_cejel_v27_conftest_timing_guard_2026-11-02; the words are unchanged).
+ */
 function scanShellWord(value: string, start: number): { word: string; end: number } | null {
   let result = '';
-  let quote: "'" | '"' | null = null;
+  let quote = 0;
   let escaped = false;
   let index = start;
 
-  while (index < value.length && /\s/u.test(value[index] ?? '')) index += 1;
+  while (index < value.length && isShellWhitespaceCode(value.charCodeAt(index))) index += 1;
   const wordStart = index;
+  // value.slice(copyFrom, index) is kept as written and not yet in `result`.
+  let copyFrom = index;
 
   for (; index < value.length; index += 1) {
-    const character = value[index];
+    const code = value.charCodeAt(index);
     if (escaped) {
-      if (character !== '\n') result += character;
+      // The escaped character is kept (copyFrom already points at it), except a newline.
+      if (code === SHELL_NEWLINE) copyFrom = index + 1;
       escaped = false;
       continue;
     }
-    if (character === '\\' && quote !== "'") {
-      const nextCharacter = value[index + 1];
+    if (code === SHELL_BACKSLASH && quote !== SHELL_SINGLE_QUOTE) {
+      const next = value.charCodeAt(index + 1);
       const escapesNext =
-        quote !== '"' ||
-        nextCharacter === '$' ||
-        nextCharacter === '`' ||
-        nextCharacter === '"' ||
-        nextCharacter === '\\' ||
-        nextCharacter === '\n';
+        quote !== SHELL_DOUBLE_QUOTE ||
+        next === SHELL_DOLLAR ||
+        next === SHELL_BACKTICK ||
+        next === SHELL_DOUBLE_QUOTE ||
+        next === SHELL_BACKSLASH ||
+        next === SHELL_NEWLINE;
       if (escapesNext) {
+        result += value.slice(copyFrom, index);
+        copyFrom = index + 1;
         escaped = true;
-      } else {
-        result += character;
       }
       continue;
     }
-    if (quote) {
-      if (character === quote) {
-        quote = null;
-      } else {
-        result += character;
+    if (quote !== 0) {
+      if (code === quote) {
+        result += value.slice(copyFrom, index);
+        copyFrom = index + 1;
+        quote = 0;
       }
       continue;
     }
-    if (character === "'" || character === '"') {
-      quote = character;
+    if (code === SHELL_SINGLE_QUOTE || code === SHELL_DOUBLE_QUOTE) {
+      result += value.slice(copyFrom, index);
+      copyFrom = index + 1;
+      quote = code;
       continue;
     }
-    if (/\s/u.test(character ?? '')) break;
-    result += character;
+    if (isShellWhitespaceCode(code)) break;
   }
 
-  if (escaped || quote || index === wordStart) return null;
-  return { word: result, end: index };
+  if (escaped || quote !== 0 || index === wordStart) return null;
+  return { word: result + value.slice(copyFrom, index), end: index };
 }
 
 function readShellWord(value: string, start: number): string | null {
