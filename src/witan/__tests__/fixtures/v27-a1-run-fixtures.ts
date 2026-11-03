@@ -203,6 +203,17 @@ export const RUN_FIXTURES: readonly RunFixture[] = [
     SKIPPED_REMOVED,
   ),
   withheld(
+    'a1run-make-export-all-variables',
+    'A',
+    'Item D: a Makefile with .EXPORT_ALL_VARIABLES passes its PYTEST_ADDOPTS = -p no:skipping to pytest.',
+    {
+      'tests/test_cache.py': SKIPPED_CACHE_TEST,
+      Makefile: '.EXPORT_ALL_VARIABLES:\nPYTEST_ADDOPTS = -p no:skipping\n\ntest:\n\tpytest\n',
+    },
+    ['every-test-skipped rule not applied: -p no:skipping in PYTEST_ADDOPTS in Makefile'],
+    [['Makefile', 2, 'pytest setting in force: -p no:skipping']],
+  ),
+  withheld(
     'a1run-just-parameter',
     'A',
     'A justfile recipe with a parameter passes it to pytest: the run is not read.',

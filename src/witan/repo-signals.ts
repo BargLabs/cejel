@@ -14747,7 +14747,7 @@ export function readPytestInvocations(
         continue;
       }
       if (call.unknown) unread(call.text);
-      else if (chdir) unread(chdir[0].replace(/[ \t]*\($/, ''));
+      else if (chdir) unread(chdir[0].slice(0, chdir[0].indexOf('(')).trimEnd());
       else invocations.push({ source, file, anchor: call.line, text: call.text, directory: repoDirectory(file), args: found.args });
     }
   }
@@ -14875,6 +14875,8 @@ function readMakeVariables(text: string): Map<string, string> {
 function expandMakeVariables(command: string, variables: ReadonlyMap<string, string>, overrides: ReadonlySet<string>, depth = 0): string {
   if (!command.includes('$')) return command;
   let out = '';
+  // Once a closer is missing after one opener it is missing after every later one: stop looking.
+  const unclosed = { '(': false, '{': false };
   for (let index = 0; index < command.length; index += 1) {
     const character = command[index] ?? '';
     if (character !== '$') {
@@ -14887,8 +14889,9 @@ function expandMakeVariables(command: string, variables: ReadonlyMap<string, str
       index += 1;
       continue;
     }
-    if (next === '(' || next === '{') {
+    if ((next === '(' || next === '{') && !unclosed[next]) {
       const close = command.indexOf(next === '(' ? ')' : '}', index + 2);
+      if (close === -1) unclosed[next] = true;
       const name = close === -1 ? '' : command.slice(index + 2, close);
       const value = /^[A-Za-z_][A-Za-z0-9_.-]*$/.test(name) && !overrides.has(name) ? variables.get(name) : undefined;
       if (value !== undefined && depth < 4 && out.length < 4096) {
@@ -15029,7 +15032,26 @@ function hatchRunOf(words: readonly string[]): { environment: string; name: stri
 /** item A: a hatch script command with `{args}` / `{args:default}` replaced by the words hatch run passes. */
 function substituteHatchArguments(command: string, args: readonly string[]): string {
   const passed = args.map((arg) => (/\s/.test(arg) ? `'${arg}'` : arg)).join(' ');
-  return command.replace(/\{args(?::([^}]*))?\}/g, (_, fallback: string | undefined) => (args.length > 0 ? passed : (fallback ?? '')));
+  // By index, not a regex: an unclosed `{args:` repeated must stay linear.
+  let out = '';
+  let index = 0;
+  for (;;) {
+    const open = command.indexOf('{args', index);
+    if (open === -1) break;
+    const after = command[open + 5];
+    if (after !== '}' && after !== ':') {
+      out += command.slice(index, open + 5);
+      index = open + 5;
+      continue;
+    }
+    // No `}` after this one means none after any later one either.
+    const close = command.indexOf('}', open + 5);
+    if (close === -1) break;
+    const fallback = after === ':' ? command.slice(open + 6, close) : '';
+    out += command.slice(index, open) + (args.length > 0 ? passed : fallback);
+    index = close + 1;
+  }
+  return out + command.slice(index);
 }
 
 /**
@@ -15163,8 +15185,12 @@ function readToxCommands(
     if (section) environments.push({ section, names: [name] });
   }
   // item A: posargs with a word Cejel cannot resolve leave the run not read, once each.
-  const literalPosargs = posargs.filter((entry) => !entry.words.some((word) => /[$`{}]/.test(word)));
-  const unreadPosargs = posargs.filter((entry) => !literalPosargs.includes(entry));
+  // Distinct literal posargs, at most 16, so CI lines times tox lines stays bounded; past 16 the
+  // run is named as not read rather than read in part.
+  const literal = posargs.filter((entry) => !entry.words.some((word) => /[$`{}]/.test(word)));
+  const distinct = [...new Map(literal.map((entry) => [entry.words.join('\u0000'), entry])).values()];
+  const literalPosargs = distinct.slice(0, 16);
+  const unreadPosargs = [...posargs.filter((entry) => !literal.includes(entry)), ...distinct.slice(16)];
   let unreadSaid = false;
   const seen = new Set<Map<string, string>>();
   for (const { section, names } of environments) {
