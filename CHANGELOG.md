@@ -16,6 +16,76 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+v17 remains the default rubric, and every change below applies only when the prospective v27 rubric
+is pinned. v27 carries no precision or recall claim.
+
+### Changed
+
+- **Prospective v27: A1 places every pytest collection hook that touches `items` in one of three
+  outcomes, and none by default (#631, #632, #634; revised by the allowlist round, which supersedes
+  #638).** Under `witan-rubric-v27-prospective-2026-10-19` only. A `pytest_collection_modifyitems`
+  hook is read as one that deselects everything (the run-wide skip rule applies), one that puts the
+  collected items back (the rule is withheld, and A1's note says so), or one Cejel could not read
+  (the rule makes no claim, and A1's note names it: "hook not read: `<reason>` in `<path>`", with
+  the hook cited at its `def`).
+  - **"Puts the collected items back" is an allowlist over the whole hook body.** A hook reaches it
+    only when every statement of its body is one of these, and nothing else is in it: a copy
+    `S = list(items)`, `items[:]`, `items.copy()`, `[*items]` or `tuple(items)` taken before the
+    list is emptied and mentioned at most once more; an emptying `items.clear()`, `del items[:]` or
+    `items[:] = []`; a restore after it, `items.extend(S)`, `items += S`, `items[:] = S` or
+    `items[:] = S[:]`; a call of a plain, undecorated `def` helper the same `conftest.py` defines
+    once and names nowhere else, whose body is only that emptying and restore; and a docstring.
+    `sorted` is not a copy, and `list` and `tuple` count only where the module never binds them. No
+    report call is on the allowlist: `config.hook.pytest_deselected(...)` (any `conftest.py` or
+    plugin may implement it), `print` and logging calls (they run handlers and their arguments'
+    `__str__`) make a restoring hook "not read". So does a `conftest.py` that may rebind a name the
+    allowlist trusts without spelling it: a star import, `setattr`, `builtins` or `__builtins__`,
+    `sys.modules`, a module `__getattr__`, `exec`, `vars` and the like, or an assignment to `list`,
+    `tuple` or the helper through an attribute. The common deselect-everything hook, which reports
+    its copy, stays caught. Anything else (a lambda or nested function, an
+    `async` or decorated `def`, a slice that is not the whole list, another name bound to the list,
+    `exec`, `getattr`, an f-string field) makes a hook that is not provably deselecting everything
+    "not read". So the lambda and nested-function restores #638 credited, and a helper restoring
+    from `sorted(...)`, are now named as not read, and a hook that empties the list again with
+    `items[0:] = []`, copies with `sorted(items)` or shadows `list` is no longer credited.
+    Shapes that put nothing back are rated hollow: a saved copy aliased and cleared,
+    `list(items)[:0]`, `saved[5:5]`, `saved[n:n]` or `sorted(items)[:0]`. Reporting or iterating
+    over a saved copy is not a restore, so the common deselect-everything hook stays caught.
+  - **`conftest.py` is read as Python reads it.** Strings (triple-quoted ones too), f-string
+    fields, comments, brackets and backslash continuations are tokenised, so a hook body ends where
+    Python ends it: a clear after a triple-quoted string whose closing line starts at column 0 is
+    read. A comment or docstring that names the hook no longer stops Cejel reading it, and an `if`
+    in a docstring is not a condition.
+  - **No false hollow rating.** `items = copy.copy(items)` before the clear, a `for` loop that
+    rebinds `items`, and an extend from a name that a closure defined earlier fills are not read,
+    never rated hollow (pytest runs every test in each).
+  - **No silent pass.** `items[0:] = []`, `items[:len(items)] = ()` and a helper doing
+    `lst[0:] = []` are named as not read.
+  - **A hook in any `conftest.py` reaches every collected test.** pytest calls every loaded
+    `conftest.py`'s collection hook with every collected item, so a hook in `tests/sub/conftest.py`
+    that deselects or skips everything rates every collected test file hollow, not only those under
+    `tests/sub/`, where the pytest run collecting the file also collects `tests/sub/`. A run that
+    does not is said as a withhold.
+  - **Not read, and named (#632, #634).** A hookwrapper (`hookwrapper=True` or `wrapper=True`) is
+    read as the code after its single top-level `yield`, so one that empties `items` after its
+    `yield` is rated hollow. A hook that an `if`, `return`, second `yield` or other conditional
+    statement stops, that has any other decorator, or that uses `items` in a way Cejel does not read
+    (an imported helper, a method, `*` arguments, an `append` loop, an alias, `__iadd__`, a clear
+    inside a loop, `session.items` or any use of the hook's `session` after the clear, since pytest
+    passes the hook that same list, or a `global`) is no longer passed silently: the note names it
+    with the reason. A real restore Cejel cannot prove is never rated hollow. A hook that rebinds
+    `items` to a copy Cejel reads (`items = list(items)`) before its clear keeps the "rebinds items"
+    withhold; any other rebinding before the clear is not read.
+  - **A wrapped `def` (#634).** A hook whose parameters run onto later lines (black's wrapping, with
+    or without a trailing comma) is read as the hook.
+  - **Exact paths (#634).** In A1's note, a path holding `, `, `; `, ` (`, a backtick or a double
+    quote is written in double quotes, with `\` and `"` escaped; the v27 glossary states the rule.
+    The note says how many of the files rated hollow, or hooks not read, that it names beyond the
+    eight evidence pointers carry none.
+
+  Measured on 393 synthetic repositories against main: v17 to v26 byte-identical; v27 never above
+  v17; the counts are in `leaderboard/RUBRIC_CHANGELOG.md`. No holdout or calibration ran.
+
 ### Fixed
 
 - **The v27 scan timing guard on long CI lines failed on main and stopped the 0.6.9 npm publish.**

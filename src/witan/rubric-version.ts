@@ -218,16 +218,54 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     these rules rate hollow, with the rule, and no rule claims where its condition is not read:
 //     a hook without an `items` parameter, or a skip that sits inside another mark's arguments in
 //     pytestmark; from 2026-11-02 (goal_cejel_v27_a1_test_count_overmatch_v2_2026-11-02, which
-//     supersedes #621; as fixed after the #626 review) a rule is withheld only on evidence: a
-//     hook's clear only where, at the hook's top level after its last clear, the same hook puts
-//     the items back in a shape the reader understands (extend, +=, a slice assignment, __iadd__,
-//     append or insert on the list or a name bound to it, a top-level loop of them, or a call of a
-//     function the conftest.py defines that adds to the list at its own top level before any
-//     branch or exit, without rebinding its source, from a copy of the list saved before the
-//     clear, and is not a generator), from a source not known to be empty (an empty
-//     literal or zero-length slice, the cleared list, or a copy of it taken after the clear), or
-//     rebinds `items` at top level before the clear, never for copying, reporting,
-//     iterating, a builtin, a logger, an unknown helper or an unknown method; a pytest setting
+//     supersedes #621; as fixed after the #626 review) a rule is withheld only on evidence; and
+//     from 2026-11-02 (goal_cejel_v27_a1_restore_proof_and_hookwrapper_2026-11-02, #631, #632,
+//     #634; as revised from 2026-11-02 by goal_cejel_v27_a1_restore_proof_v2_2026-11-02, which
+//     supersedes #638) every collection hook that touches `items` (or calls exec, eval, getattr,
+//     globals or the like) reaches one of three outcomes, none by default: (1) deselects, where
+//     the reader proves it leaves `items` empty, and the rule applies; (2) restores, and the rule
+//     is withheld and said, only where every statement of the hook's body is on an allowlist and
+//     nothing else is in it: a copy binding S = list(items), items[:], items.copy(), [*items] or
+//     tuple(items) before anything empties the list, with S mentioned at most once more (list
+//     and tuple only where the module binds neither name anywhere; sorted is never a copy); an
+//     emptying items.clear(), del items[:] or items[:] = []; a restore after it, items.extend(S),
+//     items += S, items[:] = S or items[:] = S[:]; a call of a same-file helper that is a plain,
+//     undecorated, synchronous def at module level, defined once, named nowhere else in the module
+//     at any indent or in any string, with two parameters, whose body is only an optional
+//     docstring, an optional emptying of one parameter and one restore of it from the other; and
+//     a docstring. No report call is on it (config.hook.pytest_deselected, print, logging: each
+//     runs code outside those steps), and a body that passes is still not credited where its
+//     conftest.py may rebind a name the allowlist trusts without spelling it (a star import,
+//     setattr or delattr, builtins or __builtins__, sys.modules, a module __getattr__, exec, eval,
+//     compile, globals, vars or locals, __dict__, __import__ or importlib, an uncalled attribute
+//     named list or tuple, or any attribute named after the helper), from the #644 review at
+//     bca7ebfbf. Only that conftest.py is read: a builtin or helper patched from another file (a
+//     module it imports, a second conftest.py or a plugin) is not, cejel #646. The list reading must
+//     agree that the items are back; (3) not
+//     read, for anything else that empties or may empty the list (a lambda, a nested, decorated or
+//     async def, sorted, a slice that is not the whole list, another name bound to the list, an
+//     f-string field, exec or getattr, an append, an imported or unseen helper, a method, a use
+//     inside a loop, a session.items, a global or nonlocal, an if, return, second yield or other
+//     statement the conditional rule stops, an unknown decorator), and the rule makes no claim
+//     while A1's note names the hook ("hook not read: `<reason>` in <path>") and its evidence
+//     cites the def. A source proven empty (an empty literal, range(0), a zero-length slice
+//     x[:0] or x[k:k], a name whose binding to one is its first mention in the hook, or a copy
+//     taken after the clear) adds nothing. conftest.py is tokenised as Python reads it (strings,
+//     f-string fields, comments, brackets and backslash continuations), so the body ends where
+//     Python ends it and a comment or docstring naming the hook binds nothing. A hookwrapper
+//     (hookwrapper=True or wrapper=True) is read as the code after its single top-level yield,
+//     and a def whose parameters run onto later lines is read as the hook. A hook that rebinds
+//     `items` at top level to a copy the reader reads (items = list(items)) before the clear keeps
+//     its withhold; any other statement that may bind `items` at or before its emptying (items =
+//     copy.copy(items), a for target) is not read, never rated hollow. A hook that deselects or
+//     skips everything rates every collected test file hollow, not only those under its
+//     directory, since pytest calls it with every collected item, where the run collecting the
+//     file also collects the hook's directory (and nothing in the repository may stop pytest
+//     collecting it: a directory pytest skips by default, collect_ignore or pytest_ignore_collect);
+//     a run that does not is said as a withhold. Paths in
+//     A1's note holding ", ", "; ", " (", a backtick or a double quote are written in double
+//     quotes with \ and " escaped, and the note says how many files or hooks it names past the
+//     eight evidence pointers carry none; a pytest setting
 //     only for a file a pytest run collects where the setting is in force for that run (the plain
 //     pytest at the root, or a command starting with pytest in a CI step with its
 //     working-directory, env and if, a reached Makefile or justfile target, or a running tox

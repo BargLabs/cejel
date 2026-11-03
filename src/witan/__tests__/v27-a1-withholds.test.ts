@@ -124,10 +124,9 @@ describe('item C — every withhold is said in A1\'s note', () => {
     ['a1rm-conftest-collected-by-python-files', 'conftest rule not applied: python_files set in pyproject.toml'],
     ['a1rm-py-python-functions-config', 'every-test-skipped rule not applied: python_functions set in pyproject.toml'],
     ['a1rm-pytest-skipping-plugin-disabled', 'every-test-skipped rule not applied: -p no:skipping set in pyproject.toml'],
-    [
-      'a1rm-hook-clear-then-helper-refill',
-      'run-wide skip rule not applied: the hook in tests/conftest.py puts the collected items back',
-    ],
+    // goal_cejel_v27_a1_restore_proof_v2_2026-11-02: the helper restores from sorted(...), and
+    // sorted is not a copy the allowlist recognises, so the hook moves from outcome 2 to outcome 3.
+    ['a1rm-hook-clear-then-helper-refill', 'hook not read: `restore_sorted(items, saved)` in tests/conftest.py'],
   ];
   for (const [name, clause] of REMOVAL_WITHHOLDS) {
     it(`${name}: says "${clause}"`, () => {
