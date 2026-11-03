@@ -198,7 +198,25 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     workflow names a script shell, node options or a yarn path and no pnpmfile or yarn plugin is
 //     committed (else no npm-family command is a check or setup), that a setup install runs no
 //     root lifecycle script and installs no project or path, and that a check carries no flag with
-//     which it cannot fail);
+//     which it cannot fail; the fourth pass (#627-#630, 2026-11-02) admits an npm, pnpm or yarn test
+//     script, or `make test` / `make check`, as a check only when the reader proves it runs a test
+//     runner from a fixed vocabulary (jest, vitest, mocha, ava, uvu, tap, tape, jasmine, node --test,
+//     pytest, python -m pytest or unittest, go test, cargo test, and others), through `npm run`
+//     chains, pre and post scripts and make prerequisites, joined only by `&&`, with nothing before
+//     the runner but tsc, pyright, ruff or black, and B3's note names the script or target where it
+//     does not; credits a check only when every `env:` key on its path (the workflow's, its job's,
+//     and every step's up to and including the check's) is one known not to change what runs, or a
+//     publish credential (NODE_AUTH_TOKEN, NPM_TOKEN, GITHUB_TOKEN, TWINE_*) set from a secret, and
+//     reads an earlier $GITHUB_ENV or $GITHUB_PATH write the same way, the note naming the key;
+//     admits as setup `pip install -r` of a requirements file whose every line is a plain index
+//     requirement (includes inside the repository followed), `pipenv install` of a Pipfile and
+//     Pipfile.lock that name only index packages and no `[scripts]`, a `prepare` script that is
+//     exactly `husky` or `husky install`, and a root `build` script that runs only tsc beside a
+//     tsconfig.json (a vite, webpack or rollup build runs its code configuration first, so stays
+//     excluded); reads step items and a `needs:` block list written at their key's own indent;
+//     counts a publish on the check's own line when the two are one `&&` chain; and reads `.` as
+//     the source builtin only in command position. A committed yarn release (`yarnPath`) stays
+//     refused by design: Cejel cannot verify offline what that file runs);
 //   - A1: conftest.py is not a concrete test file (not cited as one, and rated hollow where it
 //     asserts; from 2026-11-01 test_to_source_ratio counts it as test surface, as v17 does), and
 //     an unconditional run-wide pytest skip

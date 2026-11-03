@@ -16,6 +16,43 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+v17 remains the default rubric; the change below applies only when the prospective v27 rubric is
+pinned, and carries no precision or recall claim.
+
+### Changed
+
+- **Prospective v27: B3 credits a check before a publish only when it runs a known test runner in
+  an environment that cannot change what runs; safe check-then-publish shapes are now read**
+  (#627, #628, #629, #630; the fourth pass on #517's check-before-publish reading). Under
+  `witan-rubric-v27-prospective-2026-10-19`:
+  - *A test script or make target is a check only when it runs a known test runner* (#627). Before,
+    an npm, pnpm or yarn test script counted unless it was only `true`, `:`, `echo` or `exit 0`, so
+    `/bin/true`, `node -e 0` or `printf ok` passed, and `make test` counted whatever its recipe
+    ran. Now the reader follows `npm run` chains, pre and post scripts and make prerequisites, and
+    admits the script or target only when it reaches a runner from a fixed vocabulary (jest,
+    vitest, mocha, ava, uvu, tap, node --test, pytest, go test, cargo test and others), joined only
+    by `&&`, with nothing before it but a check whose configuration is not code. B3's note names
+    the script or target when it does not.
+  - *The check's environment cannot change what runs* (#628). Every `env:` key on the check's path
+    (the workflow's, its job's, and each step's up to the check) must be one known not to change
+    which program runs or what it loads, or a publish credential set from a secret. `NODE_OPTIONS`,
+    `PATH`, `PYTHONPATH`, `LD_PRELOAD` and any other key withhold the credit, and so does an earlier
+    write to `$GITHUB_PATH`, or of such a key to `$GITHUB_ENV`. The note names the key.
+  - *Setup steps refused more broadly than their risk are read* (#629): `pip install -r` of a
+    requirements file whose every line names an index package (with optional `--hash`, and includes
+    inside the repository), `pipenv install` of a Pipfile and lock that name only index packages,
+    and a `prepare` script that is exactly `husky` or `husky install`. A committed yarn release
+    (`yarnPath`) stays refused by design: Cejel cannot verify offline what that file runs.
+  - *Safe shapes are read* (#630): step items and a `needs:` list written at their key's own indent;
+    a `build` script that runs only tsc beside a `tsconfig.json`, before the check (a vite, webpack
+    or rollup build still is not, since its configuration is code that runs first); a check and
+    publish on one line joined by `&&`; and `.` passed as an argument (`ruff check .`, `mypy .`),
+    which is read as the `source` builtin only in command position.
+  - The v27 certificate's glossary sentence for the PR-gate CI count names the two new conditions.
+
+  v17 and every rubric but v27 are unchanged. The measured effect is in
+  `leaderboard/RUBRIC_CHANGELOG.md`.
+
 ## [0.6.9] — 2026-11-02
 
 v17 remains the default rubric. The prospective v27 rubric stays opt-in, by `--rubric-pin` or the
