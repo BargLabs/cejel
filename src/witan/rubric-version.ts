@@ -239,7 +239,9 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     setattr or delattr, builtins or __builtins__, sys.modules, a module __getattr__, exec, eval,
 //     compile, globals, vars or locals, __dict__, __import__ or importlib, an uncalled attribute
 //     named list or tuple, or any attribute named after the helper), from the #644 review at
-//     bca7ebfbf. The list reading must agree that the items are back; (3) not
+//     bca7ebfbf. Only that conftest.py is read: a builtin or helper patched from another file (a
+//     module it imports, a second conftest.py or a plugin) is not, cejel #646. The list reading must
+//     agree that the items are back; (3) not
 //     read, for anything else that empties or may empty the list (a lambda, a nested, decorated or
 //     async def, sorted, a slice that is not the whole list, another name bound to the list, an
 //     f-string field, exec or getattr, an append, an imported or unseen helper, a method, a use

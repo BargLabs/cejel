@@ -123,7 +123,13 @@ pytest's own lookups, so collection errors before the hook runs). The change:
   reads a module of L/80 and 2L/80 lines beside a restoring hook).
 
 Each moved hook keeps v17's reading (outcome 3 makes no claim), so this round lowers nothing and
-raises nothing: it changes only which sentence A1's note holds. Real restores that print or log, or
+raises nothing: it changes only which sentence A1's note holds.
+
+**Known limit (cejel #646).** Outcome 2 reads only the hook's own `conftest.py`. A builtin or
+helper patched from another file (a module the conftest imports by name, a second `conftest.py`,
+or a plugin) is not read, so outcome 2's sentence holds only where nothing outside that file
+rebinds `list`, `tuple` or the helper. This needs deliberate tampering in another file; it is not
+read, and it is stated here and in the v27 declaration. Real restores that print or log, or
 that sit beside such a module, are now named as not read: a miss, never a false sentence. The
 fixtures are item F of `src/witan/__tests__/fixtures/v27-a1-allowlist-fixtures.ts`, committed red
 (`203b953ad`); 16 outcome checks failed at `bca7ebfbf`, among them the two report controls of item
