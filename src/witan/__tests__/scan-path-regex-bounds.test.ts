@@ -359,8 +359,8 @@ describe('timing guards: the real scan finishes on pathological repository input
 // fail on a slower runner (the v27 guard on CI_LINE_FIXTURE did, after #626). This check times each
 // v27 A1 reader the guard exercises, on its own, at an input length L and at 2L, and refuses a
 // ratio above 3: a linear reader roughly doubles, one that grows with the square quadruples. The
-// fastest of five timed runs, after one warm-up, is compared, so a single stall on a loaded runner
-// does not decide it. Each reader must return the same answer at both lengths, so a reader that
+// fastest of seven samples at each length, taken alternately after a warm-up, is compared, so a
+// single stall on a loaded runner does not decide it (cejel #642). Each reader must return the same answer at both lengths, so a reader that
 // stops early cannot pass by being fast.
 const SCALING_LENGTH = 240_000;
 const SCALING_RATIO_LIMIT = 3;
@@ -368,34 +368,65 @@ const CI_LINE_UNITS = ['yarn ', 'uv run ', 'cargo b ', 'pnpm i ', 'npm npm ', 'p
 
 // A reader can take well under a millisecond once optimised, where a timer and a stray pause
 // decide the ratio. Each timed sample therefore repeats the read enough times that, at L, it takes
-// at least SCALING_SAMPLE_MS; 2L is read the same number of times.
-const SCALING_SAMPLE_MS = 20;
+// at least SCALING_SAMPLE_MS; 2L is read the same number of times. cejel #642: the samples at L and
+// at 2L are taken in alternation, so a burst of load on the host falls on both lengths alike rather
+// than on one phase, and the floor is well above one read (about 20 ms for the run reader), so a
+// sample is never decided by one or two reads.
+const SCALING_SAMPLE_MS = 80;
+const SCALING_PAIRS = 7;
 
-function fastestMs(read: () => unknown, repetitions: number): number {
-  let fastest = Number.POSITIVE_INFINITY;
-  for (let run = 0; run < 5; run += 1) {
-    const started = performance.now();
-    for (let repetition = 0; repetition < repetitions; repetition += 1) read();
-    fastest = Math.min(fastest, performance.now() - started);
-  }
-  return fastest;
+// cejel #642: a sample is timed in this process's own CPU time (user and system), not wall time,
+// so the time it spends preempted by other work on a loaded host is not counted.
+function timeMs(read: () => unknown, repetitions: number): number {
+  const started = process.cpuUsage();
+  for (let repetition = 0; repetition < repetitions; repetition += 1) read();
+  const used = process.cpuUsage(started);
+  return (used.user + used.system) / 1000;
 }
 
-function scalingRatio<T>(read: (length: number) => T): { ratio: number; timing: string; atL: T; at2L: T } {
-  const atL = read(SCALING_LENGTH);
-  const at2L = read(2 * SCALING_LENGTH);
+/** cejel #642: the fastest timed sample at L and at 2L, from samples taken alternately, and their ratio. */
+function interleavedRatio(readL: () => unknown, read2L: () => unknown, repetitions: number): { msL: number; ms2L: number; ratio: number } {
+  let msL = Number.POSITIVE_INFINITY;
+  let ms2L = Number.POSITIVE_INFINITY;
+  for (let pair = 0; pair < SCALING_PAIRS; pair += 1) {
+    msL = Math.min(msL, timeMs(readL, repetitions));
+    ms2L = Math.min(ms2L, timeMs(read2L, repetitions));
+  }
+  return { msL, ms2L, ratio: ms2L / msL };
+}
+
+function scalingRatio<T>(read: (length: number) => T, length = SCALING_LENGTH): { ratio: number; timing: string; atL: T; at2L: T } {
+  const atL = read(length);
+  const at2L = read(2 * length);
   // Warm both lengths, then find how many reads at L fill a sample.
   for (let warm = 0; warm < 3; warm += 1) {
-    read(SCALING_LENGTH);
-    read(2 * SCALING_LENGTH);
+    read(length);
+    read(2 * length);
   }
   let repetitions = 1;
-  while (repetitions < 4_096 && fastestMs(() => read(SCALING_LENGTH), repetitions) < SCALING_SAMPLE_MS) repetitions *= 2;
-  const msL = fastestMs(() => read(SCALING_LENGTH), repetitions);
-  const ms2L = fastestMs(() => read(2 * SCALING_LENGTH), repetitions);
-  const timing = `${repetitions} reads per sample: L ${msL.toFixed(1)} ms, 2L ${ms2L.toFixed(1)} ms, ratio ${(ms2L / msL).toFixed(2)}`;
-  return { ratio: ms2L / msL, timing, atL, at2L };
+  while (repetitions < 65_536 && timeMs(() => read(length), repetitions) < SCALING_SAMPLE_MS) repetitions *= 2;
+  const { msL, ms2L, ratio } = interleavedRatio(() => read(length), () => read(2 * length), repetitions);
+  const timing = `${repetitions} reads per sample, ${SCALING_PAIRS} alternating pairs, CPU time: L ${msL.toFixed(1)} ms, 2L ${ms2L.toFixed(1)} ms, ratio ${ratio.toFixed(2)}`;
+  return { ratio, timing, atL, at2L };
 }
+
+describe('scaling: the ratio check itself (cejel #642)', () => {
+  // The check must still tell a reader whose cost grows with the square from a linear one. Both
+  // stand-ins do arithmetic only, sized so a sample fills the floor quickly.
+  const work = (iterations: number): number => {
+    let total = 0;
+    for (let index = 0; index < iterations; index += 1) total = (total + index * 31) % 1_000_003;
+    return total;
+  };
+  it('refuses a stand-in reader whose work grows with the square of its input', () => {
+    const { ratio, timing } = scalingRatio((length) => work((length / 400) ** 2), SCALING_LENGTH);
+    expect(ratio, timing).toBeGreaterThan(SCALING_RATIO_LIMIT);
+  }, 60_000);
+  it('admits a stand-in reader whose work grows with its input', () => {
+    const { ratio, timing } = scalingRatio((length) => work(length * 4), SCALING_LENGTH);
+    expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
+  }, 60_000);
+});
 
 describe('scaling: each v27 A1 reader the CI-line guard exercises grows no faster than linearly', () => {
   it('the conftest hook reader, on a whitespace run inside the hook loop of length L and 2L', () => {

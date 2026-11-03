@@ -14685,13 +14685,17 @@ export function readPytestInvocations(
     for (const environment of toxEnvironmentsNamed(words)) namedToxEnvironments.add(environment);
     const posargs = toxPosargsOf(words);
     if (posargs !== undefined) toxPosargs.push({ words: posargs, text: words.join(' '), source, file, anchor });
-    const text = words.join(' ');
-    const unread = (reason: string) => invocations.push({ source, file, anchor, directory: '', args: [], text, unread: reason });
+    // cejel #642: the command as written is joined only where an invocation records it. Joining
+    // every segment (a CI line of hundreds of thousands of words) made the run reader's garbage
+    // grow faster than its input.
+    let joined: string | undefined;
+    const textOf = (): string => (joined ??= words.join(' '));
+    const unread = (reason: string) => invocations.push({ source, file, anchor, directory: '', args: [], text: textOf(), unread: reason });
     // item A: `hatch run [env:]script`, resolved through the hatch scripts in hatch.toml or pyproject.toml.
     // The review of #648: `hatch test` runs pytest with arguments hatch adds from its own
     // configuration, which Cejel does not read.
     if (basename(words[0] ?? '') === 'hatch' && words[1] === 'test') {
-      unread(text);
+      unread(textOf());
       return;
     }
     const hatch = hatchRunOf(words);
@@ -14703,14 +14707,14 @@ export function readPytestInvocations(
       // named, and not read where one may be.
       const inherited = own === undefined && hatch.environment !== 'default' ? hatchScripts.get('default')?.get(hatch.name) : undefined;
       if (inherited !== undefined && hatchNamesTemplate(fileSet, readText)) {
-        unread(text);
+        unread(textOf());
         return;
       }
       const script = own ?? inherited;
       if (script !== undefined) {
         hatchExpansionsLeft -= script.commands?.length ?? 1;
         if (script.commands === undefined || hatchExpansionsLeft < 0) {
-          unread(text);
+          unread(textOf());
           return;
         }
         for (const command of script.commands) {
@@ -14728,16 +14732,16 @@ export function readPytestInvocations(
     const found = pytestCommandArguments(hatch !== undefined && hatch.explicitEnvironment ? ['hatch', 'run', hatch.name, ...hatch.args] : words);
     if (found === undefined) {
       // item A: a make or shell variable naming pytest that nothing defines is a run whose words are unknown.
-      if (isUnexpandedPytestVariable(words[0] ?? '')) unread(text);
+      if (isUnexpandedPytestVariable(words[0] ?? '')) unread(textOf());
       return;
     }
     if (directory === null) {
-      unread(unknownDirectory ?? text);
+      unread(unknownDirectory ?? textOf());
       return;
     }
     const runIn = found.directory === undefined ? directory : resolveCommandPath(directory, found.directory);
     if (runIn === null) {
-      unread(text);
+      unread(textOf());
       return;
     }
     const inForce = found.addopts ?? addopts;
@@ -14746,7 +14750,7 @@ export function readPytestInvocations(
       source,
       file,
       anchor,
-      text,
+      text: textOf(),
       directory: runIn,
       args: found.args,
       ...(inForce === undefined ? {} : { addopts: inForce }),
