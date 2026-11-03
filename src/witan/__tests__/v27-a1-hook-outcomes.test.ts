@@ -127,7 +127,7 @@ describe('item E — evidence pointers', () => {
     const fixture = HOOK_OUTCOME_FIXTURES.find(({ name }) => name === 'a1ho-e-many-rated-files') as HookOutcomeFixture;
     const v27 = a1(fixture, V27);
     expect(v27.evidence.filter(({ label }) => label.startsWith('Rated hollow')).length).toBe(8);
-    expect(v27.notes ?? '').toContain('the 4 listed after the first 8 carry no evidence pointer');
+    expect(v27.notes ?? '').toContain('the 3 listed after the first 8 carry no evidence pointer');
   });
 });
 

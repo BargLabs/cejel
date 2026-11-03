@@ -349,11 +349,11 @@ export const HOOK_OUTCOME_FIXTURES: readonly HookOutcomeFixture[] = [
   fixture(
     'a1ho-e-many-rated-files',
     'E',
-    'One hook disables twelve files: the note says how many of those it lists carry no evidence pointer.',
+    'One hook disables eleven files, all listed: the note says how many of those it lists carry no evidence pointer.',
     {
       'tests/conftest.py': conftestHook(['    items.clear()']),
       ...Object.fromEntries(
-        Array.from({ length: 10 }, (_, index) => [`tests/test_more_${String(index).padStart(2, '0')}.py`, LIVE_PY_TEST(`more_${index}`)]),
+        Array.from({ length: 9 }, (_, index) => [`tests/test_more_${String(index).padStart(2, '0')}.py`, LIVE_PY_TEST(`more_${index}`)]),
       ),
     },
     {
@@ -361,7 +361,7 @@ export const HOOK_OUTCOME_FIXTURES: readonly HookOutcomeFixture[] = [
       removed: [
         ['tests/test_cache.py', HOOK_RULE],
         ['tests/test_lru.py', HOOK_RULE],
-        ...Array.from({ length: 10 }, (_, index) => [`tests/test_more_${String(index).padStart(2, '0')}.py`, HOOK_RULE] as const),
+        ...Array.from({ length: 9 }, (_, index) => [`tests/test_more_${String(index).padStart(2, '0')}.py`, HOOK_RULE] as const),
       ],
     },
   ),

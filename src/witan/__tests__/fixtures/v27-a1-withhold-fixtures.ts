@@ -53,6 +53,8 @@ const HOOK_REMOVED: WithholdFixture['removed'] = [
 ];
 const SKIPPED_REMOVED: WithholdFixture['removed'] = [['tests/test_cache.py', 'every test skipped']];
 const RESTORED = 'run-wide skip rule not applied: the hook in tests/conftest.py puts the collected items back';
+/** The clause naming a hook the reader could not read (goal_cejel_v27_a1_restore_proof_and_hookwrapper_2026-11-02). */
+const notRead = (reason: string) => `hook not read: \`${reason}\` in tests/conftest.py`;
 
 /** A GitHub Actions workflow running `steps` (each a `run:` value) after a checkout, with optional job env lines. */
 const ciWorkflow = (steps: readonly string[], env: readonly string[] = []): string =>
@@ -309,17 +311,19 @@ const REVIEW_626_FIXTURES: readonly WithholdFixture[] = [
     { 'tests/conftest.py': conftestHook(['    items.clear()', '    count = items.__len__()']) },
     HOOK_REMOVED,
   ),
-  caught(
+  // goal_cejel_v27_a1_restore_proof_and_hookwrapper_2026-11-02: the reader cannot see this helper,
+  // which may put the items back, so the hook is not read (outcome 3), where #626 rated it hollow.
+  withheld(
     'a1wh-r2-imported-helper-call',
     'A',
-    'After the clear the hook passes items to a helper defined in another module, which the reader cannot see.',
+    'After the clear the hook passes items to a helper defined in another module, which the reader cannot see: not read.',
     {
       'tests/conftest.py': conftestHook(
         ['    saved = list(items)', '    items.clear()', '    refill(items, saved)'],
         ['import pytest', '', 'from helpers import refill'],
       ),
     },
-    HOOK_REMOVED,
+    [notRead('refill(items, saved)')],
   ),
   caught(
     'a1wh-r2-same-file-helper-reads-only',
@@ -486,10 +490,13 @@ const REVIEW_626_FIXTURES: readonly WithholdFixture[] = [
     },
     [RESTORED],
   ),
+  // goal_cejel_v27_a1_restore_proof_and_hookwrapper_2026-11-02: a restore counts only in the shapes
+  // the reader proves (`items.extend(S)`, `items += S`, `items[:] = S`, or a helper or closure doing
+  // one), so these three real restores are now not read (outcome 3), never rated hollow.
   withheld(
     'a1wh-r2-restore-append-loop',
     'A',
-    'Control: after the clear the hook appends each saved item back in a loop.',
+    'After the clear the hook appends each saved item back in a loop: a real restore, but not a shape the reader proves, so not read.',
     {
       'tests/conftest.py': conftestHook([
         '    saved = list(items)',
@@ -498,12 +505,12 @@ const REVIEW_626_FIXTURES: readonly WithholdFixture[] = [
         '        items.append(item)',
       ]),
     },
-    [RESTORED],
+    [notRead('items.append(item)')],
   ),
   withheld(
     'a1wh-r2-restore-through-alias',
     'A',
-    'Control: the hook puts the saved items back through another name bound to the list.',
+    'The hook puts the saved items back through another name bound to the list: not a shape the reader proves, so not read.',
     {
       'tests/conftest.py': conftestHook([
         '    collected = items',
@@ -512,7 +519,7 @@ const REVIEW_626_FIXTURES: readonly WithholdFixture[] = [
         '    collected.extend(saved)',
       ]),
     },
-    [RESTORED],
+    [notRead('collected.extend(saved)')],
   ),
   withheld(
     'a1wh-r2-restore-nested-def-called',
@@ -534,11 +541,11 @@ const REVIEW_626_FIXTURES: readonly WithholdFixture[] = [
   withheld(
     'a1wh-r2-restore-dunder-iadd',
     'A',
-    'Control: the hook puts the saved items back with __iadd__.',
+    'The hook puts the saved items back with __iadd__: not a shape the reader proves, so not read.',
     {
       'tests/conftest.py': conftestHook(['    saved = list(items)', '    items.clear()', '    items.__iadd__(saved)']),
     },
-    [RESTORED],
+    [notRead('items.__iadd__(saved)')],
   ),
   withheld(
     'a1wh-r2-restore-extend-multiline',
