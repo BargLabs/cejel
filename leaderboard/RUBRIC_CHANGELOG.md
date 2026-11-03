@@ -22,6 +22,199 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
+## 2026-11-03 — v27 A1 reads the pytest runs, options and configuration search pytest itself uses, names a run it cannot read instead of rating its files hollow, and points each setting clause at its line (#633, #643); v17-v26 byte-identical; v27 never above v17; no published score moved
+
+**Status.** A scoring change under `witan-rubric-v27-prospective-2026-10-19` only, with no
+identifier change (goal_cejel_v27_a1_pytest_runs_and_config_2026-11-02). No holdout or
+calibration ran for it, and this entry makes no precision or recall claim. The default stays v17.
+
+**Why.** #626 (the 2026-11-02 entry below, "v27 A1 names every file it rates hollow…") withholds a
+removal rule only where a setting is in force for a pytest run that collects the file. #633 lists
+where its reading of runs, options and configuration falls short. Each gap is a setting really in
+force that the reader did not see, so the withhold did not happen and the certificate said a file
+pytest runs "runs no test": the safe direction for credit, but a false assertion. The root cause
+was one shape: a run the reader could not read whole (a variable in a path, an expression as its
+working directory, `-c` outside the repository, `--pyargs`, Jenkins `dir()`) was dropped from the
+list of runs, which reads its files under pytest's defaults. #643: the files the withhold clauses
+name carried no evidence pointer.
+
+**Change.**
+
+- **Runs read whole** (item A). A noxfile's `session.run("pytest", ...)` whose arguments are
+  string literals (in the noxfile's directory; every session counts); `tox -- <args>` from CI or a
+  recipe, put where `{posargs}` is (at most 16 distinct sets, past that not read); a tox
+  factor-conditional command line (`fast: pytest ...`, `a,b:`, `a-b:`, `!a:`) for an environment
+  in envlist, or one a `tox -e` names, whose factors meet it, a condition with braces being read
+  as met; `$(NAME)` and `${NAME}` the same Makefile defines (`=`, `:=`, `::=`, `?=`, `+=`),
+  expanded a few levels, a `:=` value where it is assigned, as make does (see the review round
+  below for the names not known); a justfile's literal `name := "..."` variables; a
+  justfile recipe with parameters (`test *ARGS:`), which the shared recipe reader did not see;
+  `hatch run [env:]script`, resolved through `[envs.<env>.scripts]` in `hatch.toml` or
+  `[tool.hatch.envs.<env>.scripts]` in `pyproject.toml` (string or array, `{args}` and
+  `{args:default}` substituted, a script naming another followed, one an environment inherits from
+  `default` read where no `template` is named), run in that file's directory;
+  and a local composite action's `run:` steps (`uses: ./path` with `path/action.yml`). A local
+  reusable workflow is a file under `.github/workflows/` and was already read.
+- **Runs named as not read** (item A). Where a run's arguments or directory cannot be known from the
+  repository, any option may be in force for it and it may collect any file, so it switches off
+  every removal rule (conftest, run-wide skip, every test skipped) for every file, and A1's note
+  names it with #644's not-read clause, for a run: "pytest run not read: `<reason>` in `<path>`".
+  The forms: a nox call with any other argument (`*session.posargs`, a name, an f-string, `env=`)
+  or a noxfile that calls `session.chdir`; `tox -- ` with a word holding `$`, a backtick or braces;
+  a Makefile variable it does not define (make expands it to the environment's or the command
+  line's value), or one a CI or recipe `make NAME=...` sets; a just recipe parameter; a `${{ }}`
+  expression or other variable in a path argument (so a local reusable workflow passing its
+  caller's input); a `cd` to a path the reader cannot resolve; `-c` or `--config-file` outside the
+  repository or naming no file in it; `--pyargs`; a `--rootdir` or `--confcutdir` it cannot
+  resolve; a `working-directory` set by an expression; a pytest command in a Jenkinsfile holding
+  `dir(...)`; and a job-level reusable workflow in another repository (`uses:
+  owner/repo/.github/workflows/...@ref`). The review round below adds forms, and the narrow rule
+  for remote step actions the operator chose; any other remote step action (`uses:
+  owner/action@ref`) is read as running no pytest, since nearly every workflow uses one (checkout,
+  setup-python) and naming each would withhold every rule in almost every repository. That is a
+  known limit.
+- **Options** (item B). A long option the reader does not know, followed by a word that does not
+  start with `-`, makes the word's role unknown (a value or a path), so the run is not read, named
+  with the option and the word. A table of long options pytest and common plugins define with no
+  value (`--strict-markers`, `--doctest-modules`, `--lf`, `--no-cov`, `--reuse-db`, and the rest)
+  keeps those runs read; `--setup-plan` moved there from the with-value table. `--cov`, `--debug`
+  and `--cache-show` take an optional value (argparse `nargs="?"`): the next word is the value only
+  where it does not start with `-`. pytest-cov declares `--cov` with `nargs="?"` and `const=True`;
+  pytest-cov was not run in this session (no Python package could be installed), so this rests on
+  reading its option declaration, not on a run, and no version is claimed. `testpaths` entries are
+  expanded as `glob.glob(..., recursive=True)` expands them from the root (`*`, `?`, `[...]` per
+  path part, `**` recursive, no match for a name starting with `.` unless the part does), not read
+  as the directory before their first glob character.
+- **Configuration search** (item C). pytest 9's `determine_setup`: with no `-c`, `locate_config`
+  from the common ancestor of the run's paths, then a `setup.py` at or above the ancestor as the
+  root, and only then, where the paths' directories are not just the ancestor, `locate_config` from
+  each of them (the per-argument fallback), else the common ancestor of the invocation directory and
+  the ancestor. #626 ran the per-argument search before the `setup.py` check and whenever a
+  `--rootdir` was given, so a configuration file in one argument's directory could be read where
+  pytest reads none. The search cannot see above the repository's root, and `locate_config` looks
+  there before it falls back to a `pyproject.toml` without a pytest table. Where a run that collects
+  a rated file finds no file holding pytest's configuration in the repository, A1's note says once:
+  "A pytest run that finds no configuration file in the repository may read one above its root,
+  which the scan cannot see; no rule is rated on what it might hold." The rating stands as the
+  repository shows it.
+- **Two choices kept, for the operator to confirm** (item D).
+  - A plain `pytest` at the repository's root always counts as a run, so the root configuration is
+    always in force. Reason: it is pytest's documented default invocation, the one a contributor
+    runs without reading CI.
+  - A Makefile `PYTEST_ADDOPTS = ...` without `export` is not read. Reason: make passes to a
+    recipe's environment only exported variables (and those the environment already set), so pytest
+    never sees it. This changes #626's first pass (`892a95a40`), whose line reader read such a line
+    as in force; the later passes of #626 already read only `export PYTEST_ADDOPTS = ...`. This
+    change adds the other ways make exports it: an `export PYTEST_ADDOPTS` line, a bare `export`
+    line, or `.EXPORT_ALL_VARIABLES:`.
+- **Evidence pointers for setting clauses** (item E, #643). Each withhold clause carries an evidence
+  pointer: a setting from a configuration file at the line of its key (`addopts`, `python_files`,
+  `norecursedirs`, ...); a flag on a command line at the first line, from the command's own step,
+  target or tox line onward, holding its word (else the command's line, else the line in the file
+  that holds the word); a `PYTEST_ADDOPTS` setting at the line that sets it; a reason that names
+  the pytest command line at that line; a run not read at the line holding its reason; a hook at
+  its `def`, as before. The pointers share the one limit of eight, in the note's order, and the
+  withhold sentence counts the clauses named past it ("the N named after the first 8 carry no
+  evidence pointer"; it said "the N hooks named" before). The note stays within its 1,000-character
+  limit. The v27 glossary's non-hollow sentence names "pytest run not read" and the shared
+  pointers, so every v27 certificate changes by that sentence.
+
+**Review round** (the adversarial review of #648 at `b9762e0a3`; red fixtures `8bc381385`, fix
+`33cd9508b`; ground truth pytest 9.2.0 and `make -n` on the dev host, hatch, tox and just from
+their documentation). Each of these was a crash, a false hollow or a read that could not end:
+
+1. A run not read named a long command in its evidence pointer's label, past the schema's 180
+   characters, so the scan threw. The label is now cut at 180 and marked cut.
+2. Make variables were read with values make does not use. A `:=` value is now expanded where it is
+   assigned. A name is not known where it is set by `!=`, `define` or `:::=`, inside a conditional
+   (`ifeq`, `ifneq`, `ifdef`, `ifndef`), for one target (`test: OPTS = ...`), or by a `?=` default
+   whose name a CI file holds (a CI command may set it in make's environment). A recipe command
+   whose expansion is not known, and that mentions pytest itself or through a variable, is a run not
+   read; an exported `PYTEST_ADDOPTS` not known leaves the Makefile's pytest runs not read.
+3. Forms recognised but not resolved were dropped. `hatch test` is now a run not read; a script an
+   environment inherits from `default` is read where no `template` is named, and not read where one
+   may be; `python -m tox`, `uvx tox`, `uv run tox` and `pipx run tox` are read as tox; a CI
+   `TOXENV` names the environments tox runs, and one Cejel cannot resolve leaves every
+   factor-conditional pytest line not read; a justfile's `set export` exports `PYTEST_ADDOPTS`.
+4. The narrow rule for remote steps, chosen by the operator on 2026-11-03: a step action one of
+   whose `with:` inputs runs pytest (a retry or display wrapper) is a run not read, and a workflow
+   that names both `$GITHUB_ENV` and `PYTEST_ADDOPTS` (so may write the one to the other, for the
+   later steps of a job), or checks out into a `path:`, leaves each of its pytest runs not read. The
+   first test is by name, not by reading the write, so it also withholds for a workflow that sets
+   `PYTEST_ADDOPTS` in an `env:` mapping and writes something else to `$GITHUB_ENV`: a false
+   exclusion, in the safe direction. A remote action whose inputs run no pytest changes nothing.
+5. A `PYTEST_ADDOPTS` set in an `env:` mapping was cited at the first later line holding the name,
+   which could be another job's. It is now cited at its own mapping's line.
+6. The hatch script reader and the make expansion grew far past linear on small crafted files (a
+   328-byte `hatch.toml` took 15 s; a 4.8 KB Makefile 1.8 s). Make expansion now shares a budget of
+   4,096 substitutions per Makefile, and hatch one of 256 script expansions per scan; past either
+   the run is not read. The earlier "run readers stay linear" wording did not hold for these two.
+
+**The no-rise property.** A run not read only withholds, and a withhold falls back to v17's reading;
+the narrower `testpaths` reading and the corrected configuration search can withhold less than
+#626 did, which can lower v27's A1 only where v17 already scores it. v27 cannot score A1 above v17
+on the same commit.
+
+**Measured** (code at `d5ff81601`, the last code commit; the records commits beside this entry
+change comments and records only). The same 393 synthetic repositories #626's entry names, built
+once from the fixture files at `26a7d4795` (269 false-assurance, 39 removal and 85 withhold
+fixtures), scanned with main `6f116b110` and with this branch. v17 and v27 scanned all 393, v18 to
+v26 the 124 v27 A1 fixtures: 1,902 reports each side, 0 errors. Each report was rendered as HTML
+and Markdown with the code that scanned it.
+
+- v17: 393 of 393 reports, HTML and Markdown certificates byte-identical to main.
+- v18 to v26: 124 of 124 each, reports and certificates byte-identical.
+- v27 against main: 367 of 393 reports byte-identical. All 26 that moved moved in A1 alone, and no
+  A1 score or status changed. 25 gain only the new evidence pointer of the setting clause their
+  note already held, at the line holding the setting (for example `pyproject.toml:8` for
+  `addopts = "-p no:skipping"`, `tox.ini:5` for `[pytest]`'s `addopts`, `Makefile:2` for the
+  recipe's pytest line, `.github/workflows/ci.yml:10` for a job's `PYTEST_ADDOPTS`), or at the
+  pytest command line for the three "does not load the hook" reasons. One,
+  `a1wh-r2-subdir-pyproject-root-run` (the root run finds no configuration file in the repository),
+  gains only the above-root sentence, its two rated files unchanged. None of the 393 holds a run
+  form this change newly reads or names as not read, so none moves by item A or B. Every v27 HTML and
+  Markdown certificate changes, by the glossary sentence.
+- v27 A1 above v17 A1 on the same repository: 0 of 393. Headline scores (code trust, process trust,
+  overall) above v17: 0 of 1,170 compared.
+
+**Measured again after the review round**, by the reviewing session. Code at `33cd9508b` (the
+commits after it change comments and records only), against main `6f116b110`, on 803 synthetic
+repositories built from the fixture files of this branch: the B3, false-assurance and CI-claims
+sets, and every v27 A1 set (removal, hook outcome, allowlist, withhold and this change's 29 run
+fixtures). Every selectable rubric was scanned, 8,833 reports per side, with 0 errors.
+
+- v17 to v26: 8,020 of 8,030 reports, with their HTML and Markdown certificates, byte-identical. The
+  other 10 are the symlink fixture `review4-a4-working-directory-through-tracked-symlink`, whose
+  commit SHA differs per build; no criterion differs.
+- v27: 749 of 803 reports byte-identical. Of the 54 that differ:
+  - 28 change only in a note, with no score or status change. 26 of them are the same 26 corpus
+    repositories as the measurement above, so the review round moved none of them. One is an
+    allowlist fixture, `a1al-e-nested-not-loaded-by-a-run`, which gains its pointer. One is the
+    symlink fixture.
+  - 26 are this change's own run fixtures; the other 3 run fixtures are identical. 22 move in A1's
+    score: 20 rise towards v17, because main rated a file hollow that pytest runs, and 2 fall as
+    designed, because main withheld where pytest does not (`a1run-setup-py-before-per-argument-fallback`
+    and `a1run-testpaths-glob`). 4 change only in a note.
+- v27 A1 above v17 A1: 0 of 803. Overall score above v17: 0 of 800 compared.
+- The review round's own fixtures are in `src/witan/__tests__/v27-a1-runs-review.test.ts` and are
+  not in this count.
+
+The 29 run fixtures (`src/witan/__tests__/fixtures/v27-a1-run-fixtures.ts`, run by
+`src/witan/__tests__/v27-a1-runs.test.ts`) are not in the 393. 28 were committed red-first
+(`9cc0fae49`), checked against main: 35 of 70 checks failed there, in 25 fixtures covering every run
+form of item A, the option readings of item B, the configuration search of item C and the pointers
+of item E (with the pointer-count check); the other three are controls and passed (a tox factor no
+environment has, a Makefile `PYTEST_ADDOPTS` without `export`, a known flag before a path). The 29th,
+`a1run-make-export-all-variables`, was added with the fix (`d5ff81601`) and pins the
+`.EXPORT_ALL_VARIABLES` reading. pytest, tox, nox, hatch and pytest-cov were not run on any
+fixture: no Python package could be installed in this session, so each fixture's claim rests on
+reading pytest 9's `findpaths.determine_setup` and `locate_config`, tox's posargs and factor rules,
+make's export rule, just's parameters, hatch's scripts and pytest-cov's option declaration, not on
+a run. The ReDoS guard (1,180 regex literals, 0 failures), the scan timing guards and the full suite
+(178 files, 7,000 tests passed, 2 skipped) ran at `d5ff81601`. No holdout or calibration ran.
+
+No published score moved: the board is scored under v17.
+
 ## 2026-11-02 (B3 fourth and fifth passes) — under v27 a check before a publish is credited only where the reader reads a known test runner, a lint form that fails on a finding, and an environment and package it admits, and safe check-then-publish shapes are read (#627, #628, #629, #630; the fifth pass from the review of #640, which this supersedes); v17-v26 byte-identical; no published score moved
 
 **Status.** A scoring change under `witan-rubric-v27-prospective-2026-10-19` only, with no

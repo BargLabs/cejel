@@ -1,0 +1,24 @@
+[
+  {
+    "statement": "A guard that runs every regex literal against adversarial input proves those regexes are linear. It proves nothing about the reader that calls them. A recursive expansion is bounded only by a budget on its total work. Incident: cejel #648 at b9762e0a3. Commit d5ff81601 said the v27 A1 run readers stay linear because the ReDoS guard passed (1,180 literals, 0 failures). An adversarial review then measured the hatch script reader at 15.4 s on a 328-byte hatch.toml (t = [\"t\", ...] sixty times; depth < 4 bounded depth, not width, so the work grew about as n^4), and the make expansion at 1.8 s on a 4.8 KB Makefile (a chain of empty references; the 4,096-character output cap never tripped). Fix: 33cd9508b shares a 4,096-substitution budget per Makefile and a 256-expansion budget per scan for hatch, and past either names the run as not read. Rule: before claiming a reader is linear, state the input that maximises its work and time it; a depth limit or an output cap is not a work bound.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "witan",
+      "performance"
+    ],
+    "tags": [
+      "redos-guard",
+      "recursive-expansion",
+      "work-budget",
+      "overclaim"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-11-03T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 648
+    }
+  }
+]

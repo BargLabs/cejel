@@ -1,0 +1,48 @@
+[
+  {
+    "statement": "Cejel's v27 A1 pytest-settings reader (#626) returned nothing for a run it could not read whole: a path argument holding a variable, an expression as its working directory, -c outside the repository, --pyargs, Jenkins dir(). The run then dropped out of the list, so the files it collects were read under pytest's defaults, and a setting that run really passes (tox -- -p no:skipping, nox posargs, an undefined make variable) never withheld the rule: the certificate said a file pytest runs \"runs no test\". Dropping an input you cannot read is an assertion that it holds nothing. Rules: a reader that cannot read part of its subject must model that part as unknown, with every effect the unknown could have, and name it in the output with the reason; it must never leave the part out. Before calling a reader done, list every place it returns early on input it does not understand, and check what the caller then assumes.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "evidence-discipline",
+      "static-analysis"
+    ],
+    "tags": [
+      "silent-drop",
+      "false-assertion",
+      "abstain-rather-than-guess",
+      "unknown-input"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-11-03T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 648
+    }
+  },
+  {
+    "statement": "In cejel #633's fix, `name.replace(/[ \\t]*\\($/, '')` was written for a ten-character string and failed the ReDoS guard (src/__tests__/regex-redos-guard.test.ts), which runs every regex literal in the scan path against adversarial input whatever string the code applies it to: a blank run before a missing `(` backtracks at each start, quadratically. The same pass had two loops that searched for a closing `}` or `)` with indexOf after each opener; with many openers and no closer, each search runs to the end of the text, which is quadratic too. Rules: trim with indexOf and trimEnd, not a regex with a leading `[ \\t]*`; in a scan for an opener and its closer, stop at the first opener whose closer is missing, since no later opener has one either; and run the ReDoS guard and the scaling tests before the first full-suite run, not after it.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "performance",
+      "testing"
+    ],
+    "tags": [
+      "redos",
+      "quadratic",
+      "regex",
+      "own-error"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-11-03T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 648
+    }
+  }
+]
