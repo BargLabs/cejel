@@ -7894,6 +7894,11 @@ function pipArgumentsNamePackagesOnly(args: readonly string[], requirementsPlain
  * Third pass on #625: and the file is one the line readers read as GitHub does
  * (workflowStructureIsPlain: no YAML escape, and only plain keys and values outside step items), and
  * it names no npm script shell (F6).
+ * Fourth pass (#627-#630): a test script or make target is a check only when it runs a known test
+ * runner; a check is credited only when every environment key on its path is admitted
+ * (checkPathEnvironmentProblems), and why one was not is pushed to `notCredited` for B3's note; the
+ * root readings hold only where the workflow sets no `working-directory`; a publish on the check's
+ * own line counts as after it when the two are one `&&` chain.
  */
 function checksBeforeEveryPublish(
   contents: string,
@@ -8171,11 +8176,15 @@ function checkPathEnvironmentProblems(
  * a `with:` input, an `env:` value or any nested mapping), whose shell is not conditional
  * (stepShellIsConditional: no `||`, heredoc, `if`, `!` or `set +e`), with a command isCheckCommand
  * reads as a check on a line where checkFailureStopsJobAt holds. An npm-family test script is a check
- * only when the root package.json's script runs something (CheckReading), the workflow sets no
- * `working-directory` and the step changes no directory, so that script is the one run (item E).
+ * only when the root package.json's script runs a known test runner (CheckReading, fourth pass), the
+ * workflow sets no `working-directory` and the step changes no directory, so that script is the one
+ * run (item E).
  * Third pass on #625 (F5): everything the step runs before the check is a setup command or a `set`
  * that only makes the shell stricter (commandsBeforeCheckAreSetup), so nothing before it can stop it
  * running (`set -n`) or change what it runs (`hash -p`). Linear in the file.
+ * Fourth pass (#627, #628): a check whose path has an environment key checkPathEnvironmentProblems
+ * refuses is not credited, and a test script or make target read as running no known runner is
+ * named; both reasons are pushed to `notCredited`.
  */
 function firstCheckLineByJob(
   contents: string,
