@@ -111,7 +111,7 @@ export interface PlainSummary {
   readonly areas: { readonly measured: number; readonly total: number; readonly notApplicable: number };
   readonly areasLine: string;
   readonly holds: readonly PlainItem[];
-  /** Present when nothing is listed as holding for a stated reason. */
+  /** Present exactly when What holds is empty: the one sentence saying why (v2 item C). */
   readonly holdsNote?: string;
   readonly wrong: readonly PlainWrongItem[];
   /** Present when the Wrong count differs from the certificate's findings list; names the difference. */
@@ -757,6 +757,26 @@ function buildHolds(report: WitanReport): PlainItem[] {
     });
 }
 
+/**
+ * v2 item C: the one sentence an empty What holds list prints, chosen by whether the scan has an
+ * overall result and which labels Holds would list. Holds lists measured areas labelled Verified
+ * or Info, so each sentence is true of exactly that case.
+ */
+function buildHoldsNote(report: WitanReport): string {
+  const listed = (status: WitanCriterionScore['status']): boolean =>
+    report.criteria.some((criterion) => criterion.status === status && hasExaminedEvidence(criterion));
+  const labels = [listed('verified') ? 'Verified' : undefined, listed('info') ? 'Info' : undefined].filter(
+    (label): label is string => label !== undefined,
+  );
+  if (report.verdict !== 'insufficient_source') {
+    return 'Nothing is listed here because Cejel rated no measured area Verified or Info.';
+  }
+  if (labels.length === 0) {
+    return 'Nothing is listed here because Cejel gave no overall result for this scan, and it rated no measured area Verified or Info.';
+  }
+  return `Nothing is listed here because Cejel gave no overall result for this scan, although it rated some areas ${joinOr(labels)}; each area's own reading is in the certificate below.`;
+}
+
 interface WrongCandidate {
   readonly item: PlainWrongItem;
   readonly check: PendingCheck;
@@ -1179,9 +1199,7 @@ export function buildPlainSummary(report: WitanReport): PlainSummary {
     areas,
     areasLine: buildAreasLine(areas),
     holds,
-    ...(report.verdict === 'insufficient_source'
-      ? { holdsNote: 'Nothing is listed here because Cejel gave no overall result for this scan.' }
-      : {}),
+    ...(holds.length === 0 ? { holdsNote: buildHoldsNote(report) } : {}),
     wrong: wrong.map(({ item }) => item),
     ...(otherWrong > 0
       ? {

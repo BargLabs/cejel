@@ -310,7 +310,7 @@ function renderPlainSummaryLines(
       : undefined;
   return [
     'In plain words (the full lists, with links to the evidence, are in certificate.html):',
-    ...section('What holds', [plain.areasLine, plain.holdsNote], plain.holds.map(itemLine), 'Nothing Cejel measured scored well enough to be listed here.'),
+    ...section('What holds', [plain.areasLine], plain.holds.map(itemLine), plain.holdsNote ?? ''),
     ...section(
       'What is wrong',
       [plain.wrongNote, topFindingsNote],

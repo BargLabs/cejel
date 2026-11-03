@@ -310,9 +310,10 @@ function renderPlainFirstPage(report: WitanReport, plain: PlainSummary): string 
     '✓',
     'What holds',
     plain.holds.length,
-    [plain.areasLine, plain.holdsNote],
+    [plain.areasLine],
     plain.holds.map(renderPlainItemBody),
-    'Nothing Cejel measured scored well enough to be listed here.',
+    // v2 item C: an empty list prints its one sentence, and only that one.
+    plain.holdsNote ?? '',
   );
   const wrong = renderPlainList(
     'wrong',
