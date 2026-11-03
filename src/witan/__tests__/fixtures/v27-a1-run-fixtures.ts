@@ -115,13 +115,15 @@ export const RUN_FIXTURES: readonly RunFixture[] = [
     [NO_CONFTEST('noxfile.py')],
     [['noxfile.py', 7, 'pytest setting in force: --noconftest']],
   ),
-  withheld(
+  // goal_cejel_v27_a1_gaps_2026-11-03, item B (#649) moved this pin: no CI or recipe nox command
+  // passes posargs, so `*session.posargs` is empty, the session runs plain pytest, and the clear hook
+  // rates both files hollow. It was "pytest run not read" here before.
+  caught(
     'a1run-nox-posargs',
     'A',
-    "A noxfile session passes nox's posargs to pytest, which the repository cannot show: the run is not read.",
+    "A noxfile session passes nox's posargs to pytest, and no nox command in the repository passes any: the session runs plain pytest.",
     { 'tests/conftest.py': CLEAR_HOOK, 'noxfile.py': NOXFILE('session.run("pytest", *session.posargs)') },
-    [runNotRead('session.run("pytest", *session.posargs)', 'noxfile.py')],
-    [['noxfile.py', 7, 'pytest run not read']],
+    HOOK_REMOVED,
   ),
   withheld(
     'a1run-tox-literal-posargs',

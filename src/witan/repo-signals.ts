@@ -14664,6 +14664,7 @@ export function readPytestInvocations(
   const makeOverrides = new Set<string>();
   // item A: the words each tox command passes after `--`, which tox puts where {posargs} is.
   const toxPosargs: { words: readonly string[]; text: string; source: string; file: string; anchor: number }[] = [];
+  const noxPosargs: PassedPosargs[] = [];
   const fileSet = new Set(repoFiles);
   let hatchScripts: HatchScripts | undefined;
   // The review of #648: the hatch script expansions left, across the whole read, so a script list
@@ -14685,6 +14686,9 @@ export function readPytestInvocations(
     for (const environment of toxEnvironmentsNamed(words)) namedToxEnvironments.add(environment);
     const posargs = toxPosargsOf(words);
     if (posargs !== undefined) toxPosargs.push({ words: posargs, text: words.join(' '), source, file, anchor });
+    // goal_cejel_v27_a1_gaps_2026-11-03, item B: the words a nox command passes after `--`.
+    const noxPassed = posargsOf(words, 'nox');
+    if (noxPassed !== undefined) noxPosargs.push({ words: noxPassed, text: words.join(' '), source, file, anchor });
     // cejel #642: the command as written is joined only where an invocation records it. Joining
     // every segment (a CI line of hundreds of thousands of words) made the run reader's garbage
     // grow faster than its input.
@@ -14817,24 +14821,53 @@ export function readPytestInvocations(
       readShellCommands(command, jenkinsDir === undefined ? '' : null, addopts, visitor(source, file, 0), jenkinsDir);
     }
   }
-  // item A: a noxfile's session.run calls (nox runs every session it is not told to skip).
-  for (const file of usable.filter((candidate) => basename(candidate) === 'noxfile.py')) {
-    const text = readText(file);
-    if (text === undefined) continue;
-    const source = a1NotePath(file);
-    const chdir = /\bsession\.(?:chdir|cd)[ \t]*\(/.exec(text);
-    for (const call of readNoxRunCalls(text)) {
-      const found = call.words.length === 0 ? undefined : pytestCommandArguments(call.words);
-      const unread = (reason: string) => invocations.push({ source, file, anchor: call.line, directory: '', args: [], text: call.text, unread: reason });
-      if (found === undefined) {
-        if (call.unknown && /pytest/.test(call.text)) unread(call.text);
-        continue;
+  // item A: a noxfile's session.run calls (nox runs every session it is not told to skip). Item B
+  // of goal_cejel_v27_a1_gaps_2026-11-03: `*session.posargs` holds the words after `--` of a CI or
+  // recipe nox command, so the noxfiles are read after the recipes, and their runs keep this place
+  // in the list.
+  const noxAt = invocations.length;
+  const readNoxfiles = (): PytestInvocation[] => {
+    const noxRuns: PytestInvocation[] = [];
+    const { literal, unread: unreadPosargs } = partitionPosargs(noxPosargs);
+    // A nox command with no `--` passes none, as does nox run by hand; the empty set is always read.
+    const passedSets: readonly (readonly string[])[] = [[], ...literal.map((entry) => entry.words)];
+    for (const file of usable.filter((candidate) => basename(candidate) === 'noxfile.py')) {
+      const text = readText(file);
+      if (text === undefined) continue;
+      const source = a1NotePath(file);
+      const chdir = /\bsession\.(?:chdir|cd)[ \t]*\(/.exec(text);
+      let unreadSaid = false;
+      for (const call of readNoxRunCalls(text)) {
+        const unread = (reason: string) => noxRuns.push({ source, file, anchor: call.line, directory: '', args: [], text: call.text, unread: reason });
+        if (call.unknown) {
+          const literalWords = call.words.filter((word) => word !== NOX_POSARGS_WORD);
+          if (/pytest/.test(call.text) || (literalWords.length > 0 && pytestCommandArguments(literalWords) !== undefined)) unread(call.text);
+          continue;
+        }
+        const takesPosargs = call.words.includes(NOX_POSARGS_WORD);
+        // Each posargs set read in place of `*session.posargs`; the posargs may name pytest themselves.
+        const runs = (takesPosargs ? passedSets : [[]]).flatMap((passed) => {
+          const words = call.words.flatMap((word) => (word === NOX_POSARGS_WORD ? passed : [word]));
+          const run = words.length === 0 ? undefined : pytestCommandArguments(words);
+          return run === undefined ? [] : [run];
+        });
+        if (runs.length > 0 && chdir) {
+          unread(chdir[0].slice(0, chdir[0].indexOf('(')).trimEnd());
+          continue;
+        }
+        for (const run of runs) noxRuns.push({ source, file, anchor: call.line, text: call.text, directory: repoDirectory(file), args: run.args });
+        // Posargs Cejel cannot read, or past the 16th set, leave the run not read, named once per
+        // noxfile, where the call runs pytest or its command comes from the posargs.
+        if (takesPosargs && !unreadSaid && (runs.length > 0 || call.words[0] === NOX_POSARGS_WORD)) {
+          for (const entry of unreadPosargs) {
+            noxRuns.push({ source: entry.source, file: entry.file, anchor: entry.anchor, directory: '', args: [], text: entry.text, unread: entry.text });
+          }
+          unreadSaid = true;
+        }
       }
-      if (call.unknown) unread(call.text);
-      else if (chdir) unread(chdir[0].slice(0, chdir[0].indexOf('(')).trimEnd());
-      else invocations.push({ source, file, anchor: call.line, text: call.text, directory: repoDirectory(file), args: found.args });
     }
-  }
+    return noxRuns;
+  };
   for (const file of usable.filter(isRecipeFile)) {
     const text = readText(file);
     if (text === undefined) continue;
@@ -14907,6 +14940,7 @@ export function readPytestInvocations(
       }
     }
   }
+  invocations.splice(noxAt, 0, ...readNoxfiles());
   // The review of #648: a CI file's TOXENV names the environments tox runs; one Cejel cannot
   // resolve leaves every factor-conditional pytest line not read.
   const toxenv = readToxenvValues(environmentTexts);
@@ -15033,24 +15067,63 @@ function makeAssignmentsNamed(words: readonly string[]): string[] {
  * `uvx tox`, `uv run tox`, `pipx run tox`; undefined for another command.
  */
 function asToxCommand(words: readonly string[]): readonly string[] | undefined {
+  return asPythonToolCommand(words, 'tox');
+}
+
+/**
+ * A command that runs the Python tool `tool` (tox, or nox for goal_cejel_v27_a1_gaps_2026-11-03
+ * item B), as `tool` and its words: `tool`, `python -m tool`, `uvx tool`, `uv run tool`, `pipx run
+ * tool`; undefined for another command.
+ */
+function asPythonToolCommand(words: readonly string[], tool: 'tox' | 'nox'): readonly string[] | undefined {
   const name = basename(words[0] ?? '');
-  if (name === 'tox') return words;
+  if (name === tool) return words;
   if (PYTHON_INTERPRETER_PATTERN.test(name)) {
-    if (words[1] === '-m' && words[2] === 'tox') return ['tox', ...words.slice(3)];
-    if (words[1] === '-mtox') return ['tox', ...words.slice(2)];
+    if (words[1] === '-m' && words[2] === tool) return [tool, ...words.slice(3)];
+    if (words[1] === `-m${tool}`) return [tool, ...words.slice(2)];
     return undefined;
   }
-  if (name === 'uvx' && words[1] === 'tox') return words.slice(1);
-  if ((name === 'uv' || name === 'pipx') && words[1] === 'run' && words[2] === 'tox') return words.slice(2);
+  if (name === 'uvx' && words[1] === tool) return words.slice(1);
+  if ((name === 'uv' || name === 'pipx') && words[1] === 'run' && words[2] === tool) return words.slice(2);
   return undefined;
 }
 
 /** item A: the words a `tox` command passes after `--` (its posargs), or undefined. */
 function toxPosargsOf(command: readonly string[]): readonly string[] | undefined {
-  const words = asToxCommand(command);
+  return posargsOf(command, 'tox');
+}
+
+/**
+ * The words a tox or nox command passes after `--` (its posargs), or undefined where the command
+ * is not one or has no `--`. nox, like tox, puts them where the configuration names them
+ * (`*session.posargs`; goal_cejel_v27_a1_gaps_2026-11-03, item B).
+ */
+function posargsOf(command: readonly string[], tool: 'tox' | 'nox'): readonly string[] | undefined {
+  const words = asPythonToolCommand(command, tool);
   if (words === undefined) return undefined;
   const separator = words.indexOf('--');
   return separator === -1 ? undefined : words.slice(separator + 1);
+}
+
+/** A posargs set a CI or recipe command passes, where it is written. */
+interface PassedPosargs {
+  readonly words: readonly string[];
+  readonly text: string;
+  readonly source: string;
+  readonly file: string;
+  readonly anchor: number;
+}
+
+/**
+ * item A (#648), shared with nox's posargs (goal_cejel_v27_a1_gaps_2026-11-03, item B): the
+ * distinct literal posargs sets, at most 16, so CI lines times configuration lines stays bounded;
+ * and the sets that leave a run not read: one with a word holding `$`, a backtick or braces, and
+ * every distinct set past the 16th (named as not read rather than read in part).
+ */
+function partitionPosargs(posargs: readonly PassedPosargs[]): { readonly literal: readonly PassedPosargs[]; readonly unread: readonly PassedPosargs[] } {
+  const literal = posargs.filter((entry) => !entry.words.some((word) => /[$`{}]/.test(word)));
+  const distinct = [...new Map(literal.map((entry) => [entry.words.join('\u0000'), entry])).values()];
+  return { literal: distinct.slice(0, 16), unread: [...posargs.filter((entry) => !literal.includes(entry)), ...distinct.slice(16)] };
 }
 
 /** The 0-based line of each Makefile target's header. */
@@ -15390,10 +15463,15 @@ function substituteHatchArguments(command: string, args: readonly string[]): str
   return out + command.slice(index);
 }
 
+/** goal_cejel_v27_a1_gaps_2026-11-03, item B: where a nox call's words hold `*session.posargs`. */
+const NOX_POSARGS_WORD = '\u0000session.posargs';
+
 /**
  * item A: a noxfile's `session.run(...)` calls: the literal string arguments before the first
- * argument Cejel cannot read (`*session.posargs`, a name, an f-string, an `env=` keyword), whether
- * there is one, the call as written (white space collapsed) and its 0-based line. Linear.
+ * argument Cejel cannot read (a name, an f-string, an `env=` keyword), whether there is one, the
+ * call as written (white space collapsed) and its 0-based line. Linear. Item B of
+ * goal_cejel_v27_a1_gaps_2026-11-03: a `*session.posargs` argument is read as NOX_POSARGS_WORD,
+ * which the caller replaces with the posargs a nox command passes.
  */
 function readNoxRunCalls(text: string): { words: string[]; unknown: boolean; text: string; line: number }[] {
   const calls: { words: string[]; unknown: boolean; text: string; line: number }[] = [];
@@ -15450,6 +15528,7 @@ function readNoxRunCalls(text: string): { words: string[]; unknown: boolean; tex
       }
       const literal = /^(?:"([^"\\\n]*)"|'([^'\\\n]*)')$/.exec(arg);
       if (literal && !unknown) words.push(literal[1] ?? literal[2] ?? '');
+      else if (!unknown && /^\*[ \t]*session[ \t]*\.[ \t]*posargs$/.test(arg)) words.push(NOX_POSARGS_WORD);
       else unknown = true;
     }
     calls.push({ words, unknown, text: text.slice(match.index, end).replace(/\s+/g, ' ').replace(/\( /g, '(').replace(/ \)/g, ')'), line });
@@ -15524,10 +15603,7 @@ function readToxCommands(
   // item A: posargs with a word Cejel cannot resolve leave the run not read, once each.
   // Distinct literal posargs, at most 16, so CI lines times tox lines stays bounded; past 16 the
   // run is named as not read rather than read in part.
-  const literal = posargs.filter((entry) => !entry.words.some((word) => /[$`{}]/.test(word)));
-  const distinct = [...new Map(literal.map((entry) => [entry.words.join('\u0000'), entry])).values()];
-  const literalPosargs = distinct.slice(0, 16);
-  const unreadPosargs = [...posargs.filter((entry) => !literal.includes(entry)), ...distinct.slice(16)];
+  const { literal: literalPosargs, unread: unreadPosargs } = partitionPosargs(posargs);
   let unreadSaid = false;
   const seen = new Set<Map<string, string>>();
   for (const { section, names } of environments) {
