@@ -177,6 +177,28 @@ and Markdown with the code that scanned it.
 - v27 A1 above v17 A1 on the same repository: 0 of 393. Headline scores (code trust, process trust,
   overall) above v17: 0 of 1,170 compared.
 
+**Measured again after the review round**, by the reviewing session. Code at `33cd9508b` (the
+commits after it change comments and records only), against main `6f116b110`, on 803 synthetic
+repositories built from the fixture files of this branch: the B3, false-assurance and CI-claims
+sets, and every v27 A1 set (removal, hook outcome, allowlist, withhold and this change's 29 run
+fixtures). Every selectable rubric was scanned, 8,833 reports per side, with 0 errors.
+
+- v17 to v26: 8,020 of 8,030 reports, with their HTML and Markdown certificates, byte-identical. The
+  other 10 are the symlink fixture `review4-a4-working-directory-through-tracked-symlink`, whose
+  commit SHA differs per build; no criterion differs.
+- v27: 749 of 803 reports byte-identical. Of the 54 that differ:
+  - 28 change only in a note, with no score or status change. 26 of them are the same 26 corpus
+    repositories as the measurement above, so the review round moved none of them. One is an
+    allowlist fixture, `a1al-e-nested-not-loaded-by-a-run`, which gains its pointer. One is the
+    symlink fixture.
+  - 26 are this change's own run fixtures; the other 3 run fixtures are identical. 22 move in A1's
+    score: 20 rise towards v17, because main rated a file hollow that pytest runs, and 2 fall as
+    designed, because main withheld where pytest does not (`a1run-setup-py-before-per-argument-fallback`
+    and `a1run-testpaths-glob`). 4 change only in a note.
+- v27 A1 above v17 A1: 0 of 803. Overall score above v17: 0 of 800 compared.
+- The review round's own fixtures are in `src/witan/__tests__/v27-a1-runs-review.test.ts` and are
+  not in this count.
+
 The 29 run fixtures (`src/witan/__tests__/fixtures/v27-a1-run-fixtures.ts`, run by
 `src/witan/__tests__/v27-a1-runs.test.ts`) are not in the 393. 28 were committed red-first
 (`9cc0fae49`), checked against main: 35 of 70 checks failed there, in 25 fixtures covering every run
