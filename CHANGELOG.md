@@ -57,6 +57,24 @@ is pinned. v27 carries no precision or recall claim.
   Measured on 393 synthetic repositories against main: v17 to v26 byte-identical; v27 never above
   v17; the counts are in `leaderboard/RUBRIC_CHANGELOG.md`. No holdout or calibration ran.
 
+### Fixed
+
+- **The v27 scan timing guard on long CI lines failed on main and stopped the 0.6.9 npm publish.**
+  The guard "CI lines and a conftest whitespace run just under the content limit" times a v27 scan
+  of six workflow lines of about 480 KB and a conftest.py hook with a long whitespace run, against
+  a 2,000 ms budget. Since the v27 A1 change in #626 it measured 2,063 to 2,165 ms on GitHub's
+  runners on every push to main, and it failed the verify step of the 0.6.9 npm publish before
+  the publish step ran. The cost was not the whitespace run: the hook reader takes about 0.1 ms on
+  it. It was #626's reader of the pytest commands CI runs, which splits each workflow line into
+  shell words, and the word scanner it shares with the other readers tested each character with a
+  regular expression and appended it to the word one at a time. The scanner now compares the
+  character code with exactly the characters that regular expression matched, and copies the
+  characters it keeps a run at a time. Locally the v27 scan of the guard's repository fell from
+  650 ms to 520 ms (median of five; 555 ms before #626). The budget is unchanged. A new check
+  times the two v27 A1 readers this guard exercises on their own, at a length L and at 2L, and
+  fails on a ratio above 3, so a reader that grows faster than linearly fails there before it
+  reaches the whole-scan budget. No report, score, note or fingerprint changes under any rubric.
+
 ## [0.6.9] — 2026-11-02
 
 v17 remains the default rubric. The prospective v27 rubric stays opt-in, by `--rubric-pin` or the

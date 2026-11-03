@@ -5,7 +5,13 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
-import { analyzeCoverageConfiguration } from '../repo-signals.js';
+import {
+  analyzeCoverageConfiguration,
+  findPytestRunWideSkips,
+  isShellWhitespaceCode,
+  readPytestInvocations,
+  shellWords,
+} from '../repo-signals.js';
 import {
   WITAN_RUBRIC_VERSION_V17,
   WITAN_RUBRIC_VERSION_V26,
@@ -346,6 +352,209 @@ describe('timing guards: the real scan finishes on pathological repository input
     },
     KILL_AFTER_MS + 10_000,
   );
+});
+
+// goal_cejel_v27_conftest_timing_guard_2026-11-02, item C. The whole-scan budget above is absolute,
+// so a reader whose cost grows faster than its input can sit just under it on a fast machine and
+// fail on a slower runner (the v27 guard on CI_LINE_FIXTURE did, after #626). This check times each
+// v27 A1 reader the guard exercises, on its own, at an input length L and at 2L, and refuses a
+// ratio above 3: a linear reader roughly doubles, one that grows with the square quadruples. The
+// fastest of five timed runs, after one warm-up, is compared, so a single stall on a loaded runner
+// does not decide it. Each reader must return the same answer at both lengths, so a reader that
+// stops early cannot pass by being fast.
+const SCALING_LENGTH = 240_000;
+const SCALING_RATIO_LIMIT = 3;
+const CI_LINE_UNITS = ['yarn ', 'uv run ', 'cargo b ', 'pnpm i ', 'npm npm ', 'poetry check '];
+
+// A reader can take well under a millisecond once optimised, where a timer and a stray pause
+// decide the ratio. Each timed sample therefore repeats the read enough times that, at L, it takes
+// at least SCALING_SAMPLE_MS; 2L is read the same number of times.
+const SCALING_SAMPLE_MS = 20;
+
+function fastestMs(read: () => unknown, repetitions: number): number {
+  let fastest = Number.POSITIVE_INFINITY;
+  for (let run = 0; run < 5; run += 1) {
+    const started = performance.now();
+    for (let repetition = 0; repetition < repetitions; repetition += 1) read();
+    fastest = Math.min(fastest, performance.now() - started);
+  }
+  return fastest;
+}
+
+function scalingRatio<T>(read: (length: number) => T): { ratio: number; timing: string; atL: T; at2L: T } {
+  const atL = read(SCALING_LENGTH);
+  const at2L = read(2 * SCALING_LENGTH);
+  // Warm both lengths, then find how many reads at L fill a sample.
+  for (let warm = 0; warm < 3; warm += 1) {
+    read(SCALING_LENGTH);
+    read(2 * SCALING_LENGTH);
+  }
+  let repetitions = 1;
+  while (repetitions < 4_096 && fastestMs(() => read(SCALING_LENGTH), repetitions) < SCALING_SAMPLE_MS) repetitions *= 2;
+  const msL = fastestMs(() => read(SCALING_LENGTH), repetitions);
+  const ms2L = fastestMs(() => read(2 * SCALING_LENGTH), repetitions);
+  const timing = `${repetitions} reads per sample: L ${msL.toFixed(1)} ms, 2L ${ms2L.toFixed(1)} ms, ratio ${(ms2L / msL).toFixed(2)}`;
+  return { ratio: ms2L / msL, timing, atL, at2L };
+}
+
+describe('scaling: each v27 A1 reader the CI-line guard exercises grows no faster than linearly', () => {
+  it('the conftest hook reader, on a whitespace run inside the hook loop of length L and 2L', () => {
+    const repos = new Map<number, string>();
+    const repoFor = (length: number): string => {
+      const existing = repos.get(length);
+      if (existing) return existing;
+      const repo = makeRepo({
+        'tests/test_lines.py': 'def test_value():\n    assert 1 == 1\n',
+        'tests/conftest.py': `def pytest_collection_modifyitems(config, items):\n    for item in items:${' '.repeat(length)}#\n        item.add_marker(pytest.mark.skip)\n`,
+      });
+      repos.set(length, repo);
+      return repo;
+    };
+    const files = ['tests/conftest.py', 'tests/test_lines.py'];
+    const { ratio, timing, atL, at2L } = scalingRatio((length) => findPytestRunWideSkips(repoFor(length), files));
+    expect(atL.map((skip) => skip.kind)).toEqual(['skip']);
+    expect(at2L).toEqual(atL);
+    expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
+  }, 60_000);
+
+  it('the pytest run reader, on six CI lines of length L and 2L, each ending in a pytest run', () => {
+    const files = CI_LINE_UNITS.map((_, index) => `.github/workflows/w${index}.yml`);
+    const textsFor = (length: number): Map<string, string> =>
+      new Map(
+        CI_LINE_UNITS.map((unit, index) => [
+          `.github/workflows/w${index}.yml`,
+          `name: w${index}\non: push\njobs:\n  t:\n    runs-on: ubuntu-latest\n    steps:\n      - run: ${unit.repeat(Math.floor(length / unit.length))}&& pytest\n`,
+        ]),
+      );
+    const texts = new Map([SCALING_LENGTH, 2 * SCALING_LENGTH].map((length) => [length, textsFor(length)]));
+    const { ratio, timing, atL, at2L } = scalingRatio((length) =>
+      readPytestInvocations(files, (file) => texts.get(length)?.get(file)),
+    );
+    // The root default, then the `pytest` at the end of each line: every line was read to its end.
+    expect(atL).toHaveLength(1 + CI_LINE_UNITS.length);
+    expect(at2L).toEqual(atL);
+    expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
+  }, 60_000);
+});
+
+// goal_cejel_v27_conftest_timing_guard_2026-11-02, item B. The shell word scanner every reader
+// shares now tests white space by character code and copies kept characters a run at a time. It must
+// return the same words as the scanner it replaced, kept here verbatim as the specification.
+function referenceScanShellWord(value: string, start: number): { word: string; end: number } | null {
+  let result = '';
+  let quote: "'" | '"' | null = null;
+  let escaped = false;
+  let index = start;
+  while (index < value.length && /\s/u.test(value[index] ?? '')) index += 1;
+  const wordStart = index;
+  for (; index < value.length; index += 1) {
+    const character = value[index];
+    if (escaped) {
+      if (character !== '\n') result += character;
+      escaped = false;
+      continue;
+    }
+    if (character === '\\' && quote !== "'") {
+      const nextCharacter = value[index + 1];
+      const escapesNext =
+        quote !== '"' ||
+        nextCharacter === '$' ||
+        nextCharacter === '`' ||
+        nextCharacter === '"' ||
+        nextCharacter === '\\' ||
+        nextCharacter === '\n';
+      if (escapesNext) {
+        escaped = true;
+      } else {
+        result += character;
+      }
+      continue;
+    }
+    if (quote) {
+      if (character === quote) {
+        quote = null;
+      } else {
+        result += character;
+      }
+      continue;
+    }
+    if (character === "'" || character === '"') {
+      quote = character;
+      continue;
+    }
+    if (/\s/u.test(character ?? '')) break;
+    result += character;
+  }
+  if (escaped || quote || index === wordStart) return null;
+  return { word: result, end: index };
+}
+
+function referenceShellWords(segment: string): string[] {
+  const words: string[] = [];
+  let offset = 0;
+  while (offset < segment.length) {
+    const scanned = referenceScanShellWord(segment, offset);
+    if (!scanned) break;
+    words.push(scanned.word);
+    if (scanned.end <= offset) break;
+    offset = scanned.end;
+  }
+  return words;
+}
+
+describe('the shell word scanner returns the words the scanner it replaced returned', () => {
+  it('reads white space exactly as /\\s/u does, for every UTF-16 code unit', () => {
+    const differ: number[] = [];
+    for (let code = 0; code <= 0xffff; code += 1) {
+      if (isShellWhitespaceCode(code) !== /\s/u.test(String.fromCharCode(code))) differ.push(code);
+    }
+    expect(differ).toEqual([]);
+  });
+
+  it('splits 20,000 random strings of shell-significant characters into the same words', () => {
+    // Quotes, escapes, newlines, operators, ASCII and Unicode white space, a non-space control
+    // character, and both halves of a surrogate pair. A fixed seed, so a failure reproduces.
+    const alphabet = [
+      'a', 'b', ' ', '\t', '\n', '\r', '\v', '\f', "'", '"', '\\', '$', '`', '#', ';', '|', '&',
+      '(', ')', '\u0000', '\u001c', ' ', ' ', ' ', ' ', '​', ' ',
+      ' ', ' ', ' ', '　', '﻿', '\ud83d', '\ude00', 'é',
+    ];
+    let seed = 0x2026_1102;
+    const next = (): number => {
+      seed = (Math.imul(seed, 1_103_515_245) + 12_345) >>> 0;
+      return seed;
+    };
+    const mismatches: string[] = [];
+    for (let sample = 0; sample < 20_000; sample += 1) {
+      const length = next() % 24;
+      let text = '';
+      for (let at = 0; at < length; at += 1) text += alphabet[next() % alphabet.length];
+      if (JSON.stringify(shellWords(text)) !== JSON.stringify(referenceShellWords(text))) {
+        mismatches.push(JSON.stringify(text));
+      }
+    }
+    expect(mismatches).toEqual([]);
+  });
+
+  it('splits hand-written shapes into the same words', () => {
+    const shapes = [
+      '',
+      '   ',
+      'pytest -q',
+      "py'te'st \"-k\" 'a b'",
+      'py\\\ntest',
+      'a\\ b c',
+      '"a\\"b" "c\\$d" "e\\x" "\\\\" "\\`"',
+      "'a\\b' 'unclosed",
+      '"unclosed',
+      'trailing\\',
+      'a b c﻿d​e',
+      'x="1 2" y=\'3\' z',
+      `${'yarn '.repeat(1_000)}&& pytest`,
+      `${' '.repeat(1_000)}#`,
+    ];
+    for (const shape of shapes) expect(shellWords(shape)).toEqual(referenceShellWords(shape));
+  });
 });
 
 describe('a `pnpm run /…/` selector is a dynamic reference, never an evaluated regex', () => {
