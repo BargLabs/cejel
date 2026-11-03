@@ -1,0 +1,48 @@
+[
+  {
+    "statement": "cejel #626's v27 A1 restore reader admitted a restore by its spelling: any `items.extend(x)` after the clear, from a source it could not show to be empty, handed back v17's credit and the note said the hook \"puts the collected items back\". Each review round found another look-alike (an aliased and cleared copy, `saved[5:5]`, `list(items)[:0]`, a helper adding `src * 0`) and added one more exclusion, so the reader kept defaulting to credit for every shape nobody had listed yet. The fix (#631) inverts the default: a restore counts only in a closed list of shapes the reader proves, an emptying counts only where it proves the list stays empty, and everything else goes to a named third outcome, \"not read\", which makes no claim and says why in the note. Rule: when a reader decides between two claims, give it a third outcome that says it could not decide, and send to that outcome everything outside what it proves. Do not grow a list of exclusions in front of a default.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "detector-design",
+      "evidence-discipline"
+    ],
+    "tags": [
+      "default-to-credit",
+      "closed-proof",
+      "abstain-and-name",
+      "review-whack-a-mole"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-11-02T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 638
+    }
+  },
+  {
+    "statement": "In goal_cejel_v27_a1_restore_proof_and_hookwrapper_2026-11-02, item F re-measured cejel #626's last code round (`0aa1116b8`) on the 393 synthetic repositories #626's records name, and every report was byte-identical to the round's parent. That only shows the round regressed nothing: those 393 repositories were built from the fixture files at `26a7d4795`, before the round's own fixtures existed, so none of them holds a shape the round changes. A re-measure on a corpus frozen before a change can show that the change moved nothing else, but never that it did what it was for. Rule: when you report a re-measure, name the commit the corpus was built from, say whether it contains the change's own fixtures, and do not present byte-identity as evidence that the change works.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "measurement",
+      "evidence-discipline"
+    ],
+    "tags": [
+      "measurement-scope",
+      "frozen-corpus",
+      "byte-identity",
+      "non-regression-only"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-11-02T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 638
+    }
+  }
+]
