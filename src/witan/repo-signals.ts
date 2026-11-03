@@ -5120,6 +5120,23 @@ function githubActionsKeyedSteps(
       open.push(index);
     }
   }
+  // Fourth pass (#630 C1): for a `- ` item at its `steps:` key's own indent, in the run of items
+  // that directly follows that key, the key's line index; -1 elsewhere. Read only for `ownKey`.
+  const compactStepsOf = new Array<number>(lines.length).fill(-1);
+  {
+    let open = -1;
+    for (let index = 0; index < lines.length; index += 1) {
+      if (!structural[index]) continue;
+      const raw = lines[index] ?? '';
+      const indent = indents[index] ?? 0;
+      if (open !== -1) {
+        const keyIndent = indents[open] ?? 0;
+        if (indent < keyIndent || (indent === keyIndent && !LIST_ITEM_PATTERN.test(raw))) open = -1;
+        else if (indent === keyIndent) compactStepsOf[index] = open;
+      }
+      if (STEPS_KEY_PATTERN.test(raw)) open = index;
+    }
+  }
   const nextAtOrBelow = nextAtOrBelowIndexes(structural, indents);
   const leastGuardIndent = leastGuardIndentWithin(structural, indents, isGuard);
   // A job is guarded when a guard key sits at its `steps:` key's own indent, before or after
@@ -5164,7 +5181,7 @@ function githubActionsKeyedSteps(
     const ownKey =
       placed &&
       stepsKey !== -1 &&
-      lessIndentedAbove[stepStart] === stepsKey &&
+      (lessIndentedAbove[stepStart] === stepsKey || compactStepsOf[stepStart] === stepsKey) &&
       keyIndent === workflowKeyIndent(lines[stepStart] ?? '', indents[stepStart] ?? 0);
     steps.push({
       lines: body,
@@ -5463,7 +5480,12 @@ const STEP_MAY_CONTINUE_PAST_FAILURE_WORDS: ReadonlySet<string> = new Set([
  *     label under bash (runsOnlyOnHostedBashRunners), so each step runs under `bash -e`, which
  *     stops at the line. A failing command in a `&&` list does not stop `bash -e`.
  */
-function failureStopsJobAt(contents: string, step: WorkflowRunStep, line: number): boolean {
+function failureStopsJobAt(
+  contents: string,
+  step: WorkflowRunStep,
+  line: number,
+  dotSourcesOnlyInCommandPosition = false,
+): boolean {
   if (/\bBASH_ENV\b/.test(contents)) return false;
   const at = step.lines.findIndex((entry) => entry.line === line);
   if (at === -1) return false;
@@ -5476,12 +5498,31 @@ function failureStopsJobAt(contents: string, step: WorkflowRunStep, line: number
     const code = andChain ? beforeShellComment(body).replace(/(?<=^|[ \t])&&(?=[ \t]|$)/g, ' ') : beforeShellComment(body);
     return (
       !STEP_MAY_CONTINUE_PAST_FAILURE_PATTERN.test(code) &&
-      !code.split(/[ \t;]+/).some((word) => STEP_MAY_CONTINUE_PAST_FAILURE_WORDS.has(word))
+      !continuesPastFailureWord(code, beforeShellComment(body), dotSourcesOnlyInCommandPosition)
     );
   });
   if (!stops) return false;
   if (step.lines.length === 1) return setsOnlyGitHubProvidedShells(contents);
   return runsOnlyOnHostedBashRunners(contents);
+}
+
+/**
+ * True when `code` holds a STEP_MAY_CONTINUE_PAST_FAILURE_WORDS word. With
+ * `dotSourcesOnlyInCommandPosition` (fourth pass, #630 C5, v27's check reading only), `.` counts only
+ * where it is the `source` builtin: a command's first word in `commandText`, or the word after
+ * `builtin` or `command`; so `ruff check .` and `mypy .`, which pass `.` as an argument, are read.
+ */
+function continuesPastFailureWord(code: string, commandText: string, dotSourcesOnlyInCommandPosition: boolean): boolean {
+  if (code.split(/[ \t;]+/).some((word) => STEP_MAY_CONTINUE_PAST_FAILURE_WORDS.has(word) && !(dotSourcesOnlyInCommandPosition && word === '.'))) {
+    return true;
+  }
+  return (
+    dotSourcesOnlyInCommandPosition &&
+    shellCommands(commandText).some((words) => {
+      const head = commandHead(words);
+      return head.word === '.' || ((head.word === 'builtin' || head.word === 'command') && words[head.argsFrom] === '.');
+    })
+  );
 }
 
 /**
@@ -7380,7 +7421,8 @@ function workflowJobs(contents: string, isGuardLine: (line: string) => boolean):
     const current: OpenJob = job;
     if (keyIndent === -1) keyIndent = indent;
     const raw = lines[index] ?? '';
-    if (needsBlock && indent > keyIndent) {
+    // Fourth pass (#630 C3): a block list's items may sit at the `needs:` key's own indent.
+    if (needsBlock && (indent > keyIndent || LIST_ITEM_PATTERN.test(raw))) {
       const item = YAML_BLOCK_LIST_ITEM_PATTERN.exec(stripYamlComment(raw).trimEnd());
       const name = unquoteYamlScalar(item?.[1] ?? '');
       if (item && current.needs && JOB_ID_PATTERN.test(name)) current.needs.push(name);
@@ -7435,7 +7477,8 @@ function publishingJobsOnEveryRun(
   depth: number,
   reading: CheckReading,
 ): PublishingJobsReading {
-  const none: PublishingJobsReading = { environments: [], checkedBeforePublish: false };
+  const none: PublishingJobsReading = { environments: [], checkedBeforePublish: false, notCredited: [] };
+  const notCredited: string[] = [];
   if (YAML_LINE_BREAK_NOT_SPLIT_PATTERN.test(contents)) return none;
   const isGuardLine = (line: string) => isStepOrJobGuard(line) && !isAlwaysTrueIfLine(line, context);
   const jobs = workflowJobs(contents, isGuardLine);
@@ -7450,7 +7493,7 @@ function publishingJobsOnEveryRun(
     const value = unquoteYamlScalar(beforeShellComment(step.lines[0]?.text ?? ''));
     const at = value.indexOf('@');
     if (!(at > 0 && PUBLISHING_ACTIONS.has(value.slice(0, at).toLowerCase()))) continue;
-    if (step.job !== -1) publishes.push({ job: step.job, line: step.lines[0]?.line ?? 0 });
+    if (step.job !== -1) publishes.push({ job: step.job, line: step.lines[0]?.line ?? 0, command: 0 });
     if (mayRun(step)) publishingStepsKeys.add(step.job);
   }
   // Run lines are read for a publish on every runner: off a hosted bash runner such a step only
@@ -7462,7 +7505,7 @@ function publishingJobsOnEveryRun(
     if (!commands.some(({ words }) => isPublishingCommand(words))) continue;
     if (step.job !== -1) {
       const line = step.lines.find(({ text }) => shellCommands(text).some(isPublishingCommand)) ?? step.lines[0];
-      publishes.push({ job: step.job, line: line?.line ?? 0 });
+      publishes.push({ job: step.job, line: line?.line ?? 0, command: Math.max(0, shellCommands(line?.text ?? '').findIndex(isPublishingCommand)) });
     }
     if (readsRunLines && mayRun(step) && !stepShellIsConditional(step, commands)) publishingStepsKeys.add(step.job);
   }
@@ -7477,7 +7520,8 @@ function publishingJobsOnEveryRun(
           const job = jobs.find(({ start, end }) => start < stepsKey && stepsKey < end);
           return job ? jobEnvironment(lines, indents, inBlockScalar, job) : { kind: 'unread' };
         }),
-      checkedBeforePublish: depth === 0 && checksBeforeEveryPublish(contents, jobs, publishes, isGuardLine, reading),
+      checkedBeforePublish: depth === 0 && checksBeforeEveryPublish(contents, jobs, publishes, isGuardLine, reading, notCredited),
+      notCredited,
     };
   }
   if (depth >= REUSABLE_WORKFLOW_MAX_DEPTH) return none;
@@ -7491,7 +7535,8 @@ function publishingJobsOnEveryRun(
     if (called.environments.length > 0) {
       return {
         environments: called.environments,
-        checkedBeforePublish: depth === 0 && checksBeforeEveryPublish(contents, jobs, publishes, isGuardLine, reading),
+        checkedBeforePublish: depth === 0 && checksBeforeEveryPublish(contents, jobs, publishes, isGuardLine, reading, notCredited),
+        notCredited,
       };
     }
   }
@@ -7503,12 +7548,21 @@ interface PublishingJobsReading {
   readonly environments: readonly PublishingJobEnvironment[];
   /** True only when a check runs before every publish (checksBeforeEveryPublish). */
   readonly checkedBeforePublish: boolean;
+  /**
+   * Fourth pass (#627, #628): why a check the reader found was not credited (an unrecognised test
+   * script or make target, an environment key on its path), in the order found, for B3's note.
+   */
+  readonly notCredited: readonly string[];
 }
 
-/** A publishing step: the `steps:` line of its job, and the 1-based line of its publish. */
+/**
+ * A publishing step: the `steps:` line of its job, the 1-based line of its publish, and the index
+ * of its first publishing command on that line (0 for an action; fourth pass, #630 C4).
+ */
 interface PublishAt {
   readonly job: number;
   readonly line: number;
+  readonly command: number;
 }
 
 // A status function other than `success()` anywhere in the file: `always()`, `cancelled()` and
@@ -7650,10 +7704,11 @@ const STEP_OWN_KEY_PATTERN = /^([A-Za-z_][A-Za-z0-9_-]*|<<):(?:[ \t]|$)/;
 
 /**
  * Item G: every list item directly under every `steps:` key, read by indentation, or null when a
- * `steps:` block holds a line the reader cannot place (an item at the key's own indent, or a line
- * shallower than the items). A flow-style item (`- {run: npm publish}`), a scalar or alias item,
- * and an item with a merge key are unreadable. Text inside a block scalar and comments are skipped.
- * One pass per `steps:` block, linear in the file.
+ * `steps:` block holds a line the reader cannot place (a line shallower than the items). A
+ * flow-style item (`- {run: npm publish}`), a scalar or alias item, and an item with a merge key are
+ * unreadable. Text inside a block scalar and comments are skipped. Fourth pass (#630 C1): items at
+ * the `steps:` key's own indent are read too, as YAML reads them, while the lines at that indent are
+ * `- ` items. One pass per `steps:` block, linear in the file.
  */
 function workflowStepItems(contents: string): WorkflowStepItem[] | null {
   const lines = contents.split(/\r?\n/);
@@ -7680,9 +7735,13 @@ function workflowStepItems(contents: string): WorkflowStepItem[] | null {
       if (!structural(index)) continue;
       const raw = lines[index] ?? '';
       const indent = indents[index] ?? 0;
-      if (indent <= stepsIndent) {
-        if (itemIndent === -1 && indent === stepsIndent && LIST_ITEM_PATTERN.test(raw)) return null;
-        break;
+      // Fourth pass (#630 C1): YAML lets a block sequence sit at its key's own indent, so the items
+      // continue while the lines at that indent are `- ` items.
+      if (indent < stepsIndent) break;
+      if (indent === stepsIndent) {
+        const item = LIST_ITEM_PATTERN.test(raw);
+        if (itemIndent === -1 && item) itemIndent = stepsIndent;
+        else if (!(itemIndent === stepsIndent && item)) break;
       }
       if (itemIndent === -1) itemIndent = indent;
       if (indent < itemIndent) return null;
@@ -7738,25 +7797,35 @@ function isSetupCommand(input: readonly string[], reading: CheckReading): boolea
   // An npm-family install of the project's own dependencies: flags only, no package or path named.
   const javaScriptInstall =
     reading.installRunsNoProjectScript && reading.packageManagerConfigPlain && words.slice(start + 2).every((word) => word.startsWith('-'));
+  // Fourth pass (#630 C2): a run of the root `build` script that runs only tsc, as written exactly.
+  const own = words.slice(start);
+  const tscBuild =
+    reading.buildScriptRunsOnlyTsc &&
+    reading.packageManagerConfigPlain &&
+    ((own.length === 3 && first === 'run' && second === 'build') || (own.length === 2 && first === 'build' && tool !== 'npm'));
+  const pipPackages = (args: readonly string[]) => pipArgumentsNamePackagesOnly(args, reading.requirementsFileIsPlain);
   switch (tool) {
     case 'npm':
-      return javaScriptInstall && (first === 'ci' || first === 'install' || first === 'i');
+      return (javaScriptInstall && (first === 'ci' || first === 'install' || first === 'i')) || tscBuild;
     case 'pnpm':
     case 'bun':
-      return javaScriptInstall && (first === 'install' || first === 'i');
+      return (javaScriptInstall && (first === 'install' || first === 'i')) || (tool === 'pnpm' && tscBuild);
     case 'yarn':
-      return javaScriptInstall && (first === '' || first === 'install' || first.startsWith('-'));
+      return (javaScriptInstall && (first === '' || first === 'install' || first.startsWith('-'))) || tscBuild;
     case 'corepack':
       return first === 'enable';
     case 'pip':
     case 'pip3':
-      return first === 'install' && pipArgumentsNamePackagesOnly(words.slice(start + 2));
+      return first === 'install' && pipPackages(words.slice(start + 2));
     case 'python':
     case 'python3':
-      return first === '-m' && second === 'pip' && words[start + 3] === 'install' && pipArgumentsNamePackagesOnly(words.slice(start + 4));
+      return first === '-m' && second === 'pip' && words[start + 3] === 'install' && pipPackages(words.slice(start + 4));
     case 'uv':
-      if (first === 'pip' && second === 'install') return pipArgumentsNamePackagesOnly(words.slice(start + 3));
+      if (first === 'pip' && second === 'install') return pipPackages(words.slice(start + 3));
       return first === 'sync' && words.includes('--no-install-project');
+    case 'pipenv':
+      // Fourth pass (#629): `pipenv install` of a plain Pipfile, naming no package.
+      return first === 'install' && reading.pipfileIsPlain && words.slice(start + 2).every((word) => PIPENV_INSTALL_FLAGS.has(word));
     case 'poetry':
       return first === 'install' && words.includes('--no-root');
     case 'pdm':
@@ -7780,16 +7849,26 @@ const PIP_PACKAGE_ONLY_FLAGS: ReadonlySet<string> = new Set([
 const PIP_PACKAGE_NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]*(?:\[[A-Za-z0-9._,-]+\])?/;
 const PIP_VERSION_SPECIFIER_PATTERN = /^(?:[<>=!~][<>=!~A-Za-z0-9.*+_,-]*)?$/;
 
+// Fourth pass (#629): the flags a `pipenv install` of the Pipfile may carry.
+const PIPENV_INSTALL_FLAGS: ReadonlySet<string> = new Set(['--dev', '-d', '--deploy', '--system']);
+
 /**
  * Third pass on #625 (F6): true when a pip install's arguments name at least one package and only
- * packages from an index, with only PIP_PACKAGE_ONLY_FLAGS. `-e`, `.`, `.[test]`, a path, a URL, a
- * requirements file (`-r`, which the reader does not read) and any other flag are refused: a local
- * install builds the project, running its build code before any check.
+ * packages from an index, with only PIP_PACKAGE_ONLY_FLAGS. `-e`, `.`, `.[test]`, a path, a URL and
+ * any other flag are refused: a local install builds the project, running its build code before any
+ * check. Fourth pass (#629): a requirements file (`-r <file>`, `--requirement <file>`) is admitted
+ * when `requirementsPlain` reads it as naming only index packages (requirementsFileIsPlain).
  */
-function pipArgumentsNamePackagesOnly(args: readonly string[]): boolean {
+function pipArgumentsNamePackagesOnly(args: readonly string[], requirementsPlain: (path: string) => boolean = () => false): boolean {
   let packages = 0;
-  for (const raw of args) {
-    const arg = unquoteYamlScalar(raw);
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = unquoteYamlScalar(args[index] ?? '');
+    if (arg === '-r' || arg === '--requirement') {
+      index += 1;
+      if (!requirementsPlain(unquoteYamlScalar(args[index] ?? ''))) return false;
+      packages += 1;
+      continue;
+    }
     if (PIP_PACKAGE_ONLY_FLAGS.has(arg)) continue;
     const name = PIP_PACKAGE_NAME_PATTERN.exec(arg);
     if (!name || !PIP_VERSION_SPECIFIER_PATTERN.test(arg.slice(name[0].length))) return false;
@@ -7821,7 +7900,8 @@ function checksBeforeEveryPublish(
   jobs: readonly WorkflowJob[],
   publishes: readonly PublishAt[],
   isGuardLine: (line: string) => boolean,
-  reading: CheckReading,
+  rootReading: CheckReading,
+  notCredited: string[],
 ): boolean {
   if (!workflowStructureIsPlain(contents)) return false;
   if (SCRIPT_SHELL_SETTING_PATTERN.test(contents)) return false;
@@ -7829,7 +7909,10 @@ function checksBeforeEveryPublish(
   if (!needsGraphIsReadable(jobs)) return false;
   const items = workflowStepItems(contents);
   if (items === null || items.some(({ readable }) => !readable)) return false;
-  const firstCheck = firstCheckLineByJob(contents, isGuardLine, reading);
+  // A workflow that sets a `working-directory` runs scripts and files of another directory, which
+  // the root readings do not describe (item E; the fourth pass extends this to every root reading).
+  const reading: CheckReading = /\bworking-directory\b/.test(contents) ? { ...rootReading, ...ROOT_FILES_UNREAD } : rootReading;
+  const firstCheck = firstCheckLineByJob(contents, isGuardLine, reading, jobs, items, notCredited);
   const checkJobs = [...firstCheck.keys()];
   const jobOf = (stepsKey: number) => jobs.find(({ start, end }) => start < stepsKey && stepsKey < end);
   const runsCheck = (job: WorkflowJob) => checkJobs.some((stepsKey) => job.start < stepsKey && stepsKey < job.end);
@@ -7850,9 +7933,12 @@ function checksBeforeEveryPublish(
     }
     return false;
   };
-  const everyPublishChecked = publishes.every(({ job: stepsKey, line }) => {
+  const everyPublishChecked = publishes.every(({ job: stepsKey, line, command }) => {
     const first = firstCheck.get(stepsKey);
     if (first !== undefined && first.line < line) return true;
+    // Fourth pass (#630 C4): on the check's own line, a publish after it in one `&&` chain runs only
+    // when the check passed.
+    if (first !== undefined && first.line === line && first.command < command && command <= first.andChainEnd) return true;
     const job = jobOf(stepsKey);
     return job !== undefined && needsCheck(job);
   });
@@ -7881,6 +7967,203 @@ function checksBeforeEveryPublish(
   });
 }
 
+// ---- Fourth pass (#628): the environment on a check's path ---------------------------------------
+//
+// An `env:` key can change which program a check runs or what it loads (NODE_OPTIONS, PATH,
+// PYTHONPATH, LD_PRELOAD, ...). Rather than refuse such keys by name, only keys known to leave what
+// runs unchanged are admitted on the path to a credited check; any other key withholds the credit.
+
+// Keys that change no program a command runs and nothing it loads.
+const INERT_ENVIRONMENT_KEYS: ReadonlySet<string> = new Set([
+  'CI', 'NODE_ENV', 'TZ', 'LANG', 'LANGUAGE', 'LC_ALL', 'FORCE_COLOR', 'NO_COLOR', 'TERM', 'COLUMNS', 'PYTHONUNBUFFERED',
+  'PYTHONDONTWRITEBYTECODE', 'PYTHONHASHSEED', 'PYTHONIOENCODING', 'PYTHONUTF8', 'RUST_BACKTRACE', 'CARGO_TERM_COLOR',
+  'CARGO_INCREMENTAL', 'DEBIAN_FRONTEND', 'HUSKY',
+]);
+// Credentials a publish needs, admitted only when set from a secret expression.
+const CREDENTIAL_ENVIRONMENT_KEYS: ReadonlySet<string> = new Set(['NODE_AUTH_TOKEN', 'NPM_TOKEN', 'GITHUB_TOKEN']);
+const CREDENTIAL_ENVIRONMENT_PREFIX = 'TWINE_';
+const SECRET_EXPRESSION_PATTERN = /^\$\{\{[ \t]*(?:secrets\.[A-Za-z_][A-Za-z0-9_]*|github\.token)[ \t]*\}\}$/;
+// A key the note may name: a plain environment name of bounded length.
+const NAMEABLE_ENVIRONMENT_KEY_PATTERN = /^[A-Za-z_][A-Za-z0-9_]{0,63}$/;
+const ENV_KEY_LINE_PATTERN = /^[ \t]*(?:-[ \t]+)?env:[ \t]*$/;
+// `echo KEY=...` or `printf KEY=...` (the key optionally quoted) on a line that writes to $GITHUB_ENV.
+const GITHUB_ENV_ECHO_KEY_PATTERN = /\b(?:echo|printf)[ \t]+["']?([A-Za-z_][A-Za-z0-9_]*)=/;
+
+/** Fourth pass (#628): true for a key in INERT_ENVIRONMENT_KEYS. */
+function isInertEnvironmentKey(key: string): boolean {
+  return INERT_ENVIRONMENT_KEYS.has(key);
+}
+
+/** The reason an `env:` entry withholds a check's credit, or undefined when it is admitted. */
+function environmentEntryProblem(key: string, value: string, multiline: boolean): string | undefined {
+  if (isInertEnvironmentKey(key)) return undefined;
+  const nameable = NAMEABLE_ENVIRONMENT_KEY_PATTERN.test(key);
+  if (CREDENTIAL_ENVIRONMENT_KEYS.has(key) || key.startsWith(CREDENTIAL_ENVIRONMENT_PREFIX)) {
+    if (!multiline && SECRET_EXPRESSION_PATTERN.test(unquoteYamlScalar(stripYamlComment(value)))) return undefined;
+    return `the environment key ${key} is not set from a secret`;
+  }
+  return nameable
+    ? `the environment key ${key} may change what the check runs`
+    : 'an environment key Cejel does not name may change what the check runs';
+}
+
+/**
+ * Fourth pass (#628): the reasons the `env:` mapping whose key is on line index `keyIndex` withholds
+ * a check's credit: one per entry environmentEntryProblem refuses, or one for a mapping the reader
+ * cannot place (a value on the key's own line, an entry that is not a plain `NAME: value` at the
+ * mapping's indent). Text inside block scalars is skipped; a value continued on deeper lines is
+ * multi-line. Linear in the mapping.
+ */
+function environmentMappingProblems(
+  lines: readonly string[],
+  indents: readonly number[],
+  inBlockScalar: readonly boolean[],
+  keyIndex: number,
+  keyColumn: number,
+): string[] {
+  const unread = 'an environment mapping Cejel cannot read may change what the check runs';
+  const problems: string[] = [];
+  let entryIndent = -1;
+  let entry: { key: string; value: string; multiline: boolean } | undefined;
+  const settle = () => {
+    if (entry) {
+      const problem = environmentEntryProblem(entry.key, entry.value, entry.multiline);
+      if (problem !== undefined) problems.push(problem);
+    }
+    entry = undefined;
+  };
+  for (let index = keyIndex + 1; index < lines.length; index += 1) {
+    const raw = lines[index] ?? '';
+    if (inBlockScalar[index]) {
+      if (entry) entry.multiline = true;
+      continue;
+    }
+    if (raw.trim() === '' || raw.trimStart().startsWith('#')) continue;
+    const indent = indents[index] ?? 0;
+    if (indent <= keyColumn) break;
+    if (entryIndent === -1) entryIndent = indent;
+    if (indent > entryIndent) {
+      if (entry) entry.multiline = true;
+      continue;
+    }
+    settle();
+    const key = indent === entryIndent ? PLAIN_YAML_KEY_PATTERN.exec(raw.trimStart()) : null;
+    if (!key) return [unread];
+    const value = raw.trimStart().slice(key[0].length);
+    entry = { key: key[1] ?? '', value, multiline: BLOCK_SCALAR_VALUE_PATTERN.test(stripYamlComment(value).trim()) };
+  }
+  settle();
+  return problems;
+}
+
+// The most reasons kept for one check's path; B3's note names at most three.
+const CHECK_ENVIRONMENT_MAX_PROBLEMS = 8;
+const UNREAD_ENVIRONMENT_MAPPING = 'an environment mapping Cejel cannot read may change what the check runs';
+
+/** The column a line's own key starts at: after a `- ` list dash and its blanks, else its indent. */
+function ownKeyColumn(raw: string, indent: number): number {
+  const trimmed = raw.trimStart();
+  return trimmed.startsWith('-') ? raw.length - trimmed.slice(1).trimStart().length : indent;
+}
+
+/**
+ * Fourth pass (#628): for each step item (by its 1-based line), the reasons the environment on the
+ * path to a check in that item withholds its credit, or an empty list when all of it is admitted:
+ * the workflow's `env:`, its job's `env:`, the `env:` of every item of the job up to and including
+ * it (a setup step that runs with NODE_OPTIONS runs repository code before the check), and any
+ * `run:` step of an earlier item that writes to $GITHUB_PATH or sets a key through $GITHUB_ENV, read
+ * as an `env:` key. One pass over the file and its items; each list is capped at
+ * CHECK_ENVIRONMENT_MAX_PROBLEMS.
+ */
+function checkPathEnvironmentProblems(
+  contents: string,
+  jobs: readonly WorkflowJob[],
+  items: readonly WorkflowStepItem[],
+  runSteps: readonly WorkflowRunStep[],
+): Map<number, readonly string[]> {
+  const lines = contents.split(/\r?\n/);
+  const indents = lines.map(lineIndent);
+  const inBlockScalar = blockScalarBodyLines(lines, indents);
+  // Every `env:` key, by line index, with the column of its key.
+  const mappings: { readonly index: number; readonly column: number; readonly problems: readonly string[] }[] = [];
+  for (let index = 0; index < lines.length; index += 1) {
+    const raw = lines[index] ?? '';
+    if (inBlockScalar[index] || !/^[ \t]*(?:-[ \t]+)?env:/.test(raw)) continue;
+    const column = ownKeyColumn(raw, indents[index] ?? 0);
+    const problems = ENV_KEY_LINE_PATTERN.test(stripYamlComment(raw))
+      ? environmentMappingProblems(lines, indents, inBlockScalar, index, column)
+      : [UNREAD_ENVIRONMENT_MAPPING];
+    mappings.push({ index, column, problems });
+  }
+  const workflowProblems = mappings.filter(({ column }) => column === 0).flatMap(({ problems }) => problems);
+  // Each line's job, and each job's own key column: the indent of its first structural line after
+  // its key. Then each job's `env:` reasons, from the mappings at that column. Linear in the file.
+  const jobAt = new Array<number>(lines.length).fill(-1);
+  const jobColumns = jobs.map((job, position) => {
+    let column = -1;
+    for (let index = job.start; index < job.end && index < lines.length; index += 1) {
+      jobAt[index] = position;
+      const raw = lines[index] ?? '';
+      if (column === -1 && index > job.start && !inBlockScalar[index] && raw.trim() !== '' && !raw.trimStart().startsWith('#')) {
+        column = indents[index] ?? 0;
+      }
+    }
+    return column;
+  });
+  const jobProblems = jobs.map(() => [] as string[]);
+  for (const mapping of mappings) {
+    const position = jobAt[mapping.index] ?? -1;
+    if (position !== -1 && mapping.index > (jobs[position]?.start ?? 0) && mapping.column === jobColumns[position]) {
+      jobProblems[position]?.push(...mapping.problems.slice(0, CHECK_ENVIRONMENT_MAX_PROBLEMS));
+    }
+  }
+  const writes = new Map<number, string[]>();
+  for (const step of runSteps) {
+    const found: string[] = [];
+    for (const { text } of step.lines) {
+      if (text.includes('GITHUB_PATH')) found.push('an earlier step writes to $GITHUB_PATH, which may change what the check runs');
+      if (!text.includes('GITHUB_ENV')) continue;
+      const key = GITHUB_ENV_ECHO_KEY_PATTERN.exec(text)?.[1];
+      if (key === undefined) found.push('an earlier step writes to $GITHUB_ENV, which may change what the check runs');
+      else if (!isInertEnvironmentKey(key)) found.push(`an earlier step sets ${key} through $GITHUB_ENV, which may change what the check runs`);
+    }
+    if (found.length > 0 && step.itemLine !== 0) writes.set(step.itemLine, found);
+  }
+  const byItem = new Map<number, readonly string[]>();
+  // Items of one `steps:` block in file order; mappings in file order, walked once per block.
+  const blocks = new Map<number, WorkflowStepItem[]>();
+  for (const item of items) {
+    const block = blocks.get(item.stepsKey);
+    if (block) block.push(item);
+    else blocks.set(item.stepsKey, [item]);
+  }
+  // A pointer into `mappings`, which are in file order, as are the blocks and their items.
+  let next = 0;
+  for (const [stepsKey, blockItems] of blocks) {
+    const position = jobAt[stepsKey] ?? -1;
+    const job = position === -1 ? undefined : jobs[position];
+    const accumulated = new Set<string>();
+    const add = (problems: readonly string[]) => {
+      for (const problem of problems) if (accumulated.size < CHECK_ENVIRONMENT_MAX_PROBLEMS) accumulated.add(problem);
+    };
+    add(workflowProblems);
+    add(position === -1 ? [] : (jobProblems[position] ?? []));
+    for (const [index, item] of blockItems.entries()) {
+      const end = (blockItems[index + 1]?.line ?? (job?.end ?? lines.length) + 1) - 1;
+      const itemIndex = item.line - 1;
+      const itemColumn = ownKeyColumn(lines[itemIndex] ?? '', indents[itemIndex] ?? 0);
+      while (next < mappings.length && (mappings[next]?.index ?? 0) < itemIndex) next += 1;
+      for (; next < mappings.length && (mappings[next]?.index ?? 0) < end; next += 1) {
+        const mapping = mappings[next];
+        if (mapping && mapping.column === itemColumn) add(mapping.problems);
+      }
+      byItem.set(item.line, [...accumulated]);
+      add(writes.get(item.line) ?? []);
+    }
+  }
+  return byItem;
+}
+
 /**
  * For each job (by its `steps:` line), the first check whose failure fails the job, as the line of
  * the check and of its step's item: an unconditional `run:` that is the step's own key (item B: not
@@ -7897,25 +8180,79 @@ function firstCheckLineByJob(
   contents: string,
   isGuardLine: (line: string) => boolean,
   reading: CheckReading,
-): Map<number, { readonly line: number; readonly itemLine: number }> {
-  const first = new Map<number, { readonly line: number; readonly itemLine: number }>();
-  const rootScripts = reading.testScriptRuns && !/\bworking-directory\b/.test(contents);
-  for (const step of githubActionsRunSteps(contents, isGuardLine)) {
+  jobs: readonly WorkflowJob[],
+  items: readonly WorkflowStepItem[],
+  notCredited: string[],
+): Map<number, FirstCheck> {
+  const first = new Map<number, FirstCheck>();
+  const runSteps = githubActionsRunSteps(contents, isGuardLine);
+  // Fourth pass (#628): the environment on the path to each step item's check.
+  const environment = checkPathEnvironmentProblems(contents, jobs, items, runSteps);
+  for (const step of runSteps) {
     if (step.conditional || step.job === -1 || !step.ownKey) continue;
     const commands = joinShellContinuationLines(step.lines.map(({ text }) => text)).flatMap((text) =>
       shellCommands(text).map((words) => ({ words })),
     );
     if (stepShellIsConditional(step, commands)) continue;
+    // A step that changes directory runs the scripts and files of another directory, which the root
+    // readings do not describe.
     const changesDirectory = commands.some(({ words }) => ['cd', 'pushd'].includes(commandHead(words).word));
-    const isCheck = (words: readonly string[]) =>
-      isCheckCommand(words, { ...reading, testScriptRuns: rootScripts && !changesDirectory });
+    const stepReading: CheckReading = changesDirectory ? { ...reading, ...ROOT_FILES_UNREAD } : reading;
+    const isCheck = (words: readonly string[]) => isCheckCommand(words, stepReading);
+    // Fourth pass (#627): a test script or make target the reader read and found to run no known
+    // runner is named in B3's note.
+    for (const { words } of commands) {
+      const reason = unrecognisedCheckReason(words, stepReading);
+      if (reason !== undefined) notCredited.push(reason);
+    }
     const check = step.lines.find(({ text }) => shellCommands(text).some(isCheck));
     if (!check || !checkFailureStopsJobAt(contents, step, check.line, isCheck)) continue;
     if (!commandsBeforeCheckAreSetup(step, check.line, isCheck, reading)) continue;
+    const problems = environment.get(step.itemLine) ?? [];
+    if (problems.length > 0) {
+      notCredited.push(...problems);
+      continue;
+    }
     const known = first.get(step.job);
-    if (known === undefined || check.line < known.line) first.set(step.job, { line: check.line, itemLine: step.itemLine });
+    const list = shellCommandList(check.text);
+    const command = list.findIndex(({ words }) => isCheck(words));
+    if (known === undefined || check.line < known.line) {
+      first.set(step.job, { line: check.line, command, andChainEnd: andChainEnds(list)[command] ?? command, itemLine: step.itemLine });
+    }
   }
   return first;
+}
+
+/**
+ * A job's first credited check: its 1-based line, its command's index on that line (as
+ * shellCommandList splits the step's text), the last command on the line reached from it only
+ * through `&&` (fourth pass, #630 C4), and its item's line.
+ */
+interface FirstCheck {
+  readonly line: number;
+  readonly command: number;
+  readonly andChainEnd: number;
+  readonly itemLine: number;
+}
+
+/**
+ * Fourth pass (#627): the reason B3's note gives when one command runs the root test script or a
+ * make target that the reader read and found to run no known test runner; undefined otherwise.
+ * Named by the script or target, never by its text.
+ */
+function unrecognisedCheckReason(input: readonly string[], reading: CheckReading): string | undefined {
+  const read = checkCommandWords(input);
+  if (read === undefined) return undefined;
+  const { words, packageManager } = read;
+  if (packageManager && !reading.packageManagerConfigPlain) return undefined;
+  if (reading.testScriptUnrecognised && NPM_FAMILY_TEST_SCRIPT_PATTERN.test(words.join(' '))) {
+    return 'the test script in package.json does not run a test runner Cejel recognises';
+  }
+  const target = words[1] ?? '';
+  if (words[0] === 'make' && words.length === 2 && reading.makeTargets.get(target) === 'unrecognised') {
+    return `the Makefile's ${target} target does not run a test runner Cejel recognises`;
+  }
+  return undefined;
 }
 
 /**
@@ -7933,7 +8270,7 @@ function checkFailureStopsJobAt(
   line: number,
   isCheck: (words: readonly string[]) => boolean,
 ): boolean {
-  if (failureStopsJobAt(contents, step, line)) return true;
+  if (failureStopsJobAt(contents, step, line, true)) return true;
   const at = step.lines.findIndex((entry) => entry.line === line);
   if (at <= 0) return false;
   if (step.lines.some(({ text }) => /\+o[ \t]+pipefail\b/.test(text))) return false;
@@ -7953,7 +8290,7 @@ function checkFailureStopsJobAt(
   const segment = segments.find((candidate) => shellCommands(candidate).some(isCheck));
   if (segment === undefined) return false;
   const lines = step.lines.map((entry, index) => (index === at ? { line: entry.line, text: segment.trim() } : entry));
-  return failureStopsJobAt(contents, { ...step, lines }, line);
+  return failureStopsJobAt(contents, { ...step, lines }, line, true);
 }
 
 /**
@@ -7964,7 +8301,7 @@ function checkFailureStopsJobAt(
 function pipelineSegmentIsPlain(segment: string): boolean {
   const code = segment.trim();
   if (code === '' || /[&;`()<>]/.test(code)) return false;
-  if (code.split(/[ \t]+/).some((word) => STEP_MAY_CONTINUE_PAST_FAILURE_WORDS.has(word))) return false;
+  if (continuesPastFailureWord(code, code, true)) return false;
   const list = shellCommandList(code);
   return list.length === 1 && !isConditionalShellCommand(list[0]?.words ?? []);
 }
@@ -8023,8 +8360,21 @@ function commandsBeforeCheckAreSetup(
  * Each is false when what it rests on is not read.
  */
 interface CheckReading {
-  /** The root package.json's test script runs something (rootTestScriptRunsSomething, item E). */
+  /**
+   * The root package.json's test script runs a known test runner (rootTestScriptReading, fourth
+   * pass on #627; the second pass's item E read only that it ran something).
+   */
   readonly testScriptRuns: boolean;
+  /** Fourth pass (#627): the root test script is read and runs no known test runner, for B3's note. */
+  readonly testScriptUnrecognised: boolean;
+  /** Fourth pass (#627): `test` and `check` in the root Makefile (rootMakeTargetReadings). */
+  readonly makeTargets: ReadonlyMap<string, ScriptReading>;
+  /** Fourth pass (#630 C2): the root `build` script runs only tsc (rootBuildScriptRunsOnlyTsc). */
+  readonly buildScriptRunsOnlyTsc: boolean;
+  /** Fourth pass (#629): a requirements file, by its path from the root, names only index packages. */
+  readonly requirementsFileIsPlain: (path: string) => boolean;
+  /** Fourth pass (#629): Pipfile, and Pipfile.lock when present, name only index packages. */
+  readonly pipfileIsPlain: boolean;
   /**
    * Third pass on #625 (F6): the root package.json is read and declares no script npm, pnpm, yarn
    * or bun runs on install (INSTALL_LIFECYCLE_SCRIPTS), and there is no binding.gyp, whose build an
@@ -8040,16 +8390,32 @@ interface CheckReading {
   readonly packageManagerConfigPlain: boolean;
 }
 
-const UNREAD_CHECK_READING: CheckReading = {
+// The readings that rest on the root's own files, as when none of them is read.
+const ROOT_FILES_UNREAD = {
   testScriptRuns: false,
+  testScriptUnrecognised: false,
+  makeTargets: new Map<string, ScriptReading>(),
+  buildScriptRunsOnlyTsc: false,
+  requirementsFileIsPlain: () => false,
+  pipfileIsPlain: false,
+} as const satisfies Partial<CheckReading>;
+
+const UNREAD_CHECK_READING: CheckReading = {
+  ...ROOT_FILES_UNREAD,
   installRunsNoProjectScript: false,
   packageManagerConfigPlain: false,
 };
 
 /** The CheckReading of a checkout's root, read from its inventory. */
 function checkReading(root: string, inventory: PublishOnlyInventory): CheckReading {
+  const testScript = rootTestScriptReading(root, inventory);
   return {
-    testScriptRuns: rootTestScriptRunsSomething(root, inventory),
+    testScriptRuns: testScript === 'runner',
+    testScriptUnrecognised: testScript === 'unrecognised',
+    makeTargets: rootMakeTargetReadings(root, inventory),
+    buildScriptRunsOnlyTsc: rootBuildScriptRunsOnlyTsc(root, inventory),
+    requirementsFileIsPlain: (path) => requirementsFileIsPlain(root, inventory, path),
+    pipfileIsPlain: pipfileIsPlain(root, inventory),
     installRunsNoProjectScript: rootInstallRunsNoProjectScript(root, inventory),
     packageManagerConfigPlain: packageManagerConfigIsPlain(root, inventory),
   };
@@ -8059,15 +8425,165 @@ function checkReading(root: string, inventory: PublishOnlyInventory): CheckReadi
 const INSTALL_LIFECYCLE_SCRIPTS: readonly string[] = [
   'preinstall', 'install', 'postinstall', 'prepublish', 'preprepare', 'prepare', 'postprepare', 'dependencies',
 ];
+// Fourth pass (#629): `prepare` scripts an install may run, each exactly as written. husky only
+// points git at the repository's hook directory; it runs no hook and no repository script.
+const INERT_PREPARE_SCRIPTS: ReadonlySet<string> = new Set(['husky', 'husky install']);
 
-/** CheckReading.installRunsNoProjectScript. */
+/**
+ * CheckReading.installRunsNoProjectScript. Fourth pass (#629): a `prepare` script is admitted when it
+ * is exactly one of INERT_PREPARE_SCRIPTS; every other install lifecycle script still refuses.
+ */
 function rootInstallRunsNoProjectScript(root: string, inventory: PublishOnlyInventory): boolean {
   if (inventory.known.has('binding.gyp') || !inventory.scanned.has('package.json')) return false;
   const manifest = parseJsonObject(readRepoText(join(root, 'package.json'), 'utf8'));
   if (!manifest) return false;
   const scripts = manifest.scripts;
   if (scripts === undefined) return true;
-  return isRecord(scripts) && INSTALL_LIFECYCLE_SCRIPTS.every((name) => !Object.hasOwn(scripts, name));
+  return (
+    isRecord(scripts) &&
+    INSTALL_LIFECYCLE_SCRIPTS.every(
+      (name) =>
+        !Object.hasOwn(scripts, name) ||
+        (name === 'prepare' && typeof scripts.prepare === 'string' && INERT_PREPARE_SCRIPTS.has(scripts.prepare.trim())),
+    )
+  );
+}
+
+// ---- Fourth pass (#629): requirements files and Pipfiles read, not refused unread -------------
+
+// Requirement files followed through `-r` and `-c` includes at most this deep.
+const REQUIREMENTS_MAX_DEPTH = 8;
+// A requirement's hash option: `--hash=<algorithm>:<hex digest>`.
+const PIP_HASH_OPTION_PATTERN = /^--hash=(?:sha256|sha384|sha512):[0-9A-Fa-f]+$/;
+// An include line: `-r`, `-c`, `--requirement` or `--constraint`, then a path.
+const PIP_INCLUDE_LINE_PATTERN = /^(?:-r|-c|--requirement|--constraint)(?:[ \t]+|=)(\S+)$/;
+const PYPI_SIMPLE_INDEX_URL = 'https://pypi.org/simple';
+
+/** True when `requirement` (with its blanks removed) is a name, optional extras and a specifier. */
+function isIndexRequirement(requirement: string): boolean {
+  const name = PIP_PACKAGE_NAME_PATTERN.exec(requirement);
+  return name !== null && PIP_VERSION_SPECIFIER_PATTERN.test(requirement.slice(name[0].length));
+}
+
+/** `path` joined to `base` (a directory from the root, '' for the root); undefined when it leaves the root. */
+function pathWithinRoot(base: string, path: string): string | undefined {
+  const literal = literalCheckoutPath(path);
+  if (literal === undefined) return undefined;
+  const parts: string[] = base === '' ? [] : base.split('/');
+  for (const part of literal.split('/')) {
+    if (part === '' || part === '.') continue;
+    if (part === '..') {
+      if (parts.length === 0) return undefined;
+      parts.pop();
+    } else parts.push(part);
+  }
+  return parts.length === 0 ? undefined : parts.join('/');
+}
+
+/**
+ * Fourth pass (#629), CheckReading.requirementsFileIsPlain: true when the requirements file at
+ * `path` (from the root) is scanned and every line is a plain index requirement: a name, optional
+ * extras and an optional version specifier, then only `--hash=` options; or an include (`-r`, `-c`)
+ * of another file in the repository that is plain too. A comment or blank line is passed over. A
+ * URL, a path, `-e`, an index or any other option, an environment marker, a backslash, or an include
+ * outside the repository or not scanned refuses: each can install code that is not an index
+ * package, before the check.
+ */
+function requirementsFileIsPlain(root: string, inventory: PublishOnlyInventory, path: string): boolean {
+  const visit = (file: string, depth: number, stack: ReadonlySet<string>): boolean => {
+    if (depth > REQUIREMENTS_MAX_DEPTH || stack.has(file) || !inventory.scanned.has(file)) return false;
+    const text = readRepoText(join(root, file), 'utf8');
+    if (text.includes('\\')) return false;
+    const directory = file.includes('/') ? file.slice(0, file.lastIndexOf('/')) : '';
+    const inner = new Set(stack).add(file);
+    for (const raw of text.split(/\r?\n/)) {
+      const line = stripYamlComment(raw).trim();
+      if (line === '') continue;
+      const include = PIP_INCLUDE_LINE_PATTERN.exec(line);
+      if (include) {
+        const target = pathWithinRoot(directory, include[1] ?? '');
+        if (target === undefined || !visit(target, depth + 1, inner)) return false;
+        continue;
+      }
+      if (line.startsWith('-')) return false;
+      const words = line.split(/[ \t]+/);
+      const hashes = words.findIndex((word) => word.startsWith('--'));
+      const requirement = (hashes === -1 ? words : words.slice(0, hashes)).join('');
+      if (!isIndexRequirement(requirement)) return false;
+      if (hashes !== -1 && !words.slice(hashes).every((word) => PIP_HASH_OPTION_PATTERN.test(word))) return false;
+    }
+    return true;
+  };
+  const start = pathWithinRoot('', path);
+  return start !== undefined && visit(start, 0, new Set());
+}
+
+// Fourth pass (#629): the Pipfile sections a plain Pipfile may hold. `[scripts]` is not one:
+// `pipenv run <name>` runs a script of that name in place of the command.
+const PIPFILE_SECTIONS: ReadonlySet<string> = new Set(['[[source]]', '[packages]', '[dev-packages]', '[requires]', '[pipenv]']);
+const PIPFILE_KEY_VALUE_PATTERN = /^([A-Za-z0-9_.-]+)[ \t]*=[ \t]*([^]*)$/;
+const PIPFILE_VERSION_TABLE_PATTERN = /^\{[ \t]*version[ \t]*=[ \t]*"([^"]*)"[ \t]*\}$/;
+// The keys a Pipfile.lock entry for an index package carries.
+const PIPFILE_LOCK_ENTRY_KEYS: ReadonlySet<string> = new Set(['hashes', 'index', 'version', 'markers', 'extras']);
+
+/** A Pipfile package value naming an index version: `"*"`, `"<specifier>"` or `{version = "..."}`. */
+function pipfileVersionIsPlain(value: string): boolean {
+  const table = PIPFILE_VERSION_TABLE_PATTERN.exec(value);
+  const spec = table ? (table[1] ?? '') : /^"([^"]*)"$/.exec(value)?.[1];
+  return spec !== undefined && (spec === '*' || PIP_VERSION_SPECIFIER_PATTERN.test(spec.replace(/[ \t]/g, '')));
+}
+
+/**
+ * Fourth pass (#629), CheckReading.pipfileIsPlain: true when the root Pipfile is scanned and holds
+ * only PIPFILE_SECTIONS; every source is the PyPI index; every package names only an index version
+ * (pipfileVersionIsPlain), never a path, an editable install, a VCS or a file; and Pipfile.lock,
+ * when present, is scanned, lists only that index, and every entry carries only
+ * PIPFILE_LOCK_ENTRY_KEYS with `index` "pypi". A root `.env`, which pipenv loads, refuses too.
+ */
+function pipfileIsPlain(root: string, inventory: PublishOnlyInventory): boolean {
+  if (!inventory.scanned.has('Pipfile') || inventory.known.has('.env')) return false;
+  const text = readRepoText(join(root, 'Pipfile'), 'utf8');
+  if (text.includes('\\')) return false;
+  let section = '';
+  for (const raw of text.split(/\r?\n/)) {
+    const line = stripYamlComment(raw).trim();
+    if (line === '') continue;
+    if (line.startsWith('[')) {
+      if (!PIPFILE_SECTIONS.has(line)) return false;
+      section = line;
+      continue;
+    }
+    const entry = PIPFILE_KEY_VALUE_PATTERN.exec(line);
+    if (!entry) return false;
+    const [key = '', value = ''] = [entry[1], (entry[2] ?? '').trim()];
+    if (section === '[[source]]') {
+      if (key === 'url' && value !== `"${PYPI_SIMPLE_INDEX_URL}"`) return false;
+      if (key !== 'url' && key !== 'name' && key !== 'verify_ssl') return false;
+    } else if (section === '[packages]' || section === '[dev-packages]') {
+      if (!pipfileVersionIsPlain(value)) return false;
+    } else if (section === '[requires]') {
+      if (key !== 'python_version' && key !== 'python_full_version') return false;
+    } else if (section !== '[pipenv]' || key !== 'allow_prereleases') return false;
+  }
+  if (!inventory.known.has('Pipfile.lock')) return true;
+  if (!inventory.scanned.has('Pipfile.lock')) return false;
+  const lock = parseJsonObject(readRepoText(join(root, 'Pipfile.lock'), 'utf8'));
+  const meta = lock?.['_meta'];
+  const sources = isRecord(meta) ? meta.sources : undefined;
+  if (!Array.isArray(sources) || !sources.every((source) => isRecord(source) && source.url === PYPI_SIMPLE_INDEX_URL)) return false;
+  return ['default', 'develop'].every((group) => {
+    const entries = lock?.[group];
+    if (entries === undefined) return true;
+    return (
+      isRecord(entries) &&
+      Object.values(entries).every(
+        (item) =>
+          isRecord(item) &&
+          Object.keys(item).every((key) => PIPFILE_LOCK_ENTRY_KEYS.has(key)) &&
+          (item.index === undefined || item.index === 'pypi'),
+      )
+    );
+  });
 }
 
 // Third pass on #625 (F6): committed package-manager configuration, read for the settings below.
@@ -8134,7 +8650,9 @@ function workflowStructureIsPlain(contents: string): boolean {
     if (inBlockScalar[index] || raw.trim() === '' || raw.trimStart().startsWith('#')) continue;
     if (raw.includes('\\')) return false;
     const indent = indents[index] ?? 0;
-    if (stepsIndent !== -1 && indent <= stepsIndent) stepsIndent = -1;
+    // Fourth pass (#630 C1): `- ` items at the `steps:` key's own indent are its items too, which
+    // workflowStepItems reads.
+    if (stepsIndent !== -1 && (indent < stepsIndent || (indent === stepsIndent && !LIST_ITEM_PATTERN.test(raw)))) stepsIndent = -1;
     if (stepsIndent !== -1) continue;
     if (STEPS_KEY_PATTERN.test(raw)) {
       stepsIndent = indent;
@@ -8178,12 +8696,31 @@ function publishingWorkflowDetail(
     triggers,
     pushBranches: triggers.has('push') ? githubPushBranchFilter(contents) : null,
   };
-  const { environments, checkedBeforePublish } = publishingJobsOnEveryRun(root, contents, context, 0, reading);
+  const { environments, checkedBeforePublish, notCredited } = publishingJobsOnEveryRun(root, contents, context, 0, reading);
   if (environments.length === 0) return undefined;
+  const detail = `is triggered by ${publishingTriggerText(contents, triggers)}, and ${publishingEnvironmentText(environments)}.`;
   return {
-    detail: `is triggered by ${publishingTriggerText(contents, triggers)}, and ${publishingEnvironmentText(environments)}.`,
+    detail: checkedBeforePublish ? detail : `${detail}${notCreditedSentence(notCredited)}`,
     checked: checkedBeforePublish,
   };
+}
+
+// Fourth pass (#627, #628): the most reasons B3's note gives for one workflow's uncredited check.
+const NOT_CREDITED_MAX_REASONS = 3;
+
+/**
+ * Fourth pass (#627, #628): the sentence B3's note adds after an excluded publishing workflow's
+ * trigger clause when the reader found a check there and did not credit it, naming why: the test
+ * script or make target that runs no known test runner, the environment key that may change what
+ * the check runs. Distinct reasons in the order found, at most NOT_CREDITED_MAX_REASONS and then a
+ * count. Empty when there is none.
+ */
+function notCreditedSentence(reasons: readonly string[]): string {
+  const distinct = [...new Set(reasons)];
+  if (distinct.length === 0) return '';
+  const shown = distinct.slice(0, NOT_CREDITED_MAX_REASONS);
+  const more = distinct.length - shown.length;
+  return ` A check in it was not counted: ${shown.join('; ')}${more > 0 ? `; and ${more} more` : ''}.`;
 }
 
 // ---- v27 freeze change F3-b: what a publishing workflow's note names ---------------------------
@@ -8602,29 +9139,340 @@ const NO_FAIL_FLAGS: ReadonlySet<string> = new Set([
 const PACKAGE_MANAGER_COMMANDS: ReadonlySet<string> = new Set(['npm', 'pnpm', 'yarn', 'bun', 'npx', 'pnpx', 'bunx']);
 // Item E: an npm, pnpm or yarn run of the package's `test` script, as the check vocabulary reads it.
 const NPM_FAMILY_TEST_SCRIPT_PATTERN = /^(?:npm|pnpm|yarn)[ \t]+(?:run[ \t]+)?test(?:[ \t]|$)/i;
-// Item E: a test script command that runs nothing: `true`, `:`, `echo ...`, and `exit` or `exit 0`.
-const NO_OP_SCRIPT_COMMANDS: ReadonlySet<string> = new Set(['true', ':', 'echo']);
+
+// ---- Fourth pass (#627): a test script or make target is a check only when it runs a known runner
+//
+// The second and third passes refused a test script that ran nothing by a list of spellings
+// (`true`, `:`, `echo`, `exit 0`), which `/bin/true`, `node -e 0` or `printf ok` evade. A script or
+// recipe is now admitted only when the reader proves it runs a test runner named here, through
+// launchers it reads, with nothing before the runner but a check whose configuration is not code.
+
+// Test runners named by their own command word.
+const KNOWN_TEST_RUNNER_WORDS: ReadonlySet<string> = new Set([
+  'jest', 'vitest', 'mocha', 'ava', 'uvu', 'tap', 'tape', 'jasmine', 'qunit', 'lab', 'ts-mocha', 'pytest', 'rspec',
+  'phpunit', 'ctest',
+]);
+// Test runners named by a command word and the subcommand that runs the tests.
+const KNOWN_TEST_RUNNER_SUBCOMMANDS: ReadonlyMap<string, readonly string[]> = new Map([
+  ['node', ['--test']], ['tsx', ['--test']], ['bun', ['test']], ['deno', ['test']], ['playwright', ['test']],
+  ['cypress', ['run']], ['karma', ['start']], ['go', ['test']], ['cargo', ['test', 'nextest']], ['dotnet', ['test']],
+  ['mvn', ['test', 'verify']], ['gradle', ['test', 'check']],
+]);
+// Python modules `python -m` runs as a test runner.
+const KNOWN_TEST_RUNNER_MODULES: ReadonlySet<string> = new Set(['pytest', 'unittest']);
+// Checks a script or recipe may run before its runner: each reads only configuration that is not
+// code (tsc and pyright JSON, ruff and black TOML). eslint, mypy, pylint and flake8 can load code
+// the repository names, so they are not admitted before the runner.
+const PRE_RUNNER_CHECK_WORDS: ReadonlySet<string> = new Set(['tsc', 'pyright', 'ruff', 'black']);
+// Package scripts followed through `npm run` chains at most this deep, and at most this many
+// commands read in all.
+const SCRIPT_EXPANSION_MAX_DEPTH = 8;
+const SCRIPT_EXPANSION_MAX_COMMANDS = 64;
+// Characters after which a script's words are not its commands as the reader splits them: a line
+// break, substitution, subshell or group.
+const SCRIPT_UNREAD_CHARACTER_PATTERN = /[\r\n`$(){}]/;
+const SHELL_ASSIGNMENT_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*=/;
 
 /**
- * Item E: true when the root package.json, read as the publish-only reader reads it (scanned in
- * this checkout's inventory, parsed as one JSON object), has a `test` script that runs something:
- * not empty, and not only `true`, `:`, `echo ...` or `exit 0` commands. False when the manifest is
- * absent, unscanned or unread, so an npm-family test script is then no check.
+ * Fourth pass (#627): true when `text` is one command, or commands joined only by `&&`, none of
+ * them backgrounded, with no character that SCRIPT_UNREAD_CHARACTER_PATTERN names. The failure of
+ * any command in such a list is then the list's own.
  */
-function rootTestScriptRunsSomething(root: string, inventory: PublishOnlyInventory): boolean {
-  if (!inventory.scanned.has('package.json')) return false;
-  const manifest = parseJsonObject(readRepoText(join(root, 'package.json'), 'utf8'));
-  const scripts = manifest?.scripts;
-  if (!isRecord(scripts) || typeof scripts.test !== 'string') return false;
-  const commands = shellCommands(scripts.test);
-  if (commands.length === 0) return false;
-  return !commands.every((words) => {
-    const head = commandHead(words);
-    const args = words.slice(head.argsFrom);
-    if (head.word === '') return true;
-    if (head.word === 'exit') return args.length === 0 || (args.length === 1 && args[0] === '0');
-    return NO_OP_SCRIPT_COMMANDS.has(head.word);
-  });
+function commandsAreAndChain(text: string): boolean {
+  if (SCRIPT_UNREAD_CHARACTER_PATTERN.test(text)) return false;
+  const list = shellCommandList(text);
+  return (
+    list.length > 0 &&
+    list.every(({ words, after }) => !commandIsBackgrounded(words) && (after.length === 0 || (after.length === 1 && after[0] === '&&')))
+  );
+}
+
+/**
+ * Fourth pass (#627): the words of the command one script or recipe command runs, after the
+ * launchers and wrappers that run the next words as the command: `NAME=value` assignments of keys
+ * isInertEnvironmentKey admits, `env` and `cross-env` with such assignments, `npx`, `pnpx`, `bunx`,
+ * `pnpm exec`, the coverage wrappers `c8` and `nyc` (their flags skipped), `coverage run` (read as
+ * `python`), `uv`, `poetry`, `pdm`, `pipenv` or `hatch` then `run`, and `bundle exec`. Null when an
+ * assignment sets any other key, a launcher is given a flag, or the status is inverted.
+ */
+function peelCommandLaunchers(input: readonly string[]): string[] | null {
+  const head = commandHead(input);
+  if (head.inverted || commandIsBackgrounded(input)) return null;
+  let words = [head.word, ...input.slice(head.argsFrom)];
+  for (let round = 0; round < SCRIPT_EXPANSION_MAX_DEPTH; round += 1) {
+    let start = 0;
+    while (start < words.length && SHELL_ASSIGNMENT_PATTERN.test(words[start] ?? '')) {
+      if (!isInertEnvironmentKey((words[start] ?? '').split('=')[0] ?? '')) return null;
+      start += 1;
+    }
+    words = words.slice(start);
+    const [first = '', second = ''] = words;
+    let next: number;
+    if (first === 'env' || first === 'cross-env' || first === 'npx' || first === 'pnpx' || first === 'bunx') next = 1;
+    else if ((first === 'pnpm' && second === 'exec') || (first === 'bundle' && second === 'exec')) next = 2;
+    else if (CHECK_COMMAND_RUN_LAUNCHERS.has(first) && second === 'run') next = 2;
+    else if (first === 'coverage' && second === 'run') {
+      words = ['python', ...words.slice(2)];
+      continue;
+    } else if (first === 'c8' || first === 'nyc') {
+      next = 1;
+      while (next < words.length && (words[next] ?? '').startsWith('-')) next += 1;
+      words = words.slice(next);
+      continue;
+    } else return words;
+    words = words.slice(next);
+    if ((words[0] ?? '').startsWith('-')) return null;
+  }
+  return null;
+}
+
+/**
+ * Fourth pass (#627): what one launcher-free command is: a known test runner, a check admitted
+ * before one (PRE_RUNNER_CHECK_WORDS), or anything else. A command given `--if-present`, a
+ * report-only flag or a NO_FAIL_FLAGS flag is neither.
+ */
+function scriptCommandKind(words: readonly string[]): 'runner' | 'check' | 'other' {
+  if (words.length === 0 || words.includes('--if-present')) return 'other';
+  if (words.some((word) => REPORT_ONLY_FLAGS.has(word) || NO_FAIL_FLAGS.has(word.split('=')[0] ?? word))) return 'other';
+  const [first = '', second = '', third = ''] = words;
+  const python = (first === 'python' || first === 'python3') && second === '-m';
+  if (KNOWN_TEST_RUNNER_WORDS.has(first) || KNOWN_TEST_RUNNER_SUBCOMMANDS.get(first)?.includes(second)) return 'runner';
+  if (python && KNOWN_TEST_RUNNER_MODULES.has(third)) return 'runner';
+  if (PRE_RUNNER_CHECK_WORDS.has(first) || (python && PRE_RUNNER_CHECK_WORDS.has(third))) return 'check';
+  return 'other';
+}
+
+/** Fourth pass (#627): true when `kinds` holds a runner, and only checks before the first. */
+function kindsRunKnownRunner(kinds: readonly ('runner' | 'check' | 'other')[]): boolean {
+  const runner = kinds.indexOf('runner');
+  return runner !== -1 && kinds.slice(0, runner).every((kind) => kind === 'check');
+}
+
+/**
+ * Fourth pass (#627): the package script an npm, pnpm or yarn command runs, when the command is
+ * exactly `<tool> test`, `<tool> run <name>`, `npm run-script <name>` or `yarn <name>` naming a
+ * script; undefined otherwise. Any further word passes arguments to the script, so is not read.
+ */
+function packageScriptRun(words: readonly string[], scripts: Readonly<Record<string, unknown>>): string | undefined {
+  const [tool = '', first = '', second = ''] = words;
+  if (tool !== 'npm' && tool !== 'pnpm' && tool !== 'yarn') return undefined;
+  if (words.length === 2 && first === 'test') return 'test';
+  if (words.length === 3 && (first === 'run' || (tool === 'npm' && first === 'run-script'))) return second;
+  if (words.length === 2 && tool === 'yarn' && Object.hasOwn(scripts, first)) return first;
+  return undefined;
+}
+
+/**
+ * Fourth pass (#627): the commands running the package script `name` runs, in order, each as its
+ * launcher-free words (peelCommandLaunchers), or null for a command whose launchers are not read.
+ * `pre<name>` runs first and `post<name>` last, as npm runs them; a command that runs another
+ * script (packageScriptRun) is read as that script's commands. Undefined when the script is not
+ * read: missing, not a string, not an `&&` chain (commandsAreAndChain), a cycle, or beyond
+ * SCRIPT_EXPANSION_MAX_DEPTH or SCRIPT_EXPANSION_MAX_COMMANDS.
+ */
+function packageScriptCommands(
+  scripts: Readonly<Record<string, unknown>>,
+  name: string,
+): (string[] | null)[] | undefined {
+  const commands: (string[] | null)[] = [];
+  const visit = (script: string, depth: number, stack: ReadonlySet<string>): boolean => {
+    if (depth > SCRIPT_EXPANSION_MAX_DEPTH || stack.has(script) || !Object.hasOwn(scripts, script)) return false;
+    const inner = new Set(stack).add(script);
+    for (const part of [`pre${script}`, script, `post${script}`]) {
+      if (part !== script && !Object.hasOwn(scripts, part)) continue;
+      const body = scripts[part];
+      if (typeof body !== 'string' || !commandsAreAndChain(body)) return false;
+      for (const words of shellCommands(body)) {
+        const peeled = peelCommandLaunchers(words);
+        const run = peeled === null ? undefined : packageScriptRun(peeled, scripts);
+        if (run !== undefined) {
+          if (!visit(run, depth + 1, inner)) return false;
+          continue;
+        }
+        commands.push(peeled);
+        if (commands.length > SCRIPT_EXPANSION_MAX_COMMANDS) return false;
+      }
+    }
+    return true;
+  };
+  return visit(name, 0, new Set()) ? commands : undefined;
+}
+
+/** Fourth pass (#627): the root package.json's scripts, when it is scanned and parses to an object. */
+function rootPackageScripts(root: string, inventory: PublishOnlyInventory): Readonly<Record<string, unknown>> | undefined {
+  if (!inventory.scanned.has('package.json')) return undefined;
+  const scripts = parseJsonObject(readRepoText(join(root, 'package.json'), 'utf8'))?.scripts;
+  return isRecord(scripts) ? scripts : undefined;
+}
+
+/**
+ * Fourth pass (#627), CheckReading.testScript: 'runner' when the root package.json's `test` script
+ * runs a known test runner (packageScriptCommands, kindsRunKnownRunner); 'unrecognised' when it is
+ * a string that does not; 'unread' when there is none or the manifest is not read.
+ */
+function rootTestScriptReading(root: string, inventory: PublishOnlyInventory): ScriptReading {
+  const scripts = rootPackageScripts(root, inventory);
+  if (scripts === undefined || typeof scripts.test !== 'string') return 'unread';
+  const commands = packageScriptCommands(scripts, 'test');
+  const kinds = (commands ?? []).map((words) => (words === null ? 'other' : scriptCommandKind(words)));
+  return commands !== undefined && kindsRunKnownRunner(kinds) ? 'runner' : 'unrecognised';
+}
+
+/** Whether a script or make target runs a known test runner, or was not read. */
+type ScriptReading = 'runner' | 'unrecognised' | 'unread';
+
+// Fourth pass (#627): make targets a CI step may run as a check.
+const MAKE_CHECK_TARGETS: readonly string[] = ['test', 'check'];
+// Makefile text the rule reader does not place: directives that bring in or change rules,
+// variables or the shell (`include`, `export`, `define`, `override`, conditionals), and settings
+// that change how recipes run or fail (`.ONESHELL`, `.IGNORE`, `SHELL`, `MAKEFLAGS`). Matched
+// anywhere, so a mention in a recipe is doubt too.
+const MAKEFILE_UNREAD_DIRECTIVE_PATTERN =
+  /^[ \t]*(?:-?include|sinclude|export|unexport|define|endef|override|vpath|ifeq|ifneq|ifdef|ifndef|else|endif)\b/m;
+const MAKEFILE_UNREAD_SETTING_PATTERN = /\.ONESHELL|\.IGNORE|\.SHELLFLAGS|\.EXPORT_ALL_VARIABLES|\.DEFAULT\b|\bSHELL\b|MAKEFLAGS|\bMFLAGS\b/;
+const MAKEFILE_ASSIGNMENT_PATTERN = /^[A-Za-z_.][A-Za-z0-9_.-]*[ \t]*(?:[:+?!]?=|::=)/;
+const MAKEFILE_RULE_PATTERN = /^([^:#=\t][^:#=]*):(?![:=])([^]*)$/;
+const MAKEFILE_TARGET_PATTERN = /^[A-Za-z0-9_./-]+$/;
+const MAKEFILE_RECURSION_PATTERN = /^(?:\$\(MAKE\)|\$\{MAKE\}|make)[ \t]+([A-Za-z0-9_./-]+)[ \t]*$/;
+
+interface MakefileRule {
+  readonly prerequisites: string[];
+  recipe: readonly string[] | null;
+}
+
+/**
+ * Fourth pass (#627): a Makefile's explicit rules, by target, read line by line: a rule line
+ * `targets: prerequisites[; recipe]` and the tab-indented recipe lines under it. Assignments,
+ * comments, blank lines and special targets (`.PHONY`) are passed over; a pattern rule is not
+ * recorded. Null when the reader cannot place the file: a line continuation, an unread directive or
+ * setting, a target or prerequisite holding `$`, `%`, `|` or `=`, a double-colon rule, two recipes
+ * for one target, or any other line. Linear in the file.
+ */
+function readMakefileRules(text: string): Map<string, MakefileRule> | null {
+  if (/\\\r?\n/.test(text) || MAKEFILE_UNREAD_DIRECTIVE_PATTERN.test(text) || MAKEFILE_UNREAD_SETTING_PATTERN.test(text)) return null;
+  const rules = new Map<string, MakefileRule>();
+  let targets: string[] = [];
+  let recipe: string[] = [];
+  const close = (): boolean => {
+    for (const target of targets) {
+      const rule = rules.get(target);
+      if (rule === undefined || recipe.length === 0) continue;
+      if (rule.recipe !== null) return false;
+      rule.recipe = recipe;
+    }
+    targets = [];
+    recipe = [];
+    return true;
+  };
+  let inRule = false;
+  for (const line of text.split(/\r?\n/)) {
+    if (line.startsWith('\t')) {
+      if (!inRule) return null;
+      recipe.push(line);
+      continue;
+    }
+    if (line.trim() === '' || line.startsWith('#')) continue;
+    if (!close()) return null;
+    inRule = false;
+    if (MAKEFILE_ASSIGNMENT_PATTERN.test(line)) continue;
+    const rule = MAKEFILE_RULE_PATTERN.exec(line);
+    if (!rule) return null;
+    const named = (rule[1] ?? '').trim().split(/[ \t]+/);
+    const rest = stripYamlComment(rule[2] ?? '');
+    const semicolon = rest.indexOf(';');
+    const prerequisites = (semicolon === -1 ? rest : rest.slice(0, semicolon)).trim().split(/[ \t]+/).filter((word) => word !== '');
+    if (named.some((target) => target.includes('$')) || prerequisites.some((word) => !MAKEFILE_TARGET_PATTERN.test(word))) return null;
+    inRule = true;
+    if (named.some((target) => target.includes('%'))) continue;
+    if (!named.every((target) => MAKEFILE_TARGET_PATTERN.test(target))) return null;
+    for (const target of named) {
+      const known = rules.get(target) ?? { prerequisites: [], recipe: null };
+      known.prerequisites.push(...prerequisites);
+      rules.set(target, known);
+    }
+    targets = named;
+    if (semicolon !== -1 && rest.slice(semicolon + 1).trim() !== '') recipe.push(rest.slice(semicolon + 1));
+  }
+  return close() ? rules : null;
+}
+
+/**
+ * Fourth pass (#627): what `make <target>` runs, in order, as command kinds (scriptCommandKind):
+ * each prerequisite's commands first, once each, then the target's recipe lines. A line's leading
+ * `@` and `+` are read; a line with `-`, whose failure make ignores, is 'other'. `$(MAKE) <target>`
+ * alone on a line is read as that target's commands. A line that is not an `&&` chain
+ * (commandsAreAndChain) is 'other'. Undefined when a target it reaches has no explicit rule, or on
+ * a cycle or beyond SCRIPT_EXPANSION_MAX_DEPTH or SCRIPT_EXPANSION_MAX_COMMANDS.
+ */
+function makeTargetCommandKinds(rules: ReadonlyMap<string, MakefileRule>, target: string): ('runner' | 'check' | 'other')[] | undefined {
+  const kinds: ('runner' | 'check' | 'other')[] = [];
+  const made = new Set<string>();
+  const build = (name: string, depth: number, stack: ReadonlySet<string>): boolean => {
+    const rule = rules.get(name);
+    if (rule === undefined || depth > SCRIPT_EXPANSION_MAX_DEPTH || stack.has(name)) return false;
+    if (made.has(name)) return true;
+    made.add(name);
+    const inner = new Set(stack).add(name);
+    for (const prerequisite of rule.prerequisites) if (!build(prerequisite, depth + 1, inner)) return false;
+    for (const line of rule.recipe ?? []) {
+      let text = line.trim();
+      let ignored = false;
+      while (text.startsWith('@') || text.startsWith('+') || text.startsWith('-')) {
+        if (text.startsWith('-')) ignored = true;
+        text = text.slice(1).trimStart();
+      }
+      const recursion = MAKEFILE_RECURSION_PATTERN.exec(text);
+      if (!ignored && recursion) {
+        if (!build(recursion[1] ?? '', depth + 1, inner)) return false;
+        continue;
+      }
+      if (ignored || !commandsAreAndChain(text)) kinds.push('other');
+      else {
+        for (const words of shellCommands(text)) {
+          const peeled = peelCommandLaunchers(words);
+          kinds.push(peeled === null ? 'other' : scriptCommandKind(peeled));
+        }
+      }
+      if (kinds.length > SCRIPT_EXPANSION_MAX_COMMANDS) return false;
+    }
+    return true;
+  };
+  return build(target, 0, new Set()) ? kinds : undefined;
+}
+
+/**
+ * Fourth pass (#627), CheckReading.makeTargets: for `test` and `check`, whether the root Makefile's
+ * rule runs a known test runner. Empty when the Makefile is not scanned, when a `GNUmakefile` or
+ * `makefile` (which make reads first) exists, or when readMakefileRules cannot place it; a target
+ * with no explicit rule is left out, as not read.
+ */
+function rootMakeTargetReadings(root: string, inventory: PublishOnlyInventory): ReadonlyMap<string, ScriptReading> {
+  const readings = new Map<string, ScriptReading>();
+  if (!inventory.scanned.has('Makefile') || inventory.known.has('GNUmakefile') || inventory.known.has('makefile')) return readings;
+  const rules = readMakefileRules(readRepoText(join(root, 'Makefile'), 'utf8'));
+  if (rules === null) return readings;
+  for (const target of MAKE_CHECK_TARGETS) {
+    if (!rules.has(target)) continue;
+    const kinds = makeTargetCommandKinds(rules, target);
+    readings.set(target, kinds !== undefined && kindsRunKnownRunner(kinds) ? 'runner' : 'unrecognised');
+  }
+  return readings;
+}
+
+/**
+ * Fourth pass (#630 C2): true when the root package.json's `build` script (with its pre and post
+ * scripts) runs only `tsc`, whose configuration is JSON, not code, and `tsconfig.json` is scanned.
+ * A build with a code configuration (vite, webpack, rollup) runs that code before any check.
+ */
+function rootBuildScriptRunsOnlyTsc(root: string, inventory: PublishOnlyInventory): boolean {
+  const scripts = rootPackageScripts(root, inventory);
+  if (scripts === undefined || !inventory.scanned.has('tsconfig.json')) return false;
+  const commands = packageScriptCommands(scripts, 'build');
+  return (
+    commands !== undefined &&
+    commands.length > 0 &&
+    commands.every((words) => words !== null && words[0] === 'tsc' && !words.includes('--if-present'))
+  );
 }
 
 /**
@@ -8638,23 +9486,22 @@ function rootTestScriptRunsSomething(root: string, inventory: PublishOnlyInvento
  *
  * Second pass on #620 (item E): a command given `--version`, `-V`, `--help` or `-h` only reports, so
  * it is not one; and an npm, pnpm or yarn run of the `test` script is one only when
- * `reading.testScriptRuns` (rootTestScriptRunsSomething: the root package.json's script runs something).
+ * `reading.testScriptRuns` (fourth pass, #627: rootTestScriptReading, the root package.json's script
+ * runs a known test runner; `make test` and `make check` likewise through reading.makeTargets).
  *
  * Third pass on #625 (F6): nor is a command given a NO_FAIL_FLAGS flag, nor an npm, pnpm, yarn or bun
  * command (or one npx, pnpx or bunx launches) unless the package-manager configuration is plain.
  */
 function isCheckCommand(input: readonly string[], reading: CheckReading): boolean {
-  const head = commandHead(input);
-  if (head.inverted) return false;
-  let words = [head.word, ...input.slice(head.argsFrom)];
-  let start = 0;
-  while (start < words.length && /^[A-Za-z_][A-Za-z0-9_]*=/.test(words[start] ?? '')) start += 1;
-  if (PACKAGE_MANAGER_COMMANDS.has(words[start] ?? '') && !reading.packageManagerConfigPlain) return false;
-  if (PUBLISHING_COMMAND_LAUNCHERS.has(words[start] ?? '')) start += 1;
-  else if ((words[start] === 'python' || words[start] === 'python3') && words[start + 1] === '-m') start += 2;
-  else if (CHECK_COMMAND_RUN_LAUNCHERS.has(words[start] ?? '') && words[start + 1] === 'run') start += 2;
-  words = words.slice(start);
+  const read = checkCommandWords(input);
+  if (read === undefined) return false;
+  if (read.packageManager && !reading.packageManagerConfigPlain) return false;
+  const { words } = read;
   if (words.length === 0 || words.includes('--if-present')) return false;
+  // Fourth pass (#627): `make test` and `make check` are checks only when the root Makefile's rule
+  // runs a known test runner (rootMakeTargetReadings), and only written exactly so: another word
+  // names another target or overrides a variable the recipe reads.
+  if (words[0] === 'make') return words.length === 2 && reading.makeTargets.get(words[1] ?? '') === 'runner';
   if (words.some((word) => REPORT_ONLY_FLAGS.has(word))) return false;
   if (words.some((word) => NO_FAIL_FLAGS.has(word.split('=')[0] ?? word))) return false;
   const text = words.join(' ').replace(/^\.\//, '');
@@ -8665,6 +9512,27 @@ function isCheckCommand(input: readonly string[], reading: CheckReading): boolea
     const after = text[match[0].length];
     return after === undefined || after === ' ';
   });
+}
+
+/**
+ * The words isCheckCommand reads of one shell command: after any leading `(`, `{` and `NAME=value`
+ * assignments, then one launcher (`npx`, `bunx`, `pnpx`, `uvx`, `python -m`, `python3 -m`, or `uv`,
+ * `poetry`, `pdm`, `pipenv` or `hatch` then `run`). `packageManager` says the command, before its
+ * launcher, is an npm, pnpm, yarn or bun command or one npx, pnpx or bunx launches. Undefined for a
+ * status-inverted command. Shared with unrecognisedCheckReason (fourth pass), unchanged from the
+ * third pass's isCheckCommand.
+ */
+function checkCommandWords(input: readonly string[]): { readonly words: string[]; readonly packageManager: boolean } | undefined {
+  const head = commandHead(input);
+  if (head.inverted) return undefined;
+  const words = [head.word, ...input.slice(head.argsFrom)];
+  let start = 0;
+  while (start < words.length && /^[A-Za-z_][A-Za-z0-9_]*=/.test(words[start] ?? '')) start += 1;
+  const packageManager = PACKAGE_MANAGER_COMMANDS.has(words[start] ?? '');
+  if (PUBLISHING_COMMAND_LAUNCHERS.has(words[start] ?? '')) start += 1;
+  else if ((words[start] === 'python' || words[start] === 'python3') && words[start + 1] === '-m') start += 2;
+  else if (CHECK_COMMAND_RUN_LAUNCHERS.has(words[start] ?? '') && words[start + 1] === 'run') start += 2;
+  return { words: words.slice(start), packageManager };
 }
 
 // A pull-request (or merge-queue) trigger makes a workflow a pull-request gate whatever its steps.

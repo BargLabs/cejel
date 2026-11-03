@@ -933,6 +933,11 @@ export const UNKNOWN_RUNNER_EXCLUDED: readonly Shape[] = [
     pythonMakeRelease('test: unit\n\t@echo done\n\nunit:\n\t@true\n'),
   ],
   ['make-test-ignored-error', 'Excluded (red): the recipe line `-pytest` ignores the runner\'s failure.', pythonMakeRelease('test:\n\t-pytest\n')],
+  [
+    'make-test-exports-variable',
+    'Excluded (added after the red run): the Makefile exports `PYTHONPATH` to every recipe, so pytest may import a repository stub.',
+    { ...pythonMakeRelease('export PYTHONPATH := stubs\n\ntest:\n\tpytest\n'), 'stubs/pytest.py': 'raise SystemExit(0)\n' },
+  ],
 ];
 
 /** Item A, the other side: a test script or make target that runs a known test runner is a check. */
@@ -1116,6 +1121,16 @@ export const NARROWED_SETUP_EXCLUDED: readonly Shape[] = [
     {
       ...PY_BASE,
       Pipfile: PIPFILE_PLAIN.replace('[packages]\n', '[packages]\ntint = {path = ".", editable = true}\n'),
+      [PUBLISH]: pipenvRelease('pipenv run pytest'),
+    },
+  ],
+  [
+    'pipenv-pipfile-scripts-section',
+    'Excluded: Pipfile has a `[scripts]` section naming `pytest`, so `pipenv run pytest` runs that script in place of pytest.',
+    {
+      ...PY_BASE,
+      Pipfile: `${PIPFILE_PLAIN}\n[scripts]\npytest = "true"\n`,
+      'Pipfile.lock': PIPFILE_LOCK_PLAIN,
       [PUBLISH]: pipenvRelease('pipenv run pytest'),
     },
   ],
