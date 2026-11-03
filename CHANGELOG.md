@@ -207,6 +207,19 @@ is pinned. v27 carries no precision or recall claim.
 
 ### Fixed
 
+- **The L-versus-2L scaling check could fail on a loaded host, and the pytest run reader had
+  stopped being linear (#642).** The check in `scan-path-regex-bounds.test.ts` took its samples at
+  L, then at 2L, in wall time, about one read each, so a burst of load on the 2L phase broke its 3.0
+  limit (a ratio of 11.33 was seen at load average 12 to 25). It now takes the samples in seven
+  alternating pairs, times each in the process's CPU time, and fills each sample to at least 80 ms.
+  Two stand-in readers pin it: one whose work grows with the square is refused, a linear one is
+  admitted. The limit stays 3.0. Timed in CPU time, the pytest run reader took 3.4 to 3.6 times as
+  long at 2L as at L on a quiet host since #648, against 2.1 before. It joined every command's words
+  into one string whether or not it recorded the command, so its garbage grew faster than its input.
+  It now joins them only where it records an invocation, and is back to 2.1. Under 30 busy
+  processes on an 18-core host (load average 16 to 40), the check passed three runs in a row; the
+  previous version failed two of three. No score, report or certificate changes.
+
 - **The v27 scan timing guard on long CI lines failed on main and stopped the 0.6.9 npm publish.**
   The guard "CI lines and a conftest whitespace run just under the content limit" times a v27 scan
   of six workflow lines of about 480 KB and a conftest.py hook with a long whitespace run, against
