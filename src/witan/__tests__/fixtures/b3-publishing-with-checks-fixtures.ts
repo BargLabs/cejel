@@ -806,6 +806,436 @@ export const V3_EXCLUDED: readonly Shape[] = [
   ...NO_FAIL_FLAG_EXCLUDED,
 ];
 
+// ---- Fourth pass: #627, #628, #629 and #630 (goal_cejel_v27_b3_admit_known_checks) -----------
+//
+// #627 and #628 were false credit: B3 said a check runs before the publish when none did. #629 and
+// #630 were false exclusions of safe shapes. Every V4_EXCLUDED fixture is excluded by this pass;
+// those marked red were counted by main d2d178233. Every V4_COUNTED fixture is counted; those marked
+// red were excluded by main. Each new credit path (items C and D) has a counted fixture and a
+// mutation fixture that is the same workflow with the check made unable to stop the publish.
+
+const SHA256_HEX = 'a'.repeat(64);
+
+/** A Python release on push to main: setup, `install`, then `check`, then build and upload. */
+const pythonReleaseWith = (install: string, check: string): string =>
+  pythonPlainRelease(check).replace('pip install pytest build twine', install);
+
+/** A one-job release on push to main with job-level keys `jobKeys` (each line indented four spaces). */
+const oneJobReleaseWithJobKeys = (jobKeys: string, steps: string): string =>
+  `name: release\n${PUSH_MAIN}jobs:\n  publish:\n    runs-on: ubuntu-latest\n${jobKeys}    steps:\n${SETUP_NODE}${steps}`;
+
+/** A Python package whose Makefile is `makefile`, released after `make test`. */
+const pythonMakeRelease = (makefile: string, check = 'make test'): Record<string, string> => ({
+  ...PY_BASE,
+  Makefile: makefile,
+  [PUBLISH]: pythonPlainRelease(check),
+});
+
+const PIPFILE_PLAIN = [
+  '[[source]]',
+  'url = "https://pypi.org/simple"',
+  'verify_ssl = true',
+  'name = "pypi"',
+  '',
+  '[packages]',
+  'build = "==1.2.2"',
+  '',
+  '[dev-packages]',
+  'pytest = "*"',
+  'twine = {version = ">=5.0"}',
+  '',
+  '[requires]',
+  'python_version = "3.12"',
+  '',
+].join('\n');
+
+const PIPFILE_LOCK_PLAIN = `${JSON.stringify(
+  {
+    _meta: { hash: { sha256: SHA256_HEX }, 'pipfile-spec': 6, requires: { python_version: '3.12' }, sources: [{ name: 'pypi', url: 'https://pypi.org/simple', verify_ssl: true }] },
+    default: { build: { hashes: [`sha256:${SHA256_HEX}`], index: 'pypi', version: '==1.2.2' } },
+    develop: {
+      pytest: { hashes: [`sha256:${SHA256_HEX}`], index: 'pypi', version: '==8.3.3' },
+      twine: { hashes: [`sha256:${SHA256_HEX}`], index: 'pypi', version: '==5.1.1' },
+    },
+  },
+  null,
+  4,
+)}\n`;
+
+/** A Python release that installs with `pipenv install --dev`, then runs `check`. */
+const pipenvRelease = (check: string): string => pythonReleaseWith('pipenv install --dev', check);
+
+/** A JavaScript package whose scripts are `scripts` and whose devDependencies are `dev`. */
+const jsWithScriptsAndDev = (scripts: Record<string, string>, dev: Record<string, string>): Record<string, string> => ({
+  ...JS_BASE,
+  'package.json': `${JSON.stringify({ name: 'tint', version: '1.0.0', main: 'index.js', scripts, devDependencies: dev }, null, 2)}\n`,
+});
+
+const TSCONFIG = `${JSON.stringify({ compilerOptions: { outDir: 'dist', module: 'nodenext', target: 'es2022', allowJs: true }, include: ['index.js'] }, null, 2)}\n`;
+
+/** The one-job release with its steps written at the `steps:` key's own indent (#630 C1). */
+const compactStepsRelease = (check: string): string =>
+  `name: release\n${PUSH_MAIN}jobs:\n  publish:\n    runs-on: ubuntu-latest\n    steps:\n    - uses: actions/checkout@v4\n    - uses: actions/setup-node@v4\n      with:\n        registry-url: https://registry.npmjs.org\n    - run: npm ci\n    - run: ${check}\n    - run: npm publish\n      env:\n        NODE_AUTH_TOKEN: \${{ secrets.NPM_TOKEN }}\n`;
+
+/** A test job, then a publishing job whose `needs:` is a block list at the key's own indent (#630 C3). */
+const needsBlockAtKeyIndentRelease = (check: string): string =>
+  `name: release\n${PUSH_MAIN}jobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - uses: actions/setup-node@v4\n      - run: npm ci\n      - run: ${check}\n  publish:\n    needs:\n    - test\n    runs-on: ubuntu-latest\n    steps:\n${SETUP_NODE}      - run: npm ci\n${NPM_PUBLISH}`;
+
+/** Item A (#627): a test script or make target that runs no known test runner is no check. */
+export const UNKNOWN_RUNNER_EXCLUDED: readonly Shape[] = [
+  [
+    'npm-test-script-bin-true',
+    'Excluded (red): the root test script is `/bin/true`, which runs no test runner.',
+    { ...jsWithTestScript('/bin/true'), [RELEASE]: releaseAfterInstall(`      - run: npm test\n${NPM_PUBLISH}`) },
+  ],
+  [
+    'npm-test-script-node-e-0',
+    'Excluded (red): the root test script is `node -e 0`, which runs no test runner.',
+    { ...jsWithTestScript('node -e 0'), [RELEASE]: releaseAfterInstall(`      - run: npm test\n${NPM_PUBLISH}`) },
+  ],
+  [
+    'npm-test-script-printf-ok',
+    'Excluded (red): the root test script is `printf ok`, which runs no test runner.',
+    { ...jsWithTestScript('printf ok'), [RELEASE]: releaseAfterInstall(`      - run: npm test\n${NPM_PUBLISH}`) },
+  ],
+  [
+    'npm-test-script-chain-to-noop',
+    'Excluded (red): the test script runs `npm run unit`, and `unit` is `/bin/true`.',
+    { ...jsWithScripts({ test: 'npm run unit', unit: '/bin/true' }), [RELEASE]: releaseAfterInstall(`      - run: npm test\n${NPM_PUBLISH}`) },
+  ],
+  [
+    'npm-test-script-runner-or-true',
+    'Excluded (red): the test script is `uvu test || true`, which never fails.',
+    { ...jsWithTestScript('uvu test || true'), [RELEASE]: releaseAfterInstall(`      - run: npm test\n${NPM_PUBLISH}`) },
+  ],
+  [
+    'npm-test-script-pretest-runs-code',
+    'Excluded (red): a `pretest` script runs a repository script before the test runner.',
+    {
+      ...jsWithScripts({ pretest: 'node scripts/stub.js', test: 'uvu test' }),
+      'scripts/stub.js': "import { writeFileSync } from 'node:fs';\nwriteFileSync('stub.txt', 'x');\n",
+      [RELEASE]: releaseAfterInstall(`      - run: npm test\n${NPM_PUBLISH}`),
+    },
+  ],
+  [
+    'npm-test-script-node-options-assignment',
+    'Excluded (red): the test script sets `NODE_OPTIONS=--require=./scripts/pass.cjs` before the runner.',
+    {
+      ...jsWithTestScript('NODE_OPTIONS=--require=./scripts/pass.cjs uvu test'),
+      'scripts/pass.cjs': "process.on('exit', () => { process.exitCode = 0; });\n",
+      [RELEASE]: releaseAfterInstall(`      - run: npm test\n${NPM_PUBLISH}`),
+    },
+  ],
+  ['make-test-recipe-at-true', 'Excluded (red): `make test` runs a recipe that is `@true`.', pythonMakeRelease('test:\n\t@true\n')],
+  [
+    'make-test-prerequisite-noop',
+    'Excluded (red): the `test` target needs `unit`, whose recipe is `@true`; its own recipe only echoes.',
+    pythonMakeRelease('test: unit\n\t@echo done\n\nunit:\n\t@true\n'),
+  ],
+  ['make-test-ignored-error', 'Excluded (red): the recipe line `-pytest` ignores the runner\'s failure.', pythonMakeRelease('test:\n\t-pytest\n')],
+];
+
+/** Item A, the other side: a test script or make target that runs a known test runner is a check. */
+export const KNOWN_RUNNER_COUNTED: readonly Shape[] = [
+  [
+    'npm-test-script-chain-to-runner',
+    'Counted: the test script runs `npm run unit`, and `unit` runs `vitest run`.',
+    {
+      ...jsWithScriptsAndDev({ test: 'npm run unit', unit: 'vitest run' }, { vitest: '2.1.9' }),
+      [RELEASE]: releaseAfterInstall(`      - run: npm test\n${NPM_PUBLISH}`),
+    },
+  ],
+  [
+    'npm-test-script-c8-node-test',
+    'Counted: the test script runs `c8 node --test`, the node test runner under a coverage wrapper.',
+    { ...jsWithScriptsAndDev({ test: 'c8 node --test' }, { c8: '10.1.2' }), [RELEASE]: releaseAfterInstall(`      - run: npm test\n${NPM_PUBLISH}`) },
+  ],
+  ['make-test-runs-pytest', 'Counted: `make test` runs a recipe that is `pytest`.', pythonMakeRelease('test:\n\tpytest\n')],
+  [
+    'make-test-prerequisites-run-checks',
+    'Counted: the `test` target needs `lint` (`ruff check src`) and `unit` (`python -m pytest -q`).',
+    pythonMakeRelease('.PHONY: test lint unit\n\ntest: lint unit\n\nlint:\n\truff check src\n\nunit:\n\tpython -m pytest -q\n'),
+  ],
+];
+
+/** Item B (#628): an environment key on the check's path that can change what it runs. */
+export const ENVIRONMENT_EXCLUDED: readonly Shape[] = [
+  [
+    'job-env-node-options-require',
+    'Excluded (red): the publishing job sets `NODE_OPTIONS: --require ./scripts/pass.cjs`, which node loads before the test runner.',
+    {
+      ...JS_BASE,
+      'scripts/pass.cjs': "process.on('exit', () => { process.exitCode = 0; });\n",
+      [RELEASE]: oneJobReleaseWithJobKeys('    env:\n      NODE_OPTIONS: --require ./scripts/pass.cjs\n', `      - run: npm ci\n      - run: npm test\n${NPM_PUBLISH}`),
+    },
+  ],
+  [
+    'check-step-env-path-fake-bin',
+    'Excluded (red): the check step sets `PATH: ./fake-bin`, so `npm` may be a repository script.',
+    {
+      ...JS_BASE,
+      'fake-bin/npm': '#!/bin/sh\nexit 0\n',
+      [RELEASE]: releaseAfterInstall(`      - run: npm test\n        env:\n          PATH: ./fake-bin\n${NPM_PUBLISH}`),
+    },
+  ],
+  [
+    'workflow-env-pythonpath',
+    'Excluded (red): the workflow sets `PYTHONPATH: stubs`, so python may import a repository stub in place of pytest.',
+    {
+      ...PY_BASE,
+      'stubs/pytest.py': 'raise SystemExit(0)\n',
+      [PUBLISH]: pythonPlainRelease('python -m pytest').replace(PUSH_MAIN, `${PUSH_MAIN}env:\n  PYTHONPATH: stubs\n`),
+    },
+  ],
+  [
+    'check-step-env-ld-preload',
+    'Excluded (red): the check step sets `LD_PRELOAD`, which the loader runs before pytest.',
+    { ...PY_BASE, [PUBLISH]: pythonPlainRelease('pytest\n        env:\n          LD_PRELOAD: ./libpass.so') },
+  ],
+  [
+    'setup-step-env-node-options',
+    'Excluded (red): the install step before the check sets `NODE_OPTIONS`, so install runs a repository script first.',
+    {
+      ...JS_BASE,
+      'scripts/pass.cjs': "process.on('exit', () => { process.exitCode = 0; });\n",
+      [RELEASE]: oneJobRelease(`      - run: npm ci\n        env:\n          NODE_OPTIONS: --require ./scripts/pass.cjs\n      - run: npm test\n${NPM_PUBLISH}`),
+    },
+  ],
+  [
+    'credential-key-without-secret-expression',
+    'Excluded (red): the publishing job sets `NPM_TOKEN` to a plain value, not a secret expression.',
+    {
+      ...JS_BASE,
+      [RELEASE]: oneJobReleaseWithJobKeys('    env:\n      NPM_TOKEN: not-a-secret\n', `      - run: npm ci\n      - run: npm test\n${NPM_PUBLISH}`),
+    },
+  ],
+  [
+    'github-path-write-before-check',
+    'Excluded: an earlier step writes a repository directory to `$GITHUB_PATH`; the note names it (red: main gave no reason).',
+    {
+      ...JS_BASE,
+      'fake-bin/npm': '#!/bin/sh\nexit 0\n',
+      [RELEASE]: releaseAfterInstall(`      - run: echo "$PWD/fake-bin" >> "$GITHUB_PATH"\n      - run: npm test\n${NPM_PUBLISH}`),
+    },
+  ],
+];
+
+/** Item B, the other side: inert keys and credentials from secrets leave the check counted. */
+export const ENVIRONMENT_COUNTED: readonly Shape[] = [
+  [
+    'env-inert-keys-and-secret-token',
+    'Counted: the workflow sets `CI` and `NODE_ENV`, the job sets `NODE_AUTH_TOKEN` from a secret, and the check step sets `FORCE_COLOR`.',
+    {
+      ...JS_BASE,
+      [RELEASE]: oneJobReleaseWithJobKeys(
+        '    env:\n      NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}\n',
+        `      - run: npm ci\n      - run: npm test\n        env:\n          FORCE_COLOR: "1"\n      - run: npm publish\n`,
+      ).replace(PUSH_MAIN, `${PUSH_MAIN}env:\n  CI: true\n  NODE_ENV: test\n`),
+    },
+  ],
+];
+
+/** Item C (#629): setup steps admitted when what they install is read. Counted, each red on main. */
+export const NARROWED_SETUP_COUNTED: readonly Shape[] = [
+  [
+    'pip-install-requirements-plain',
+    'Counted (red): `pip install -r requirements.txt`, where every line is a name and an optional version specifier.',
+    { ...PY_BASE, 'requirements.txt': 'pytest==8.3.3\nbuild >= 1.2\ntwine\n', [PUBLISH]: pythonReleaseWith('pip install -r requirements.txt', 'pytest') },
+  ],
+  [
+    'pip-install-requirements-hashed-and-included',
+    'Counted (red): `pip install -r requirements.txt` with a hashed line and an include of another file in the repository.',
+    {
+      ...PY_BASE,
+      'requirements.txt': `# test and release tools\n-r requirements/base.txt\npytest==8.3.3 --hash=sha256:${SHA256_HEX}\n`,
+      'requirements/base.txt': 'build==1.2.2\ntwine==5.1.1\n',
+      [PUBLISH]: pythonReleaseWith('pip install -r requirements.txt', 'pytest'),
+    },
+  ],
+  [
+    'pipenv-install-plain-pipfile',
+    'Counted (red): `pipenv install --dev`, where Pipfile and Pipfile.lock name only index packages.',
+    { ...PY_BASE, Pipfile: PIPFILE_PLAIN, 'Pipfile.lock': PIPFILE_LOCK_PLAIN, [PUBLISH]: pipenvRelease('pipenv run pytest') },
+  ],
+  [
+    'prepare-husky-before-check',
+    'Counted (red): the root `prepare` script is `husky`, which `npm ci` runs; it only installs git hooks.',
+    { ...jsWithScripts({ test: 'uvu test', prepare: 'husky' }), [RELEASE]: releaseAfterInstall(`      - run: npm test\n${NPM_PUBLISH}`) },
+  ],
+];
+
+/** Item C mutations: the same workflows with the check made unable to stop the publish. */
+export const NARROWED_SETUP_MUTATION_EXCLUDED: readonly Shape[] = [
+  [
+    'pip-install-requirements-plain-check-or-true',
+    'Excluded: as pip-install-requirements-plain, with the check run as `pytest || true`.',
+    { ...PY_BASE, 'requirements.txt': 'pytest==8.3.3\nbuild >= 1.2\ntwine\n', [PUBLISH]: pythonReleaseWith('pip install -r requirements.txt', 'pytest || true') },
+  ],
+  [
+    'pipenv-install-plain-pipfile-check-or-true',
+    'Excluded: as pipenv-install-plain-pipfile, with the check run as `pipenv run pytest || true`.',
+    { ...PY_BASE, Pipfile: PIPFILE_PLAIN, 'Pipfile.lock': PIPFILE_LOCK_PLAIN, [PUBLISH]: pipenvRelease('pipenv run pytest || true') },
+  ],
+  [
+    'prepare-husky-check-or-true',
+    'Excluded: as prepare-husky-before-check, with the check run as `npm test || true`.',
+    { ...jsWithScripts({ test: 'uvu test', prepare: 'husky' }), [RELEASE]: releaseAfterInstall(`      - run: npm test || true\n${NPM_PUBLISH}`) },
+  ],
+];
+
+/** Item C: what the narrowed setup readings still refuse. */
+export const NARROWED_SETUP_EXCLUDED: readonly Shape[] = [
+  [
+    'pip-install-requirements-editable-line',
+    'Excluded: requirements.txt holds `-e .`, which builds and installs the project before the check.',
+    { ...PY_BASE, 'requirements.txt': '-e .\npytest\n', [PUBLISH]: pythonReleaseWith('pip install -r requirements.txt', 'pytest') },
+  ],
+  [
+    'pip-install-requirements-index-url',
+    'Excluded: requirements.txt names another index with `--index-url`.',
+    { ...PY_BASE, 'requirements.txt': '--index-url https://packages.example.invalid/simple\npytest\n', [PUBLISH]: pythonReleaseWith('pip install -r requirements.txt', 'pytest') },
+  ],
+  [
+    'pip-install-requirements-url-line',
+    'Excluded: requirements.txt names a package by URL.',
+    { ...PY_BASE, 'requirements.txt': 'pytest\nhttps://packages.example.invalid/tint-1.0.0.tar.gz\n', [PUBLISH]: pythonReleaseWith('pip install -r requirements.txt', 'pytest') },
+  ],
+  [
+    'pip-install-requirements-path-line',
+    'Excluded: requirements.txt names a package by a path in the repository.',
+    { ...PY_BASE, 'requirements.txt': 'pytest\n./vendor/tint\n', 'vendor/tint/setup.py': 'raise SystemExit(0)\n', [PUBLISH]: pythonReleaseWith('pip install -r requirements.txt', 'pytest') },
+  ],
+  [
+    'pip-install-requirements-include-outside',
+    'Excluded: requirements.txt includes a file outside the repository with `-r ../shared/requirements.txt`.',
+    { ...PY_BASE, 'requirements.txt': '-r ../shared/requirements.txt\npytest\n', [PUBLISH]: pythonReleaseWith('pip install -r requirements.txt', 'pytest') },
+  ],
+  [
+    'pipenv-install-path-dependency',
+    'Excluded: Pipfile installs the project itself, `tint = {path = ".", editable = true}`.',
+    {
+      ...PY_BASE,
+      Pipfile: PIPFILE_PLAIN.replace('[packages]\n', '[packages]\ntint = {path = ".", editable = true}\n'),
+      [PUBLISH]: pipenvRelease('pipenv run pytest'),
+    },
+  ],
+  [
+    'prepare-husky-and-script',
+    'Excluded: the root `prepare` script is `husky && node scripts/release.js`, which runs a repository script on install.',
+    {
+      ...jsWithScripts({ test: 'uvu test', prepare: 'husky && node scripts/release.js' }),
+      'scripts/release.js': "import { execSync } from 'node:child_process';\nexecSync('npm publish');\n",
+      [RELEASE]: releaseAfterInstall(`      - run: npm test\n${NPM_PUBLISH}`),
+    },
+  ],
+  [
+    'npmrc-present-but-not-read',
+    'Excluded: `.npmrc` is too large to be read, so its settings are not known; no npm command is a check or a setup step.',
+    {
+      ...JS_BASE,
+      '.npmrc': `registry=https://registry.npmjs.org/\n# ${'x'.repeat(512_001)}\n`,
+      [RELEASE]: releaseAfterInstall(`      - run: npm test\n${NPM_PUBLISH}`),
+    },
+  ],
+];
+
+/** Item D (#630): safe shapes read. Counted, each red on main. */
+export const SAFE_SHAPE_COUNTED: readonly Shape[] = [
+  ['steps-at-key-indent', 'Counted (red): the step items sit at the `steps:` key\'s own indent.', { ...JS_BASE, [RELEASE]: compactStepsRelease('npm test') }],
+  [
+    'build-tsc-before-check',
+    'Counted (red): `npm run build` runs `tsc`, whose configuration is JSON, before `npm test`.',
+    {
+      ...jsWithScriptsAndDev({ build: 'tsc', test: 'uvu test' }, { typescript: '5.9.3', uvu: '0.5.6' }),
+      'tsconfig.json': TSCONFIG,
+      [RELEASE]: releaseAfterInstall(`      - run: npm run build\n      - run: npm test\n${NPM_PUBLISH}`),
+    },
+  ],
+  ['needs-block-list-at-key-indent', 'Counted (red): `needs:` is a block list written at the key\'s own indent.', { ...JS_BASE, [RELEASE]: needsBlockAtKeyIndentRelease('npm test') }],
+  [
+    'check-and-publish-one-line',
+    'Counted (red): `run: npm test && npm publish`; the publish runs only when the test passed.',
+    { ...JS_BASE, [RELEASE]: releaseAfterInstall('      - run: npm test && npm publish\n        env:\n          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}\n') },
+  ],
+  [
+    'check-then-publish-lines-bash-e',
+    'Counted (also by main; a control for C4): `npm test` and `npm publish` on separate lines of one `run:` block; bash -e stops at a failing test.',
+    { ...JS_BASE, [RELEASE]: releaseAfterInstall('      - run: |\n          npm test\n          npm publish\n        env:\n          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}\n') },
+  ],
+  ['ruff-check-dot', 'Counted (red): `ruff check .` is a lint check; `.` is its argument, not the source builtin.', { ...PY_BASE, [PUBLISH]: pythonPlainRelease('ruff check .') }],
+  ['mypy-dot', 'Counted (red): `mypy .` is a type check given `.` as its argument.', { ...PY_BASE, [PUBLISH]: pythonPlainRelease('mypy .') }],
+];
+
+/** Item D mutations: the same workflows with the check made unable to stop the publish. */
+export const SAFE_SHAPE_MUTATION_EXCLUDED: readonly Shape[] = [
+  ['steps-at-key-indent-check-or-true', 'Excluded: as steps-at-key-indent, with `npm test || true`.', { ...JS_BASE, [RELEASE]: compactStepsRelease('npm test || true') }],
+  [
+    'build-tsc-before-check-or-true',
+    'Excluded: as build-tsc-before-check, with `npm test || true`.',
+    {
+      ...jsWithScriptsAndDev({ build: 'tsc', test: 'uvu test' }, { typescript: '5.9.3', uvu: '0.5.6' }),
+      'tsconfig.json': TSCONFIG,
+      [RELEASE]: releaseAfterInstall(`      - run: npm run build\n      - run: npm test || true\n${NPM_PUBLISH}`),
+    },
+  ],
+  [
+    'needs-block-list-at-key-indent-check-or-true',
+    'Excluded: as needs-block-list-at-key-indent, with `npm test || true`.',
+    { ...JS_BASE, [RELEASE]: needsBlockAtKeyIndentRelease('npm test || true') },
+  ],
+  [
+    'check-and-publish-one-line-semicolon',
+    'Excluded: `run: npm test; npm publish`; the publish runs whether the test passed or not.',
+    { ...JS_BASE, [RELEASE]: releaseAfterInstall('      - run: npm test; npm publish\n        env:\n          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}\n') },
+  ],
+  [
+    // Not `npm test || true`: a `||` anywhere in the step makes its publish conditional, so the
+    // workflow is then not read as publishing on every run at all (#517's reading, unchanged).
+    'check-then-publish-lines-backgrounded',
+    'Excluded: as check-then-publish-lines-bash-e, with the test run in the background, `npm test &`.',
+    { ...JS_BASE, [RELEASE]: releaseAfterInstall('      - run: |\n          npm test &\n          npm publish\n        env:\n          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}\n') },
+  ],
+  ['ruff-check-dot-or-true', 'Excluded: as ruff-check-dot, with `ruff check . || true`.', { ...PY_BASE, [PUBLISH]: pythonPlainRelease('ruff check . || true') }],
+];
+
+/** Item D: what the safe-shape readings still refuse. */
+export const SAFE_SHAPE_EXCLUDED: readonly Shape[] = [
+  [
+    'build-vite-config-before-check',
+    'Excluded: `npm run build` runs vite, whose configuration `vite.config.js` is code that runs before the check.',
+    {
+      ...jsWithScriptsAndDev({ build: 'vite build', test: 'uvu test' }, { vite: '5.4.0', uvu: '0.5.6' }),
+      'vite.config.js': "import { writeFileSync } from 'node:fs';\nwriteFileSync('stub.txt', 'x');\nexport default {};\n",
+      [RELEASE]: releaseAfterInstall(`      - run: npm run build\n      - run: npm test\n${NPM_PUBLISH}`),
+    },
+  ],
+  [
+    'publish-and-check-one-line-publish-first',
+    'Excluded: `run: npm publish && npm test`; the publish runs before the test.',
+    { ...JS_BASE, [RELEASE]: releaseAfterInstall('      - run: npm publish && npm test\n        env:\n          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}\n') },
+  ],
+  [
+    'dot-source-in-command-position-in-check-step',
+    'Excluded: the check step also runs `. ./scripts/after.sh`, which sources a repository script in command position.',
+    {
+      ...PY_BASE,
+      'scripts/after.sh': 'trap "exit 0" EXIT\n',
+      [PUBLISH]: pythonPlainRelease('|\n          ruff check .\n          . ./scripts/after.sh'),
+    },
+  ],
+];
+
+/** This pass's counted and excluded shapes, in the order the tests read them. */
+export const V4_COUNTED: readonly Shape[] = [...KNOWN_RUNNER_COUNTED, ...ENVIRONMENT_COUNTED, ...NARROWED_SETUP_COUNTED, ...SAFE_SHAPE_COUNTED];
+export const V4_EXCLUDED: readonly Shape[] = [
+  ...UNKNOWN_RUNNER_EXCLUDED,
+  ...ENVIRONMENT_EXCLUDED,
+  ...NARROWED_SETUP_MUTATION_EXCLUDED,
+  ...NARROWED_SETUP_EXCLUDED,
+  ...SAFE_SHAPE_MUTATION_EXCLUDED,
+  ...SAFE_SHAPE_EXCLUDED,
+];
+
 function fixture(name: string, purpose: string, files: Record<string, string>): FalseAssuranceFixture {
   return { name, issue: '#517', purpose, commits: [files] };
 }
@@ -826,6 +1256,10 @@ export const V3_FIXTURES: readonly FalseAssuranceFixture[] = [...V3_COUNTED, ...
   fixture(name, purpose, files),
 );
 
+export const V4_FIXTURES: readonly FalseAssuranceFixture[] = [...V4_COUNTED, ...V4_EXCLUDED].map(([name, purpose, files]) =>
+  fixture(name, purpose, files),
+);
+
 /** The publishing workflow each fixture adds. */
 export const publishingFile = (name: string): string => {
   const shape = [
@@ -837,6 +1271,8 @@ export const publishingFile = (name: string): string => {
     ...V2_EXCLUDED,
     ...V3_COUNTED,
     ...V3_EXCLUDED,
+    ...V4_COUNTED,
+    ...V4_EXCLUDED,
   ].find(
     ([entry]) => entry === name,
   );

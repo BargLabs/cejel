@@ -23,6 +23,9 @@ import {
   V3_COUNTED,
   V3_EXCLUDED,
   V3_FIXTURES,
+  V4_COUNTED,
+  V4_EXCLUDED,
+  V4_FIXTURES,
   publishingFile,
 } from './fixtures/b3-publishing-with-checks-fixtures.js';
 import { buildFalseAssuranceFixture } from './fixtures/false-assurance-fixtures.js';
@@ -39,7 +42,7 @@ import { checkNoRise, lostFindings } from './v27-no-rise.js';
 const V17 = WITAN_RUBRIC_VERSION_V17;
 const V27 = WITAN_RUBRIC_VERSION_V27;
 
-const ALL = [...PUBLISHING_WITH_CHECKS_FIXTURES, ...EDGE_FIXTURES, ...V2_FIXTURES, ...V3_FIXTURES];
+const ALL = [...PUBLISHING_WITH_CHECKS_FIXTURES, ...EDGE_FIXTURES, ...V2_FIXTURES, ...V3_FIXTURES, ...V4_FIXTURES];
 
 const repos = new Map<string, string>();
 const reports = new Map<string, WitanReport>();
@@ -93,10 +96,11 @@ const COUNTED_DETAILS: Readonly<Record<string, string>> = {
   'npmrc-registry-only': 'is triggered by push to main, and its publishing job declares no environment.',
   'poetry-install-no-root-before-check': 'is triggered by push to main, and its publishing job declares no environment.',
   'job-level-keys-written-plainly': 'is triggered by push to main, and its publishing job declares no environment.',
+  ...Object.fromEntries(V4_COUNTED.map(([name]) => [name, 'is triggered by push to main, and its publishing job declares no environment.'])),
 };
 
 describe('v27 (#517 correction) — a publishing workflow that checks before it publishes is counted', () => {
-  for (const [name] of [...COUNTED, ...EDGE_COUNTED, ...V2_COUNTED, ...V3_COUNTED]) {
+  for (const [name] of [...COUNTED, ...EDGE_COUNTED, ...V2_COUNTED, ...V3_COUNTED, ...V4_COUNTED]) {
     it(`v27 counts ${name}, as v17 does`, () => {
       const file = publishingFile(name);
       const b3 = criterion(name, V27, 'B3');
@@ -118,7 +122,7 @@ describe('v27 (#517 correction) — a publishing workflow that checks before it 
 const TAG_TRIGGERED_ONLY: ReadonlySet<string> = new Set(['pytest-before-twine-on-tag']);
 
 describe('v27 (#517 correction) — a publishing workflow with no check before its publish step is still excluded', () => {
-  for (const [name] of [...EXCLUDED, ...EDGE_EXCLUDED, ...V2_EXCLUDED, ...V3_EXCLUDED]) {
+  for (const [name] of [...EXCLUDED, ...EDGE_EXCLUDED, ...V2_EXCLUDED, ...V3_EXCLUDED, ...V4_EXCLUDED]) {
     it(`v27 excludes ${name}, with the note and disclosure unchanged`, () => {
       const file = publishingFile(name);
       const b3 = criterion(name, V27, 'B3');
@@ -150,13 +154,54 @@ describe('B2 and B3 agree about every workflow here (#527)', () => {
   });
 
   it('a workflow B3 counts under this correction is one B2 credits: neither leaves it uncredited', () => {
-    for (const [name] of [...COUNTED, ...EDGE_COUNTED, ...V2_COUNTED, ...V3_COUNTED]) {
+    for (const [name] of [...COUNTED, ...EDGE_COUNTED, ...V2_COUNTED, ...V3_COUNTED, ...V4_COUNTED]) {
       const file = publishingFile(name);
       for (const id of ['B2', 'B3']) {
         const score = criterion(name, V27, id);
         expect(score.notes ?? '', `${name} ${id}`).not.toContain('not counted');
         expect(score.disclosures ?? [], `${name} ${id}`).not.toContainEqual(expect.stringContaining(file));
       }
+    }
+  });
+});
+
+// Fourth pass (#627 item A, #628 item B): where a check is not credited because its test script or
+// make target runs no test runner Cejel recognises, or because an environment key on its path may
+// change what it runs, B3's note says so after the workflow's trigger clause, naming the script or
+// target and the key.
+const NOT_CREDITED_REASONS: Readonly<Record<string, string>> = {
+  'npm-test-script-bin-true': 'the test script in package.json does not run a test runner Cejel recognises',
+  'npm-test-script-node-e-0': 'the test script in package.json does not run a test runner Cejel recognises',
+  'npm-test-script-printf-ok': 'the test script in package.json does not run a test runner Cejel recognises',
+  'npm-test-script-chain-to-noop': 'the test script in package.json does not run a test runner Cejel recognises',
+  'npm-test-script-runner-or-true': 'the test script in package.json does not run a test runner Cejel recognises',
+  'npm-test-script-pretest-runs-code': 'the test script in package.json does not run a test runner Cejel recognises',
+  'npm-test-script-node-options-assignment': 'the test script in package.json does not run a test runner Cejel recognises',
+  'make-test-recipe-at-true': "the Makefile's test target does not run a test runner Cejel recognises",
+  'make-test-prerequisite-noop': "the Makefile's test target does not run a test runner Cejel recognises",
+  'make-test-ignored-error': "the Makefile's test target does not run a test runner Cejel recognises",
+  'job-env-node-options-require': 'the environment key NODE_OPTIONS may change what the check runs',
+  'check-step-env-path-fake-bin': 'the environment key PATH may change what the check runs',
+  'workflow-env-pythonpath': 'the environment key PYTHONPATH may change what the check runs',
+  'check-step-env-ld-preload': 'the environment key LD_PRELOAD may change what the check runs',
+  'setup-step-env-node-options': 'the environment key NODE_OPTIONS may change what the check runs',
+  'credential-key-without-secret-expression': 'the environment key NPM_TOKEN is not set from a secret',
+  'github-path-write-before-check': 'an earlier step writes to $GITHUB_PATH, which may change what the check runs',
+};
+
+describe('fourth pass — B3 names why a check was not credited', () => {
+  for (const [name, reason] of Object.entries(NOT_CREDITED_REASONS)) {
+    it(`v27's B3 note says why ${name}'s check is not credited`, () => {
+      const file = publishingFile(name);
+      expect(criterion(name, V27, 'B3').notes ?? '', name).toContain(
+        `${file} is triggered by push to main, and its publishing job declares no environment. A check in it was not counted: ${reason}.`,
+      );
+    });
+  }
+
+  it('no counted fixture carries a not-credited reason', () => {
+    for (const [name] of [...COUNTED, ...EDGE_COUNTED, ...V2_COUNTED, ...V3_COUNTED, ...V4_COUNTED]) {
+      expect(criterion(name, V27, 'B3').notes ?? '', name).not.toContain('was not counted:');
     }
   });
 });
@@ -199,7 +244,9 @@ describe('no rise against v17 on these fixtures', () => {
 // that commit's v17 certificate HTML for one fixture (item H). To re-pin, set
 // B3_PUBLISHING_CHECKS_V17_PIN to the JSON output path, B3_PUBLISHING_CHECKS_V17_HTML to the HTML
 // output path and B3_PUBLISHING_CHECKS_V17_COMMIT to the commit, and run only the test named
-// "writes the pin". The second pass re-pinned at main's fe8c261de with every fixture here.
+// "writes the pin". The second pass re-pinned at main's fe8c261de with every fixture here. The
+// fourth pass (#627-#630) re-pinned at main's d2d178233 with its fixtures added: every earlier
+// entry, and the HTML pin, came out byte-identical.
 
 interface CriterionProjection {
   readonly score: number;
