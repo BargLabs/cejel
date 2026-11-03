@@ -774,10 +774,10 @@ export const ALLOWLIST_FIXTURES: readonly AllowlistFixture[] = [
   fixture(
     'a1al-h-quoted-paths-past-eight-pointers',
     'H',
-    "#634 item 5: one clear hook rates 13 files hollow; the two whose directories hold ', ' and ' (' come after the first eight pointers, and the note still quotes them.",
+    "#634 item 5: one clear hook rates 11 files hollow, all listed; the two whose directories hold ', ' and ' (' are the 10th and 11th, after the first eight pointers, and the note still quotes them. (With 13 files the note lists 11 and counts the rest, so a path past the listing is counted, never written unquoted.)",
     {
       'tests/conftest.py': conftestHook(['    items.clear()']),
-      ...Object.fromEntries(Array.from({ length: 9 }, (_, index) => [`tests/test_more_${String(index).padStart(2, '0')}.py`, LIVE_PY_TEST(`more_${index}`)])),
+      ...Object.fromEntries(Array.from({ length: 7 }, (_, index) => [`tests/test_more_${String(index).padStart(2, '0')}.py`, LIVE_PY_TEST(`more_${index}`)])),
       'tests/zz, late/test_late.py': LIVE_PY_TEST('late'),
       'tests/zz (old)/test_old.py': LIVE_PY_TEST('old'),
     },
@@ -786,7 +786,7 @@ export const ALLOWLIST_FIXTURES: readonly AllowlistFixture[] = [
       removed: [
         ['tests/test_cache.py', HOOK_RULE],
         ['tests/test_lru.py', HOOK_RULE],
-        ...Array.from({ length: 9 }, (_, index) => [`tests/test_more_${String(index).padStart(2, '0')}.py`, HOOK_RULE] as const),
+        ...Array.from({ length: 7 }, (_, index) => [`tests/test_more_${String(index).padStart(2, '0')}.py`, HOOK_RULE] as const),
         ['tests/zz, late/test_late.py', HOOK_RULE],
         ['tests/zz (old)/test_old.py', HOOK_RULE],
       ],
