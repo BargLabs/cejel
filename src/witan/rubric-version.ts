@@ -216,7 +216,19 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     excluded); reads step items and a `needs:` block list written at their key's own indent;
 //     counts a publish on the check's own line when the two are one `&&` chain; and reads `.` as
 //     the source builtin only in command position. A committed yarn release (`yarnPath`) stays
-//     refused by design: Cejel cannot verify offline what that file runs);
+//     refused by design: Cejel cannot verify offline what that file runs; the fifth pass (review of
+//     #640, 2026-11-02) admits a requirements line or pip argument only as a PEP 508 project name
+//     that ends in no archive or wheel suffix and is no path in the repository; counts a lint or
+//     format command only as `ruff check`, `ruff format --check`, `black --check`, `eslint`, `mypy`
+//     or `flake8`, with only flags known to keep the exit code (so no `--fix`, `--exit-zero` or
+//     `-e`, and no pylint); admits an assignment on the check's or a setup command's own line only
+//     for an inert key; withholds the credit of a check whose job runs in a `container:` or has a
+//     `services:` container that sets `env:`; admits after an npm-family test script's name only
+//     npm's `--silent` and `-s`, so `--prefix`, `-w`, `--workspaces`, `--cwd`, `--filter` and the
+//     rest withhold the credit; counts a make target only when it and every target on its path are
+//     `.PHONY` or have no file or directory of their name in the repository, and reads no Makefile
+//     that assigns PATH; B3's note names each reason. Its glossary sentence states these as what
+//     the reader reads, not a proof that the check can fail);
 //   - A1: conftest.py is not a concrete test file (not cited as one, and rated hollow where it
 //     asserts; from 2026-11-01 test_to_source_ratio counts it as test surface, as v17 does), and
 //     an unconditional run-wide pytest skip

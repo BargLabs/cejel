@@ -21,10 +21,11 @@ pinned, and carries no precision or recall claim.
 
 ### Changed
 
-- **Prospective v27: B3 credits a check before a publish only when it runs a known test runner in
-  an environment that cannot change what runs; safe check-then-publish shapes are now read**
-  (#627, #628, #629, #630; the fourth pass on #517's check-before-publish reading). Under
-  `witan-rubric-v27-prospective-2026-10-19`:
+- **Prospective v27: B3 credits a check before a publish only where the reader reads a known test
+  runner, a lint form that fails on a finding, and an environment and package it admits; safe
+  check-then-publish shapes are now read** (#627, #628, #629, #630; the fourth pass on #517's
+  check-before-publish reading, with the fifth pass from the review of #640, which this
+  supersedes). Under `witan-rubric-v27-prospective-2026-10-19`:
   - *A test script or make target is a check only when it runs a known test runner* (#627). Before,
     an npm, pnpm or yarn test script counted unless it was only `true`, `:`, `echo` or `exit 0`, so
     `/bin/true`, `node -e 0` or `printf ok` passed, and `make test` counted whatever its recipe
@@ -33,7 +34,7 @@ pinned, and carries no precision or recall claim.
     vitest, mocha, ava, uvu, tap, node --test, pytest, go test, cargo test and others), joined only
     by `&&`, with nothing before it but a check whose configuration is not code. B3's note names
     the script or target when it does not.
-  - *The check's environment cannot change what runs* (#628). Every `env:` key on the check's path
+  - *The environment on the check's path is read* (#628). Every `env:` key on the check's path
     (the workflow's, its job's, and each step's up to the check) must be one known not to change
     which program runs or what it loads, or a publish credential set from a secret. `NODE_OPTIONS`,
     `PATH`, `PYTHONPATH`, `LD_PRELOAD` and any other key withhold the credit, and so does an earlier
@@ -48,7 +49,24 @@ pinned, and carries no precision or recall claim.
     or rollup build still is not, since its configuration is code that runs first); a check and
     publish on one line joined by `&&`; and `.` passed as an argument (`ruff check .`, `mypy .`),
     which is read as the `source` builtin only in command position.
-  - The v27 certificate's glossary sentence for the PR-gate CI count names the two new conditions.
+  - *Fifth pass: what the review of #640 found still credited* (six blockers, each now a fixture).
+    A requirements line or a name given to `pip install` is admitted only as a PEP 508 project
+    name, never one ending in an archive or wheel suffix (`stub.tar.gz`, `stub.zip`,
+    `stub-1.0-py3-none-any.whl`) or naming a path in the repository, which pip would install from
+    the file. A lint or format command counts only as `ruff check`, `ruff format --check`,
+    `black --check`, `eslint`, `mypy` or `flake8`, with only flags known to keep the exit code, so
+    `ruff check -e`, `--fix`, `eslint --fix`, `black .` and `ruff format .` no longer count. An
+    assignment on the check's own line, or a setup command's, is admitted only for an inert key
+    (`NODE_OPTIONS=... npm test`, `PATH=... npm test` and `PYTEST_ADDOPTS=--co pytest` no longer
+    count). A job with a `container:`, or a `services:` container that sets `env:`, withholds the
+    credit. After an npm-family test script's name only npm's `--silent` and `-s` are admitted, so
+    `--node-options`, `--prefix`, `-w`, `--workspaces`, `yarn --cwd` and `pnpm --filter`, which can
+    run another package's script, withhold the credit. A make target counts only when it and every
+    target on its path are `.PHONY` or have no file or directory of their name in the repository,
+    and a Makefile that assigns `PATH` is not read. B3's note names each reason.
+  - The v27 certificate's glossary sentence for the PR-gate CI count states these conditions as
+    what Cejel reads, and says that this is not a proof that the check can fail. #640's wording,
+    which said no environment setting could change what the check runs, was not true.
 
   v17 and every rubric but v27 are unchanged. The measured effect is in
   `leaderboard/RUBRIC_CHANGELOG.md`.
