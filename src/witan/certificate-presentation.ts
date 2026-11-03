@@ -365,14 +365,26 @@ export const CERTIFICATE_GLOSSARY: readonly CertificateGlossaryEntry[] = [
 const V27_PR_GATE_CI_WORKFLOW_COUNT_DEFINITION =
   'The number of detected CI workflow files configured for pull requests or the main or master branch, including a covering monorepo-root workflow, capped at four for scoring. Under the prospective witan-rubric-v27, a workflow file is not counted when Cejel reads every step as only checking out, printing text or doing nothing, or, for a workflow with no pull-request trigger, as only uploading an already-built artifact. Cejel makes either reading only when the runs-on value of every job names a documented GitHub-hosted Ubuntu or macOS runner label. Such a file was not shown to run a check, which is not a finding that it runs none. Under the same rubric, a workflow file with no pull-request trigger is also not counted, by this metric or by CI verification depth, when a step publishes, releases or deploys (a registry publish or upload, a release, an image push or a deploy command or action) on every run its triggers start, including through a job that calls a reusable workflow in the same repository, unless a check (a test, lint, type-check or verifying-build command whose failure stops the job) runs before every publish step, in the publishing job or in a job it needs. Cejel reads that only when it can read every step, the file holds no YAML escape and writes every other key and value plainly, nothing but setup runs before the check, no if condition uses a status-check function other than a plain success(), and no job needs itself or is part of a needs cycle. It also requires that the check command is not written as a path (such as ./ruff), that a test script or make target the check runs reaches a test runner from a fixed list, that a Makefile it runs assigns no variable, that a tsc build before it writes only into a new directory outside node_modules, that a lint or format command is written in a form that fails on a finding, that every environment key it reads on the check\'s path (in env: mappings, in an assignment on a command\'s line, or written to GITHUB_ENV) is one from a fixed list of keys that do not choose what runs, that no earlier step writes to GITHUB_PATH, and that the job runs in no container and has no service container that sets env:. That is what Cejel reads, not a proof that the check can fail: it does not read a test runner\'s or linter\'s own configuration. An if condition is a gate only when it can be false under the workflow\'s own triggers in the repository itself (a check of the repository\'s own name or owner guards forks, not runs), and a continue-on-error setting keeps the file counted. Cejel reads a publishing action on any runner, and a publish command only on the same runner labels, with no shell setting other than bash.';
 
-/** `entry` as a certificate under `rubricVersion` shows it: only v27 words one entry differently. */
+// The non-hollow share's definition on a witan-rubric-v27 certificate only
+// (goal_cejel_v27_a1_restore_proof_and_hookwrapper_2026-11-02, #634 item E): how A1's note writes
+// the paths it names, and what a pytest collection hook it names as not read means; and, from
+// goal_cejel_v27_a1_restore_proof_v2_2026-11-02 item E, that a deselect-everything or
+// skip-everything hook reaches files outside its directory. Every other
+// rubric's certificate keeps CERTIFICATE_GLOSSARY's sentence, so its text stays byte-identical.
+const V27_NON_HOLLOW_TEST_SHARE_DEFINITION =
+  'test files that actually assert something rather than being empty or skipped. Under the prospective witan-rubric-v27, A1\'s note names each file a v27 rule rates hollow, and each pytest collection hook it did not read (as "hook not read", with the reason and the conftest.py\'s path: it could prove neither that the hook leaves no test to run nor that it puts the collected tests back, so no file was rated hollow for it). A collection hook that removes or skips every test is applied to every test file a pytest run that loads it collects, inside its directory and outside it, since pytest calls it with every collected test. A path that holds a comma or semicolon followed by a space, a space followed by an opening parenthesis, a backtick or a double quote is written in double quotes, with each backslash and double quote in it preceded by a backslash; any other path is written as it is. The evidence cites the first eight files rated hollow and the first eight collection hooks the note names, and the note says how many it names beyond those carry no evidence pointer.';
+
+/** `entry` as a certificate under `rubricVersion` shows it: only v27 words two entries differently. */
 export function glossaryEntryForRubric(
   entry: CertificateGlossaryEntry,
   rubricVersion: string | undefined,
 ): CertificateGlossaryEntry {
-  if (entry.key !== 'pr-gate-ci-workflow-count' || rubricVersion === undefined) return entry;
+  if ((entry.key !== 'pr-gate-ci-workflow-count' && entry.key !== 'non-hollow') || rubricVersion === undefined) return entry;
   if (!usesV27FalseAssuranceClosure(rubricVersion)) return entry;
-  return { ...entry, definition: V27_PR_GATE_CI_WORKFLOW_COUNT_DEFINITION };
+  return {
+    ...entry,
+    definition: entry.key === 'non-hollow' ? V27_NON_HOLLOW_TEST_SHARE_DEFINITION : V27_PR_GATE_CI_WORKFLOW_COUNT_DEFINITION,
+  };
 }
 
 const GLOSSARY_BY_METRIC = new Map(

@@ -2422,9 +2422,17 @@ function collectA1TestIntegrityEvidence(
       reviewableSourceProof !== undefined,
       pytestSettings
         ? {
-            disabledByRunWideSkip: (file) => runWideSkips.find((skip) => hookGoverns(skip, file)),
+            // A file is attributed to a hook whose directory holds it, where one governs it, before
+            // a hook elsewhere that reaches it (goal_cejel_v27_a1_restore_proof_v2_2026-11-02, item E).
+            disabledByRunWideSkip: (file) =>
+              runWideSkips.find((skip) => isAtOrBelow(file, skip.scope) && hookGoverns(skip, file)) ??
+              runWideSkips.find((skip) => hookGoverns(skip, file)),
             withheldRunWideSkip: (file) => {
-              for (const skip of runWideHooks) {
+              const inScopeFirst = [
+                ...runWideHooks.filter((skip) => isAtOrBelow(file, skip.scope)),
+                ...runWideHooks.filter((skip) => !isAtOrBelow(file, skip.scope)),
+              ];
+              for (const skip of inScopeFirst) {
                 if (!isGovernedPytestFile(skip, file)) continue;
                 const reason = hookWithheldFor(skip, file);
                 if (reason !== undefined) return reason;
@@ -2445,13 +2453,16 @@ function collectA1TestIntegrityEvidence(
         const source = PYTEST_CONFTEST_PATTERN.test(file) ? pytestSettings?.forFile(file).pythonFiles : undefined;
         return source === undefined ? [] : [`conftest rule not applied: ${pytestSettingReason(source)}`];
       }),
-      ...nonHollowShare.withheldRules.map(({ rule, reason }) => `${rule} not applied: ${reason}`),
+      // A hook the reader could not read is named as such (outcome 3), not as a rule withheld.
+      ...nonHollowShare.withheldRules.map(({ rule, reason }) =>
+        reason.startsWith(A1_HOOK_NOT_READ) ? reason : `${rule} not applied: ${reason}`,
+      ),
     ]),
   ];
   // v27 (goal_cejel_v27_a1_test_count_overmatch_2026-11-01, item A): each file a v27 rule rated
   // hollow is cited with its rule, the first eight as the test files are, so a reviewer can check
   // that the rule's condition held. Empty under every other rubric.
-  for (const rated of nonHollowShare.ratedHollow.slice(0, 8)) {
+  for (const rated of nonHollowShare.ratedHollow.slice(0, A1_NOTE_EVIDENCE_LIMIT)) {
     const label = `Rated hollow under this rubric: runs no test (${rated.rule})`;
     evidence.push(
       rated.line === null
@@ -2459,12 +2470,30 @@ function collectA1TestIntegrityEvidence(
         : evidenceForRelativeAtLine(repoPath, rated.path, 'test_run', label, rated.line),
     );
   }
+  // v27 (goal_cejel_v27_a1_restore_proof_and_hookwrapper_2026-11-02, item E): each hook the note
+  // names (not read, putting the items back, or rebinding them) is cited at its `def`, in the
+  // note's order, so its path is exact.
+  const namedHooks = withheldClauses.flatMap((clause) => {
+    const hook = runWideHooks.find((entry) => entry.withheld !== undefined && clause.endsWith(entry.withheld));
+    return hook === undefined ? [] : [hook];
+  });
+  for (const hook of namedHooks.slice(0, A1_NOTE_EVIDENCE_LIMIT)) {
+    const label =
+      hook.unread !== undefined ? `pytest collection hook not read (${hook.unread})` : 'pytest collection hook whose clear is not applied';
+    evidence.push(evidenceForRelativeAtLine(repoPath, hook.path, 'test_run', label, hook.line));
+  }
   for (const skip of runWideSkips.slice(0, 2)) {
-    const governed = allTestFiles.filter((file) => hookGoverns(skip, file)).length;
+    const governedFiles = allTestFiles.filter((file) => hookGoverns(skip, file));
+    const governed = governedFiles.length;
     if (governed === 0) continue;
+    // goal_cejel_v27_a1_restore_proof_v2_2026-11-02, item E: a hook reaches files outside its own
+    // directory, so the finding names where they are only when they are all under it.
+    const where = governedFiles.every((file) => isAtOrBelow(file, skip.scope))
+      ? `under ${skip.scope === '' ? 'the repository root' : `${skip.scope}/`}`
+      : `collected with it, under ${skip.scope}/ and outside it,`;
     findings.push({
       severity: 'warning',
-      summary: `A pytest collection hook in ${skip.path} ${skip.kind === 'skip' ? 'marks every collected test skipped' : 'removes every collected test'}, so the ${governed} pytest file${governed === 1 ? '' : 's'} under ${skip.scope === '' ? 'the repository root' : `${skip.scope}/`} cannot run.`,
+      summary: `A pytest collection hook in ${skip.path} ${skip.kind === 'skip' ? 'marks every collected test skipped' : 'removes every collected test'}, so the ${governed} pytest file${governed === 1 ? '' : 's'} ${where} cannot run.`,
       evidence: evidenceForRelativeAtLine(
         repoPath,
         skip.path,
@@ -2566,9 +2595,19 @@ function a1WithheldSentence(clauses: readonly string[], shown: number): string {
     return `A removal rule was not applied in ${count} case${count === 1 ? '' : 's'}; none is listed, for the note's length limit.`;
   }
   const more = count - shown;
-  const text = `${clauses.slice(0, shown).join('; ')}${more === 0 ? '' : `; and ${more} more not listed`}.`;
+  // item E: hooks named past the evidence limit carry no evidence pointer, and the sentence says how many.
+  const hooks = clauses.slice(0, shown).filter((clause) => A1_NOTE_HOOK_CLAUSE_PATTERN.test(clause)).length;
+  const pointerless = Math.max(0, hooks - A1_NOTE_EVIDENCE_LIMIT);
+  const text = `${clauses.slice(0, shown).join('; ')}${more === 0 ? '' : `; and ${more} more not listed`}${
+    pointerless === 0 ? '' : `; the ${pointerless} hooks named after the first ${A1_NOTE_EVIDENCE_LIMIT} carry no evidence pointer`
+  }.`;
   return `${text.charAt(0).toUpperCase()}${text.slice(1)}`;
 }
+
+/** A1's v27 evidence cites at most this many rated-hollow files, and as many hooks the note names. */
+const A1_NOTE_EVIDENCE_LIMIT = 8;
+// A withheld-rule clause naming a hook: not read, putting the items back, or rebinding them.
+const A1_NOTE_HOOK_CLAUSE_PATTERN = /^hook not read: |^run-wide skip rule not applied: the hook in /;
 
 /** v27: test_to_source_ratio counts conftest.py files that are the only test-shaped files. */
 function a1ConftestSurfaceSentence(count: number): string {
@@ -2586,11 +2625,16 @@ function a1RatedHollowSentence(rated: readonly RatedHollowFile[], shown: number)
   const lead = `${count} file${count === 1 ? '' : 's'} that v17 rates non-hollow ${count === 1 ? 'is' : 'are'} rated hollow here because ${count === 1 ? 'it runs' : 'they run'} no test`;
   if (shown === 0) return `${lead}; none is listed, for the note's length limit.`;
   const more = count - shown;
+  // item E: each path is quoted where it would not read back exactly, the rule's own path too; the
+  // files listed past the evidence limit carry no evidence pointer, and the sentence says how many.
   const listed = rated
     .slice(0, shown)
-    .map(({ path, rule }) => `${path} (${rule})`)
+    .map(({ path, rule }) => `${a1QuotedPath(path)} (${rule.replace(/^(run-wide skip: (?:hook|pytestmark) in )(.*)$/, (_, opening: string, cited: string) => `${opening}${a1QuotedPath(cited)}`)})`)
     .join(', ');
-  return `${lead}: ${listed}${more === 0 ? '' : `, and ${more} more not listed`}.`;
+  const pointerless = Math.max(0, shown - A1_NOTE_EVIDENCE_LIMIT);
+  return `${lead}: ${listed}${more === 0 ? '' : `, and ${more} more not listed`}${
+    pointerless === 0 ? '' : `; the ${pointerless} listed after the first ${A1_NOTE_EVIDENCE_LIMIT} carry no evidence pointer`
+  }.`;
 }
 
 /**
@@ -13002,7 +13046,17 @@ const CI_SCRIPT_KEY_PATTERN =
 const A1_NOTE_PATH_MAX_LENGTH = 120;
 
 function a1NotePath(path: string): string {
-  return path.length <= A1_NOTE_PATH_MAX_LENGTH ? path : `${path.slice(0, A1_NOTE_PATH_MAX_LENGTH - 3)}...`;
+  return a1QuotedPath(path.length <= A1_NOTE_PATH_MAX_LENGTH ? path : `${path.slice(0, A1_NOTE_PATH_MAX_LENGTH - 3)}...`);
+}
+
+/**
+ * A path as A1's notes write it, so it reads back exactly (goal_cejel_v27_a1_restore_proof_and_
+ * hookwrapper_2026-11-02, item E): as it is, or, where it holds `, `, `; `, ` (`, a backtick or a
+ * double quote (which the notes use to separate or wrap what they list), in double quotes with each
+ * `\` and `"` in it preceded by a `\`. Only v27 notes name such paths.
+ */
+function a1QuotedPath(path: string): string {
+  return /, |; | \(|[`"]/.test(path) ? `"${path.replace(/[\\"]/g, (character) => `\\${character}`)}"` : path;
 }
 
 function pytestSettingReason(source: PytestSettingSource): string {
@@ -13200,7 +13254,7 @@ function readPytestCollectionSettings(repoPath: string, repoFiles: readonly stri
         ...firstDefined(collecting.map((run) => run.disablesSkipping), 'disablesSkipping'),
         hookNotLoaded: (hookPath, scope) => {
           for (const run of collecting) {
-            const reason = run.hookNotLoaded(hookPath, scope);
+            const reason = run.hookNotLoaded(hookPath, scope, file);
             if (reason !== undefined) return reason;
           }
           return undefined;
@@ -13226,7 +13280,8 @@ interface ResolvedPytestRun {
   readonly pythonFiles?: PytestSettingSource;
   readonly testNames?: PytestSettingSource;
   readonly disablesSkipping?: PytestSettingSource;
-  readonly hookNotLoaded: (hookPath: string, scope: string) => string | undefined;
+  /** Why this run, collecting `file`, does not call the hook in the conftest.py `hookPath` (in `scope`) with it. */
+  readonly hookNotLoaded: (hookPath: string, scope: string, file: string) => string | undefined;
 }
 
 interface PytestRepositoryView {
@@ -13378,8 +13433,10 @@ function resolvePytestRun(invocation: PytestInvocation, repo: PytestRepositoryVi
     if (targets.length === 0) targets = [directory];
   }
   const ignores: string[] = [];
+  let ignoreGlob = false;
   for (const { read } of parsed) {
     for (const entry of read.options) {
+      if (entry.name === '--ignore-glob') ignoreGlob = true;
       if (entry.name !== '--ignore' || entry.value === undefined) continue;
       const resolved = resolveCommandPath(directory, entry.value);
       if (resolved !== null) ignores.push(resolved);
@@ -13403,10 +13460,27 @@ function resolvePytestRun(invocation: PytestInvocation, repo: PytestRepositoryVi
     ...(pythonFiles === undefined ? {} : { pythonFiles }),
     ...(testNames === undefined ? {} : { testNames }),
     ...(disablesSkipping === undefined ? {} : { disablesSkipping }),
-    hookNotLoaded: (hookPath, scope) => {
+    hookNotLoaded: (hookPath, scope, file) => {
       if (noConftest !== undefined) return pytestSettingReason(noConftest);
       // pytest loads no conftest.py from a directory strictly above its confcutdir (_is_in_confcutdir).
-      return isStrictAncestorDirectory(scope, confcutdir) ? confcutdirReason(hookPath) : undefined;
+      if (isStrictAncestorDirectory(scope, confcutdir)) return confcutdirReason(hookPath);
+      // goal_cejel_v27_a1_restore_proof_v2_2026-11-02, item E: pytest calls every loaded conftest.py's
+      // collection hook with every collected item, so a hook reaches a file outside its directory
+      // where this run also collects the hook's directory, which loads its conftest.py. A run that
+      // names no path at or above or below that directory, ignores it, or sets norecursedirs or
+      // --ignore-glob (which Cejel does not resolve) is read as not loading it.
+      if (!isAtOrBelow(file, scope)) {
+        const reaches =
+          targets.some((target) => isAtOrBelow(scope, target) || isAtOrBelow(target, scope)) &&
+          !ignores.some((ignored) => isAtOrBelow(scope, ignored)) &&
+          !ignoreGlob;
+        if (!reaches) {
+          return `the pytest command line in ${a1NotePath(invocation.source ?? '')} does not collect ${a1NotePath(scope)}, so it does not load ${a1NotePath(hookPath)}`;
+        }
+        const norecursedirs = values.get('norecursedirs');
+        if (norecursedirs !== undefined) return `norecursedirs ${norecursedirs.where}`;
+      }
+      return undefined;
     },
   };
 }
@@ -14501,11 +14575,22 @@ function stripPythonLineComment(line: string): string {
   return hash === -1 ? line : line.slice(0, hash);
 }
 
-/** A pytest test file a run-wide hook governs: a .py test file under the conftest's directory. */
+/**
+ * A pytest test file a run-wide hook may govern: a .py test file under the conftest's directory,
+ * or, where nothing in the repository may keep pytest from collecting that directory
+ * (`beyondScope`), any .py test file: pytest calls every loaded conftest.py's collection hook with
+ * every collected item (goal_cejel_v27_a1_restore_proof_v2_2026-11-02, item E). Whether a run
+ * collecting the file loads the conftest.py is read per run (hookNotLoaded).
+ */
 function isGovernedPytestFile(skip: PytestRunWideSkip, file: string): boolean {
   if (!/\.py$/.test(file) || PYTEST_CONFTEST_PATTERN.test(file)) return false;
-  return skip.scope === '' || file.startsWith(`${skip.scope}/`);
+  return skip.scope === '' || file.startsWith(`${skip.scope}/`) || skip.beyondScope;
 }
+
+// pytest's default norecursedirs, which it never collects (and so loads no conftest.py from).
+const PYTEST_DEFAULT_NORECURSE_SEGMENT_PATTERN = /^(?:.*\.egg|\..*|_darcs|build|CVS|dist|node_modules|venv|\{arch\})$/;
+// A conftest.py that names one of these may stop pytest collecting a directory.
+const PYTEST_COLLECT_IGNORE_PATTERN = /\b(?:collect_ignore|collect_ignore_glob|pytest_ignore_collect)\b/;
 
 // Only a hook defined at the top level of conftest.py is read: one defined inside an `if`, `try`
 // or other block exists only on some runs, so it is conditional too.
@@ -14520,9 +14605,6 @@ const PYTEST_HOOK_CONDITIONAL_PATTERN =
 const PYTEST_HOOK_FOR_EVERY_ITEM_PATTERN = /^for[ \t]+([A-Za-z_]\w*)[ \t]+in[ \t]+items[ \t]*:(.*)$/;
 // A statement that rebinds `items` itself, so a later loop over it may not cover every item.
 const PYTEST_HOOK_REBIND_ITEMS_PATTERN = /^(?:del[ \t]+)?items[ \t]*(?:[-+*/%&|^@]?=(?!=)|,|$)|\bitems[ \t]*:=/;
-// An empty tuple counts as an empty list (fix pass after the #626 review: `items[:] = ()` empties it too).
-const PYTEST_HOOK_CLEAR_ITEMS_PATTERN =
-  /^(?:items\.clear\(\s*\)|items\[\s*:\s*\][ \t]*=[ \t]*(?:\[\s*\]|\(\s*\))|del[ \t]+items\[\s*:\s*\])/;
 /**
  * A hook body line's statements: split at `;` unless the line holds a quote, where a `;` may be
  * inside a string and the line is kept whole.
@@ -14668,42 +14750,6 @@ function hookSkipsEveryItem(
   return false;
 }
 
-const PYTEST_HOOK_PARAMETERS_PATTERN = /^def[ \t]+pytest_collection_modifyitems[ \t]*\(([^)]*)\)/;
-
-/** True when the hook's `def` line closes its parameter list and names a parameter `items`. */
-function pytestHookTakesItems(defLine: string): boolean {
-  const parameters = PYTEST_HOOK_PARAMETERS_PATTERN.exec(defLine)?.[1];
-  if (parameters === undefined) return false;
-  return parameters.split(',').some((parameter) => /^[ \t]*items(?![\w])/.test(parameter));
-}
-
-// ---- How a hook that empties `items` may leave pytest's list holding them --------------------
-//
-// goal_cejel_v27_a1_test_count_overmatch_v2_2026-11-02, item A, as fixed after the #626 review: a
-// clear is withheld only on a restore of a shape the reader understands, read where it runs. Each
-// shape is a statement at the hook body's own indent, after the last such clear, outside any
-// lambda, nested function or class:
-//   - `items.extend(src)`, `items += src`, `items[a:b] = src`, `items.__iadd__(src)`,
-//     `items.append(x)` or `items.insert(i, x)`, on `items` or another name bound to it;
-//   - a top-level `for x in src:` loop whose body adds to the list that way;
-//   - a call of a function the conftest.py defines (at module level, or nested in the hook before
-//     the call) that adds to its first parameter, given the list first, or (nested) adds to the
-//     list itself.
-// A source the reader knows is empty (`[]`, `()`, `list()`, `tuple()`, a name bound only to one
-// of those, or the cleared list itself) restores nothing. Any other use of the list (a copy, a
-// report, a loop over it, a call to a builtin, a logger or a function Cejel cannot see, an
-// unknown method) is not read as a restore, so the hollow rating stands.
-
-/** The names a statement binds to the list (`a = items`, `a = b = items`), or []. Linear. */
-function pytestItemsAliases(code: string): string[] {
-  const parts = code.split('=').map((part) => part.trim());
-  if (parts.length < 2 || parts[parts.length - 1] !== 'items') return [];
-  const names = parts.slice(0, -1);
-  return names.every((name) => /^[A-Za-z_]\w*$/.test(name)) ? names : [];
-}
-const PYTHON_ZERO_LENGTH_SLICE_PATTERN = /^[A-Za-z_][\w.]*[ \t]*\[[ \t]*(?:0[ \t]*)?:[ \t]*0[ \t]*\]$/;
-const PYTHON_EMPTY_SEQUENCE_LITERAL_PATTERN = /^(?:\[[ \t]*\]|\([ \t]*\)|list[ \t]*\([ \t]*\)|tuple[ \t]*\([ \t]*\))$/;
-const PYTHON_DEF_WITH_PARAMETERS_PATTERN = /^(?:async[ \t]+)?def[ \t]+([A-Za-z_]\w*)[ \t]*\(([^)]*)\)/;
 /** A `for <target> in <source>:` statement's source and inline body, or undefined. Linear. */
 function pythonForLoop(code: string): { source: string; body: string } | undefined {
   if (!/^for[ \t]/.test(code)) return undefined;
@@ -14724,113 +14770,6 @@ function pythonForLoop(code: string): { source: string; body: string } | undefin
   if (at === -1) return undefined;
   return { source: head.slice(at + 4).trim(), body: code.slice(colon + 1).trim() };
 }
-// A call statement, optionally assigning its result: callee in group 1, the text after `(` in 2.
-const PYTHON_CALL_STATEMENT_PATTERN = /^(?:[A-Za-z_]\w*[ \t]*=[ \t]*)?([A-Za-z_]\w*)[ \t]*\((.*)$/;
-// Marks an adding call whose argument is one value (append, insert): never an empty source.
-const PYTHON_ONE_VALUE_SOURCE = '\u0000one value';
-
-/**
- * The source a statement adds to the list named `name` from, as written ('' where it is on later
- * lines, PYTHON_ONE_VALUE_SOURCE for append and insert), or undefined where it adds nothing.
- * `code` has its strings blanked. Linear in the statement.
- */
-function pythonListAddSource(code: string, name: string): string | undefined {
-  if (!code.startsWith(name)) return undefined;
-  const rest = code.slice(name.length);
-  if (/^\w/.test(rest)) return undefined;
-  const method = /^[ \t]*\.[ \t]*(extend|append|insert|__iadd__)[ \t]*\((.*)$/.exec(rest);
-  if (method) {
-    if (method[1] === 'append' || method[1] === 'insert') return PYTHON_ONE_VALUE_SOURCE;
-    const argument = method[2] ?? '';
-    const close = argument.lastIndexOf(')');
-    return (close === -1 ? argument : argument.slice(0, close)).trim();
-  }
-  const augmented = /^[ \t]*\+=[ \t]*(.*)$/.exec(rest);
-  if (augmented) return (augmented[1] ?? '').trim();
-  const open = rest.trimStart();
-  const close = open.startsWith('[') ? open.indexOf(']') : -1;
-  if (close === -1 || !open.slice(1, close).includes(':')) return undefined;
-  const assigned = /^[ \t]*=(?!=)[ \t]*(.*)$/.exec(open.slice(close + 1));
-  return assigned ? (assigned[1] ?? '').trim() : undefined;
-}
-
-/** True when a restore's source is known to be empty: an empty literal, a name bound only to one, or the cleared list. */
-function pythonSourceKnownEmpty(
-  source: string,
-  emptyName: (name: string) => boolean,
-  listNames: ReadonlySet<string>,
-): boolean {
-  if (source === PYTHON_ONE_VALUE_SOURCE || source === '') return false;
-  if (PYTHON_EMPTY_SEQUENCE_LITERAL_PATTERN.test(source)) return true;
-  // A zero-length slice written as `[:0]` or `[0:0]` (third pass; other empty slices are not read).
-  if (PYTHON_ZERO_LENGTH_SLICE_PATTERN.test(source)) return true;
-  if (/^[A-Za-z_]\w*$/.test(source) && emptyName(source)) return true;
-  for (const name of listNames) {
-    // After the clear the list is empty, and so is a copy, a sort or a comprehension over it alone.
-    const built = new RegExp(
-      `^(?:${name}(?:[ \\t]*\\[[ \\t]*:[ \\t]*\\]|[ \\t]*\\.[ \\t]*copy[ \\t]*\\([ \\t]*\\))?$|(?:sorted|list|tuple|reversed)[ \\t]*\\([ \\t]*${name}\\b|\\[[ \\t]*\\*[ \\t]*${name}[ \\t]*\\]$)`,
-    );
-    if (built.test(source)) return true;
-    // A comprehension over the cleared list alone (each test is linear: no two open runs).
-    if (source.startsWith('[') && source.endsWith(']') && new RegExp(`[ \\t]in[ \\t]+${name}\\b`).test(source)) return true;
-  }
-  return false;
-}
-
-/** The first parameter's name in a `def` line's parameter text, or undefined (none, or self/cls). */
-function pythonFirstParameter(parameters: string): string | undefined {
-  const first = (parameters.split(',')[0] ?? '').replace(/[:=].*$/, '').replace(/^\*+/, '').trim();
-  return /^[A-Za-z_]\w*$/.test(first) && first !== 'self' && first !== 'cls' ? first : undefined;
-}
-
-interface PythonListMutator {
-  /** Where it adds to its first parameter: the other parameters' positions its source names. */
-  readonly sourceParameters: readonly number[];
-  /** Where it adds to the hook's list itself (a function nested in the hook): the source, as written. */
-  readonly closureSource?: string;
-  /** The hook statement that defines it (a nested function), or -1 (a module-level one). */
-  readonly definedAt: number;
-}
-
-// A statement at a function's top level after which a later statement may not run (or runs only
-// on some calls): the hook's own conditional rule, plus return, raise and yield.
-const PYTHON_BODY_EXIT_OR_BRANCH_PATTERN =
-  /^(?:if|elif|else|while|for|try|except|finally|with|match|case|return|raise|yield|break|continue|async|await)\b/;
-
-/**
- * True when a function body adds, from a source not known to be empty, to one of `targets`, at the
- * body's own top level and before any statement there that branches or exits; never for a
- * generator (a body holding `yield`), whose call runs none of it (third pass: the hook's own rules
- * apply inside a helper). Linear in the body.
- */
-function pythonBodyAddsTo(
-  body: readonly { readonly indent: number; readonly code: string }[],
-  targets: ReadonlySet<string>,
-  knownEmpty: (source: string) => boolean,
-): string | undefined {
-  if (body.some(({ code }) => containsPythonIdentifier(code, 'yield'))) return undefined;
-  const top = body[0]?.indent;
-  // Names a top-level statement before the add binds or changes (`src = []`, `src.clear()`): an add
-  // from one of them no longer adds what the caller passed (last round of the #626 review).
-  const touched = new Set<string>();
-  for (const { indent, code } of body) {
-    if (indent !== top) continue;
-    if (PYTHON_BODY_EXIT_OR_BRANCH_PATTERN.test(code)) return undefined;
-    for (const target of targets) {
-      const source = pythonListAddSource(code, target);
-      if (source === undefined || knownEmpty(source)) continue;
-      const names = [...source.matchAll(PYTHON_IDENTIFIER_PATTERN)].map((match) => match[0]);
-      return names.some((name) => touched.has(name)) ? undefined : source;
-    }
-    const changed = PYTHON_CHANGED_NAME_PATTERN.exec(code);
-    if (changed) touched.add(changed[1] ?? '');
-  }
-  return undefined;
-}
-
-// A statement that binds or changes the name in group 1: `x = `, `x += `, `x, y = `, `del x`,
-// `x.method(`, `x[...] =`.
-const PYTHON_CHANGED_NAME_PATTERN = /^(?:del[ \t]+)?([A-Za-z_]\w*)[ \t]*(?:[-+*/%&|^@]?=(?!=)|,|\.|\[)/;
 
 /** A call's positional and keyword arguments' texts, at its top level, from the text after `(`. Linear. */
 function pythonCallArguments(afterParen: string): string[] {
@@ -14854,125 +14793,880 @@ function pythonCallArguments(afterParen: string): string[] {
   return parts;
 }
 
-/** A `def` line's parameter names, in order ('' where one is not a plain name). */
-function pythonParameterNames(parameters: string): string[] {
-  return parameters.split(',').map((parameter) => {
-    const name = parameter.replace(/[:=].*$/, '').replace(/^\*+/, '').trim();
-    return /^[A-Za-z_]\w*$/.test(name) ? name : '';
-  });
-}
-
-/** The positions (from 1) of the parameters a source names. */
-function pythonSourceParameters(source: string | undefined, parameters: readonly string[]): number[] {
-  if (source === undefined) return [];
-  const named = new Set([...source.matchAll(PYTHON_IDENTIFIER_PATTERN)].map((match) => match[0]));
-  return parameters.flatMap((parameter, position) => (position > 0 && parameter !== '' && named.has(parameter) ? [position] : []));
-}
+// ---- The three outcomes of a collection hook ------------------------------------------------
+//
+// goal_cejel_v27_a1_restore_proof_and_hookwrapper_2026-11-02 (#631, #632, #634), replacing the
+// restore reader of goal_cejel_v27_a1_test_count_overmatch_v2_2026-11-02. Every last top-level
+// `pytest_collection_modifyitems` with an `items` parameter whose body touches `items` reaches
+// exactly one of three outcomes, and none is chosen by default:
+//   1. deselects: the reader proves the hook leaves `items` empty, so the run-wide skip rule
+//      applies;
+//   2. restores: the reader proves the collected items are back in `items` when the hook returns,
+//      so the rule is withheld and A1's note says the hook puts them back;
+//   3. not read: the reader proves neither, so the rule makes no claim for the hook, and A1's note
+//      names it with the reason ("hook not read: `<reason>` in <path>").
+// A hook the reader reads as never emptying the list (it only reads it, reorders it or adds to it)
+// leaves the rule nothing to apply to and is not named, and one that rebinds the name `items`
+// before it clears keeps #626's withhold. A hook that skips every item is read as before.
+//
+// The body is read as logical statements, with comments and strings blanked; the `def` may run
+// onto later lines (black's wrapping). A hookwrapper (`hookwrapper=True` or `wrapper=True`) is read
+// as the code after its single top-level `yield`. Any other decorator, a second or nested `yield`,
+// a use of `items` before the yield, or any statement the hook's conditional rule stops (an `if`,
+// a `return`, a loop exit, `with`, `try`, ...) sends a hook that touches `items` to outcome 3. The
+// statements are then read in order, tracking what pytest's list holds:
+//   - a clear empties it: `items.clear()`, `items[:] = []` or `()`, `del items[:]`, a whole-slice
+//     assignment from a source known to be empty, or a call of a same-file helper that clears;
+//   - a restore puts every collected item back: `items.extend(S)`, `items += S` or `items[:] = S`
+//     (or `S[:]`), at the hook's top level, or a call of a same-file helper that does one of those
+//     to its list parameter from its source parameter (there `S`, `S[:]`, `list(S)`, `tuple(S)`,
+//     `sorted(S, ...)`, `[*S]` or `S.copy()`), the arguments by position or by the helper's own
+//     parameter names, or of a lambda or nested function without parameters bound at the top level
+//     whose body does one of those. S must be a name bound once, at the top level, before anything
+//     changes the list, to a full copy (`list(items)`, `items[:]`, `items.copy()`, `[*items]`,
+//     `tuple(items)` or `sorted(items, ...)`), and mentioned nowhere else in the hook, at any depth;
+//   - an add from a source known to be empty changes nothing: an empty literal, `range(0)`, a
+//     zero-length slice (`x[:0]`, `x[0:0]`, `x[k:k]`), a name whose last top-level binding is one of
+//     those with no mention since, or, while the list is empty, the list or a copy of it;
+//   - a read changes nothing: a loop over it, a builtin that only reads its arguments (`len`,
+//     `list`, `sorted`, `print`, ...), `sort`, `reverse`, `index`, `count`, `copy`, a subscript
+//     read, `in`, an alias bound at the top level, and a same-file helper that only reads it.
+// Anything else that names the list, an alias, a closure over it, or a `.items` attribute (pytest's
+// `session.items` is the same list) is not read: an add from any other source, `append`, `insert`,
+// `__iadd__`, a call of a function the conftest.py does not define once at its top level, a method
+// call, `*` arguments, a clear or add inside a loop, a closure stored or called with arguments, a
+// use of the hook's `session` parameter or of a `.session` attribute once the list is emptied, and
+// a `global` or `nonlocal` in the hook or a helper it calls. A
+// use not read before the last clear, with any call after it, is not read either: the call may
+// reach a reference the use stored. At the end: the list empty, outcome 1; every collected item
+// back, outcome 2; anything else, outcome 3.
+//
+// goal_cejel_v27_a1_restore_proof_v2_2026-11-02 (supersedes #638) changes two things above. The
+// file is tokenised (pythonSourceLines): strings, f-string fields, comments, brackets and
+// backslash continuations are read as Python reads them, so a body ends where Python ends it, and a
+// docstring or comment never decides anything. And outcome 2 is no longer what the list reading
+// above ends in: it is an allowlist over the whole hook body (pytestHookRestoreAllowlist), and any
+// statement that is not one of its shapes sends a hook that is not provably outcome 1 to outcome 3.
 
 /**
- * Module-level functions of a conftest.py that add to their first parameter, by name. Read from
- * each top-level `def` whose parameter list closes on its line, over the indented lines below it.
+ * A conftest.py tokenised as Python reads it. `masked[i]` is physical line i's code with comments
+ * dropped and every string literal written `""`, except an f-string (or t-string), which is written
+ * `(""` followed by `, <field code>` for each replacement field, then `)`, so the code its fields
+ * run is read as code. `joins[i]` is true where line i continues the logical line before it (inside
+ * a string, a bracket or a field, or after a backslash), and `inString[i]` where it starts inside a
+ * string. `strings[i]` holds the contents of each string literal that starts on line i.
+ * `tooDeep` is set where f-strings nest deeper than the reader follows. Linear in the text.
  */
-function pythonModuleListMutators(lines: readonly string[]): Map<string, PythonListMutator> {
-  const mutators = new Map<string, PythonListMutator>();
-  for (let index = 0; index < lines.length; index += 1) {
-    const match = PYTHON_DEF_WITH_PARAMETERS_PATTERN.exec(lines[index] ?? '');
-    if (!match) continue;
-    const parameter = pythonFirstParameter(match[2] ?? '');
-    const body: { indent: number; code: string }[] = [];
-    for (let next = index + 1; next < lines.length; next += 1) {
-      const raw = lines[next] ?? '';
-      if (raw.trim() === '' || raw.trimStart().startsWith('#')) continue;
-      if (!/^[ \t]/.test(raw)) break;
-      const indent = raw.length - raw.trimStart().length;
-      for (const code of pythonLineStatements(pythonCodeOutsideStrings(raw.trim()).trim())) body.push({ indent, code });
-    }
-    const source =
-      parameter === undefined
-        ? undefined
-        : pythonBodyAddsTo(body, new Set([parameter]), (candidate) => pythonSourceKnownEmpty(candidate, () => false, new Set([parameter])));
-    mutators.set(match[1] ?? '', { sourceParameters: pythonSourceParameters(source, pythonParameterNames(match[2] ?? '')), definedAt: -1 });
-  }
-  return mutators;
+interface PythonSourceLines {
+  readonly raw: readonly string[];
+  readonly masked: readonly string[];
+  readonly joins: readonly boolean[];
+  readonly inString: readonly boolean[];
+  readonly strings: readonly (readonly string[])[];
+  readonly tooDeep: boolean;
 }
 
-/**
- * How a hook that empties `items` may leave pytest's list holding the collected items:
- * 'restores' where a statement of a shape listed above puts items back after the last clear,
- * 'rebinds' where a top-level statement before that clear binds the name `items` to something
- * else (so the clear empties another list), or undefined. A rebind after the clear, or inside a
- * loop that may run zero times, leaves pytest's list empty and is not read.
- */
-function pytestItemsRestoreKind(
-  statements: readonly PythonHookStatement[],
-  hookIndent: number,
-  lines: readonly string[],
-): 'restores' | 'rebinds' | undefined {
-  const codes = statements.map(({ indent, text }) => ({ indent, code: pythonCodeOutsideStrings(text).trim() }));
-  const topLevel = (index: number) => codes[index]?.indent === hookIndent;
-  let lastClear = -1;
-  codes.forEach(({ code }, index) => {
-    if (topLevel(index) && PYTEST_HOOK_CLEAR_ITEMS_PATTERN.test(code)) lastClear = index;
-  });
-  if (lastClear === -1) return undefined;
-  for (let index = 0; index < lastClear; index += 1) {
-    if (topLevel(index) && PYTEST_HOOK_REBIND_ITEMS_PATTERN.test(codes[index]?.code ?? '')) return 'rebinds';
-  }
-  const listNames = new Set(['items']);
-  codes.forEach(({ code }, index) => {
-    if (topLevel(index)) for (const name of pytestItemsAliases(code)) listNames.add(name);
-  });
-  const addSource = (code: string): string | undefined => {
-    for (const name of listNames) {
-      const source = pythonListAddSource(code, name);
-      if (source !== undefined) return source;
-    }
-    return undefined;
+const PYTHON_STRING_PREFIXES: ReadonlySet<string> = new Set([
+  'r', 'u', 'b', 'f', 't', 'br', 'rb', 'fr', 'rf', 'tr', 'rt',
+]);
+/** f-strings nested deeper than this inside one another's fields are not followed. */
+const PYTHON_F_STRING_MAX_NESTING = 16;
+
+function pythonSourceLines(text: string): PythonSourceLines {
+  const raw = text.split('\n').map((line) => line.replace(/\r$/, ''));
+  const masked: string[] = [];
+  const joins: boolean[] = [false];
+  const inString: boolean[] = [false];
+  const strings: string[][] = [[]];
+  let chunks: string[] = [];
+  let depth = 0;
+  let index = 0;
+  let stringDepth = 0;
+  let tooDeep = false;
+  const length = text.length;
+  const isIdentifierStart = (character: string): boolean => /[A-Za-z_]/.test(character) || character > '\u007f';
+  const isIdentifierPart = (character: string): boolean => /\w/.test(character) || character > '\u007f';
+  const newline = (join: boolean): void => {
+    masked.push(chunks.join(''));
+    chunks = [];
+    joins.push(join);
+    inString.push(stringDepth > 0);
+    strings.push([]);
   };
-  // A name is known empty at a statement where its last top-level binding before it is an empty
-  // literal, a zero-length slice, or (after the last clear) a copy of the cleared list, and nothing
-  // between them mentions it (third pass: a copy taken after the clear is empty).
-  // Indexed once, so each question below is answered by binary search, not a rescan.
-  const bindings = new Map<string, number[]>();
-  const mentions = new Map<string, number[]>();
-  const changes = new Map<string, number[]>();
-  codes.forEach(({ code }, index) => {
+  const identifier = (): string => {
+    const start = index;
+    while (index < length && isIdentifierPart(text[index] ?? '')) index += 1;
+    return text.slice(start, index);
+  };
+  let fieldDepth = 0;
+  // The code of an f-string's replacement field, from just after its `{` to its closing `}`. A
+  // field nested past PYTHON_F_STRING_MAX_NESTING (fields in format specs in fields...) is skipped
+  // as text and marks the source `tooDeep`, so the recursion is bounded whatever the input.
+  const field = (): void => {
+    if (fieldDepth >= PYTHON_F_STRING_MAX_NESTING) {
+      tooDeep = true;
+      return;
+    }
+    fieldDepth += 1;
+    try {
+      fieldBody();
+    } finally {
+      fieldDepth -= 1;
+    }
+  };
+  const fieldBody = (): void => {
+    let nesting = 0;
+    while (index < length) {
+      const character = text[index] ?? '';
+      if (character === '\n') {
+        newline(true);
+        index += 1;
+      } else if (character === '\r') index += 1;
+      else if (character === '"' || character === "'") literal('');
+      else if (isIdentifierStart(character)) {
+        const word = identifier();
+        const next = text[index] ?? '';
+        if ((next === '"' || next === "'") && PYTHON_STRING_PREFIXES.has(word.toLowerCase())) literal(word);
+        else chunks.push(word);
+      } else if (character === '(' || character === '[' || character === '{') {
+        nesting += 1;
+        chunks.push(character);
+        index += 1;
+      } else if (character === ')' || character === ']') {
+        nesting = Math.max(0, nesting - 1);
+        chunks.push(character);
+        index += 1;
+      } else if (character === '}') {
+        index += 1;
+        if (nesting === 0) return;
+        nesting -= 1;
+        chunks.push(character);
+      } else if (nesting === 0 && character === '!' && text[index + 1] !== '=') {
+        // A conversion (`!r`): not code.
+        index += 1;
+        while (index < length && /\w/.test(text[index] ?? '')) index += 1;
+      } else if (nesting === 0 && character === ':') {
+        // The format spec: literal text, but each `{...}` in it is another field.
+        index += 1;
+        while (index < length) {
+          const spec = text[index] ?? '';
+          if (spec === '}') {
+            index += 1;
+            return;
+          }
+          if (spec === '{') {
+            chunks.push(', ');
+            index += 1;
+            field();
+          } else {
+            if (spec === '\n') newline(true);
+            index += 1;
+          }
+        }
+        return;
+      } else if (
+        nesting === 0 &&
+        character === '=' &&
+        !'=!<>'.includes(text[index - 1] ?? '') &&
+        /^[ \t]*[}!:]/.test(text.slice(index + 1, index + 1 + 64))
+      ) {
+        index += 1; // A self-documenting `=`: not code.
+      } else {
+        chunks.push(character);
+        index += 1;
+      }
+    }
+  };
+  // A string literal starting at `index` (its quote), with `prefix` already read.
+  const literal = (prefix: string): void => {
+    const lower = prefix.toLowerCase();
+    const formatted = (lower.includes('f') || lower.includes('t')) && stringDepth < PYTHON_F_STRING_MAX_NESTING;
+    if ((lower.includes('f') || lower.includes('t')) && !formatted) tooDeep = true;
+    const rawString = lower.includes('r');
+    const quote = text[index] ?? '"';
+    const triple = text.startsWith(quote.repeat(3), index);
+    index += triple ? 3 : 1;
+    const contentStart = index;
+    let contentEnd = -1;
+    const startLine = strings.length - 1;
+    chunks.push(formatted ? '(""' : '""');
+    stringDepth += 1;
+    while (index < length) {
+      const character = text[index] ?? '';
+      if (character === '\\') {
+        const next = text[index + 1] ?? '';
+        if (next === '\n') {
+          newline(true);
+          index += 2;
+        } else if (rawString && next !== '\\' && next !== quote) index += 1;
+        else index += 2;
+        continue;
+      }
+      if (character === '\n') {
+        if (!triple) break; // An unterminated one-line string ends at the line's end.
+        newline(true);
+        index += 1;
+        continue;
+      }
+      if (triple ? text.startsWith(quote.repeat(3), index) : character === quote) {
+        contentEnd = index;
+        index += triple ? 3 : 1;
+        break;
+      }
+      if (formatted && character === '{') {
+        if (text[index + 1] === '{') index += 2;
+        else {
+          chunks.push(', ');
+          index += 1;
+          field();
+        }
+        continue;
+      }
+      index += 1;
+    }
+    stringDepth -= 1;
+    if (formatted) chunks.push(')');
+    strings[startLine]?.push(text.slice(contentStart, contentEnd === -1 ? index : contentEnd));
+  };
+  while (index < length) {
+    const character = text[index] ?? '';
+    if (character === '\n') {
+      newline(depth > 0);
+      index += 1;
+    } else if (character === '\r') index += 1;
+    else if (character === '#') {
+      while (index < length && text[index] !== '\n') index += 1;
+    } else if (character === '\\' && (text[index + 1] === '\n' || (text[index + 1] === '\r' && text[index + 2] === '\n'))) {
+      chunks.push(' ');
+      index += text[index + 1] === '\r' ? 2 : 1;
+      newline(true);
+      index += 1;
+    } else if (character === '"' || character === "'") literal('');
+    else if (isIdentifierStart(character)) {
+      const word = identifier();
+      const next = text[index] ?? '';
+      if ((next === '"' || next === "'") && PYTHON_STRING_PREFIXES.has(word.toLowerCase())) literal(word);
+      else chunks.push(word);
+    } else {
+      if (character === '(' || character === '[' || character === '{') depth += 1;
+      else if (character === ')' || character === ']' || character === '}') depth = Math.max(0, depth - 1);
+      chunks.push(character);
+      index += 1;
+    }
+  }
+  masked.push(chunks.join(''));
+  // `split('\n')` and the scan agree on the line count; pad defensively.
+  while (masked.length < raw.length) {
+    masked.push('');
+    joins.push(false);
+    inString.push(false);
+    strings.push([]);
+  }
+  return { raw, masked, joins, inString, strings, tooDeep };
+}
+
+/** The physical lines [first, last] of each logical line of `source`, in order. */
+function pythonLogicalLines(source: PythonSourceLines): { readonly first: number; readonly last: number }[] {
+  const found: { first: number; last: number }[] = [];
+  for (let line = 0; line < source.masked.length; line += 1) {
+    if (line > 0 && source.joins[line] === true && found.length > 0) {
+      (found[found.length - 1] as { first: number; last: number }).last = line;
+    } else found.push({ first: line, last: line });
+  }
+  return found;
+}
+
+/** The indent of masked line `line`, or -1 where it holds no code. */
+function pythonLineIndent(source: PythonSourceLines, line: number): number {
+  const code = source.masked[line] ?? '';
+  const trimmed = code.trimStart();
+  return trimmed === '' ? -1 : code.length - trimmed.length;
+}
+
+/**
+ * The physical line after the block that starts after line `from`: the first line at or after
+ * `from` that starts a logical line holding code at an indent of at most `indent`, or the end.
+ */
+function pythonBlockEnd(source: PythonSourceLines, from: number, indent: number): number {
+  for (let line = from; line < source.masked.length; line += 1) {
+    if (source.joins[line] === true) continue;
+    const at = pythonLineIndent(source, line);
+    if (at !== -1 && at <= indent) return line;
+  }
+  return source.masked.length;
+}
+
+/** A logical statement of a function body, read from code with comments and strings blanked. */
+interface PythonCodeStatement {
+  readonly indent: number;
+  /** Its lines joined, comments and string contents blanked. */
+  readonly code: string;
+  /** As A1's note shows it: strings as "", whitespace collapsed, no backtick, bounded. */
+  readonly shown: string;
+  /** The 0-based physical lines it starts and ends on. */
+  readonly first: number;
+  readonly last: number;
+}
+
+/** A1's note quotes a statement it could not read by at most this many characters of it. */
+const A1_NOTE_CODE_MAX_LENGTH = 48;
+
+function pythonShownCode(text: string): string {
+  const shown = text.replace(/`/g, '').replace(/\s+/g, ' ').trim();
+  return shown.length <= A1_NOTE_CODE_MAX_LENGTH ? shown : `${shown.slice(0, A1_NOTE_CODE_MAX_LENGTH - 3)}...`;
+}
+
+/** Code (strings blanked) split at each `;` outside brackets. Linear. */
+function splitPythonCodeStatements(code: string): string[] {
+  if (!code.includes(';')) return code.trim() === '' ? [] : [code.trim()];
+  const parts: string[] = [];
+  let depth = 0;
+  let start = 0;
+  for (let index = 0; index < code.length; index += 1) {
+    const character = code[index];
+    if (character === '(' || character === '[' || character === '{') depth += 1;
+    else if (character === ')' || character === ']' || character === '}') depth -= 1;
+    else if (character === ';' && depth === 0) {
+      parts.push(code.slice(start, index).trim());
+      start = index + 1;
+    }
+  }
+  parts.push(code.slice(start).trim());
+  return parts.filter((part) => part !== '');
+}
+
+/**
+ * The logical statements of physical lines [start, end), read from the tokenised source (a
+ * statement runs on while the next line joins it: inside a string, a bracket or after a
+ * backslash), or why they cannot be read: a statement that runs on past `end`. A statement is
+ * shown from its raw text with string contents blanked, or from its masked code where a string
+ * runs across its lines. Linear in the lines.
+ */
+function pythonCodeStatements(
+  source: PythonSourceLines,
+  start: number,
+  end: number,
+): PythonCodeStatement[] | { readonly stop: string } {
+  const statements: PythonCodeStatement[] = [];
+  let first = -1;
+  let indent = 0;
+  let codes: string[] = [];
+  let shownParts: string[] = [];
+  let spansString = false;
+  for (let line = start; line < end; line += 1) {
+    const code = source.masked[line] ?? '';
+    if (first === -1) {
+      if (code.trim() === '' && source.joins[line + 1] !== true) continue;
+      first = line;
+      indent = code.length - code.trimStart().length;
+      codes = [];
+      shownParts = [];
+      spansString = false;
+    } else if (source.inString[line] === true) spansString = true;
+    codes.push(code.trim());
+    shownParts.push(pythonCodeOutsideStrings(source.raw[line] ?? '').trim());
+    if (line + 1 < source.masked.length && source.joins[line + 1] === true) {
+      if (line + 1 >= end) return { stop: 'unbalanced brackets' };
+      continue;
+    }
+    const joined = codes.join(' ');
+    const parts = splitPythonCodeStatements(joined);
+    const shown = spansString ? parts : splitPythonCodeStatements(shownParts.join(' '));
+    for (const [index, part] of parts.entries()) {
+      const text = shown.length === parts.length ? (shown[index] ?? part) : part;
+      statements.push({ indent, code: part, shown: pythonShownCode(text), first, last: line });
+    }
+    first = -1;
+  }
+  return first === -1 ? statements : { stop: 'unbalanced brackets' };
+}
+
+interface PythonDefHeader {
+  /** Each parameter's text, in order. */
+  readonly parameters: readonly string[];
+  /** The 0-based line the body starts on. */
+  readonly bodyStart: number;
+  /** Code after the header's colon on its last line (a one-line body), or ''. */
+  readonly inline: string;
+}
+
+const PYTHON_DEF_HEAD_PATTERN = /^[ \t]*(?:async[ \t]+)?def[ \t]+[A-Za-z_]\w*[ \t]*\(/;
+const PYTHON_DEF_TAIL_PATTERN = /^[ \t]*(?:->[^:]*)?:(.*)$/;
+
+/**
+ * The `def` header on masked line `index`, its parameters possibly running onto later lines, with
+ * or without a trailing comma (#634, item D), or undefined where it does not close. Linear.
+ */
+function pythonDefHeader(masked: readonly string[], index: number): PythonDefHeader | undefined {
+  const head = PYTHON_DEF_HEAD_PATTERN.exec(masked[index] ?? '');
+  if (!head) return undefined;
+  let depth = 0;
+  let parameters = '';
+  for (let line = index; line < masked.length; line += 1) {
+    const code = (masked[line] ?? '').replace(/\r$/, '');
+    for (let column = line === index ? head[0].length : 0; column < code.length; column += 1) {
+      const character = code[column] ?? '';
+      if (character === '(' || character === '[' || character === '{') depth += 1;
+      else if (character === ')' || character === ']' || character === '}') {
+        if (depth === 0) {
+          const tail = PYTHON_DEF_TAIL_PATTERN.exec(code.slice(column + 1));
+          if (!tail) return undefined;
+          return { parameters: pythonCallArguments(`${parameters})`), bodyStart: line + 1, inline: (tail[1] ?? '').trim() };
+        }
+        depth -= 1;
+      }
+      parameters += character;
+    }
+    parameters += ' ';
+  }
+  return undefined;
+}
+
+/** A parameter's name: '*' for a star parameter or a bare `*`, '' where it is not a plain name. */
+function pythonParameterName(parameter: string): string {
+  const text = parameter.trim();
+  if (text.startsWith('*')) return '*';
+  const name = text.replace(/[:=].*$/, '').trim();
+  return /^[A-Za-z_]\w*$/.test(name) ? name : '';
+}
+
+const PYTEST_HOOKIMPL_DECORATOR_PATTERN = /^@[ \t]*(?:pytest[ \t]*\.[ \t]*)?hookimpl[ \t]*(?:\((.*)\))?$/;
+const PYTEST_HOOKIMPL_OPTION_PATTERN = /^(hookwrapper|wrapper|tryfirst|trylast|optionalhook)[ \t]*=[ \t]*(True|False)$/;
+
+/**
+ * Whether the hook's decorators make it a wrapper (#632), or the first one the reader cannot place:
+ * anything but `pytest.hookimpl` (or `hookimpl`) with True or False options it knows.
+ */
+function pytestHookDecoration(source: PythonSourceLines, index: number): { readonly wrapper: boolean } | { readonly unread: string } {
+  const masked = source.masked;
+  let top = index;
+  for (let line = index - 1; line >= 0; line -= 1) {
+    const code = masked[line] ?? '';
+    if (code.trim() !== '' && source.joins[line] !== true && !/^@/.test(code)) break;
+    top = line;
+  }
+  let from = -1;
+  for (let line = top; line < index && from === -1; line += 1) if ((masked[line] ?? '').startsWith('@')) from = line;
+  if (from === -1) return { wrapper: false };
+  const decorators = pythonCodeStatements(source, from, index);
+  if ('stop' in decorators) return { unread: decorators.stop };
+  let wrapper = false;
+  for (const decorator of decorators) {
+    const hookimpl = PYTEST_HOOKIMPL_DECORATOR_PATTERN.exec(decorator.code);
+    if (!hookimpl) return { unread: decorator.shown };
+    for (const option of hookimpl[1] === undefined ? [] : pythonCallArguments(`${hookimpl[1]})`)) {
+      const known = PYTEST_HOOKIMPL_OPTION_PATTERN.exec(option);
+      if (!known) return { unread: decorator.shown };
+      if ((known[1] === 'hookwrapper' || known[1] === 'wrapper') && known[2] === 'True') wrapper = true;
+    }
+  }
+  return { wrapper };
+}
+
+// A hookwrapper's own yield: `yield`, `outcome = yield`, `(yield)`, or `return (yield)`.
+const PYTEST_WRAPPER_YIELD_PATTERN =
+  /^(?:(?:[A-Za-z_]\w*[ \t]*=[ \t]*)?(?:yield|\([ \t]*yield[ \t]*\))|return[ \t]*\([ \t]*yield[ \t]*\))$/;
+// A `.items` attribute that is not a call (`session.items` is pytest's list; `d.items()` is not).
+const PYTHON_ITEMS_ATTRIBUTE_PATTERN = /\.[ \t]*items\b(?![ \t]*\()/;
+const PYTHON_SESSION_ATTRIBUTE_PATTERN = /\.[ \t]*session\b/;
+const PYTHON_GLOBAL_STATEMENT_PATTERN = /^(?:global|nonlocal)\b/;
+const PYTEST_ITEMS_NAMES: ReadonlySet<string> = new Set(['items']);
+
+const PYTHON_READ_ONLY_LIST_METHODS: ReadonlySet<string> = new Set([
+  'sort', 'reverse', 'index', 'count', 'copy', '__len__', '__contains__', '__iter__', '__getitem__',
+]);
+const PYTHON_READ_ONLY_BUILTINS: ReadonlySet<string> = new Set([
+  'len', 'list', 'tuple', 'sorted', 'reversed', 'enumerate', 'zip', 'print', 'iter', 'set', 'frozenset',
+  'str', 'repr', 'bool', 'any', 'all', 'sum', 'min', 'max', 'id', 'type', 'isinstance', 'hash',
+]);
+// Words before a `(` that open a parenthesised expression, not a call.
+const PYTHON_NOT_CALLEES: ReadonlySet<string> = new Set([
+  'in', 'and', 'or', 'not', 'is', 'lambda', 'for', 'if', 'else', 'return', 'yield', 'await', 'assert', 'del', 'as',
+]);
+const PYTHON_METHOD_CALL_STICKY = /\.[ \t]*([A-Za-z_]\w*)[ \t]*(\()?/y;
+const PYTHON_AUGMENTED_ASSIGNMENT_STICKY = /(?:[-+*/%&|^@]|\/\/|\*\*|<<|>>)=/y;
+
+/** The index of the last non-blank character before `at`, or -1. */
+function pythonIndexBefore(code: string, at: number): number {
+  let index = at - 1;
+  while (index >= 0 && (code[index] === ' ' || code[index] === '\t')) index -= 1;
+  return index;
+}
+
+/** The index of the first non-blank character at or after `at`. */
+function pythonIndexAfter(code: string, at: number): number {
+  let index = at;
+  while (code[index] === ' ' || code[index] === '\t') index += 1;
+  return index;
+}
+
+/** The identifier ending just before `at` (blanks skipped) and where it starts, or undefined. */
+function pythonIdentifierBefore(code: string, at: number): { readonly name: string; readonly start: number } | undefined {
+  const end = pythonIndexBefore(code, at) + 1;
+  let start = end;
+  while (start > 0 && /\w/.test(code[start - 1] ?? '')) start -= 1;
+  if (start === end || /\d/.test(code[start] ?? '')) return undefined;
+  return { name: code.slice(start, end), start };
+}
+
+/** For each position, the innermost bracket open there (or -1); for each opening bracket, its close (or -1). Linear. */
+function pythonBracketNesting(code: string): { readonly enclosing: Int32Array; readonly close: Int32Array } {
+  const enclosing = new Int32Array(code.length).fill(-1);
+  const close = new Int32Array(code.length).fill(-1);
+  const stack: number[] = [];
+  for (let index = 0; index < code.length; index += 1) {
+    const character = code[index];
+    enclosing[index] = stack[stack.length - 1] ?? -1;
+    if (character === '(' || character === '[' || character === '{') stack.push(index);
+    else if (character === ')' || character === ']' || character === '}') {
+      const open = stack.pop();
+      if (open !== undefined) close[open] = index;
+    }
+  }
+  return { enclosing, close };
+}
+
+/**
+ * Where `code` names one of `names` as a variable: not an attribute (`x.items`) and not a keyword
+ * argument's name (`f(items=x)`). Linear in `code`.
+ */
+function pythonNameMentions(code: string, names: ReadonlySet<string>): { readonly name: string; readonly at: number }[] {
+  const found: { name: string; at: number }[] = [];
+  let nesting: ReturnType<typeof pythonBracketNesting> | undefined;
+  for (const match of code.matchAll(PYTHON_IDENTIFIER_PATTERN)) {
+    const at = match.index ?? 0;
+    if (!names.has(match[0]) || (at > 0 && /\w/.test(code[at - 1] ?? ''))) continue;
+    if (code[pythonIndexBefore(code, at)] === '.') continue;
+    const after = pythonIndexAfter(code, at + match[0].length);
+    if (code[after] === '=' && code[after + 1] !== '=') {
+      nesting ??= pythonBracketNesting(code);
+      const open = nesting.enclosing[at] ?? -1;
+      if (open !== -1 && code[open] === '(') continue;
+    }
+    found.push({ name: match[0], at });
+  }
+  return found;
+}
+
+/**
+ * True when the mention of a list at `at` only reads it: a method that removes nothing, a
+ * subscript read, after `in`, a `*` unpacking, or a whole argument of a builtin that only reads.
+ */
+function pythonListMentionReadsOnly(
+  code: string,
+  at: number,
+  length: number,
+  nesting: ReturnType<typeof pythonBracketNesting>,
+): boolean {
+  const after = pythonIndexAfter(code, at + length);
+  const next = code[after];
+  if (next === '.') {
+    PYTHON_METHOD_CALL_STICKY.lastIndex = after;
+    const method = PYTHON_METHOD_CALL_STICKY.exec(code);
+    return method !== null && method[2] === '(' && PYTHON_READ_ONLY_LIST_METHODS.has(method[1] ?? '');
+  }
+  if (next === '[') {
+    const close = nesting.close[after] ?? -1;
+    if (close === -1 || /^del\b/.test(code)) return false;
+    const rest = pythonIndexAfter(code, close + 1);
+    if (code[rest] === '=' && code[rest + 1] !== '=') return false;
+    PYTHON_AUGMENTED_ASSIGNMENT_STICKY.lastIndex = rest;
+    return !PYTHON_AUGMENTED_ASSIGNMENT_STICKY.test(code);
+  }
+  if (pythonIdentifierBefore(code, at)?.name === 'in') return true;
+  const previous = pythonIndexBefore(code, at);
+  if (code[previous] === '*') {
+    const before = pythonIndexBefore(code, previous);
+    return before === -1 || '([{,'.includes(code[before] ?? '');
+  }
+  const open = nesting.enclosing[at] ?? -1;
+  if (open === -1 || code[open] !== '(' || (next !== ',' && next !== ')')) return false;
+  const callee = pythonIdentifierBefore(code, open);
+  return callee !== undefined && PYTHON_READ_ONLY_BUILTINS.has(callee.name) && code[pythonIndexBefore(code, callee.start)] !== '.';
+}
+
+/** True when every mention of one of `names` in `code` only reads the list. */
+function pythonListMentionsReadOnly(code: string, names: ReadonlySet<string>): boolean {
+  const mentions = pythonNameMentions(code, names);
+  if (mentions.length === 0) return true;
+  const nesting = pythonBracketNesting(code);
+  return mentions.every(({ name, at }) => pythonListMentionReadsOnly(code, at, name.length, nesting));
+}
+
+/** True when `code` calls something other than a builtin that only reads. Linear. */
+function pythonCallsOtherThanReadOnlyBuiltin(code: string): boolean {
+  for (let open = code.indexOf('('); open !== -1; open = code.indexOf('(', open + 1)) {
+    const before = code[pythonIndexBefore(code, open)];
+    if (before === ')' || before === ']') return true;
+    const callee = pythonIdentifierBefore(code, open);
+    if (callee === undefined || PYTHON_NOT_CALLEES.has(callee.name)) continue;
+    if (code[pythonIndexBefore(code, callee.start)] === '.' || !PYTHON_READ_ONLY_BUILTINS.has(callee.name)) return true;
+  }
+  return false;
+}
+
+const PYTHON_EMPTY_SOURCE_PATTERN =
+  /^(?:\[[ \t]*\]|\([ \t]*\)|\{[ \t]*\}|(?:list|tuple|set|frozenset|dict)[ \t]*\([ \t]*\)|range[ \t]*\([ \t]*0[ \t]*\))$/;
+
+/** True when `source` ends in a zero-length slice: `[:0]`, `[0:0]`, or `[k:k]` for one integer or name k. Linear. */
+function pythonZeroLengthSlice(source: string): boolean {
+  if (!source.endsWith(']')) return false;
+  let depth = 0;
+  let open = -1;
+  for (let index = source.length - 1; index >= 0 && open === -1; index -= 1) {
+    const character = source[index];
+    if (character === ']' || character === ')' || character === '}') depth += 1;
+    else if (character === '[' || character === '(' || character === '{') {
+      depth -= 1;
+      if (depth === 0) open = index;
+    }
+  }
+  if (open <= 0 || source.slice(0, open).trim() === '' || source[open] !== '[') return false;
+  const parts = source.slice(open + 1, -1).split(':');
+  if (parts.length !== 2) return false;
+  const low = (parts[0] ?? '').trim();
+  const high = (parts[1] ?? '').trim();
+  return (high === '0' && (low === '' || low === '0')) || (low !== '' && low === high && /^(?:\d+|[A-Za-z_]\w*)$/.test(low));
+}
+
+// A full copy of a list: the name copied in group 1.
+const PYTHON_FULL_COPY_PATTERNS: readonly RegExp[] = [
+  /^(?:list|tuple)[ \t]*\([ \t]*([A-Za-z_]\w*)[ \t]*\)$/,
+  /^([A-Za-z_]\w*)[ \t]*\[[ \t]*:[ \t]*\]$/,
+  /^([A-Za-z_]\w*)[ \t]*\.[ \t]*copy[ \t]*\([ \t]*\)$/,
+  /^\[[ \t]*\*[ \t]*([A-Za-z_]\w*)[ \t]*,?[ \t]*\]$/,
+  /^sorted[ \t]*\([ \t]*([A-Za-z_]\w*)[ \t]*(?:,[ \t]*(?:key|reverse)[ \t]*=.*)?\)$/,
+];
+
+/** The name `value` is a full copy of (every element, in some order), or undefined. */
+function pythonFullCopyOf(value: string): string | undefined {
+  for (const pattern of PYTHON_FULL_COPY_PATTERNS) {
+    const match = pattern.exec(value);
+    if (match && (!value.startsWith('sorted') || callClosesAtEnd(value, value.indexOf('(')))) return match[1];
+  }
+  return undefined;
+}
+
+/** The bare name a restore puts back, written `S` or `S[:]` (or, in a helper, any full copy of S), or undefined. */
+function pythonRestoreSourceName(source: string, fullCopies: boolean): string | undefined {
+  const bare = /^([A-Za-z_]\w*)(?:[ \t]*\[[ \t]*:[ \t]*\])?$/.exec(source);
+  if (bare) return bare[1];
+  return fullCopies ? pythonFullCopyOf(source) : undefined;
+}
+
+type PythonListAddForm = 'extend' | 'iadd' | 'dunder' | 'one value' | 'whole' | 'slice' | 'index';
+
+const PYTHON_LIST_ADD_METHOD_PATTERN = /^([A-Za-z_]\w*)[ \t]*\.[ \t]*(extend|append|insert|__iadd__)[ \t]*\(/;
+const PYTHON_LIST_AUGMENTED_ADD_PATTERN = /^([A-Za-z_]\w*)[ \t]*\+=(?!=)(.*)$/;
+const PYTHON_LIST_SUBSCRIPT_TARGET_PATTERN = /^([A-Za-z_]\w*)[ \t]*\[/;
+const PYTHON_LIST_CLEAR_PATTERN = /^([A-Za-z_]\w*)[ \t]*\.[ \t]*clear[ \t]*\([ \t]*\)$/;
+const PYTHON_LIST_DELETE_ALL_PATTERN = /^del[ \t]+([A-Za-z_]\w*)[ \t]*\[[ \t]*:[ \t]*\]$/;
+const PYTHON_SIMPLE_BINDING_PATTERN = /^([A-Za-z_]\w*)[ \t]*=(?!=)[ \t]*(.*)$/;
+const PYTHON_LAMBDA_BINDING_PATTERN = /^([A-Za-z_]\w*)[ \t]*=[ \t]*lambda\b(.*)$/;
+const PYTHON_NESTED_DEF_PATTERN = /^(?:async[ \t]+)?def[ \t]+([A-Za-z_]\w*)[ \t]*\(/;
+const PYTHON_CALL_PATTERN = /^(?:[A-Za-z_]\w*[ \t]*=[ \t]*)?([A-Za-z_]\w*)[ \t]*\(/;
+const PYTHON_BARE_CALL_PATTERN = /^([A-Za-z_]\w*)[ \t]*\([ \t]*\)$/;
+// In a helper: a statement after which the rest may not run, or runs only on some calls.
+const PYTHON_HELPER_BRANCH_PATTERN = /^(?:if|elif|else|while|try|except|finally|with|match|case|break|continue|raise|async[ \t]+with)\b/;
+const PYTHON_DEAD_IF_PATTERN = /^if[ \t]+(?:False|0|None)[ \t]*:/;
+
+/** How a statement adds to (or assigns into) a list it starts with: the list, the form and its source. */
+function pythonListAddForm(
+  code: string,
+  names: ReadonlySet<string>,
+): { readonly target: string; readonly form: PythonListAddForm; readonly source: string } | undefined {
+  const method = PYTHON_LIST_ADD_METHOD_PATTERN.exec(code);
+  if (method && names.has(method[1] ?? '')) {
+    const open = method[0].length - 1;
+    if (!callClosesAtEnd(code, open)) return { target: method[1] ?? '', form: 'index', source: '' };
+    const args = pythonCallArguments(code.slice(open + 1));
+    const kind = method[2];
+    if (kind === 'append' || kind === 'insert') return { target: method[1] ?? '', form: 'one value', source: args.join(', ') };
+    if (args.length !== 1) return { target: method[1] ?? '', form: 'index', source: '' };
+    return { target: method[1] ?? '', form: kind === 'extend' ? 'extend' : 'dunder', source: args[0] ?? '' };
+  }
+  const augmented = PYTHON_LIST_AUGMENTED_ADD_PATTERN.exec(code);
+  if (augmented && names.has(augmented[1] ?? '')) return { target: augmented[1] ?? '', form: 'iadd', source: (augmented[2] ?? '').trim() };
+  const subscript = PYTHON_LIST_SUBSCRIPT_TARGET_PATTERN.exec(code);
+  if (!subscript || !names.has(subscript[1] ?? '')) return undefined;
+  const open = subscript[0].length - 1;
+  const close = pythonBracketNesting(code).close[open] ?? -1;
+  if (close === -1) return undefined;
+  const rest = pythonIndexAfter(code, close + 1);
+  if (code[rest] !== '=' || code[rest + 1] === '=') return undefined;
+  const inside = code.slice(open + 1, close);
+  const source = code.slice(rest + 1).trim();
+  if (/^[ \t]*:[ \t]*$/.test(inside)) return { target: subscript[1] ?? '', form: 'whole', source };
+  return { target: subscript[1] ?? '', form: inside.includes(':') ? 'slice' : 'index', source };
+}
+
+/** What a function does to a list passed as one of its parameters. */
+type PythonListParameterEffect =
+  | { readonly effect: 'none' | 'clear' | 'unknown' }
+  | { readonly effect: 'add-from' | 'replace-from'; readonly from: number };
+
+interface PythonFunction {
+  /** Each parameter's name, '*' or '' (pythonParameterName). */
+  readonly parameters: readonly string[];
+  readonly body: readonly PythonCodeStatement[];
+  /** Effects already read, by the list's parameter position. */
+  readonly effects: Map<number, PythonListParameterEffect>;
+}
+
+/** A conftest.py's top-level functions, read on demand. */
+interface PythonModuleScope {
+  /** A function defined once at the top level, undecorated and named nowhere else at the top level; null otherwise. */
+  readonly function: (name: string) => PythonFunction | null | undefined;
+}
+
+function pythonModuleScope(source: PythonSourceLines): PythonModuleScope {
+  const masked = source.masked;
+  const defined = new Map<string, number[]>();
+  for (const [line, code] of masked.entries()) {
+    const head = source.joins[line] === true ? null : /^(?:async[ \t]+)?def[ \t]+([A-Za-z_]\w*)/.exec(code);
+    if (!head) continue;
+    const at = defined.get(head[1] ?? '') ?? [];
+    at.push(line);
+    defined.set(head[1] ?? '', at);
+  }
+  const named = new Map<string, number>();
+  if (defined.size > 0) {
+    for (const code of masked) {
+      if (!/^[A-Za-z_@]/.test(code)) continue;
+      for (const match of code.matchAll(PYTHON_IDENTIFIER_PATTERN)) {
+        if (defined.has(match[0])) named.set(match[0], (named.get(match[0]) ?? 0) + 1);
+      }
+    }
+  }
+  const read = new Map<string, PythonFunction | null>();
+  return {
+    function: (name) => {
+      const at = defined.get(name);
+      if (at === undefined) return undefined;
+      if (read.has(name)) return read.get(name);
+      let result: PythonFunction | null = null;
+      const line = at[0] ?? -1;
+      let above = line - 1;
+      while (above >= 0 && (masked[above] ?? '').trim() === '') above -= 1;
+      const header = at.length === 1 && named.get(name) === 1 && !/^[@)\]}]/.test(masked[above] ?? '') ? pythonDefHeader(masked, line) : undefined;
+      if (header !== undefined && header.inline === '') {
+        const end = pythonBlockEnd(source, header.bodyStart, 0);
+        const body = pythonCodeStatements(source, header.bodyStart, end);
+        if (!('stop' in body)) result = { parameters: header.parameters.map(pythonParameterName), body, effects: new Map() };
+      }
+      read.set(name, result);
+      return result;
+    },
+  };
+}
+
+type PythonListState = 'collected' | 'grown' | 'empty' | 'restored' | 'unknown';
+
+type PythonListUse =
+  | { readonly use: 'none' | 'read' | 'clear' | 'add-empty' | 'add' | 'unknown' | 'rebind' }
+  | { readonly use: 'restore'; readonly source: string; readonly replace: boolean }
+  | { readonly use: 'alias'; readonly names: readonly string[] }
+  | { readonly use: 'call'; readonly closure: string };
+
+interface PythonListReading {
+  readonly state: PythonListState;
+  /** The statement that made the state unknown, as A1's note shows it. */
+  readonly reason?: string;
+  readonly cleared: boolean;
+  /** The base name was rebound before its list was changed, and a clear follows. */
+  readonly rebinds: boolean;
+  /** The uses that changed the list, in order. */
+  readonly changes: readonly PythonListUse[];
+}
+
+/** Calls of closures and helpers are read this many deep; deeper is not read. */
+const PYTHON_LIST_READ_DEPTH = 3;
+
+/**
+ * Reads what a function body does to the list named `base` (pytest's `items` in the hook, or a
+ * helper's list parameter), statement by statement, in the order they run.
+ */
+function readPythonList(
+  statements: readonly PythonCodeStatement[],
+  base: string,
+  scope: PythonModuleScope,
+  helper: { readonly sources: ReadonlySet<string> } | undefined,
+  depth: number,
+  guarded: ReadonlySet<string> = new Set(),
+): PythonListReading {
+  const listNames = new Set([base]);
+  const closures = new Map<string, { readonly from: number; readonly to: number } | { readonly lambda: PythonCodeStatement } | null>();
+  const localFunctions = new Map<string, PythonFunction | null>();
+  // Static: occurrences of each name, the statements that mention it, and the restores that use it.
+  const occurrences = new Map<string, number>();
+  const mentionedAt = new Map<string, number[]>();
+  for (const [ordinal, statement] of statements.entries()) {
     const seen = new Set<string>();
-    for (const match of code.matchAll(PYTHON_IDENTIFIER_PATTERN)) {
+    for (const match of statement.code.matchAll(PYTHON_IDENTIFIER_PATTERN)) {
+      const at = match.index ?? 0;
+      if (at > 0 && /\w/.test(statement.code[at - 1] ?? '')) continue;
+      if (statement.code[pythonIndexBefore(statement.code, at)] === '.') continue;
+      occurrences.set(match[0], (occurrences.get(match[0]) ?? 0) + 1);
       if (seen.has(match[0])) continue;
       seen.add(match[0]);
-      const list = mentions.get(match[0]) ?? [];
-      list.push(index);
-      mentions.set(match[0], list);
+      const list = mentionedAt.get(match[0]) ?? [];
+      list.push(ordinal);
+      mentionedAt.set(match[0], list);
     }
-    const binding = topLevel(index) ? /^([A-Za-z_]\w*)[ \t]*=(?!=)/.exec(code) : null;
-    if (binding) {
-      const list = bindings.get(binding[1] ?? '') ?? [];
-      list.push(index);
-      bindings.set(binding[1] ?? '', list);
+  }
+  const functionNamed = (name: string): PythonFunction | null | undefined =>
+    localFunctions.has(name) ? localFunctions.get(name) : scope.function(name);
+  const restoreUses = new Map<string, number>();
+  const countRestore = (code: string) => {
+    const add = pythonListAddForm(code, new Set([base]));
+    if (add && (add.form === 'extend' || add.form === 'iadd' || add.form === 'whole')) {
+      const name = pythonRestoreSourceName(add.source, helper !== undefined);
+      if (name !== undefined) restoreUses.set(name, (restoreUses.get(name) ?? 0) + 1);
+      return;
     }
-    const changed = topLevel(index) ? PYTHON_CHANGED_NAME_PATTERN.exec(code) : null;
-    if (changed) {
-      const list = changes.get(changed[1] ?? '') ?? [];
-      list.push(index);
-      changes.set(changed[1] ?? '', list);
+    const call = PYTHON_CALL_PATTERN.exec(code);
+    if (!call || !callClosesAtEnd(code, call[0].length - 1)) return;
+    // Functions nested in the hook are not known yet: a restore through one is not counted, so it is not proven.
+    const fn = scope.function(call[1] ?? '');
+    const mapped = fn ? pythonMapArguments(fn, code.slice(call[0].length)) : undefined;
+    if (!fn || !mapped) return;
+    for (const [position, argument] of mapped) {
+      if (argument !== base) continue;
+      const effect = pythonParameterEffect(fn, position, scope, depth);
+      if (effect.effect !== 'add-from' && effect.effect !== 'replace-from') continue;
+      const name = pythonRestoreSourceName(mapped.get(effect.from) ?? '', false);
+      if (name !== undefined) restoreUses.set(name, (restoreUses.get(name) ?? 0) + 1);
     }
-  });
-  // The last entry below `at` in an ascending list, or -1; and the first entry above `after`, or -1.
-  const lastBelow = (list: readonly number[], at: number): number => {
-    let low = 0;
-    let high = list.length - 1;
-    let found = -1;
-    while (low <= high) {
-      const middle = (low + high) >> 1;
-      if ((list[middle] ?? 0) < at) {
-        found = list[middle] ?? -1;
-        low = middle + 1;
-      } else high = middle - 1;
-    }
-    return found;
   };
-  const firstAbove = (list: readonly number[], after: number): number => {
+  for (const statement of statements) {
+    const lambda = PYTHON_LAMBDA_BINDING_PATTERN.exec(statement.code);
+    countRestore(lambda ? (pythonLambdaBody(lambda[2] ?? '') ?? '') : statement.code);
+  }
+  // The last statement shaped like a clear of the base name (for a rebind before it).
+  const lastClear = statements.reduce(
+    (found, { code }, ordinal) =>
+      PYTHON_LIST_CLEAR_PATTERN.exec(code)?.[1] === base ||
+      PYTHON_LIST_DELETE_ALL_PATTERN.exec(code)?.[1] === base ||
+      pythonListAddForm(code, new Set([base]))?.form === 'whole'
+        ? ordinal
+        : found,
+    -1,
+  );
+
+  let state: PythonListState = 'collected';
+  let reason: string | undefined;
+  let escape: string | undefined;
+  let callSinceClear = false;
+  let cleared = false;
+  let rebinds = false;
+  let stopped = false;
+  const changes: PythonListUse[] = [];
+  const copies = new Set<string>();
+  const lastBinding = new Map<string, number>();
+  const emptyBinding = new Map<number, boolean>();
+
+  const firstMentionAfter = (name: string, after: number): number => {
+    const list = mentionedAt.get(name) ?? [];
     let low = 0;
     let high = list.length - 1;
     let found = -1;
@@ -14985,89 +15679,844 @@ function pytestItemsRestoreKind(
     }
     return found;
   };
-  const emptyBinding = new Map<number, boolean>();
-  const knownEmptyAt = (name: string, at: number): boolean => {
-    const bound = lastBelow(bindings.get(name) ?? [], at);
-    if (bound === -1) return false;
-    let empty = emptyBinding.get(bound);
-    if (empty === undefined) {
-      const value = (/^[A-Za-z_]\w*[ \t]*=(?!=)[ \t]*(.*)$/.exec(codes[bound]?.code ?? '')?.[1] ?? '').trim();
-      empty =
-        PYTHON_EMPTY_SEQUENCE_LITERAL_PATTERN.test(value) ||
-        PYTHON_ZERO_LENGTH_SLICE_PATTERN.test(value) ||
-        (bound > lastClear && pythonSourceKnownEmpty(value, () => false, listNames));
-      emptyBinding.set(bound, empty);
-    }
-    if (!empty) return false;
-    const next = firstAbove(mentions.get(name) ?? [], bound);
-    return next === -1 || next >= at;
-  };
-  // A name bound, at top level before the last clear, to a copy of the list, and not changed at top
-  // level since: the saved items a helper may put back.
-  const savedCopyAt = (name: string, at: number): boolean => {
-    if (!/^[A-Za-z_]\w*$/.test(name)) return false;
-    const bound = lastBelow(bindings.get(name) ?? [], at);
-    if (bound === -1 || bound >= lastClear) return false;
-    const value = (/^[A-Za-z_]\w*[ \t]*=(?!=)[ \t]*(.*)$/.exec(codes[bound]?.code ?? '')?.[1] ?? '').trim();
-    // A copy, not the list itself (an alias empties with it), an empty literal or a zero-length slice.
-    if (
-      listNames.has(value) ||
-      PYTHON_EMPTY_SEQUENCE_LITERAL_PATTERN.test(value) ||
-      PYTHON_ZERO_LENGTH_SLICE_PATTERN.test(value) ||
-      !pythonSourceKnownEmpty(value, () => false, listNames)
-    ) {
-      return false;
-    }
-    const next = firstAbove(changes.get(name) ?? [], bound);
-    return next === -1 || next >= at;
-  };
-  const restoresFrom = (source: string | undefined, at: number) =>
-    source !== undefined && !pythonSourceKnownEmpty(source, (name) => knownEmptyAt(name, at), listNames);
-  const mutators = pythonModuleListMutators(lines);
-  // Nested functions defined in the hook, top level, with what they add to.
-  for (let index = 0; index < codes.length; index += 1) {
-    const match = topLevel(index) ? PYTHON_DEF_WITH_PARAMETERS_PATTERN.exec(codes[index]?.code ?? '') : null;
-    if (!match) continue;
-    const parameter = pythonFirstParameter(match[2] ?? '');
-    const body: { indent: number; code: string }[] = [];
-    for (let next = index + 1; next < codes.length && !topLevel(next); next += 1) {
-      body.push({ indent: codes[next]?.indent ?? 0, code: codes[next]?.code ?? '' });
-    }
-    const closureSource = pythonBodyAddsTo(body, listNames, (source) => !restoresFrom(source, index));
-    const ownSource =
-      parameter === undefined
-        ? undefined
-        : pythonBodyAddsTo(body, new Set([parameter]), (source) => pythonSourceKnownEmpty(source, () => false, new Set([parameter])));
-    mutators.set(match[1] ?? '', {
-      sourceParameters: pythonSourceParameters(ownSource, pythonParameterNames(match[2] ?? '')),
-      ...(closureSource === undefined ? {} : { closureSource }),
-      definedAt: index,
-    });
-  }
-  for (let index = lastClear + 1; index < codes.length; index += 1) {
-    if (!topLevel(index)) continue;
-    // A lambda, def or class line never starts with the list or a call of a known function, so only
-    // a statement that runs here is read (the mutation run showed an exclusion of them unreachable).
-    const code = codes[index]?.code ?? '';
-    if (restoresFrom(addSource(code), index)) return 'restores';
-    const loop = pythonForLoop(code);
-    if (loop && !pythonSourceKnownEmpty(loop.source, (name) => knownEmptyAt(name, index), listNames)) {
-      const body = [loop.body];
-      for (let next = index + 1; next < codes.length && !topLevel(next); next += 1) body.push(codes[next]?.code ?? '');
-      if (body.some((statement) => restoresFrom(addSource(statement), index))) return 'restores';
-    }
-    const call = PYTHON_CALL_STATEMENT_PATTERN.exec(code);
-    const mutator = call ? mutators.get(call[1] ?? '') : undefined;
-    if (call && mutator && mutator.definedAt < index) {
-      // A helper restores only from a copy of the list saved before the clear: named in its source
-      // (a nested function) or passed where its source parameter is (last round of the #626 review).
-      const closureNames = [...(mutator.closureSource ?? '').matchAll(PYTHON_IDENTIFIER_PATTERN)].map((match) => match[0]);
-      if (closureNames.some((name) => savedCopyAt(name, index))) return 'restores';
-      const args = pythonCallArguments(call[2] ?? '');
-      if (listNames.has(args[0] ?? '') && mutator.sourceParameters.some((position) => savedCopyAt(args[position] ?? '', index))) {
-        return 'restores';
+  const knownEmpty = (source: string, ordinal: number, inline: boolean): boolean => {
+    const value = source.trim();
+    if (PYTHON_EMPTY_SOURCE_PATTERN.test(value) || pythonZeroLengthSlice(value)) return true;
+    if (/^[A-Za-z_]\w*$/.test(value) && !listNames.has(value) && !inline) {
+      const bound = lastBinding.get(value);
+      // goal_cejel_v27_a1_restore_proof_v2_2026-11-02, item C: the binding must be the name's first
+      // mention in the hook, at any depth; a closure defined before it may fill the list it binds.
+      if (bound !== undefined && emptyBinding.get(bound) === true && (mentionedAt.get(value) ?? [])[0] === bound) {
+        const next = firstMentionAfter(value, bound);
+        if (next === -1 || next >= ordinal) return true;
       }
     }
+    if (state !== 'empty') return false;
+    if (listNames.has(value)) return true;
+    const copied = pythonFullCopyOf(value) ?? /^reversed[ \t]*\([ \t]*([A-Za-z_]\w*)[ \t]*\)$/.exec(value)?.[1];
+    if (copied !== undefined && listNames.has(copied)) return true;
+    if (value.startsWith('[') && value.endsWith(']')) {
+      return pythonNameMentions(value, listNames).some(({ at }) => pythonIdentifierBefore(value, at)?.name === 'in');
+    }
+    return false;
+  };
+  const savedProof = (name: string): boolean =>
+    helper !== undefined
+      ? helper.sources.has(name) && (occurrences.get(name) ?? 0) === (restoreUses.get(name) ?? 0)
+      : copies.has(name) && (occurrences.get(name) ?? 0) === 1 + (restoreUses.get(name) ?? 0);
+  const setUnknown = (statement: PythonCodeStatement) => {
+    if (state === 'unknown') return;
+    state = 'unknown';
+    reason = statement.shown;
+  };
+  // goal_cejel_v27_a1_restore_proof_v2_2026-11-02, item F: the closure names are kept as one set,
+  // updated where a closure or local function is bound, not rebuilt for every statement (which
+  // made a body of N stored lambdas cost N squared).
+  const closureNameSet = new Set<string>();
+  const refreshClosureName = (name: string): void => {
+    if (closures.has(name) || localFunctions.get(name) === null) closureNameSet.add(name);
+    else closureNameSet.delete(name);
+  };
+  const closureNames = (): ReadonlySet<string> => closureNameSet;
+
+  const classify = (statement: PythonCodeStatement, ordinal: number, inline: boolean): PythonListUse => {
+    const code = statement.code;
+    const mentions = pythonNameMentions(code, listNames);
+    const closureMentions = pythonNameMentions(code, closureNames());
+    if (PYTHON_ITEMS_ATTRIBUTE_PATTERN.test(code)) return { use: 'unknown' };
+    // pytest's session holds the same list (session.items), so once the list is emptied or put back,
+    // a use of the session, or of any object's session, may change it.
+    if (
+      (state === 'empty' || state === 'restored') &&
+      (pythonNameMentions(code, guarded).length > 0 || PYTHON_SESSION_ATTRIBUTE_PATTERN.test(code))
+    ) {
+      return { use: 'unknown' };
+    }
+    if (mentions.length === 0 && closureMentions.length === 0) return { use: 'none' };
+    const call = PYTHON_CALL_PATTERN.exec(code);
+    const callee = call && callClosesAtEnd(code, call[0].length - 1) ? functionNamed(call[1] ?? '') : undefined;
+    if (closureMentions.length > 0) {
+      const bare = PYTHON_BARE_CALL_PATTERN.exec(code);
+      if (bare && closures.has(bare[1] ?? '') && closureMentions.length === 1 && mentions.length === 0) {
+        return { use: 'call', closure: bare[1] ?? '' };
+      }
+      return { use: 'unknown' };
+    }
+    if (listNames.has(PYTHON_LIST_CLEAR_PATTERN.exec(code)?.[1] ?? '') || listNames.has(PYTHON_LIST_DELETE_ALL_PATTERN.exec(code)?.[1] ?? '')) {
+      return { use: 'clear' };
+    }
+    const add = pythonListAddForm(code, listNames);
+    if (add !== undefined) {
+      // goal_cejel_v27_a1_restore_proof_v2_2026-11-02, items A and D: an assignment to a slice that
+      // is not the whole list (`items[0:] = []`, `items[::1] = ()`, `items[:len(items)] = ()`,
+      // `items[1:] = []`) may remove any number of items, so it is never read as adding nothing.
+      if (add.form === 'index' || add.form === 'slice') return { use: 'unknown' };
+      const readsOnly = pythonListMentionsReadOnly(add.source, listNames);
+      if (add.form === 'whole') {
+        if (knownEmpty(add.source, ordinal, inline)) return { use: 'clear' };
+        if (!readsOnly) return { use: 'unknown' };
+        const name = pythonRestoreSourceName(add.source, helper !== undefined);
+        if (name !== undefined && add.target === base && !listNames.has(name)) return { use: 'restore', source: name, replace: true };
+        const copied = pythonFullCopyOf(add.source);
+        if (state === 'collected' && copied !== undefined && listNames.has(copied)) return { use: 'read' };
+        return { use: 'unknown' };
+      }
+      if (add.form !== 'one value' && knownEmpty(add.source, ordinal, inline)) return { use: 'add-empty' };
+      if (!readsOnly) return { use: 'unknown' };
+      if ((add.form === 'extend' || add.form === 'iadd') && add.target === base) {
+        const name = pythonRestoreSourceName(add.source, helper !== undefined);
+        if (name !== undefined && !listNames.has(name)) return { use: 'restore', source: name, replace: false };
+      }
+      return { use: 'add' };
+    }
+    const target = PYTHON_ASSIGNMENT_TARGET_PATTERN.exec(code)?.[1];
+    const aliases = code.split('=').map((part) => part.trim());
+    if (
+      aliases.length >= 2 &&
+      listNames.has(aliases[aliases.length - 1] ?? '') &&
+      aliases.slice(0, -1).every((name) => /^[A-Za-z_]\w*$/.test(name) && !listNames.has(name))
+    ) {
+      return inline ? { use: 'unknown' } : { use: 'alias', names: aliases.slice(0, -1) };
+    }
+    if (target !== undefined && listNames.has(target)) {
+      // `items = ...` (or `items, x = ...`) rebinds the name; `items *= 0` and the like change the list.
+      const plain = !/^[A-Za-z_]\w*[ \t]*[-+*/%&|^@]=/.test(code);
+      return plain && target === base && pythonListMentionsReadOnly(code.slice(code.indexOf('=') + 1), listNames)
+        ? { use: 'rebind' }
+        : { use: 'unknown' };
+    }
+    if (mentions.some(({ at }) => pythonIdentifierBefore(code, at)?.name === 'as' || pythonIdentifierBefore(code, at)?.name === 'for')) {
+      return { use: 'unknown' };
+    }
+    if (callee !== undefined && call) {
+      if (callee === null || depth >= PYTHON_LIST_READ_DEPTH) return { use: 'unknown' };
+      return pythonHelperCallUse(callee, code.slice(call[0].length), listNames, base, scope, depth, (source) => knownEmpty(source, ordinal, inline));
+    }
+    return pythonListMentionsReadOnly(code, listNames) ? { use: 'read' } : { use: 'unknown' };
+  };
+
+  const apply = (use: PythonListUse, statement: PythonCodeStatement, ordinal: number, inline: number): void => {
+    switch (use.use) {
+      case 'none':
+      case 'read':
+      case 'add-empty':
+        return;
+      case 'clear':
+        if (state === 'unknown') escape ??= reason;
+        state = 'empty';
+        cleared = true;
+        callSinceClear = false;
+        changes.push(use);
+        return;
+      case 'restore':
+        if (!savedProof(use.source)) {
+          apply({ use: 'add' }, statement, ordinal, inline);
+          return;
+        }
+        changes.push(use);
+        if (use.replace) {
+          if (state === 'unknown') escape ??= reason;
+          state = 'restored';
+        } else if (state === 'empty' || state === 'restored') state = 'restored';
+        else if (state === 'collected' || state === 'grown') state = 'grown';
+        return;
+      case 'add':
+        changes.push(use);
+        if (state === 'empty' || state === 'restored') setUnknown(statement);
+        else if (state === 'collected') state = 'grown';
+        return;
+      case 'alias':
+        for (const name of use.names) listNames.add(name);
+        return;
+      case 'rebind':
+        if (helper === undefined && inline === 0 && listNames.size === 1 && closures.size === 0) {
+          rebinds = (state === 'collected' || state === 'grown') && lastClear > ordinal;
+          stopped = true;
+          return;
+        }
+        setUnknown(statement);
+        return;
+      case 'call': {
+        const closure = closures.get(use.closure);
+        if (!closure || inline >= PYTHON_LIST_READ_DEPTH) {
+          setUnknown(statement);
+          return;
+        }
+        if ('lambda' in closure) apply(classify(closure.lambda, ordinal, true), closure.lambda, ordinal, inline + 1);
+        else run(closure.from, closure.to, inline + 1);
+        return;
+      }
+      case 'unknown':
+        setUnknown(statement);
+        return;
+    }
+  };
+
+  const extentMentions = (from: number, to: number): boolean => {
+    for (let ordinal = from; ordinal < to; ordinal += 1) {
+      const code = statements[ordinal]?.code ?? '';
+      if (
+        pythonNameMentions(code, listNames).length > 0 ||
+        pythonNameMentions(code, closureNameSet).length > 0 ||
+        pythonNameMentions(code, guarded).length > 0 ||
+        PYTHON_ITEMS_ATTRIBUTE_PATTERN.test(code) ||
+        PYTHON_SESSION_ATTRIBUTE_PATTERN.test(code)
+      ) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  // A statement inside a loop: it may run any number of times, so only a use that changes nothing
+  // (or a clear of a list already empty) is read.
+  const inBlock = (statement: PythonCodeStatement, ordinal: number): void => {
+    if (PYTHON_NESTED_DEF_PATTERN.test(statement.code) || PYTHON_CLASS_PATTERN.test(statement.code) || /\blambda\b/.test(statement.code)) {
+      if (extentMentions(ordinal, ordinal + 1)) setUnknown(statement);
+      return;
+    }
+    const use = classify(statement, ordinal, true);
+    if (use.use === 'none' || use.use === 'read' || use.use === 'add-empty') return;
+    if (use.use === 'clear' && state === 'empty') return;
+    setUnknown(statement);
+  };
+
+  function run(from: number, to: number, inline: number): void {
+    for (let ordinal = from; ordinal < to && !stopped; ) {
+      const statement = statements[ordinal] as PythonCodeStatement;
+      let end = ordinal + 1;
+      while (end < to && (statements[end]?.indent ?? 0) > statement.indent) end += 1;
+      const code = statement.code;
+      if (/^return\b/.test(code)) {
+        // Only a helper reaches here (the hook's conditional rule stops a `return`): the rest of the
+        // body does not run. A return in an inlined closure ends only the closure, which is not read.
+        if (helper === undefined || inline > 0 || extentMentions(ordinal, end)) setUnknown(statement);
+        stopped = helper !== undefined && inline === 0;
+        return;
+      }
+      if (helper !== undefined && PYTHON_DEAD_IF_PATTERN.test(code) && !/^(?:elif|else)\b/.test(statements[end]?.code ?? '')) {
+        ordinal = end;
+        continue;
+      }
+      if (PYTHON_HELPER_BRANCH_PATTERN.test(code)) {
+        if (/^raise\b/.test(code) || extentMentions(ordinal, end)) setUnknown(statement);
+        ordinal = end;
+        continue;
+      }
+      const nested = PYTHON_NESTED_DEF_PATTERN.exec(code) ?? PYTHON_CLASS_PATTERN.exec(code);
+      if (nested) {
+        const name = nested[1] ?? '';
+        const header = PYTHON_CLASS_PATTERN.test(code) ? undefined : pythonDefHeader([code], 0);
+        const parameters = header?.parameters.map(pythonParameterName) ?? ['*'];
+        const captures = extentMentions(ordinal + 1, end) || (header?.inline ?? '') !== '';
+        closures.delete(name);
+        localFunctions.delete(name);
+        if (header !== undefined && parameters.length === 0 && header.inline === '') {
+          if (captures) closures.set(name, { from: ordinal + 1, to: end });
+        } else if (captures || header === undefined || header.inline !== '') {
+          localFunctions.set(name, null);
+        } else {
+          localFunctions.set(name, { parameters, body: statements.slice(ordinal + 1, end), effects: new Map() });
+        }
+        refreshClosureName(name);
+        ordinal = end;
+        continue;
+      }
+      const lambda = PYTHON_LAMBDA_BINDING_PATTERN.exec(code);
+      if (lambda) {
+        const name = lambda[1] ?? '';
+        const body = pythonLambdaBody(lambda[2] ?? '');
+        closures.delete(name);
+        if (extentMentions(ordinal, ordinal + 1)) {
+          closures.set(name, body === undefined || inline > 0 ? null : { lambda: { ...statement, code: body } });
+        }
+        refreshClosureName(name);
+        ordinal = end;
+        continue;
+      }
+      const loop = pythonForLoop(code);
+      if (loop) {
+        // The header with its `in`, so a loop over the list itself reads it, and a loop rebinding a list name does not.
+        const head = code.slice(0, code.length - loop.body.length);
+        if (!pythonListMentionsReadOnly(head, listNames) || pythonNameMentions(head, closureNames()).length > 0) {
+          setUnknown(statement);
+        } else if (!knownEmpty(loop.source, ordinal, inline > 0)) {
+          if (loop.body !== '') inBlock({ ...statement, code: loop.body }, ordinal);
+          for (let inner = ordinal + 1; inner < end; inner += 1) inBlock(statements[inner] as PythonCodeStatement, inner);
+        }
+        ordinal = end;
+        continue;
+      }
+      if (code.startsWith('@')) {
+        if (extentMentions(ordinal, ordinal + 1)) setUnknown(statement);
+        ordinal += 1;
+        continue;
+      }
+      const binding = inline === 0 ? PYTHON_SIMPLE_BINDING_PATTERN.exec(code) : null;
+      const bound = binding?.[1];
+      const value = (binding?.[2] ?? '').trim();
+      const emptyValue = bound !== undefined && knownEmpty(value, ordinal, false);
+      const fullCopy = bound !== undefined && state === 'collected' && listNames.has(pythonFullCopyOf(value) ?? '');
+      const calls = pythonCallsOtherThanReadOnlyBuiltin(code);
+      const use = classify(statement, ordinal, inline > 0);
+      apply(use, statement, ordinal, inline);
+      if (bound !== undefined && !listNames.has(bound)) {
+        lastBinding.set(bound, ordinal);
+        emptyBinding.set(ordinal, emptyValue);
+        if (fullCopy) copies.add(bound);
+      }
+      if (calls && use.use !== 'clear') callSinceClear = true;
+      for (let inner = ordinal + 1; inner < end; inner += 1) inBlock(statements[inner] as PythonCodeStatement, inner);
+      ordinal = end;
+    }
+  }
+
+  if (statements.length > 0) run(0, statements.length, 0);
+  // `run` changes these through closures, which the compiler does not follow.
+  const ended = state as PythonListState;
+  if (escape !== undefined && (callSinceClear as boolean) && (ended === 'empty' || ended === 'restored')) {
+    return { state: 'unknown', reason: escape, cleared, rebinds, changes };
+  }
+  return { state: ended, ...(reason === undefined ? {} : { reason }), cleared, rebinds, changes };
+}
+
+/** A lambda's body expression when it takes no parameters, or undefined. */
+function pythonLambdaBody(afterLambda: string): string | undefined {
+  const colon = /^[ \t]*:(.*)$/.exec(afterLambda);
+  return colon ? (colon[1] ?? '').trim() : undefined;
+}
+
+/** A call's arguments by the callee's parameter position, or undefined where they cannot be mapped (`*` arguments, an unknown keyword). */
+function pythonMapArguments(fn: PythonFunction, afterParen: string): Map<number, string> | undefined {
+  const mapped = new Map<number, string>();
+  let position = 0;
+  for (const argument of pythonCallArguments(afterParen)) {
+    if (argument.startsWith('*')) return undefined;
+    const keyword = /^([A-Za-z_]\w*)[ \t]*=(?!=)[ \t]*(.*)$/.exec(argument);
+    if (keyword) {
+      const at = fn.parameters.indexOf(keyword[1] ?? '');
+      if (at === -1 || mapped.has(at)) return undefined;
+      mapped.set(at, (keyword[2] ?? '').trim());
+      continue;
+    }
+    const parameter = fn.parameters[position];
+    if (parameter === undefined || parameter === '' || parameter === '*' || mapped.has(position)) return undefined;
+    mapped.set(position, argument);
+    position += 1;
+  }
+  return mapped;
+}
+
+/** What a call of a same-file function, given the list, does to it, as a use of the list. */
+function pythonHelperCallUse(
+  fn: PythonFunction,
+  afterParen: string,
+  listNames: ReadonlySet<string>,
+  base: string,
+  scope: PythonModuleScope,
+  depth: number,
+  knownEmpty: (source: string) => boolean,
+): PythonListUse {
+  const mapped = pythonMapArguments(fn, afterParen);
+  if (mapped === undefined) return { use: 'unknown' };
+  const given = [...mapped].filter(([, argument]) => listNames.has(argument));
+  for (const [, argument] of mapped) {
+    if (!listNames.has(argument) && !pythonListMentionsReadOnly(argument, listNames)) return { use: 'unknown' };
+  }
+  if (given.length === 0) return { use: 'read' };
+  const [entry] = given;
+  if (given.length > 1 || entry === undefined) return { use: 'unknown' };
+  const [position, argument] = entry;
+  const effect = pythonParameterEffect(fn, position, scope, depth);
+  if (!('from' in effect)) return { use: effect.effect === 'none' ? 'read' : effect.effect === 'clear' ? 'clear' : 'unknown' };
+  const source = mapped.get(effect.from);
+  if (source === undefined) return { use: 'unknown' };
+  if (knownEmpty(source)) return effect.effect === 'add-from' ? { use: 'add-empty' } : { use: 'clear' };
+  const name = pythonRestoreSourceName(source, false);
+  if (name !== undefined && argument === base && !listNames.has(name)) {
+    return { use: 'restore', source: name, replace: effect.effect === 'replace-from' };
+  }
+  return effect.effect === 'add-from' ? { use: 'add' } : { use: 'unknown' };
+}
+
+/** What a function does to the list passed at parameter `position`, read once and kept. */
+function pythonParameterEffect(fn: PythonFunction, position: number, scope: PythonModuleScope, depth: number): PythonListParameterEffect {
+  const known = fn.effects.get(position);
+  if (known !== undefined) return known;
+  fn.effects.set(position, { effect: 'unknown' });
+  const effect = readPythonParameterEffect(fn, position, scope, depth);
+  fn.effects.set(position, effect);
+  return effect;
+}
+
+function readPythonParameterEffect(fn: PythonFunction, position: number, scope: PythonModuleScope, depth: number): PythonListParameterEffect {
+  const parameter = fn.parameters[position];
+  if (parameter === undefined || parameter === '' || parameter === '*' || depth >= PYTHON_LIST_READ_DEPTH) return { effect: 'unknown' };
+  // A global or nonlocal binding may keep the list where a later call reaches it.
+  if (fn.body.some(({ code }) => PYTHON_GLOBAL_STATEMENT_PATTERN.test(code))) return { effect: 'unknown' };
+  // A generator: calling it runs none of its body.
+  if (fn.body.some(({ code }) => containsPythonIdentifier(code, 'yield'))) return { effect: 'none' };
+  const sources = new Set(fn.parameters.filter((name, at) => at !== position && name !== '' && name !== '*'));
+  const reading = readPythonList(fn.body, parameter, scope, { sources }, depth + 1);
+  if (reading.state === 'unknown' || reading.rebinds) return { effect: 'unknown' };
+  if (reading.changes.length === 0) return { effect: 'none' };
+  if (reading.state === 'empty') return { effect: 'clear' };
+  const last = reading.changes[reading.changes.length - 1];
+  if (last?.use !== 'restore' || !sources.has(last.source)) return { effect: 'unknown' };
+  const from = fn.parameters.indexOf(last.source);
+  if (reading.state === 'restored' && (last.replace || reading.changes.some(({ use }) => use === 'clear'))) return { effect: 'replace-from', from };
+  if (reading.state === 'grown' && reading.changes.length === 1 && !last.replace) return { effect: 'add-from', from };
+  return { effect: 'unknown' };
+}
+
+// ---- Outcome 2 as an allowlist (goal_cejel_v27_a1_restore_proof_v2_2026-11-02) ---------------
+//
+// A hook puts the collected items back (outcome 2) only when every statement of its body (after a
+// hookwrapper's yield; before it, only docstrings) is one of these shapes, at the body's own
+// indent, in this order of effect:
+//   - a copy binding `S = list(items)`, `S = items[:]`, `S = items.copy()`, `S = [*items]` or
+//     `S = tuple(items)`, before anything empties the list, with S mentioned at most once more in
+//     the hook (`list` and `tuple` count only where the module binds neither name anywhere);
+//   - an emptying `items.clear()`, `del items[:]` or `items[:] = []`;
+//   - a restore after an emptying, from a copy not used yet: `items.extend(S)`, `items += S`,
+//     `items[:] = S` or `items[:] = S[:]`;
+//   - a call of a same-file helper read strictly (pytestStrictRestoreHelper) given `items` and a
+//     copy not used yet;
+//   - a docstring (a statement that is only string literals).
+// It ends with the list put back. Anything else (a lambda, a nested or async def, a decorator,
+// `sorted`, a slice, another name for the list, exec, getattr, an f-string field, ...) is outside
+// the allowlist, and the hook is not credited with outcome 2.
+//
+// The review of #644 at bca7ebfbf: an allowlist that admits a call trusts every name the call can
+// reach. So it admits no report call (`config.hook.pytest_deselected(...)`, which any conftest.py
+// or plugin may implement; `print` and logging calls, which run handlers and their arguments'
+// `__str__`), and a hook whose body passes is still refused where its conftest.py can rebind a name
+// the allowlist trusts without spelling it (pythonModuleRebindHazard): a star import, `setattr`,
+// `builtins` or `__builtins__`, `sys.modules`, a module `__getattr__`, or an assignment to `list`
+// or `tuple` through an attribute. Each such hook is named (outcome 3), never credited.
+
+/** A name read as Python's own builtin, or exec-like access the reader cannot follow. */
+const PYTHON_DYNAMIC_ACCESS_PATTERN =
+  /(?<![\w.])(?:exec|eval|compile|getattr|setattr|delattr|globals|locals|vars|__import__|__builtins__)\b|\.[ \t]*__dict__\b/;
+const PYTHON_STRING_ONLY_PATTERN = /^(?:""[ \t]*)+$/;
+// A conftest.py naming any of these, bare or as an attribute, may rebind a name the allowlist
+// trusts without spelling it: setattr(sys.modules[__name__], "li" + "st", ...), builtins.print = ...,
+// __builtins__["list"] = ..., vars(module)[...], a module __getattr__ (#644 review at bca7ebfbf).
+const PYTHON_REBIND_HAZARD_NAMES: ReadonlySet<string> = new Set([
+  'setattr', 'delattr', '__setattr__', '__delattr__', 'builtins', '__builtins__', 'modules', '__dict__',
+  '__globals__', '__getattr__', '__getattribute__', '__import__', 'importlib',
+]);
+// The same, read only where the name is bare (Python's builtin), not an attribute (`re.compile`).
+const PYTHON_REBIND_HAZARD_BUILTINS: ReadonlySet<string> = new Set(['exec', 'eval', 'compile', 'globals', 'vars', 'locals']);
+// Names the allowlist trusts as Python's builtins: an attribute of that name other than a call
+// (`conftest.list = ...`, `sys.modules[__name__].tuple = ...`) may bind the module's global.
+const PYTHON_TRUSTED_BUILTINS: ReadonlySet<string> = new Set(['list', 'tuple']);
+const PYTHON_REBINDING_KEYWORDS: ReadonlySet<string> = new Set(['for', 'as', 'def', 'class', 'import', 'global', 'nonlocal']);
+
+/** A same-file helper the allowlist reads: which parameter it fills, from which, and whether it empties first. */
+interface PythonStrictHelper {
+  readonly parameters: readonly string[];
+  readonly list: number;
+  readonly source: number;
+  readonly replaces: boolean;
+}
+
+/** What the allowlist needs to know about a conftest.py's module: read on demand, each once. */
+interface PythonModuleFacts {
+  /** True where the module never binds `name` (every mention a call or a subscript, never in a def, class or string). */
+  readonly unbound: (name: string) => boolean;
+  /** The first statement of the module that may rebind a name the allowlist trusts without spelling it, or undefined. */
+  readonly hazard: () => PythonCodeStatement | undefined;
+  /** The helper `name` read strictly, where the hook mentions it `hookMentions` times; undefined otherwise. */
+  readonly helper: (name: string, hookMentions: number) => PythonStrictHelper | undefined;
+}
+
+/** Each place `code` names `name` as a variable (not an attribute), with the character after it. Linear. */
+function pythonBareMentions(code: string, name: string): { readonly at: number; readonly next: string; readonly before: string }[] {
+  const found: { at: number; next: string; before: string }[] = [];
+  if (!code.includes(name)) return found;
+  for (const match of code.matchAll(PYTHON_IDENTIFIER_PATTERN)) {
+    if (match[0] !== name) continue;
+    const at = match.index ?? 0;
+    if (code[pythonIndexBefore(code, at)] === '.') continue;
+    const after = pythonIndexAfter(code, at + name.length);
+    found.push({ at, next: code.slice(after, after + 2), before: pythonIdentifierBefore(code, at)?.name ?? '' });
+  }
+  return found;
+}
+
+function pythonModuleFacts(source: PythonSourceLines): PythonModuleFacts {
+  const masked = source.masked;
+  const logical = pythonLogicalLines(source);
+  const topLevel = logical
+    .filter(({ first }) => pythonLineIndent(source, first) === 0)
+    .map(({ first, last }) => ({ first, last, code: masked.slice(first, last + 1).map((line) => line.trim()).join(' ') }));
+  const mentions = (name: string) => masked.flatMap((code) => pythonBareMentions(code, name));
+  const named = (name: string) => source.strings.some((list) => list.some((text) => containsPythonIdentifier(text, name)));
+  const cache = new Map<string, boolean>();
+  const unbound = (name: string): boolean => {
+    const known = cache.get(name);
+    if (known !== undefined) return known;
+    const result =
+      !named(name) &&
+      mentions(name).every(({ next, before }) => (next.startsWith('(') || next.startsWith('[')) && before !== 'def' && before !== 'class');
+    cache.set(name, result);
+    return result;
+  };
+  let hazardRead = false;
+  let hazardFound: PythonCodeStatement | undefined;
+  const hazard = (): PythonCodeStatement | undefined => {
+    if (!hazardRead) {
+      hazardRead = true;
+      hazardFound = pythonModuleRebindHazard(source);
+    }
+    return hazardFound;
+  };
+  const helper = (name: string, hookMentions: number): PythonStrictHelper | undefined => {
+    if (!/^[A-Za-z_]\w*$/.test(name) || named(name)) return undefined;
+    // Bound nowhere else: its one `def` and the hook's mentions are every mention, at any indent,
+    // and no attribute of that name is written (`conftest.refill = ...` rebinds the global).
+    if (mentions(name).length !== 1 + hookMentions) return undefined;
+    if (masked.some((code) => pythonAttributeMentions(code, name).length > 0)) return undefined;
+    const defs = topLevel.filter(({ code }) => new RegExp(`^def[ \\t]+${name}[ \\t]*\\(`).test(code));
+    const definition = defs[0];
+    if (defs.length !== 1 || definition === undefined) return undefined;
+    // Undecorated: the logical line above it is not a decorator.
+    const above = logical.filter(({ last }) => last < definition.first && pythonLineIndent(source, last) !== -1).pop();
+    if (above !== undefined && (masked[above.first] ?? '').trimStart().startsWith('@')) return undefined;
+    const header = pythonDefHeader(masked, definition.first);
+    if (header === undefined || header.inline !== '') return undefined;
+    const parameters = header.parameters.map(pythonParameterName);
+    if (parameters.length !== 2 || parameters.some((parameter) => parameter === '' || parameter === '*')) return undefined;
+    const body = pythonCodeStatements(source, header.bodyStart, pythonBlockEnd(source, header.bodyStart, 0));
+    if ('stop' in body) return undefined;
+    const statements = body.filter(({ code }) => !PYTHON_STRING_ONLY_PATTERN.test(code));
+    if (statements.length === 0 || statements.length > 2 || statements.some(({ indent }) => indent !== body[0]?.indent)) return undefined;
+    const restore = statements[statements.length - 1] as PythonCodeStatement;
+    for (const [list, from] of [
+      [0, 1],
+      [1, 0],
+    ] as const) {
+      const target = parameters[list] ?? '';
+      const origin = parameters[from] ?? '';
+      const emptying = statements.length === 2 ? statements[0] : undefined;
+      if (emptying !== undefined && !pythonEmptiesList(emptying.code, target)) continue;
+      const restored = pythonRestoreFrom(restore.code, target, unbound);
+      if (restored === undefined || restored.copy !== origin) continue;
+      return { parameters, list, source: from, replaces: emptying !== undefined || restored.replace };
+    }
+    return undefined;
+  };
+  return { unbound, hazard, helper };
+}
+
+/** Each place `code` names `name` as an attribute (after a `.`), with the two characters after it. Linear. */
+function pythonAttributeMentions(code: string, name: string): { readonly at: number; readonly next: string }[] {
+  const found: { at: number; next: string }[] = [];
+  if (!code.includes(name)) return found;
+  for (const match of code.matchAll(PYTHON_IDENTIFIER_PATTERN)) {
+    if (match[0] !== name) continue;
+    const at = match.index ?? 0;
+    if (code[pythonIndexBefore(code, at)] !== '.') continue;
+    const after = pythonIndexAfter(code, at + name.length);
+    found.push({ at, next: code.slice(after, after + 2) });
+  }
+  return found;
+}
+
+/**
+ * The first logical statement of a conftest.py that may rebind a name the allowlist trusts without
+ * spelling it (#644 review at bca7ebfbf), or undefined: a star import; a name of
+ * PYTHON_REBIND_HAZARD_NAMES anywhere, or of PYTHON_REBIND_HAZARD_BUILTINS bare; an attribute named
+ * `list` or `tuple` that is not called. A module that cannot be split into statements is a hazard.
+ * Read from code with strings blanked and comments dropped. Linear in the text.
+ */
+function pythonModuleRebindHazard(source: PythonSourceLines): PythonCodeStatement | undefined {
+  const statements = pythonCodeStatements(source, 0, source.masked.length);
+  if ('stop' in statements) return { indent: 0, code: '', shown: statements.stop, first: 0, last: 0 };
+  for (const statement of statements) {
+    const code = statement.code;
+    if (/^from\b/.test(code) && code.includes('*')) return statement;
+    for (const match of code.matchAll(PYTHON_IDENTIFIER_PATTERN)) {
+      const name = match[0];
+      const at = match.index ?? 0;
+      if (at > 0 && /\w/.test(code[at - 1] ?? '')) continue;
+      if (PYTHON_REBIND_HAZARD_NAMES.has(name)) return statement;
+      const attribute = code[pythonIndexBefore(code, at)] === '.';
+      if (!attribute && PYTHON_REBIND_HAZARD_BUILTINS.has(name)) return statement;
+      if (attribute && PYTHON_TRUSTED_BUILTINS.has(name) && code[pythonIndexAfter(code, at + name.length)] !== '(') return statement;
+    }
+  }
+  return undefined;
+}
+
+/** True when `code` is `<list>.clear()`, `del <list>[:]` or `<list>[:] = []`. */
+function pythonEmptiesList(code: string, list: string): boolean {
+  if (PYTHON_LIST_CLEAR_PATTERN.exec(code)?.[1] === list || PYTHON_LIST_DELETE_ALL_PATTERN.exec(code)?.[1] === list) return true;
+  const add = pythonListAddForm(code, new Set([list]));
+  return add?.form === 'whole' && /^\[[ \t]*\]$/.test(add.source);
+}
+
+/**
+ * The copy a statement restores `<list>` from: `<list>.extend(X)`, `<list> += X` or `<list>[:] = X`,
+ * where X is a name S, `S[:]`, `list(S)` or `tuple(S)` (where those are unbound), `[*S]` or
+ * `S.copy()`. `copy` is S; `source` is X as written; `replace` is true for the slice assignment.
+ */
+function pythonRestoreFrom(
+  code: string,
+  list: string,
+  unbound: (name: string) => boolean,
+): { readonly copy: string; readonly source: string; readonly replace: boolean; readonly helperCopy: boolean } | undefined {
+  const add = pythonListAddForm(code, new Set([list]));
+  if (add === undefined || add.target !== list || (add.form !== 'extend' && add.form !== 'iadd' && add.form !== 'whole')) return undefined;
+  const source = add.source.trim();
+  const bare = /^([A-Za-z_]\w*)(?:[ \t]*\[[ \t]*:[ \t]*\])?$/.exec(source);
+  if (bare) return { copy: bare[1] ?? '', source, replace: add.form === 'whole', helperCopy: false };
+  const copied = pythonItemsCopyOf(source, unbound);
+  return copied === undefined ? undefined : { copy: copied, source, replace: add.form === 'whole', helperCopy: true };
+}
+
+/** The name `value` is a full copy of, in the allowlist's shapes, or undefined (sorted is never one). */
+function pythonItemsCopyOf(value: string, unbound: (name: string) => boolean): string | undefined {
+  const call = /^(list|tuple)[ \t]*\([ \t]*([A-Za-z_]\w*)[ \t]*\)$/.exec(value);
+  if (call) return unbound(call[1] ?? '') ? call[2] : undefined;
+  return (
+    /^([A-Za-z_]\w*)[ \t]*\[[ \t]*:[ \t]*\]$/.exec(value)?.[1] ??
+    /^([A-Za-z_]\w*)[ \t]*\.[ \t]*copy[ \t]*\([ \t]*\)$/.exec(value)?.[1] ??
+    /^\[[ \t]*\*[ \t]*([A-Za-z_]\w*)[ \t]*,?[ \t]*\]$/.exec(value)?.[1]
+  );
+}
+
+/**
+ * True when a statement may bind `name` itself: as a target of `=` (not a subscript or attribute of
+ * it), after for, as, def, class, import, global or nonlocal, in an import's names, after a bare
+ * `del`, or before `:=`. Conservative: any doubt reads as a rebinding. Linear in the statement.
+ */
+function pythonStatementMayRebind(code: string, name: string): boolean {
+  const mentions = pythonBareMentions(code, name);
+  if (mentions.length === 0) return false;
+  if (/^(?:import|from)\b/.test(code)) return true;
+  // The `for` and ` in ` words, in order, swept once beside the mentions (which are in order too).
+  const words = [...code.matchAll(/\bfor\b|[ \t]in(?=[ \t([])/g)].map((match) => ({ at: match.index ?? 0, isFor: match[0] === 'for' }));
+  let word = 0;
+  let inForTarget = false;
+  for (const { at, next, before } of mentions) {
+    if (PYTHON_REBINDING_KEYWORDS.has(before)) return true;
+    if (before === 'del' && !next.startsWith('[') && !next.startsWith('.')) return true;
+    if (next === ':=') return true;
+    // A for target list (`for x, items in ...`, in a statement or a comprehension): after a `for`
+    // with no ` in ` since.
+    while (word < words.length && (words[word]?.at ?? 0) < at) {
+      inForTarget = words[word]?.isFor === true;
+      word += 1;
+    }
+    if (inForTarget) return true;
+  }
+  // A target of `=`: everything before the last top-level `=` that is an assignment.
+  let depth = 0;
+  let lastAssignment = -1;
+  for (let index = 0; index < code.length; index += 1) {
+    const character = code[index];
+    if (character === '(' || character === '[' || character === '{') depth += 1;
+    else if (character === ')' || character === ']' || character === '}') depth -= 1;
+    else if (
+      character === '=' &&
+      depth === 0 &&
+      code[index + 1] !== '=' &&
+      !'=!<>:+-*/%&|^@'.includes(code[index - 1] ?? '')
+    ) {
+      lastAssignment = index;
+    }
+  }
+  if (lastAssignment === -1) return false;
+  return mentions.some(({ at, next }) => at < lastAssignment && !next.startsWith('[') && !next.startsWith('.'));
+}
+
+/** Why the allowlist does not credit a hook: the first statement outside it, or none where the body ends without the list put back. */
+type PytestAllowlistVerdict = { readonly restores: true } | { readonly restores: false; readonly at?: PythonCodeStatement };
+
+function pytestHookRestoreAllowlist(
+  body: readonly PythonCodeStatement[],
+  before: readonly PythonCodeStatement[],
+  parameters: readonly string[],
+  facts: PythonModuleFacts,
+): PytestAllowlistVerdict {
+  const refuse = (at?: PythonCodeStatement): PytestAllowlistVerdict => ({ restores: false, ...(at === undefined ? {} : { at }) });
+  for (const statement of before) if (!PYTHON_STRING_ONLY_PATTERN.test(statement.code)) return refuse(statement);
+  const counts = new Map<string, number>();
+  for (const { code } of body) {
+    for (const match of code.matchAll(PYTHON_IDENTIFIER_PATTERN)) {
+      const at = match.index ?? 0;
+      if ((at > 0 && /\w/.test(code[at - 1] ?? '')) || code[pythonIndexBefore(code, at)] === '.') continue;
+      counts.set(match[0], (counts.get(match[0]) ?? 0) + 1);
+    }
+  }
+  const indent = body[0]?.indent;
+  let state: 'collected' | 'empty' | 'restored' = 'collected';
+  const copies = new Map<string, boolean>();
+  const unusedCopy = (name: string): boolean => copies.get(name) === false;
+  for (const statement of body) {
+    const code = statement.code;
+    if (statement.indent !== indent) return refuse(statement);
+    if (PYTHON_STRING_ONLY_PATTERN.test(code)) continue;
+    const binding = /^([A-Za-z_]\w*)[ \t]*=(?!=)[ \t]*(.*)$/.exec(code);
+    if (binding && pythonItemsCopyOf((binding[2] ?? '').trim(), facts.unbound) === 'items') {
+      const name = binding[1] ?? '';
+      if (state !== 'collected' || name === 'items' || parameters.includes(name) || copies.has(name) || (counts.get(name) ?? 0) > 2) {
+        return refuse(statement);
+      }
+      copies.set(name, false);
+      continue;
+    }
+    if (pythonEmptiesList(code, 'items')) {
+      state = 'empty';
+      continue;
+    }
+    const restore = pythonRestoreFrom(code, 'items', facts.unbound);
+    if (restore !== undefined) {
+      if (restore.helperCopy || state !== 'empty' || !unusedCopy(restore.copy) || !/^[A-Za-z_]\w*(?:[ \t]*\[[ \t]*:[ \t]*\])?$/.test(restore.source)) {
+        return refuse(statement);
+      }
+      copies.set(restore.copy, true);
+      state = 'restored';
+      continue;
+    }
+    // No report call: config.hook.*, print and logging run code outside the proved steps (#644 review).
+    const call = /^([A-Za-z_]\w*)[ \t]*\(/.exec(code);
+    if (call && callClosesAtEnd(code, call[0].length - 1)) {
+      const callee = call[1] ?? '';
+      const helper = facts.helper(callee, counts.get(callee) ?? 0);
+      if (helper !== undefined) {
+        const mapped = pythonMapArguments({ parameters: helper.parameters, body: [], effects: new Map() }, code.slice(call[0].length));
+        const copy = mapped?.get(helper.source) ?? '';
+        if (mapped === undefined || mapped.size !== 2 || mapped.get(helper.list) !== 'items' || !unusedCopy(copy)) return refuse(statement);
+        if (state === 'restored' || (state === 'collected' && !helper.replaces)) return refuse(statement);
+        copies.set(copy, true);
+        state = 'restored';
+        continue;
+      }
+    }
+    return refuse(statement);
+  }
+  if (state !== 'restored') return refuse();
+  // A body the allowlist reads whole is still refused where the module may rebind what it trusts.
+  const hazard = facts.hazard();
+  return hazard === undefined ? { restores: true } : refuse(hazard);
+}
+
+/** True when `code` names the hook's `items` (not as an attribute or keyword), or a `.items` attribute. */
+function pytestMentionsItems(code: string): boolean {
+  return pythonNameMentions(code, PYTEST_ITEMS_NAMES).length > 0 || PYTHON_ITEMS_ATTRIBUTE_PATTERN.test(code);
+}
+
+type PytestHookReading =
+  | { readonly kind: 'skip' | 'clear' | 'restores' | 'rebinds' }
+  | { readonly kind: 'not read'; readonly reason: string };
+
+/**
+ * Reads the last top-level `pytest_collection_modifyitems` of a conftest.py, at line `index`: what
+ * the run-wide skip rule may say about it, or undefined where it has nothing to say (the hook takes
+ * no `items`, never names it, or never empties or skips it).
+ */
+function readPytestCollectionHook(source: PythonSourceLines, index: number): PytestHookReading | undefined {
+  const lines = source.raw;
+  const masked = source.masked;
+  // pytest passes the collected items only to a hook that names an `items` parameter (#621); the
+  // parameters may run onto later lines (#634, item D).
+  const header = pythonDefHeader(masked, index);
+  if (!header || !header.parameters.some((parameter) => /^[ \t]*items(?![\w])/.test(parameter))) return undefined;
+  // The body ends where Python ends it: at the next logical line at column 0, never at a line a
+  // string or a bracket carries there (goal_cejel_v27_a1_restore_proof_v2_2026-11-02, item B).
+  const end = pythonBlockEnd(source, header.bodyStart, 0);
+  const indented: (PythonHookStatement & { readonly line: number })[] = [];
+  for (let next = header.bodyStart; next < end; next += 1) {
+    if (source.inString[next] === true) continue;
+    const raw = lines[next] ?? '';
+    const trimmed = raw.trim();
+    if (trimmed === '' || trimmed.startsWith('#')) continue;
+    const indent = raw.length - raw.trimStart().length;
+    for (const text of pythonLineStatements(stripPythonLineComment(trimmed).trim())) indented.push({ indent, text, line: next });
+  }
+  const logical = pythonCodeStatements(source, header.bodyStart, end);
+  // exec, getattr and the like may reach the list with no mention of it in code.
+  const touchesCode = (code: string) => pytestMentionsItems(code) || PYTHON_DYNAMIC_ACCESS_PATTERN.test(code);
+  const touches =
+    touchesCode(header.inline) ||
+    ('stop' in logical ? masked.slice(header.bodyStart, end).some(touchesCode) : logical.some(({ code }) => touchesCode(code)));
+  if (!touches) return undefined;
+  const notRead = (reason: string): PytestHookReading => ({ kind: 'not read', reason });
+  if (header.inline !== '') return notRead(pythonShownCode(header.inline));
+  if ('stop' in logical) return notRead(logical.stop);
+  if (source.tooDeep) return notRead('f-string');
+  const decoration = pytestHookDecoration(source, index);
+  if ('unread' in decoration) return notRead(decoration.unread);
+  let read: readonly PythonCodeStatement[] = logical;
+  let beforeYield: readonly PythonCodeStatement[] = [];
+  let gatedCode: readonly PythonCodeStatement[] = logical;
+  let readRaw: readonly (PythonHookStatement & { readonly line: number })[] = indented;
+  if (decoration.wrapper) {
+    // #632: a hookwrapper is read as the code after its single top-level yield.
+    const top = logical[0]?.indent;
+    const yields = logical.flatMap((statement, at) => (containsPythonIdentifier(statement.code, 'yield') ? [at] : []));
+    const at = yields[0] ?? -1;
+    const yielded = logical[at];
+    if (yields.length !== 1 || yielded === undefined || yielded.indent !== top || !PYTEST_WRAPPER_YIELD_PATTERN.test(yielded.code)) {
+      return notRead('yield');
+    }
+    const before = logical.slice(0, at).find(({ code }) => pytestMentionsItems(code));
+    if (before !== undefined) return notRead(before.shown);
+    let after = /^return\b/.test(yielded.code) ? [] : logical.slice(at + 1);
+    const dropped = new Set<number>();
+    for (let line = yielded.first; line <= yielded.last; line += 1) dropped.add(line);
+    const tail = after[after.length - 1];
+    // A new-style wrapper returns the result it was given.
+    let tailStatement: PythonCodeStatement | undefined;
+    if (tail !== undefined && tail.indent === top && /^return\b/.test(tail.code) && !pytestMentionsItems(tail.code)) {
+      after = after.slice(0, -1);
+      tailStatement = tail;
+      for (let line = tail.first; line <= tail.last; line += 1) dropped.add(line);
+    }
+    read = after;
+    beforeYield = logical.slice(0, at);
+    gatedCode = logical.filter((statement) => statement !== yielded && statement !== tailStatement);
+    readRaw = after.length === 0 ? [] : indented.filter(({ line }) => line > yielded.last && !dropped.has(line));
+  }
+  // The conditional rule reads code, strings blanked (item B): an `if` in a docstring is no condition.
+  const stops = gatedCode.map(({ code }) => PYTEST_HOOK_CONDITIONAL_PATTERN.exec(code)).find((match) => match !== null);
+  if (stops) return notRead(stops[0]);
+  // A global or nonlocal binding may keep the list where a later call reaches it.
+  const global = read.find(({ code }) => PYTHON_GLOBAL_STATEMENT_PATTERN.test(code));
+  if (global !== undefined) return notRead(global.shown);
+  // exec, eval, getattr, globals and the like may reach or change anything (item A, blocker 9).
+  const dynamic = read.find(({ code }) => PYTHON_DYNAMIC_ACCESS_PATTERN.test(code));
+  if (dynamic !== undefined) return notRead(dynamic.shown);
+  const parameters = header.parameters.map(pythonParameterName);
+  const session = new Set(parameters.filter((name) => name === 'session'));
+  const reading = read.length === 0 ? undefined : readPythonList(read, 'items', pythonModuleScope(source), undefined, 0, session);
+  // goal_cejel_v27_a1_restore_proof_v2_2026-11-02, item C: a statement that may bind the name
+  // `items` itself, at or before the last statement that empties it, may leave that emptying on
+  // another list, so the hook is never rated as deselecting everything (`items = copy.copy(items)`
+  // then `items.clear()`, or `for items in [list(items)]:`). #626's read-only rebind keeps its own
+  // withhold below.
+  let lastEmptying = -1;
+  read.forEach(({ code }, at) => {
+    if (pythonEmptiesList(code, 'items') || PYTHON_LIST_DELETE_ALL_PATTERN.exec(code)?.[1] === 'items' || pythonListAddForm(code, PYTEST_ITEMS_NAMES)?.form === 'whole') {
+      lastEmptying = at;
+    }
+  });
+  const rebindAt = read.findIndex(({ code }) => pythonStatementMayRebind(code, 'items'));
+  // An emptying the reader does not see as one (through a helper) counts as coming last.
+  const rebindHazard = rebindAt !== -1 && (lastEmptying === -1 || rebindAt <= lastEmptying) && reading?.rebinds !== true;
+  if (reading?.state === 'empty' && reading.cleared && !reading.rebinds && !rebindHazard) return { kind: 'clear' };
+  if (!rebindHazard && hookSkipsEveryItem(readRaw, pytestHeldSkipMarkers(lines, readRaw))) return { kind: 'skip' };
+  if (reading === undefined) return undefined;
+  if (reading.rebinds) return { kind: 'rebinds' };
+  // Outcome 2 only for a body the allowlist reads whole, and the list reading agrees.
+  const allowlist = pytestHookRestoreAllowlist(read, beforeYield, parameters, pythonModuleFacts(source));
+  if (allowlist.restores && reading.state === 'restored' && reading.cleared) return { kind: 'restores' };
+  if (reading.state === 'unknown') return notRead(reading.reason ?? 'items');
+  if (reading.state === 'empty' || (reading.state === 'restored' && reading.cleared)) {
+    return notRead(allowlist.restores ? 'items' : (allowlist.at?.shown ?? 'items'));
   }
   return undefined;
 }
@@ -15079,108 +16528,109 @@ interface PytestRunWideSkip {
   readonly line: number;
   /** The directory the conftest governs, '' for the repository root. */
   readonly scope: string;
-  readonly kind: 'skip' | 'clear';
+  /** 'unread': a hook that touches `items` the reader could not place (outcome 3). */
+  readonly kind: 'skip' | 'clear' | 'unread';
   /**
-   * Set on a hook that empties `items` but may leave pytest's list holding them (item A): why the
-   * clear is not applied, as A1's note says it. Such a hook disables no file.
+   * Set on a hook that empties `items` but may leave pytest's list holding them (item A), and on a
+   * hook the reader could not read: why the rule is not applied, as A1's note says it. Such a hook
+   * disables no file.
    */
   readonly withheld?: string;
+  /** For an unread hook: the reason, as A1's note and evidence name it. */
+  readonly unread?: string;
+  /**
+   * The hook may govern test files outside its directory (item E): no part of the directory is one
+   * pytest skips by default, and no conftest.py names collect_ignore or pytest_ignore_collect.
+   */
+  readonly beyondScope: boolean;
 }
 
+/** How A1's note opens the clause naming a hook the reader could not read (outcome 3). */
+const A1_HOOK_NOT_READ = 'hook not read: ';
+
 /**
- * Finds conftest.py hooks that disable every test they collect: a `pytest_collection_modifyitems`
- * whose body, with no conditional anywhere in it, either loops over `items` adding a skip marker
- * or empties the list. Anything conditional is not reported, so a hook that skips only slow tests,
- * or only on one platform, is never read as disabling the suite. Exported for the scaling check in
- * scan-path-regex-bounds.test.ts (goal_cejel_v27_conftest_timing_guard_2026-11-02, item C).
+ * Finds conftest.py hooks that disable every test they collect (a `pytest_collection_modifyitems`
+ * that empties the list, or loops over `items` adding a skip marker), the hooks that empty it but
+ * put the items back, and the hooks the reader cannot place (goal_cejel_v27_a1_restore_proof_and_
+ * hookwrapper_2026-11-02, the three outcomes above). A hook whose body never names `items` is not
+ * reported; one that skips only slow tests, or only on one platform, is read as not read, never as
+ * disabling the suite.
+ * Exported for the scaling check in scan-path-regex-bounds.test.ts
+ * (goal_cejel_v27_conftest_timing_guard_2026-11-02, item C).
  */
 export function findPytestRunWideSkips(
   repoPath: string,
   repoFiles: readonly string[],
 ): PytestRunWideSkip[] {
-  const found: PytestRunWideSkip[] = [];
+  const found: Omit<PytestRunWideSkip, 'beyondScope'>[] = [];
+  let ignoresCollection = false;
   for (const file of repoFiles) {
     // Test directories are where a conftest.py lives, so only generated or vendored copies are
     // excluded here, not test paths.
     if (!PYTEST_CONFTEST_PATTERN.test(file) || GENERATED_OR_VENDOR_PATH_PATTERN.test(file)) continue;
     const fullPath = join(repoPath, file);
     if (!isRegularFile(fullPath)) continue;
-    const lines = readRepoText(fullPath, 'utf8').split('\n');
+    const text = readRepoText(fullPath, 'utf8');
+    const source = pythonSourceLines(text);
+    if (source.masked.some((code) => PYTEST_COLLECT_IGNORE_PATTERN.test(code))) ignoresCollection = true;
     // The module's hook is whatever the name is bound to last when it finishes executing. Of
     // top-level `def` statements that is the last one; any other binding of the name (an indented
-    // or conditional `def`, an assignment, `del`, an import, or any other mention outside a
-    // whole-line comment, which Cejel does not try to rule out) may replace it, so then nothing is
-    // claimed.
+    // or conditional `def`, an assignment, `del`, an import, or any other mention in code or in a
+    // string other than a docstring, which Cejel does not try to rule out) may replace it, so then
+    // nothing is claimed. The file is read as logical lines (goal_cejel_v27_a1_restore_proof_v2_
+    // 2026-11-02, item B): a comment, or a statement that is only a string (a docstring), that names
+    // the hook binds nothing.
     let last = -1;
-    for (let index = 0; index < lines.length; index += 1) {
-      const line = lines[index] ?? '';
-      if (PYTEST_COLLECTION_HOOK_PATTERN.test(line)) {
-        last = index;
-      } else if (
-        line.includes(PYTEST_COLLECTION_HOOK_NAME) &&
-        !line.trimStart().startsWith('#') &&
-        PYTEST_COLLECTION_HOOK_NAME_PATTERN.test(line)
-      ) {
+    for (const { first, last: final } of pythonLogicalLines(source)) {
+      if (PYTEST_COLLECTION_HOOK_PATTERN.test(source.masked[first] ?? '')) {
+        last = first;
+        continue;
+      }
+      let named = false;
+      let code = '';
+      for (let line = first; line <= final && !named; line += 1) {
+        const masked = source.masked[line] ?? '';
+        code += masked;
+        named = masked.includes(PYTEST_COLLECTION_HOOK_NAME) && PYTEST_COLLECTION_HOOK_NAME_PATTERN.test(masked);
+      }
+      if (!named && !PYTHON_STRING_ONLY_PATTERN.test(code.trim())) {
+        for (let line = first; line <= final && !named; line += 1) {
+          named = (source.strings[line] ?? []).some((content) => content.includes(PYTEST_COLLECTION_HOOK_NAME));
+        }
+      }
+      if (named) {
         last = -1;
         break;
       }
     }
-    // At most one pass, over that last definition (a loop so `continue` withholds the claim).
-    for (let index = last; index !== -1; index = -1) {
-      // pytest passes the collected items only to a hook that names an `items` parameter; a hook
-      // without one may loop over some other `items` (goal_cejel_v27_a1_test_count_overmatch).
-      // The parameters are read from the `def` line alone, closed there.
-      if (!pytestHookTakesItems(lines[index] ?? '')) continue;
-      const indented: PythonHookStatement[] = [];
-      for (let next = index + 1; next < lines.length; next += 1) {
-        const raw = lines[next] ?? '';
-        const trimmed = raw.trim();
-        if (trimmed === '' || trimmed.startsWith('#')) continue;
-        const indent = raw.length - raw.trimStart().length;
-        if (indent === 0) break;
-        for (const text of pythonLineStatements(stripPythonLineComment(trimmed).trim())) {
-          indented.push({ indent, text });
-        }
-      }
-      const body = indented.map(({ text }) => text);
-      if (body.some((statement) => PYTEST_HOOK_CONDITIONAL_PATTERN.test(statement))) continue;
-      // The clear must run when the hook does: at the hook body's own first indent, not inside a
-      // nested function or a loop that may run zero times.
-      const hookIndent = indented[0]?.indent;
-      const clears = indented.some(
-        ({ indent, text }) => indent === hookIndent && PYTEST_HOOK_CLEAR_ITEMS_PATTERN.test(text),
-      );
-      // goal_cejel_v27_a1_test_count_overmatch_v2_2026-11-02, item A: a clear is withheld only where
-      // the hook demonstrably may put the collected items back (or rebinds the name), and the
-      // withhold is kept, with its reason, so A1's note says it. Any other use of `items` (a copy,
-      // a report, a loop) leaves the clear standing.
-      const restore = clears && hookIndent !== undefined ? pytestItemsRestoreKind(indented, hookIndent, lines) : undefined;
-      const kind =
-        clears && restore === undefined
-          ? ('clear' as const)
-          : hookSkipsEveryItem(indented, pytestHeldSkipMarkers(lines, indented))
-            ? ('skip' as const)
-            : clears
-              ? ('clear' as const)
-              : undefined;
-      if (!kind) continue;
-      const scope = dirname(file);
-      const withheld =
-        kind === 'clear' && restore !== undefined
-          ? restore === 'restores'
-            ? `the hook in ${a1NotePath(file)} puts the collected items back`
-            : `the hook in ${a1NotePath(file)} rebinds items, so its clear may not empty pytest's list`
-          : undefined;
+    if (last === -1) continue;
+    const reading = readPytestCollectionHook(source, last);
+    if (reading === undefined) continue;
+    const scope = dirname(file);
+    const where = { path: file, line: last + 1, scope: scope === '.' ? '' : scope };
+    if (reading.kind === 'not read') {
       found.push({
-        path: file,
-        line: index + 1,
-        scope: scope === '.' ? '' : scope,
-        kind,
-        ...(withheld === undefined ? {} : { withheld }),
+        ...where,
+        kind: 'unread',
+        unread: reading.reason,
+        withheld: `${A1_HOOK_NOT_READ}\`${reading.reason}\` in ${a1NotePath(file)}`,
       });
+    } else if (reading.kind === 'restores') {
+      found.push({ ...where, kind: 'clear', withheld: `the hook in ${a1NotePath(file)} puts the collected items back` });
+    } else if (reading.kind === 'rebinds') {
+      found.push({
+        ...where,
+        kind: 'clear',
+        withheld: `the hook in ${a1NotePath(file)} rebinds items, so its clear may not empty pytest's list`,
+      });
+    } else {
+      found.push({ ...where, kind: reading.kind });
     }
   }
-  return found;
+  return found.map((skip) => ({
+    ...skip,
+    beyondScope: !ignoresCollection && !skip.scope.split('/').some((segment) => PYTEST_DEFAULT_NORECURSE_SEGMENT_PATTERN.test(segment)),
+  }));
 }
 
 // ---- Per-test unconditional skips (witan-rubric-v27, v27 freeze change F2) -----------------

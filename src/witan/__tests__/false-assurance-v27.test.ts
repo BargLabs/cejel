@@ -272,7 +272,14 @@ describe('#518 — a suite that cannot fail is not verified', () => {
   it('v27: conftest.py is not cited as a test file; test_to_source_ratio counts it as v17 does', () => {
     for (const name of ['a1-pytest-fixture-conftest', 'a1-pytest-hook-skips-slow-only']) {
       const a1 = criterion(name, V27, 'A1');
-      expect(a1.evidence.map(({ path }) => path)).not.toContain('tests/conftest.py');
+      // goal_cejel_v27_a1_restore_proof_and_hookwrapper_2026-11-02: a hook the reader does not read
+      // (the slow-only hook's `if`) is cited at its def as not read, never as a test file.
+      expect(
+        a1.evidence.filter(({ label }) => label.startsWith('Detected test file')).map(({ path }) => path),
+      ).not.toContain('tests/conftest.py');
+      expect(
+        a1.evidence.filter(({ path, label }) => path === 'tests/conftest.py' && !label.startsWith('pytest collection hook not read')),
+      ).toEqual([]);
       expect(metricValue(a1, 'test_to_source_ratio')).toBe(
         metricValue(criterion(name, V17, 'A1'), 'test_to_source_ratio'),
       );
@@ -285,6 +292,8 @@ describe('#518 — a suite that cannot fail is not verified', () => {
     expect(a1.score).toBe(control.score);
     expect(a1.status).toBe(control.status);
     expect(a1.findings.some(({ summary }) => summary.startsWith('A pytest collection hook'))).toBe(false);
+    // It is named, not passed silently (#632): outcome 3, with the reason.
+    expect(a1.notes ?? '').toContain('Hook not read: `if` in tests/conftest.py');
   });
 
   it('v27: a module-level unconditional pytestmark skip in every module marks the suite hollow', () => {
