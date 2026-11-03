@@ -13280,6 +13280,123 @@ const PYTEST_FLAGS_WITHOUT_VALUE = new Set([
   '--random-order', '--instafail', '--mypy', '--flake8', '--black', '--isort', '--ruff', '--ruff-format', '--lsof',
 ]);
 
+/**
+ * goal_cejel_v27_a1_gaps_2026-11-03, item C (#649, 2): how a conftest.py declares a long option:
+ * 'flag' takes no value, 'value' takes the next word, 'unknown' where a declaration of the name
+ * cannot be read (a name instead of a string literal beside it, `*args` or `**kwargs`, an action
+ * that is not a string literal, an `nargs=`), or two declarations disagree.
+ */
+type PytestDeclaredOption = 'flag' | 'value' | 'unknown';
+
+// argparse's actions that take no value; pytest's addoption passes `action` through to argparse.
+const ARGPARSE_ACTIONS_WITHOUT_VALUE: ReadonlySet<string> = new Set(['store_true', 'store_false', 'count', 'store_const', 'append_const']);
+const PYTHON_ADDOPTION_CALL_PATTERN = /\.[ \t]*_?addoption[ \t]*\(/g;
+const PYTHON_PLAIN_STRING_PATTERN = /^(?:"([^"\\\n]*)"|'([^'\\\n]*)')$/;
+
+/**
+ * The top-level arguments of the Python call whose `(` is at `open` in `text`, as written and
+ * trimmed, and the index after its `)`. Strings (triple-quoted too), brackets and comments are
+ * stepped over. Linear in the call.
+ */
+function readPythonCallArguments(text: string, open: number): { readonly args: string[]; readonly end: number } {
+  const args: string[] = [];
+  let depth = 0;
+  let start = open + 1;
+  for (let index = open + 1; index < text.length; index += 1) {
+    const character = text[index] ?? '';
+    if (character === '"' || character === "'") {
+      const triple = text.startsWith(character.repeat(3), index);
+      const closer = triple ? character.repeat(3) : character;
+      let at = index + closer.length;
+      while (at < text.length && !text.startsWith(closer, at)) {
+        if (text[at] === '\\') at += 1;
+        else if (!triple && text[at] === '\n') break;
+        at += 1;
+      }
+      index = at + closer.length - 1;
+      continue;
+    }
+    if (character === '#') {
+      const newline = text.indexOf('\n', index);
+      index = newline === -1 ? text.length : newline - 1;
+      continue;
+    }
+    if (character === '(' || character === '[' || character === '{') depth += 1;
+    else if (character === ')' || character === ']' || character === '}') {
+      if (depth === 0) {
+        const last = text.slice(start, index).replace(/#[^\n]*/g, '').trim();
+        if (last !== '') args.push(last);
+        return { args, end: index + 1 };
+      }
+      depth -= 1;
+    } else if (character === ',' && depth === 0) {
+      args.push(text.slice(start, index).replace(/#[^\n]*/g, '').trim());
+      start = index + 1;
+    }
+  }
+  return { args, end: text.length };
+}
+
+/**
+ * item C: each long option the repository's conftest.py files declare with `.addoption(...)` or
+ * `._addoption(...)` (on the parser or an option group), read from code, not comments or strings.
+ * Linear in the files.
+ */
+function readPytestDeclaredOptions(repoFiles: readonly string[], readText: (file: string) => string | undefined): Map<string, PytestDeclaredOption> {
+  const declared = new Map<string, PytestDeclaredOption>();
+  const record = (name: string, kind: PytestDeclaredOption) => {
+    const known = declared.get(name);
+    declared.set(name, known === undefined || known === kind ? kind : 'unknown');
+  };
+  for (const file of repoFiles) {
+    if (!PYTEST_CONFTEST_PATTERN.test(file) || GENERATED_OR_VENDOR_PATH_PATTERN.test(file)) continue;
+    const text = readText(file);
+    if (text === undefined || !text.includes('addoption')) continue;
+    const source = pythonSourceLines(text);
+    // The offset of each line in the text, so a call found in a code line is read from there on.
+    let offset = 0;
+    let readTo = 0;
+    for (let line = 0; line < source.raw.length; line += 1) {
+      const raw = source.raw[line] ?? '';
+      const lineStart = offset;
+      offset += raw.length + 1;
+      if (lineStart < readTo || source.inString[line] === true) continue;
+      const code = source.masked[line] ?? '';
+      if (!code.includes('addoption')) continue;
+      PYTHON_ADDOPTION_CALL_PATTERN.lastIndex = 0;
+      const match = PYTHON_ADDOPTION_CALL_PATTERN.exec(raw);
+      if (match === null) continue;
+      const call = readPythonCallArguments(text, lineStart + match.index + match[0].length - 1);
+      readTo = call.end;
+      const names: string[] = [];
+      let readable = true;
+      let action: string | undefined;
+      for (const arg of call.args) {
+        if (arg.startsWith('*')) {
+          readable = false;
+          continue;
+        }
+        const keyword = /^([A-Za-z_]\w*)[ \t]*=(?!=)[ \t]*([\s\S]*)$/.exec(arg);
+        if (keyword) {
+          if (keyword[1] === 'nargs') readable = false;
+          if (keyword[1] === 'action') {
+            const literal = PYTHON_PLAIN_STRING_PATTERN.exec((keyword[2] ?? '').trim());
+            if (literal) action = literal[1] ?? literal[2] ?? '';
+            else readable = false;
+          }
+          continue;
+        }
+        const literal = PYTHON_PLAIN_STRING_PATTERN.exec(arg);
+        if (literal) names.push(literal[1] ?? literal[2] ?? '');
+        else readable = false;
+      }
+      const kind: PytestDeclaredOption = !readable ? 'unknown' : action !== undefined && ARGPARSE_ACTIONS_WITHOUT_VALUE.has(action) ? 'flag' : 'value';
+      for (const name of names) if (name.startsWith('--')) record(name, kind);
+    }
+  }
+  return declared;
+}
+
 /** pytest's words read as Cejel needs them. */
 interface PytestArguments {
   readonly paths: string[];
@@ -13289,7 +13406,10 @@ interface PytestArguments {
   readonly unknownOption?: string;
 }
 
-function readPytestArguments(words: readonly string[]): PytestArguments {
+function readPytestArguments(
+  words: readonly string[],
+  declared: (name: string) => PytestDeclaredOption | undefined = () => undefined,
+): PytestArguments {
   const paths: string[] = [];
   const options: { name: string; value?: string }[] = [];
   let pyargs = false;
@@ -13326,7 +13446,18 @@ function readPytestArguments(words: readonly string[]): PytestArguments {
       continue;
     }
     if (word.startsWith('--') && !PYTEST_FLAGS_WITHOUT_VALUE.has(word)) {
+      // goal_cejel_v27_a1_gaps_2026-11-03, item C: an option a conftest.py declares is read as declared.
+      const kind = declared(word);
+      if (kind === 'flag') {
+        options.push({ name: word });
+        continue;
+      }
       const next = words[index + 1];
+      if (kind === 'value' && next !== undefined && !next.startsWith('-')) {
+        options.push({ name: word, value: next });
+        index += 1;
+        continue;
+      }
       if (next !== undefined && !next.startsWith('-')) unknownOption ??= `${word} ${next}`;
       options.push({ name: word });
       continue;
@@ -13390,7 +13521,11 @@ function readPytestCollectionSettings(repoPath: string, repoFiles: readonly stri
     return from < lines.length ? from + 1 : null;
   };
   const invocations = readPytestInvocations(repoFiles, readText);
-  const view: PytestRepositoryView = { fileSet, directories, configAt, lineOf };
+  // item C of goal_cejel_v27_a1_gaps_2026-11-03: read once, where a run names an option pytest's tables do not hold.
+  let declaredOptions: Map<string, PytestDeclaredOption> | undefined;
+  const declaredOption = (name: string): PytestDeclaredOption | undefined =>
+    (declaredOptions ??= readPytestDeclaredOptions(repoFiles, readText)).get(name);
+  const view: PytestRepositoryView = { fileSet, directories, configAt, lineOf, declaredOption };
   const runs = invocations.map((invocation) => resolvePytestRun(invocation, view));
   const cache = new Map<string, PytestFileSettings>();
   return {
@@ -13443,6 +13578,8 @@ interface PytestRepositoryView {
   readonly configAt: (file: string) => PytestConfigFile | undefined;
   /** item E: the 1-based line of `file` holding the first of `tokens` found at or after the 0-based `from`, then before it. */
   readonly lineOf: (file: string, tokens: readonly string[], from: number) => number | null;
+  /** goal_cejel_v27_a1_gaps_2026-11-03, item C: how the repository's conftest.py files declare a long option, if they do. */
+  readonly declaredOption?: (name: string) => PytestDeclaredOption | undefined;
 }
 
 /**
@@ -13541,7 +13678,7 @@ function resolvePytestRun(invocation: PytestInvocation, repo: PytestRepositoryVi
     });
   }
   if (invocation.args.length > 0) groups.push({ words: invocation.args, where: commandWhere, at: commandAt(['pytest', 'py.test']) });
-  const parsed = groups.map((group) => ({ group, read: readPytestArguments(group.words) }));
+  const parsed = groups.map((group) => ({ group, read: readPytestArguments(group.words, repo.declaredOption) }));
   // item A: --pyargs collects by import name, from wherever Python finds the package.
   if (parsed.some(({ read }) => read.pyargs)) return unreadPytestRun(invocation, '--pyargs', repo);
   // item B: an option the reader does not know, before a word that may be its value or a path.
@@ -13637,7 +13774,7 @@ function resolvePytestRun(invocation: PytestInvocation, repo: PytestRepositoryVi
   const addopts = values.get('addopts');
   if (addopts !== undefined) {
     const words = addopts.value.kind === 'list' ? addopts.value.items : shellWords(addopts.value.text);
-    const read = readPytestArguments(words);
+    const read = readPytestArguments(words, repo.declaredOption);
     if (read.pyargs) return unreadPytestRun(invocation, '--pyargs', repo, config?.path);
     if (read.unknownOption !== undefined) return unreadPytestRun(invocation, read.unknownOption, repo, config?.path);
     parsed.unshift({ group: { words, where: configWhere, at: configAt('addopts') }, read });
