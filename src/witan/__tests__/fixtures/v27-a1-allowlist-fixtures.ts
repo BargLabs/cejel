@@ -395,7 +395,6 @@ export const ALLOWLIST_FIXTURES: readonly AllowlistFixture[] = [
         ['tests/test_cache.py', 'run-wide skip: hook in tests/sub/conftest.py'],
         ['tests/test_lru.py', 'run-wide skip: hook in tests/sub/conftest.py'],
       ],
-      alsoSaid: RESTORED,
     },
   ),
   fixture(
@@ -414,7 +413,6 @@ export const ALLOWLIST_FIXTURES: readonly AllowlistFixture[] = [
         ['tests/test_cache.py', HOOK_RULE],
         ['tests/test_lru.py', HOOK_RULE],
       ],
-      alsoSaid: 'run-wide skip rule not applied: the hook in tests/sub/conftest.py puts the collected items back',
     },
   ),
   fixture(

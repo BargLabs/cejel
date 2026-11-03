@@ -2422,9 +2422,17 @@ function collectA1TestIntegrityEvidence(
       reviewableSourceProof !== undefined,
       pytestSettings
         ? {
-            disabledByRunWideSkip: (file) => runWideSkips.find((skip) => hookGoverns(skip, file)),
+            // A file is attributed to a hook whose directory holds it, where one governs it, before
+            // a hook elsewhere that reaches it (goal_cejel_v27_a1_restore_proof_v2_2026-11-02, item E).
+            disabledByRunWideSkip: (file) =>
+              runWideSkips.find((skip) => isAtOrBelow(file, skip.scope) && hookGoverns(skip, file)) ??
+              runWideSkips.find((skip) => hookGoverns(skip, file)),
             withheldRunWideSkip: (file) => {
-              for (const skip of runWideHooks) {
+              const inScopeFirst = [
+                ...runWideHooks.filter((skip) => isAtOrBelow(file, skip.scope)),
+                ...runWideHooks.filter((skip) => !isAtOrBelow(file, skip.scope)),
+              ];
+              for (const skip of inScopeFirst) {
                 if (!isGovernedPytestFile(skip, file)) continue;
                 const reason = hookWithheldFor(skip, file);
                 if (reason !== undefined) return reason;
@@ -2475,11 +2483,17 @@ function collectA1TestIntegrityEvidence(
     evidence.push(evidenceForRelativeAtLine(repoPath, hook.path, 'test_run', label, hook.line));
   }
   for (const skip of runWideSkips.slice(0, 2)) {
-    const governed = allTestFiles.filter((file) => hookGoverns(skip, file)).length;
+    const governedFiles = allTestFiles.filter((file) => hookGoverns(skip, file));
+    const governed = governedFiles.length;
     if (governed === 0) continue;
+    // goal_cejel_v27_a1_restore_proof_v2_2026-11-02, item E: a hook reaches files outside its own
+    // directory, so the finding names where they are only when they are all under it.
+    const where = governedFiles.every((file) => isAtOrBelow(file, skip.scope))
+      ? `under ${skip.scope === '' ? 'the repository root' : `${skip.scope}/`}`
+      : `collected with it, under ${skip.scope}/ and outside it,`;
     findings.push({
       severity: 'warning',
-      summary: `A pytest collection hook in ${skip.path} ${skip.kind === 'skip' ? 'marks every collected test skipped' : 'removes every collected test'}, so the ${governed} pytest file${governed === 1 ? '' : 's'} under ${skip.scope === '' ? 'the repository root' : `${skip.scope}/`} cannot run.`,
+      summary: `A pytest collection hook in ${skip.path} ${skip.kind === 'skip' ? 'marks every collected test skipped' : 'removes every collected test'}, so the ${governed} pytest file${governed === 1 ? '' : 's'} ${where} cannot run.`,
       evidence: evidenceForRelativeAtLine(
         repoPath,
         skip.path,
@@ -11857,7 +11871,7 @@ function readPytestCollectionSettings(repoPath: string, repoFiles: readonly stri
         ...firstDefined(collecting.map((run) => run.disablesSkipping), 'disablesSkipping'),
         hookNotLoaded: (hookPath, scope) => {
           for (const run of collecting) {
-            const reason = run.hookNotLoaded(hookPath, scope);
+            const reason = run.hookNotLoaded(hookPath, scope, file);
             if (reason !== undefined) return reason;
           }
           return undefined;
@@ -11883,7 +11897,8 @@ interface ResolvedPytestRun {
   readonly pythonFiles?: PytestSettingSource;
   readonly testNames?: PytestSettingSource;
   readonly disablesSkipping?: PytestSettingSource;
-  readonly hookNotLoaded: (hookPath: string, scope: string) => string | undefined;
+  /** Why this run, collecting `file`, does not call the hook in the conftest.py `hookPath` (in `scope`) with it. */
+  readonly hookNotLoaded: (hookPath: string, scope: string, file: string) => string | undefined;
 }
 
 interface PytestRepositoryView {
@@ -12035,8 +12050,10 @@ function resolvePytestRun(invocation: PytestInvocation, repo: PytestRepositoryVi
     if (targets.length === 0) targets = [directory];
   }
   const ignores: string[] = [];
+  let ignoreGlob = false;
   for (const { read } of parsed) {
     for (const entry of read.options) {
+      if (entry.name === '--ignore-glob') ignoreGlob = true;
       if (entry.name !== '--ignore' || entry.value === undefined) continue;
       const resolved = resolveCommandPath(directory, entry.value);
       if (resolved !== null) ignores.push(resolved);
@@ -12060,10 +12077,27 @@ function resolvePytestRun(invocation: PytestInvocation, repo: PytestRepositoryVi
     ...(pythonFiles === undefined ? {} : { pythonFiles }),
     ...(testNames === undefined ? {} : { testNames }),
     ...(disablesSkipping === undefined ? {} : { disablesSkipping }),
-    hookNotLoaded: (hookPath, scope) => {
+    hookNotLoaded: (hookPath, scope, file) => {
       if (noConftest !== undefined) return pytestSettingReason(noConftest);
       // pytest loads no conftest.py from a directory strictly above its confcutdir (_is_in_confcutdir).
-      return isStrictAncestorDirectory(scope, confcutdir) ? confcutdirReason(hookPath) : undefined;
+      if (isStrictAncestorDirectory(scope, confcutdir)) return confcutdirReason(hookPath);
+      // goal_cejel_v27_a1_restore_proof_v2_2026-11-02, item E: pytest calls every loaded conftest.py's
+      // collection hook with every collected item, so a hook reaches a file outside its directory
+      // where this run also collects the hook's directory, which loads its conftest.py. A run that
+      // names no path at or above or below that directory, ignores it, or sets norecursedirs or
+      // --ignore-glob (which Cejel does not resolve) is read as not loading it.
+      if (!isAtOrBelow(file, scope)) {
+        const reaches =
+          targets.some((target) => isAtOrBelow(scope, target) || isAtOrBelow(target, scope)) &&
+          !ignores.some((ignored) => isAtOrBelow(scope, ignored)) &&
+          !ignoreGlob;
+        if (!reaches) {
+          return `the pytest command line in ${a1NotePath(invocation.source ?? '')} does not collect ${a1NotePath(scope)}, so it does not load ${a1NotePath(hookPath)}`;
+        }
+        const norecursedirs = values.get('norecursedirs');
+        if (norecursedirs !== undefined) return `norecursedirs ${norecursedirs.where}`;
+      }
+      return undefined;
     },
   };
 }
@@ -13158,11 +13192,22 @@ function stripPythonLineComment(line: string): string {
   return hash === -1 ? line : line.slice(0, hash);
 }
 
-/** A pytest test file a run-wide hook governs: a .py test file under the conftest's directory. */
+/**
+ * A pytest test file a run-wide hook may govern: a .py test file under the conftest's directory,
+ * or, where nothing in the repository may keep pytest from collecting that directory
+ * (`beyondScope`), any .py test file: pytest calls every loaded conftest.py's collection hook with
+ * every collected item (goal_cejel_v27_a1_restore_proof_v2_2026-11-02, item E). Whether a run
+ * collecting the file loads the conftest.py is read per run (hookNotLoaded).
+ */
 function isGovernedPytestFile(skip: PytestRunWideSkip, file: string): boolean {
   if (!/\.py$/.test(file) || PYTEST_CONFTEST_PATTERN.test(file)) return false;
-  return skip.scope === '' || file.startsWith(`${skip.scope}/`);
+  return skip.scope === '' || file.startsWith(`${skip.scope}/`) || skip.beyondScope;
 }
+
+// pytest's default norecursedirs, which it never collects (and so loads no conftest.py from).
+const PYTEST_DEFAULT_NORECURSE_SEGMENT_PATTERN = /^(?:.*\.egg|\..*|_darcs|build|CVS|dist|node_modules|venv|\{arch\})$/;
+// A conftest.py that names one of these may stop pytest collecting a directory.
+const PYTEST_COLLECT_IGNORE_PATTERN = /\b(?:collect_ignore|collect_ignore_glob|pytest_ignore_collect)\b/;
 
 // Only a hook defined at the top level of conftest.py is read: one defined inside an `if`, `try`
 // or other block exists only on some runs, so it is conditional too.
@@ -15079,6 +15124,11 @@ interface PytestRunWideSkip {
   readonly withheld?: string;
   /** For an unread hook: the reason, as A1's note and evidence name it. */
   readonly unread?: string;
+  /**
+   * The hook may govern test files outside its directory (item E): no part of the directory is one
+   * pytest skips by default, and no conftest.py names collect_ignore or pytest_ignore_collect.
+   */
+  readonly beyondScope: boolean;
 }
 
 /** How A1's note opens the clause naming a hook the reader could not read (outcome 3). */
@@ -15098,7 +15148,8 @@ export function findPytestRunWideSkips(
   repoPath: string,
   repoFiles: readonly string[],
 ): PytestRunWideSkip[] {
-  const found: PytestRunWideSkip[] = [];
+  const found: Omit<PytestRunWideSkip, 'beyondScope'>[] = [];
+  let ignoresCollection = false;
   for (const file of repoFiles) {
     // Test directories are where a conftest.py lives, so only generated or vendored copies are
     // excluded here, not test paths.
@@ -15107,6 +15158,7 @@ export function findPytestRunWideSkips(
     if (!isRegularFile(fullPath)) continue;
     const text = readRepoText(fullPath, 'utf8');
     const source = pythonSourceLines(text);
+    if (source.masked.some((code) => PYTEST_COLLECT_IGNORE_PATTERN.test(code))) ignoresCollection = true;
     // The module's hook is whatever the name is bound to last when it finishes executing. Of
     // top-level `def` statements that is the last one; any other binding of the name (an indented
     // or conditional `def`, an assignment, `del`, an import, or any other mention in code or in a
@@ -15161,7 +15213,10 @@ export function findPytestRunWideSkips(
       found.push({ ...where, kind: reading.kind });
     }
   }
-  return found;
+  return found.map((skip) => ({
+    ...skip,
+    beyondScope: !ignoresCollection && !skip.scope.split('/').some((segment) => PYTEST_DEFAULT_NORECURSE_SEGMENT_PATTERN.test(segment)),
+  }));
 }
 
 // ---- Per-test unconditional skips (witan-rubric-v27, v27 freeze change F2) -----------------
