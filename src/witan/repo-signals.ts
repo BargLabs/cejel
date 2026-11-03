@@ -13579,7 +13579,9 @@ const PYTEST_WRAPPER_YIELD_PATTERN =
   /^(?:(?:[A-Za-z_]\w*[ \t]*=[ \t]*)?(?:yield|\([ \t]*yield[ \t]*\))|return[ \t]*\([ \t]*yield[ \t]*\))$/;
 // A `.items` attribute that is not a call (`session.items` is pytest's list; `d.items()` is not).
 const PYTHON_ITEMS_ATTRIBUTE_PATTERN = /\.[ \t]*items\b(?![ \t]*\()/;
-const PYTHON_F_STRING_PATTERN = /(?:^|[^\w])(?:[rRbB]?[fF]|[fF][rRbB])["']/;
+const PYTHON_SESSION_ATTRIBUTE_PATTERN = /\.[ \t]*session\b/;
+const PYTHON_GLOBAL_STATEMENT_PATTERN = /^(?:global|nonlocal)\b/;
+const PYTHON_F_STRING_PATTERN =/(?:^|[^\w])(?:[rRbB]?[fF]|[fF][rRbB])["']/;
 const PYTEST_ITEMS_NAMES: ReadonlySet<string> = new Set(['items']);
 
 const PYTHON_READ_ONLY_LIST_METHODS: ReadonlySet<string> = new Set([
@@ -13902,6 +13904,7 @@ function readPythonList(
   scope: PythonModuleScope,
   helper: { readonly sources: ReadonlySet<string> } | undefined,
   depth: number,
+  guarded: ReadonlySet<string> = new Set(),
 ): PythonListReading {
   const listNames = new Set([base]);
   const closures = new Map<string, { readonly from: number; readonly to: number } | { readonly lambda: PythonCodeStatement } | null>();
@@ -14023,6 +14026,14 @@ function readPythonList(
     const mentions = pythonNameMentions(code, listNames);
     const closureMentions = pythonNameMentions(code, closureNames());
     if (PYTHON_ITEMS_ATTRIBUTE_PATTERN.test(code)) return { use: 'unknown' };
+    // pytest's session holds the same list (session.items), so once the list is emptied or put back,
+    // a use of the session, or of any object's session, may change it.
+    if (
+      (state === 'empty' || state === 'restored') &&
+      (pythonNameMentions(code, guarded).length > 0 || PYTHON_SESSION_ATTRIBUTE_PATTERN.test(code))
+    ) {
+      return { use: 'unknown' };
+    }
     if (mentions.length === 0 && closureMentions.length === 0) return { use: 'none' };
     const call = PYTHON_CALL_PATTERN.exec(code);
     const callee = call && callClosesAtEnd(code, call[0].length - 1) ? functionNamed(call[1] ?? '') : undefined;
@@ -14141,10 +14152,12 @@ function readPythonList(
   };
 
   const extentMentions = (from: number, to: number): boolean => {
-    const names = new Set([...listNames, ...closureNames()]);
+    const names = new Set([...listNames, ...closureNames(), ...guarded]);
     for (let ordinal = from; ordinal < to; ordinal += 1) {
       const code = statements[ordinal]?.code ?? '';
-      if (pythonNameMentions(code, names).length > 0 || PYTHON_ITEMS_ATTRIBUTE_PATTERN.test(code)) return true;
+      if (pythonNameMentions(code, names).length > 0 || PYTHON_ITEMS_ATTRIBUTE_PATTERN.test(code) || PYTHON_SESSION_ATTRIBUTE_PATTERN.test(code)) {
+        return true;
+      }
     }
     return false;
   };
@@ -14207,7 +14220,7 @@ function readPythonList(
         const name = lambda[1] ?? '';
         const body = pythonLambdaBody(lambda[2] ?? '');
         closures.delete(name);
-        if (pythonNameMentions(code, new Set([...listNames, ...closureNames()])).length > 0) {
+        if (extentMentions(ordinal, ordinal + 1)) {
           closures.set(name, body === undefined || inline > 0 ? null : { lambda: { ...statement, code: body } });
         }
         ordinal = end;
@@ -14331,6 +14344,8 @@ function pythonParameterEffect(fn: PythonFunction, position: number, scope: Pyth
 function readPythonParameterEffect(fn: PythonFunction, position: number, scope: PythonModuleScope, depth: number): PythonListParameterEffect {
   const parameter = fn.parameters[position];
   if (parameter === undefined || parameter === '' || parameter === '*' || depth >= PYTHON_LIST_READ_DEPTH) return { effect: 'unknown' };
+  // A global or nonlocal binding may keep the list where a later call reaches it.
+  if (fn.body.some(({ code }) => PYTHON_GLOBAL_STATEMENT_PATTERN.test(code))) return { effect: 'unknown' };
   // A generator: calling it runs none of its body.
   if (fn.body.some(({ code }) => containsPythonIdentifier(code, 'yield'))) return { effect: 'none' };
   const sources = new Set(fn.parameters.filter((name, at) => at !== position && name !== '' && name !== '*'));
@@ -14421,7 +14436,11 @@ function readPytestCollectionHook(lines: readonly string[], masked: readonly str
   const rawItems = readRaw.reduce((count, { text }) => count + [...text.matchAll(/\bitems\b/g)].length, 0);
   const codeItems = read.reduce((count, { code }) => count + [...code.matchAll(/\bitems\b/g)].length, 0);
   if (rawItems > codeItems && readRaw.some(({ text }) => PYTHON_F_STRING_PATTERN.test(text))) return notRead('f-string');
-  const reading = read.length === 0 ? undefined : readPythonList(read, 'items', pythonModuleScope(masked, lines), undefined, 0);
+  // A global or nonlocal binding may keep the list where a later call reaches it.
+  const global = read.find(({ code }) => PYTHON_GLOBAL_STATEMENT_PATTERN.test(code));
+  if (global !== undefined) return notRead(global.shown);
+  const session = new Set(header.parameters.map(pythonParameterName).filter((name) => name === 'session'));
+  const reading = read.length === 0 ? undefined : readPythonList(read, 'items', pythonModuleScope(masked, lines), undefined, 0, session);
   if (reading?.state === 'empty' && reading.cleared && !reading.rebinds) return { kind: 'clear' };
   if (hookSkipsEveryItem(readRaw, pytestHeldSkipMarkers(lines, readRaw))) return { kind: 'skip' };
   if (reading === undefined) return undefined;
