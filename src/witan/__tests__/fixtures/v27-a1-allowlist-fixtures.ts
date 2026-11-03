@@ -9,13 +9,14 @@ import { LIVE_PY_TEST, PY_BASE, conftestHook, lines } from './v27-a1-removal-fix
 // a docstring). Any other statement sends the hook to outcome 3 (named, not read) unless the body
 // is provably outcome 1 (deselects everything). Each fixture is a synthetic shape written from
 // scratch; `item` is the card's item (A the allowlist blockers, B the tokenised body, C the false
-// hollow ratings, D the silent passes, E the nested conftest scope).
+// hollow ratings, D the silent passes, E the nested conftest scope, F the review of #644 at
+// bca7ebfbf: no report call, and no module that can rebind a name the allowlist trusts).
 //
 // pytest was not run on these fixtures: Python packages could not be run in this session, so each
 // fixture's claim rests on reading pytest's collection and hook-calling code, as the purpose says.
 
 export interface AllowlistFixture extends Omit<HookOutcomeFixture, 'item' | 'clause'> {
-  readonly item: 'A' | 'B' | 'C' | 'D' | 'E';
+  readonly item: 'A' | 'B' | 'C' | 'D' | 'E' | 'F';
   /** For 'restores' and 'not read': the clause A1's note must hold, or a pattern it must match. */
   readonly clause?: string | RegExp;
   /** For 'deselects': a withheld clause the note must also hold (another hook's, or a run's). */
@@ -48,6 +49,21 @@ const hook = (body: readonly string[], preamble?: readonly string[]) => ({ 'test
 /** R: save a full copy, clear, extend from it. pytest runs every collected test. */
 const R = ['    saved = list(items)', '    items.clear()', '    items.extend(saved)'] as const;
 const REFILL = ['def refill(lst, src):', '    lst.extend(src)'] as const;
+/** A module object whose __str__ clears pytest's list, given the session at session start. */
+const WIPER_DEFS = [
+  'class Wiper:',
+  '    def __str__(self):',
+  '        self.session.items.clear()',
+  '        return "w"',
+  '',
+  '',
+  'W = Wiper()',
+  '',
+  '',
+  'def pytest_sessionstart(session):',
+  '    W.session = session',
+] as const;
+const WIPER = ['import pytest', '', '', ...WIPER_DEFS] as const;
 const withSession = (...body: string[]) => ({
   'tests/conftest.py': lines('import pytest', '', '', 'def pytest_collection_modifyitems(session, config, items):', ...body),
 });
@@ -226,16 +242,16 @@ export const ALLOWLIST_FIXTURES: readonly AllowlistFixture[] = [
   fixture(
     'a1al-a-restore-with-report-and-print',
     'A',
-    'Control: R with a separate copy reported as deselected and a print of a string literal; every statement is recognised.',
+    'R with a separate copy reported as deselected and a print: since the review of #644, a report call runs code outside the copy, emptying and restore (any conftest.py or plugin may implement pytest_deselected), so the hook is named, not credited.',
     hook(['    dropped = list(items)', ...R, '    config.hook.pytest_deselected(items=dropped)', '    print("restored")']),
-    restores,
+    unread('config.hook.pytest_deselected(items=dropped)'),
   ),
   fixture(
     'a1al-a-restore-with-module-logger',
     'A',
-    'Control: R with a log call through a module-level logging.getLogger logger, its arguments a string literal and a plain name.',
+    "R with a log call through a module-level logger: since the review of #644, a logging call runs the logger's handlers and its arguments' __str__, so the hook is named, not credited.",
     hook([...R, '    logger.info("restored %s", config)'], ['import logging', '', 'import pytest', '', 'logger = logging.getLogger(__name__)']),
-    restores,
+    unread('logger.info("", config)'),
   ),
   fixture(
     'a1al-a-restore-print-of-copy',
@@ -460,5 +476,154 @@ export const ALLOWLIST_FIXTURES: readonly AllowlistFixture[] = [
       alsoSaid:
         'run-wide skip rule not applied: the pytest command line in .github/workflows/ci.yml does not collect tests/sub, so it does not load tests/sub/conftest.py',
     },
+  ),
+
+  // ---- item F: the review of #644 at bca7ebfbf -------------------------------------------
+  // Outcome 2 admits no call that can run code outside the copy, the emptying and the restore: no
+  // report call (config.hook.*, print, logging), and no conftest.py module that can rebind a name
+  // the allowlist trusts without spelling it (a star import, setattr, builtins or __builtins__,
+  // sys.modules, an assignment to list, tuple or the helper, a module __getattr__). pytest 9.2.0
+  // was run on each of these shapes; its result is in the purpose.
+  fixture(
+    'a1al-f-deselected-hook-implemented-in-conftest',
+    'F',
+    'Blocker 1: the conftest.py implements pytest_deselected to clear session.items, and the restoring hook ends by calling config.hook.pytest_deselected; pytest reports 3 deselected and runs no test.',
+    hook(
+      ['    saved = list(items)', '    dropped = list(items)', '    items.clear()', '    items.extend(saved)', '    config.hook.pytest_deselected(items=dropped)'],
+      ['import pytest', '', '', 'def pytest_deselected(items):', '    items[0].session.items.clear()'],
+    ),
+    unread('config.hook.pytest_deselected(items=dropped)'),
+  ),
+  fixture(
+    'a1al-f-print-object-str',
+    'F',
+    "Blocker 3: R, then print(W), where W's __str__ clears session.items; pytest runs no test.",
+    hook([...R, '    print(W)'], WIPER),
+    unread('print(W)'),
+  ),
+  fixture(
+    'a1al-f-log-object-str',
+    'F',
+    "Blocker 3: R, then log.warning(W) through a module logger, where W's __str__ clears session.items; pytest runs no test.",
+    hook([...R, '    log.warning(W)'], ['import logging', '', 'import pytest', '', 'log = logging.getLogger(__name__)', '', ...WIPER_DEFS]),
+    unread('log.warning(W)'),
+  ),
+  fixture(
+    'a1al-f-print-string-literal',
+    'F',
+    'R, then print of a string literal; pytest runs every test, but print is a name any module patch may rebind, so the hook is named, not credited (a miss, never a false sentence).',
+    hook([...R, '    print("restored")']),
+    unread('print("")'),
+  ),
+  fixture(
+    'a1al-f-print-plain-name',
+    'F',
+    'R, then print(config); pytest runs every test, but the call runs the argument\'s __str__, so the hook is named, not credited.',
+    hook([...R, '    print(config)']),
+    unread('print(config)'),
+  ),
+  fixture(
+    'a1al-f-logging-module-call',
+    'F',
+    'R, then logging.warning of a string literal; pytest runs every test, but a logging call runs every handler, so the hook is named, not credited.',
+    hook([...R, '    logging.warning("restored")'], ['import logging', '', 'import pytest']),
+    unread('logging.warning("")'),
+  ),
+  fixture(
+    'a1al-f-star-import-list',
+    'F',
+    'Blocker 2: from helpers import * brings in a list that returns []; the "copy" is empty, and pytest runs no test.',
+    { ...hook([...R], ['from helpers import *', '', 'import pytest']), 'tests/helpers.py': lines('def list(xs):', '    return []') },
+    unread('from helpers import *'),
+  ),
+  fixture(
+    'a1al-f-star-import-helper',
+    'F',
+    'Blocker 2: from helpers import *, after the same-file helper, rebinds it to one that does nothing; pytest runs no test.',
+    {
+      ...hook(['    saved = list(items)', '    items.clear()', '    refill(items, saved)'], ['import pytest', '', '', ...REFILL, '', '', 'from helpers import *']),
+      'tests/helpers.py': lines('def refill(lst, src):', '    pass'),
+    },
+    unread('from helpers import *'),
+  ),
+  fixture(
+    'a1al-f-setattr-module-list',
+    'F',
+    'Blocker 3: setattr(sys.modules[__name__], "li" + "st", ...) binds list without spelling it; the "copy" is empty, and pytest runs no test.',
+    hook([...R], ['import sys', '', 'import pytest', '', 'setattr(sys.modules[__name__], "li" + "st", lambda xs: [])']),
+    unread(/hook not read: `setattr\(/i),
+  ),
+  fixture(
+    'a1al-f-builtins-attribute-list',
+    'F',
+    'Blocker 3: builtins.list = ... at module level; pytest itself fails to start, so no test runs.',
+    hook([...R], ['import builtins', '', 'import pytest', '', 'builtins.list = lambda xs: []']),
+    unread('import builtins'),
+  ),
+  fixture(
+    'a1al-f-dunder-builtins-split-name',
+    'F',
+    'Blocker 3: __builtins__["li" + "st"] = ... at module level, a name no string spells; pytest itself fails to start, so no test runs.',
+    hook([...R], ['import pytest', '', '__builtins__["li" + "st"] = lambda xs: []']),
+    unread(/hook not read: `__builtins__\[/i),
+  ),
+  fixture(
+    'a1al-f-sys-modules-attribute-tuple',
+    'F',
+    'sys.modules[__name__].tuple = ... binds the module global tuple through an attribute; the "copy" is empty, and pytest runs no test.',
+    hook(['    saved = tuple(items)', '    items.clear()', '    items.extend(saved)'], ['import sys', '', 'import pytest', '', 'sys.modules[__name__].tuple = lambda xs: ()']),
+    unread('sys.modules[__name__].tuple = lambda xs: ()'),
+  ),
+  fixture(
+    'a1al-f-self-import-attribute-list',
+    'F',
+    'The conftest.py imports itself and assigns conftest.list, which binds its global list; the "copy" is empty, and pytest runs no test.',
+    hook([...R], ['import pytest', '', 'import conftest', '', 'conftest.list = lambda xs: []']),
+    unread('conftest.list = lambda xs: []'),
+  ),
+  fixture(
+    'a1al-f-self-import-attribute-helper',
+    'F',
+    'The conftest.py imports itself and assigns conftest.refill after the helper, rebinding it to one that does nothing; pytest runs no test.',
+    hook(
+      ['    saved = list(items)', '    items.clear()', '    refill(items, saved)'],
+      ['import pytest', '', '', ...REFILL, '', '', 'import conftest', '', 'conftest.refill = lambda lst, src: None'],
+    ),
+    unread('refill(items, saved)'),
+  ),
+  fixture(
+    'a1al-f-module-getattr',
+    'F',
+    "A module __getattr__ answers pytest's own lookups on the conftest.py (collect_ignore), and collection fails with an error before the hook runs: no test runs.",
+    hook(['    saved = list(items)', '    items.clear()', '    refill(items, saved)'], ['import pytest', '', '', ...REFILL, '', '', 'def __getattr__(name):', '    return None']),
+    unread(/hook not read: `def __getattr__/i),
+  ),
+  fixture(
+    'a1al-f-deselect-all-report-beside-star-import',
+    'F',
+    'Control: the deselect-everything hook (copy, clear, report the copy) stays hollow beside a star import; pytest reports 3 deselected.',
+    { ...hook(['    dropped = list(items)', '    items.clear()', '    config.hook.pytest_deselected(items=dropped)'], ['from helpers import *', '', 'import pytest']), 'tests/helpers.py': lines('X = 1') },
+    deselects,
+  ),
+  fixture(
+    'a1al-f-control-restore-beside-module-logger',
+    'F',
+    'Control: R in a module that binds a logger and never calls it from the hook; pytest runs every test.',
+    hook([...R], ['import logging', '', 'import pytest', '', 'logger = logging.getLogger(__name__)']),
+    restores,
+  ),
+  fixture(
+    'a1al-f-control-restore-beside-sys-path',
+    'F',
+    'Control: R in a module that puts src on sys.path; pytest runs every test.',
+    hook([...R], ['import sys', '', 'import pytest', '', 'sys.path.insert(0, "src")']),
+    restores,
+  ),
+  fixture(
+    'a1al-f-control-strict-helper',
+    'F',
+    'Control: the strict same-file helper restores the saved copy; pytest runs every test.',
+    hook(['    saved = list(items)', '    items.clear()', '    refill(items, saved)'], ['import pytest', '', '', ...REFILL]),
+    restores,
   ),
 ];
