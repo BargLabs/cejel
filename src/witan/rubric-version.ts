@@ -329,7 +329,7 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     value or a path; after the review of #648, also a make variable set by !=, define, inside a
 //     conditional, for one target or by a ?= default a CI file may replace, hatch test, a TOXENV
 //     Cejel cannot resolve, a step action whose with: input runs pytest, and every pytest run in a
-//     workflow that writes PYTEST_ADDOPTS to $GITHUB_ENV or checks out into a path:) is named in A1's
+//     workflow that names both $GITHUB_ENV and PYTEST_ADDOPTS or checks out into a path:) is named in A1's
 //     note as "pytest run not read: `<reason>` in <path>" (#644's
 //     not-read clause, for a run), and switches off every removal rule for every file, since any
 //     option may be in force for any file it collects. Any other remote step action is read as running

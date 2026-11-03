@@ -14762,6 +14762,7 @@ export function readPytestInvocations(
     // The review of #648 (the narrow rule for steps Cejel does not read): a step that writes
     // PYTEST_ADDOPTS to $GITHUB_ENV sets it for the later steps of its job, and a checkout into a
     // `path:` moves the repository under the workspace, so a pytest run in such a file is not read.
+    // The first is tested by name (a file naming both), not by reading the write.
     const remote = readGithubRemoteSteps(text);
     const writesAddopts = text.includes('GITHUB_ENV') && text.includes('PYTEST_ADDOPTS') ? 'PYTEST_ADDOPTS written to $GITHUB_ENV' : undefined;
     const unreadWhy = writesAddopts ?? remote.checkoutPath;

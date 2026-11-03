@@ -138,8 +138,11 @@ their documentation). Each of these was a crash, a false hollow or a read that c
    factor-conditional pytest line not read; a justfile's `set export` exports `PYTEST_ADDOPTS`.
 4. The narrow rule for remote steps, chosen by the operator on 2026-11-03: a step action one of
    whose `with:` inputs runs pytest (a retry or display wrapper) is a run not read, and a workflow
-   that writes `PYTEST_ADDOPTS` to `$GITHUB_ENV`, or checks out into a `path:`, leaves each of its
-   pytest runs not read. A remote action whose inputs run no pytest changes nothing.
+   that names both `$GITHUB_ENV` and `PYTEST_ADDOPTS` (so may write the one to the other, for the
+   later steps of a job), or checks out into a `path:`, leaves each of its pytest runs not read. The
+   first test is by name, not by reading the write, so it also withholds for a workflow that sets
+   `PYTEST_ADDOPTS` in an `env:` mapping and writes something else to `$GITHUB_ENV`: a false
+   exclusion, in the safe direction. A remote action whose inputs run no pytest changes nothing.
 5. A `PYTEST_ADDOPTS` set in an `env:` mapping was cited at the first later line holding the name,
    which could be another job's. It is now cited at its own mapping's line.
 6. The hatch script reader and the make expansion grew far past linear on small crafted files (a

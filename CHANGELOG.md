@@ -41,8 +41,8 @@ is pinned. v27 carries no precision or recall claim.
     parameter, `hatch test`, a `TOXENV` Cejel cannot resolve, a `${{ }}` expression or a `cd` to a
     variable, `-c` outside the repository, `--pyargs`, a `working-directory` expression, Jenkins
     `dir()`, a reusable workflow in another repository, a step action one of whose `with:` inputs
-    runs pytest, and every pytest run in a workflow that writes `PYTEST_ADDOPTS` to `$GITHUB_ENV` or
-    checks out into a `path:`), any option could be in force for any file it collects, so no
+    runs pytest, and every pytest run in a workflow that names both `$GITHUB_ENV` and
+    `PYTEST_ADDOPTS` (so may write one to the other) or checks out into a `path:`), any option could be in force for any file it collects, so no
     removal rule is applied to a file it may collect, and A1's note says "pytest run not read:
     `<reason>` in `<path>`" (#644's "not read" clause, for a run).
   - **Options.** An option the reader does not know, before a word that may be its value or a path,
