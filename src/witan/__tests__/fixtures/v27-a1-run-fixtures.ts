@@ -474,6 +474,91 @@ export const RUN_FIXTURES: readonly RunFixture[] = [
     },
     [runNotRead('nox -s tests -- -k t16', CI_PATH)],
   ),
+
+  // ---- item G: options a conftest.py declares (goal_cejel_v27_a1_gaps_2026-11-03, item C; #649, 2)
+  // An unknown long option before a word is looked up in the repository's conftest.py files:
+  // `parser.addoption("--name", action="store_true" | "store_false" | "count" | "store_const")`
+  // takes no value, so the word is a path; any other action, or none, takes a value; declared
+  // nowhere, or in a call Cejel cannot read, the run stays not read. pytest was not run on these
+  // fixtures (no Python package could be run in this session): each claim rests on argparse's
+  // actions, which pytest's addoption passes through, not on a run.
+  caught(
+    'a1gap-option-store-true-before-path',
+    'G',
+    'pytest --runslow tests, where the root conftest.py declares --runslow with action="store_true": tests is a path, and the run loads the clear hook.',
+    {
+      'conftest.py': lines('def pytest_addoption(parser):', '    parser.addoption("--runslow", action="store_true", default=False, help="run slow tests")'),
+      'tests/conftest.py': CLEAR_HOOK,
+      [CI_PATH]: ciWorkflow(['pytest --runslow tests']),
+    },
+    HOOK_REMOVED,
+  ),
+  caught(
+    'a1gap-option-count-in-group-before-path',
+    'G',
+    'pytest --chatty tests, where a conftest.py declares --chatty on an option group with action="count": tests is a path.',
+    {
+      'conftest.py': lines('def pytest_addoption(parser):', '    group = parser.getgroup("cachelib")', "    group.addoption('--chatty', '-C', action='count', default=0)"),
+      'tests/conftest.py': CLEAR_HOOK,
+      [CI_PATH]: ciWorkflow(['pytest --chatty tests']),
+    },
+    HOOK_REMOVED,
+  ),
+  withheld(
+    'a1gap-option-store-false-before-path-no-skipping',
+    'G',
+    'pytest --no-network tests -p no:skipping, where --no-network is declared with action="store_false": the run is read, and -p no:skipping is in force for tests.',
+    {
+      'conftest.py': lines('def pytest_addoption(parser):', '    parser.addoption(', '        "--no-network",', '        action="store_false",', '        dest="network",', '    )'),
+      'tests/test_cache.py': SKIPPED_CACHE_TEST,
+      [CI_PATH]: ciWorkflow(['pytest --no-network tests -p no:skipping']),
+    },
+    [NO_SKIPPING(CI_PATH)],
+  ),
+  caught(
+    'a1gap-option-with-value',
+    'G',
+    'pytest --env ci tests, where --env is declared with no action (argparse stores a value): ci is its value and tests a path.',
+    {
+      'conftest.py': lines('def pytest_addoption(parser):', '    parser.addoption("--env", default="dev")'),
+      'tests/conftest.py': CLEAR_HOOK,
+      [CI_PATH]: ciWorkflow(['pytest --env ci tests']),
+    },
+    HOOK_REMOVED,
+  ),
+  withheld(
+    'a1gap-option-declared-with-name-variable',
+    'G',
+    'Control: --runslow is declared through a name, not a string literal, so Cejel cannot tell whether it takes a value: the run stays not read.',
+    {
+      'conftest.py': lines('SLOW = "--runslow"', '', '', 'def pytest_addoption(parser):', '    parser.addoption(SLOW, action="store_true")'),
+      'tests/conftest.py': CLEAR_HOOK,
+      [CI_PATH]: ciWorkflow(['pytest --runslow tests']),
+    },
+    [runNotRead('--runslow tests', CI_PATH)],
+  ),
+  withheld(
+    'a1gap-option-declared-with-kwargs',
+    'G',
+    'Control: --runslow is declared with **kwargs, which may hold its action: the run stays not read.',
+    {
+      'conftest.py': lines('FLAG = {"action": "store_true"}', '', '', 'def pytest_addoption(parser):', '    parser.addoption("--runslow", **FLAG)'),
+      'tests/conftest.py': CLEAR_HOOK,
+      [CI_PATH]: ciWorkflow(['pytest --runslow tests']),
+    },
+    [runNotRead('--runslow tests', CI_PATH)],
+  ),
+  withheld(
+    'a1gap-option-declared-in-a-non-conftest-module',
+    'G',
+    'Control: --runslow is declared only in a plugin module, not a conftest.py: the run stays not read.',
+    {
+      'cachelib_plugin.py': lines('def pytest_addoption(parser):', '    parser.addoption("--runslow", action="store_true")'),
+      'tests/conftest.py': CLEAR_HOOK,
+      [CI_PATH]: ciWorkflow(['pytest --runslow tests']),
+    },
+    [runNotRead('--runslow tests', CI_PATH)],
+  ),
 ];
 
 /** The sentence A1's note holds once where a run could read a configuration file above the repository's root (item C). */
