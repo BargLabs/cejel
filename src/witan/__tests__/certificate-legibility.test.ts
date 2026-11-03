@@ -12,6 +12,7 @@ import {
 } from '../certificate-presentation.js';
 import { renderWitanHtmlReport } from '../html.js';
 import { renderWitanMarkdownReport } from '../markdown.js';
+import { certificateWithoutFirstPage } from '../../__tests__/plain-first-page-helpers.js';
 import type { WitanCriterionScore, WitanFinding, WitanReport } from '../schemas.js';
 
 function criterion(
@@ -498,7 +499,9 @@ describe('Track A1 — findings-first restructure', () => {
         ],
       }),
     ]);
-    const html = renderWitanHtmlReport(report);
+    // The plain first page (goal_cejel_four_question_summary_2026-11-02) quotes these findings
+    // above the certificate; the order checked here is the certificate's own, below it.
+    const html = certificateWithoutFirstPage(renderWitanHtmlReport(report));
 
     const findingsHeadingIndex = html.indexOf('id="findings-first-heading"');
     const relyingPartyHeadingIndex = html.indexOf('id="relying-party-heading"');

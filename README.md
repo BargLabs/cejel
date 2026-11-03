@@ -25,7 +25,7 @@ jobs:
 ```
 
 Or run it once from a shell: `npx @cejel/cejel@latest .` More on the Action under
-[GitHub Action](#github-action).
+[GitHub Action](#github-action). To read what comes out, see [Reading the result](#reading-the-result).
 
 Cejel (*"SEH-jel"*) — a trust certificate for your codebase.
 
@@ -74,6 +74,28 @@ untouched holdout, every preregistered gate to pass, and a separately recorded p
 
 The [defect-class census](docs/defect-class-census.md) publishes the coverage-breadth
 boundary—which defect classes any shipped rule targets—and is explicitly not a recall claim.
+
+## Reading the result
+
+The first page of `certificate.html` (and the block printed after the verdict in the terminal)
+answers four questions in plain words, built only from `report.json`:
+
+- **What holds:** the areas Cejel examined and rated at its top level, or one level below it
+  ("partly holds"), each with the strongest measurement it saw. An area Cejel did not examine is
+  never listed here.
+- **What is wrong:** every critical and warning-level finding, most serious first, naming the file
+  or area and what is wrong.
+- **What is not known:** everything the report says it could not establish: an overall result it
+  withheld and why, areas that do not apply or could not be measured, scan and history limitations,
+  files it did not read, and each limit a check recorded on what it examined.
+- **What to check next:** one line for each wrong or not-known item, taken from a fixed table of
+  reviewed sentences. An item with no table entry points to the section of the certificate that
+  holds it.
+
+The first page also says what the result does not cover: Cejel reads files and history and does
+not run the code or its tests. Every line links to its source further down; the certificate below
+the first page holds the evidence, unchanged. `summary.json` carries the same four lists under
+`plainSummary`.
 
 ## Install
 

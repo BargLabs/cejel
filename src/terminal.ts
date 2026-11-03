@@ -31,6 +31,7 @@ import {
 import { PROSPECTIVE_RUBRIC_NOTICE, isProspectiveRubricVersion } from './witan/rubric-version.js';
 
 import type { WitanCliSummary } from './summary.js';
+import { type PlainSummary, buildPlainSummary } from './plain-summary.js';
 import { formatCoverageSummary, type MeasuredCoverage } from './witan/coverage.js';
 
 export function renderMinScoreAbstentionFailure(
@@ -125,6 +126,10 @@ export function renderTerminalCertificate(summary: WitanCliSummary, report?: Wit
       '',
     );
   }
+
+  // goal_cejel_four_question_summary_2026-11-02, item D: the four lists, right after the verdict,
+  // at most three items each; certificate.html has the rest.
+  if (report) lines.push(...renderPlainSummaryLines(buildPlainSummary(report), summary, abstained));
 
   if (summary.scanLimitations.length > 0) {
     lines.push(
@@ -269,6 +274,59 @@ export function renderTerminalCertificate(summary: WitanCliSummary, report?: Wit
   }
 
   return `${lines.join('\n')}\n`;
+}
+
+const PLAIN_TERMINAL_ITEM_LIMIT = 3;
+
+function renderPlainSummaryLines(
+  plain: PlainSummary,
+  summary: WitanCliSummary,
+  abstained: boolean,
+): string[] {
+  const section = (
+    heading: string,
+    leads: readonly (string | undefined)[],
+    items: readonly string[],
+    empty: string,
+  ): string[] => {
+    const shown = items.slice(0, PLAIN_TERMINAL_ITEM_LIMIT);
+    const remaining = items.length - shown.length;
+    return [
+      `${heading} (${items.length}):`,
+      ...leads.filter((lead): lead is string => lead !== undefined).map((lead) => `  ${lead}`),
+      ...(items.length === 0 ? [`  ${empty}`] : shown.map((item) => `  - ${stripTerminalControls(item)}`)),
+      ...(remaining > 0 ? [`  ...and ${remaining} more in certificate.html.`] : []),
+    ];
+  };
+  const itemLine = (item: { area: string; text: string; location?: string }): string =>
+    `${item.area} — ${item.text}${item.location !== undefined ? ` (${item.location})` : ''}`;
+  // "Top findings" below counts every finding, informational ones too; the Wrong list counts only
+  // critical and warning findings, so the difference is named rather than left to look like a mismatch.
+  const wrongFindings = plain.wrong.filter((item) => item.source.kind === 'finding').length;
+  const otherFindings = summary.findingCount - wrongFindings;
+  const topFindingsNote =
+    !abstained && otherFindings > 0
+      ? `Top findings below counts ${summary.findingCount} finding${summary.findingCount === 1 ? '' : 's'} in all, including ${otherFindings} informational finding${otherFindings === 1 ? '' : 's'} not listed here.`
+      : undefined;
+  return [
+    'In plain words (the full lists, with links to the evidence, are in certificate.html):',
+    ...section('What holds', [plain.areasLine, plain.holdsNote], plain.holds.map(itemLine), 'Nothing Cejel measured scored well enough to be listed here.'),
+    ...section(
+      'What is wrong',
+      [plain.wrongNote, topFindingsNote],
+      plain.wrong.map((item) => `${item.level === 'critical' ? 'Critical' : 'Warning'}: ${itemLine(item)}`),
+      'Cejel recorded no critical or warning-level problem in what it checked.',
+    ),
+    ...section('What is not known', [], plain.notKnown.map(itemLine), 'Cejel listed no gap here; anything it did not measure is still not established.'),
+    ...section(
+      'What to check next',
+      [],
+      plain.checkNext.map((check) => `${check.area} — ${check.text}`),
+      'Nothing to check from these lists.',
+    ),
+    plain.notCovered,
+    '',
+  ];
 }
 
 function formatScore(score: number | null): string {

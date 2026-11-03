@@ -44,6 +44,18 @@ import {
   type RelyingPartySummary,
 } from './certificate-presentation.js';
 import { PROSPECTIVE_RUBRIC_NOTICE, isProspectiveRubricVersion } from './rubric-version.js';
+import {
+  PLAIN_ANCHOR_CONTENT_READS,
+  PLAIN_ANCHOR_NOT_ESTABLISHED,
+  PLAIN_ANCHOR_VERDICT,
+  type PlainItem,
+  type PlainSummary,
+  buildPlainSummary,
+  plainCriterionAnchor,
+  plainFindingAnchor,
+  plainHistoryLimitationAnchor,
+  plainScanLimitationAnchor,
+} from '../plain-summary.js';
 
 export interface WitanHtmlReportOptions {
   /** Version of the Cejel CLI/server that produced this certificate. */
@@ -87,7 +99,7 @@ export function renderWitanHtmlReport(
 </head>
 <body>
   <main class="certificate">
-    <header class="hero">
+    ${renderPlainFirstPage(report, buildPlainSummary(report))}<header class="hero">
       <div class="brand">
         <span class="brand-mark" aria-hidden="true">C</span>
         <span class="brand-name">Cejel</span>
@@ -119,7 +131,7 @@ export function renderWitanHtmlReport(
             }
           </dl>
         </section>
-        <aside class="score-panel" aria-label="Summary trust score">
+        <aside class="score-panel" id="${PLAIN_ANCHOR_VERDICT}" aria-label="Summary trust score">
           <div class="score-badge">Summary</div>
           ${
             report.verdict === 'insufficient_source'
@@ -156,8 +168,8 @@ export function renderWitanHtmlReport(
       <h2>Scan limitations</h2>
       <ul>${(report.scanLimitations ?? [])
         .map(
-          (limitation) =>
-            `<li class="scan-warning"><strong>Scan limitation</strong><span>${escapeHtml(limitation)}</span></li>`,
+          (limitation, index) =>
+            `<li class="scan-warning" id="${plainScanLimitationAnchor(index)}"><strong>Scan limitation</strong><span>${escapeHtml(limitation)}</span></li>`,
         )
         .join('')}</ul>
     </section>`
@@ -170,8 +182,8 @@ export function renderWitanHtmlReport(
       <h2>History limitations</h2>
       <ul>${(report.historyLimitations ?? [])
         .map(
-          (limitation) =>
-            `<li class="scan-warning"><strong>History limitation</strong><span>${escapeHtml(limitation)}</span></li>`,
+          (limitation, index) =>
+            `<li class="scan-warning" id="${plainHistoryLimitationAnchor(index)}"><strong>History limitation</strong><span>${escapeHtml(limitation)}</span></li>`,
         )
         .join('')}</ul>
     </section>`
@@ -220,6 +232,7 @@ export function renderWitanHtmlReport(
 interface FindingsFirstEntry {
   criterion: WitanCriterionScore;
   finding: WitanFinding;
+  findingIndex: number;
 }
 
 const FINDINGS_FIRST_SEVERITY_ORDER: Record<WitanFinding['severity'], number> = {
@@ -227,6 +240,131 @@ const FINDINGS_FIRST_SEVERITY_ORDER: Record<WitanFinding['severity'], number> = 
   warning: 1,
   info: 2,
 };
+
+// goal_cejel_four_question_summary_2026-11-02, items B and C: the plain first page, above everything
+// the certificate held before. It renders buildPlainSummary (src/plain-summary.ts) and nothing else:
+// a verdict line, the four lists, what the result does not cover, and a line saying the certificate
+// follows. Each item links to the element below that holds its source. File paths and the product
+// name are quoted in <code>; every other word on the page is plain (no engine vocabulary, no
+// assurance word). Its styles travel inside the block, so the certificate's <head> is unchanged.
+// Self-contained: no script, no external asset. Colour is never the only signal: each list has a
+// text heading and a mark, and each wrong item names its level in words.
+const PLAIN_FIRST_PAGE_CSS = `
+.plain-first-page { border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface); padding: 26px; margin-bottom: 36px; }
+.plain-first-page .eyebrow { margin-bottom: 10px; }
+.plain-title { font-size: 34px; margin-bottom: 14px; }
+.plain-title code { font-size: .8em; }
+.plain-verdict { font-size: 18px; color: var(--text); margin-bottom: 20px; }
+.plain-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.plain-list { border: 1px solid var(--line); border-radius: 8px; background: var(--surface-2); padding: 16px 18px; min-width: 0; }
+.plain-list h3 { font-size: 18px; margin-bottom: 8px; }
+.plain-mark { display: inline-block; min-width: 1.2em; font-family: var(--mono); }
+.plain-holds .plain-mark { color: var(--teal); }
+.plain-wrong .plain-mark { color: var(--danger); }
+.plain-unknown .plain-mark { color: var(--warn); }
+.plain-next .plain-mark { color: var(--periwinkle); }
+.plain-count { color: var(--faint); font-family: var(--mono); font-size: 14px; font-weight: 400; }
+.plain-lead { margin: 0 0 8px; color: var(--muted); font-size: 13px; }
+.plain-list ul { padding-left: 18px; }
+.plain-list li { margin: 8px 0; font-size: 14px; overflow-wrap: anywhere; }
+.plain-list li strong { color: var(--text); }
+.plain-level { font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; border: 1px solid var(--line-strong); border-radius: 999px; padding: 1px 7px; margin-right: 4px; }
+.plain-level[data-level="critical"] { color: var(--danger); }
+.plain-level[data-level="warning"] { color: var(--warn); }
+.plain-empty { margin: 0; color: var(--muted); font-size: 14px; }
+.plain-not-covered { margin: 18px 0 0; color: var(--text); }
+.plain-follows { margin: 10px 0 0; color: var(--faint); font-size: 13px; }
+@media (max-width: 840px) {
+  .plain-first-page { padding: 18px; }
+  .plain-grid { grid-template-columns: 1fr; }
+  .plain-title { font-size: 28px; }
+}
+`;
+
+function renderPlainItemBody(item: PlainItem): string {
+  const location = item.location !== undefined ? ` <code>${escapeHtml(item.location)}</code>` : '';
+  return `<strong>${escapeHtml(item.area)}</strong> — ${escapeHtml(item.text)}${location} <a href="#${escapeAttribute(item.anchor)}">details</a>`;
+}
+
+function renderPlainList(
+  key: string,
+  mark: string,
+  heading: string,
+  count: number,
+  leads: readonly (string | undefined)[],
+  items: readonly string[],
+  empty: string,
+): string {
+  const leadHtml = leads
+    .filter((lead): lead is string => lead !== undefined)
+    .map((lead) => `<p class="plain-lead">${escapeHtml(lead)}</p>`)
+    .join('');
+  const body =
+    items.length > 0 ? `<ul>${items.map((item) => `<li>${item}</li>`).join('')}</ul>` : `<p class="plain-empty">${escapeHtml(empty)}</p>`;
+  return `<section class="plain-list plain-${key}" aria-labelledby="plain-${key}-heading"><h3 id="plain-${key}-heading"><span class="plain-mark" aria-hidden="true">${mark}</span> ${escapeHtml(heading)} <span class="plain-count">(${count})</span></h3>${leadHtml}${body}</section>`;
+}
+
+function renderPlainFirstPage(report: WitanReport, plain: PlainSummary): string {
+  const holds = renderPlainList(
+    'holds',
+    '✓',
+    'What holds',
+    plain.holds.length,
+    [plain.areasLine, plain.holdsNote],
+    plain.holds.map(renderPlainItemBody),
+    'Nothing Cejel measured scored well enough to be listed here.',
+  );
+  const wrong = renderPlainList(
+    'wrong',
+    '✕',
+    'What is wrong',
+    plain.wrong.length,
+    [plain.wrongNote],
+    plain.wrong.map(
+      (item) =>
+        `<span class="plain-level" data-level="${item.level}">${item.level === 'critical' ? 'Critical' : 'Warning'}</span> ${renderPlainItemBody(item)}`,
+    ),
+    'Cejel recorded no critical or warning-level problem in what it checked.',
+  );
+  const notKnown = renderPlainList(
+    'unknown',
+    '?',
+    'What is not known',
+    plain.notKnown.length,
+    [],
+    plain.notKnown.map(renderPlainItemBody),
+    'Cejel listed no gap here; anything it did not measure is still not established.',
+  );
+  const checkNext = renderPlainList(
+    'next',
+    '→',
+    'What to check next',
+    plain.checkNext.length,
+    [],
+    plain.checkNext.map(
+      (check) =>
+        `<strong>${escapeHtml(check.area)}</strong> — ${escapeHtml(check.text)} <a href="#${escapeAttribute(check.anchor)}">details</a>`,
+    ),
+    'Nothing to check from these lists.',
+  );
+  return `<!-- cejel:first-page -->
+    <section class="plain-first-page" aria-labelledby="plain-first-page-heading">
+      <style>${PLAIN_FIRST_PAGE_CSS}</style>
+      <p class="eyebrow">Read this first</p>
+      <h2 class="plain-title" id="plain-first-page-heading">What this result means for <code>${escapeHtml(report.productDisplayName)}</code></h2>
+      <p class="plain-verdict">${escapeHtml(plain.verdictLine)}</p>
+      <div class="plain-grid">
+        ${holds}
+        ${wrong}
+        ${notKnown}
+        ${checkNext}
+      </div>
+      <p class="plain-not-covered">${escapeHtml(plain.notCovered)}</p>
+      <p class="plain-follows">The full certificate, with the evidence behind every line above, follows below.</p>
+    </section>
+    <!-- /cejel:first-page -->
+    `;
+}
 
 // Track A1 (ADR-0022): surfaces "what's wrong" before the scope/completeness prose below it.
 // Reorders and re-renders existing finding data via the same renderFindingEvidence used inside
@@ -236,8 +374,8 @@ function collectFindingsFirstEntries(report: WitanReport): FindingsFirstEntry[] 
   return report.criteria
     .flatMap((criterion) =>
       criterion.findings
-        .filter((finding) => finding.severity === 'critical' || finding.severity === 'warning')
-        .map((finding) => ({ criterion, finding })),
+        .map((finding, findingIndex) => ({ criterion, finding, findingIndex }))
+        .filter(({ finding }) => finding.severity === 'critical' || finding.severity === 'warning'),
     )
     .sort(
       (a, b) =>
@@ -251,7 +389,10 @@ function renderFindingsFirstSummary(report: WitanReport): string {
   const body =
     entries.length > 0
       ? `<ul>${entries
-          .map(({ criterion, finding }) => `<li>${renderFindingEvidence(criterion, finding)}</li>`)
+          .map(
+            ({ criterion, finding, findingIndex }) =>
+              `<li id="${plainFindingAnchor(criterion.id, findingIndex)}">${renderFindingEvidence(criterion, finding)}</li>`,
+          )
           .join('')}</ul>`
       : '<p class="findings-first-empty">No critical or warning findings were identified across any criterion in this scan.</p>';
   const verdictExplanation = buildVerdictExplanation(report);
@@ -271,7 +412,7 @@ function renderRelyingPartySummary(summary: RelyingPartySummary): string {
         <div><dt>Scope</dt><dd>${escapeHtml(summary.scope)}</dd></div>
         <div><dt>What was examined</dt><dd>${escapeHtml(summary.examined)}</dd></div>
         <div><dt>What was established</dt><dd>${escapeHtml(summary.established)}</dd></div>
-        <div><dt>What was not established</dt><dd>${escapeHtml(summary.notEstablished)}</dd></div>
+        <div id="${PLAIN_ANCHOR_NOT_ESTABLISHED}"><dt>What was not established</dt><dd>${escapeHtml(summary.notEstablished)}</dd></div>
         <div><dt>What to do next</dt><dd>${escapeHtml(summary.next)}</dd></div>
       </dl>
     </section>`;
@@ -305,7 +446,7 @@ function renderContentReadSummary(report: WitanReport): string {
     summary.affectedCriteria.length > 0
       ? `<p>Affected criteria abstained as <code>insufficient_data</code>: ${escapeHtml(summary.affectedCriteria.join(', '))}.</p>`
       : '';
-  return `<section class="scan-limitations-section evidence-section" aria-label="Skipped content reads">
+  return `<section class="scan-limitations-section evidence-section" id="${PLAIN_ANCHOR_CONTENT_READS}" aria-label="Skipped content reads">
       <h2>Skipped content reads</h2>
       <p>${summary.skipped} content entr${summary.skipped === 1 ? 'y was' : 'ies were'} skipped. Counts only; repository paths are intentionally omitted.</p>
       <ul>
@@ -456,7 +597,7 @@ function renderNotApplicableGroup(criteria: readonly WitanCriterionScore[]): str
 
 function renderNotApplicableItem(criterion: WitanCriterionScore): string {
   const reason = criterion.notes ?? 'Not applicable to this repository.';
-  return `<li><span class="na-id">${escapeHtml(criterion.id)}</span> ${escapeHtml(criterion.title)} — <span class="na-reason">${escapeHtml(reason)}</span><span class="na-reconciliation"><strong>Why no label comparison applies:</strong> this dimension is not applicable to this repository, so it has no weighted numeric score band to compare.</span></li>`;
+  return `<li id="${plainCriterionAnchor(criterion.id)}"><span class="na-id">${escapeHtml(criterion.id)}</span> ${escapeHtml(criterion.title)} — <span class="na-reason">${escapeHtml(reason)}</span><span class="na-reconciliation"><strong>Why no label comparison applies:</strong> this dimension is not applicable to this repository, so it has no weighted numeric score band to compare.</span></li>`;
 }
 
 function renderCriterionCard(
@@ -475,7 +616,7 @@ function renderCriterionCard(
       ? `<p class="scan-warning"><strong>Scan limitation:</strong> Git history was unavailable (for example, this may be a source tarball), so the recent-commit PR-reference proxy found no commit subjects to inspect. Its conservative scoring zero is not a detected merge outcome and may undercount ${escapeHtml(criterion.id)}. Re-scan a full Git clone for this signal.</p>`
       : '';
 
-  return `<article class="criterion">
+  return `<article class="criterion" id="${plainCriterionAnchor(criterion.id)}">
             <div class="criterion-top">
               <div>
                 <div class="criterion-id">${escapeHtml(criterion.id)}</div>

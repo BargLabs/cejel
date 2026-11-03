@@ -123,8 +123,14 @@ describe('cejel MCP scan tool parity with the CLI', () => {
     const mcpSummary = JSON.parse(toolResultText(result)) as WitanCliSummary;
 
     // Full-summary equality: overall + code/process sub-scores, verdict band, finding counts,
-    // and findings themselves — same scoring, not a fork.
-    expect(mcpSummary).toEqual(cliSummary);
+    // and findings themselves — same scoring, not a fork. summary.json alone also carries
+    // plainSummary (goal_cejel_four_question_summary_2026-11-02 adds it where the file is written,
+    // not to buildWitanCliSummary), so it is the one key left out of the comparison.
+    const { plainSummary, ...cliSummaryWithoutPlain } = cliSummary as WitanCliSummary & {
+      plainSummary?: unknown;
+    };
+    expect(plainSummary).toBeDefined();
+    expect(mcpSummary).toEqual(cliSummaryWithoutPlain);
     expect(mcpSummary.overallScore).toBe(cliSummary.overallScore);
     expect(mcpSummary.codeTrustScore).toBe(cliSummary.codeTrustScore);
     expect(mcpSummary.processTrustScore).toBe(cliSummary.processTrustScore);

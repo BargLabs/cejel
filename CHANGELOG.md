@@ -18,6 +18,22 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **A plain-language first page.** A first-time reader could not tell what a result meant without
+  help. `certificate.html` now opens with a verdict line and four lists in plain words: what holds,
+  what is wrong, what is not known, and what to check next, with a line saying what the result does
+  not cover (Cejel does not run the code or its tests). Each item links to its source further down.
+  The lists come from `report.json` alone, through a new pure function (`src/plain-summary.ts`);
+  each check-next line comes from a fixed table of reviewed sentences (`src/witan/next-checks.ts`),
+  and an item with no table entry points to the certificate section that holds it. An area that
+  was not examined is listed as not known, never as holding. The terminal prints the four headings
+  after the verdict, up to three items each, and `summary.json` gains one key, `plainSummary`,
+  holding the four lists. The certificate below the first page is unchanged apart from the anchor
+  ids the links point to. `report.json`, `attestation.json`, scores, verdicts and every detector
+  are byte-identical for the same input: a test pins the report and attestation digests of every
+  behaviour-corpus fixture under v17 and v27 to the values main produced before this change. The
+  GitHub Action's inputs, outputs and step summary are unchanged, and so is the MCP and HTTP scan
+  summary.
+
 - **GitHub Action: an optional `rubric-pin` input.** A workflow that runs Cejel through the Action
   can now opt in to a non-default rubric, for example `witan-rubric-v27-prospective-2026-10-19`,
   with the same value the CLI takes as `--rubric-pin`. Both the root and the nested `action/`

@@ -4,7 +4,7 @@ import {
   formatCertificateMetricValue,
 } from './certificate-presentation.js';
 
-const METRIC_DERIVED_FINDING_PATTERN =
+export const METRIC_DERIVED_FINDING_PATTERN =
   /^[A-Z]\d+ metric-derived score is (\d+\.\d)\/4\.0, in the (critical|warning) band — no single finding drove this; it reflects the combined metric weighting below\.$/;
 
 const REMEDIATION_BY_METRIC: Readonly<Record<string, string>> = {

@@ -7,6 +7,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { runWitanFreeCli } from '../index.js';
 import {
   DOES_NOT_COVER_TEXT,
+  FIRST_PAGE_BANNED_WORDS,
   FIRST_PAGE_START,
   bannedWordsOnFirstPage,
   certificateWithoutFirstPage,
@@ -14,7 +15,7 @@ import {
   firstPageReadableText,
   unresolvedFirstPageLinks,
 } from './plain-first-page-helpers.js';
-import { type PlainSummary, buildPlainSummary } from '../plain-summary.js';
+import { type PlainSummary, buildPlainSummary, plainSummaryFixedSentences } from '../plain-summary.js';
 import { buildWitanCliSummary } from '../summary.js';
 import { renderTerminalCertificate } from '../terminal.js';
 import { WITAN_B3_UNSHOWN_CHECK_PREFIX } from '../witan/abstention.js';
@@ -24,7 +25,12 @@ import {
   WITAN_V27_SHALLOW_HISTORY_REASON,
 } from '../witan/history-depth.js';
 import { renderWitanHtmlReport } from '../witan/html.js';
-import { NEXT_CHECK_FALLBACK_PREFIX, listNextCheckFallbackKeys } from '../witan/next-checks.js';
+import {
+  NEXT_CHECK_FALLBACK_PREFIX,
+  listNextCheckFallbackKeys,
+  nextCheckKeySpace,
+  resolveNextCheck,
+} from '../witan/next-checks.js';
 import { buildWitanInputFromRepo } from '../witan/repo-signals.js';
 import { WITAN_RUBRIC_VERSION_V17, WITAN_RUBRIC_VERSION_V27 } from '../witan/rubric-version.js';
 import { type WitanReport, WitanReportSchema } from '../witan/schemas.js';
@@ -233,6 +239,16 @@ describe('buildPlainSummary — what to check next', () => {
     expect(unknownDisclosure?.fromTable).toBe(false);
   });
 
+  it('every fixed sentence, table line and fallback is in plain words', () => {
+    const texts = [
+      ...plainSummaryFixedSentences(),
+      ...nextCheckKeySpace().map(({ kind, qualifier }) => resolveNextCheck(kind, qualifier, 'the section').text),
+    ];
+    for (const text of texts) {
+      expect(FIRST_PAGE_BANNED_WORDS.filter((pattern) => pattern.test(text)), text).toEqual([]);
+    }
+  });
+
   it('reports the table keys that fall back to "see the certificate"', () => {
     // The hand-back lists these. A key added to the table leaves this list; a new kind with no
     // entry joins it. Either way the change is visible here.
@@ -286,6 +302,9 @@ describe('the first page of certificate.html', () => {
   });
 
   it('uses none of the banned words, even when the report text does, and states what it does not cover', () => {
+    // The check itself can fail: a page carrying the words is caught, and a quoted path is not prose.
+    const planted = `${FIRST_PAGE_START}<p>A2 band under the rubric <code>src/rubric.ts</code></p><!-- /cejel:first-page -->`;
+    expect(bannedWordsOnFirstPage(planted)).toHaveLength(3);
     const v27 = scan(WITAN_RUBRIC_VERSION_V27);
     for (const report of [
       base,
@@ -319,6 +338,19 @@ describe('the first page of certificate.html', () => {
         `Cejel measured ${coverage.overall.measured} of the ${coverage.overall.total} areas it looks at`,
       );
     }
+
+    // Withheld files: the certificate counts all of them, so the first page does too, and names how
+    // many a check would have read.
+    const withheld = variant(base, (draft) => {
+      draft.withheldPaths = [
+        { path: 'big/a.ts', reason: 'too_large', signalsAdmitting: ['A3.observability_depth'], actedOn: false },
+        { path: 'big/b.bin', reason: 'too_large', signalsAdmitting: [], actedOn: false },
+        { path: 'big/c.bin', reason: 'too_large', signalsAdmitting: [], actedOn: false },
+      ];
+    });
+    const withheldItem = buildPlainSummary(withheld).notKnown.find((item) => item.id === 'not-known/not-established/withheld');
+    expect(withheldItem?.text).toContain('3 files were held back (too large), and checks Cejel runs would have read 1 of them');
+    expect(html(withheld)).toContain('3 content entries were withheld (too large)');
 
     // A criterion scored in a low range with no critical or warning finding of its own is listed as
     // wrong, so the first page names how its count differs from the certificate's findings list.
