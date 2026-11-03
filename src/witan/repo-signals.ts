@@ -7792,7 +7792,12 @@ function isSetupCommand(input: readonly string[], reading: CheckReading): boolea
   if (head.inverted) return false;
   const words = [head.word, ...input.slice(head.argsFrom)];
   let start = 0;
-  while (start < words.length && /^[A-Za-z_][A-Za-z0-9_]*=/.test(words[start] ?? '')) start += 1;
+  // Fifth pass (item C, review of #640): an assignment before a setup command is admitted only for
+  // an inert key; `NODE_OPTIONS=--require=./x.cjs npm ci` runs a repository script in the install.
+  while (start < words.length && /^[A-Za-z_][A-Za-z0-9_]*=/.test(words[start] ?? '')) {
+    if (!isInertEnvironmentKey((words[start] ?? '').split('=')[0] ?? '')) return false;
+    start += 1;
+  }
   const [tool = '', first = '', second = ''] = words.slice(start);
   // An npm-family install of the project's own dependencies: flags only, no package or path named.
   const javaScriptInstall =
@@ -8095,6 +8100,12 @@ function environmentMappingProblems(
   return problems;
 }
 
+// Fifth pass (item C): a job's own `container:` and `services:` keys, and the reasons they give.
+const JOB_CONTAINER_KEY_PATTERN = /^container:/;
+const JOB_SERVICES_KEY_PATTERN = /^services:/;
+const JOB_CONTAINER_PROBLEM = 'the job runs in a container, whose image and environment may change what the check runs';
+const JOB_SERVICES_ENV_PROBLEM = 'a service container of the job sets env:, which Cejel does not read';
+
 // The most reasons kept for one check's path; B3's note names at most three.
 const CHECK_ENVIRONMENT_MAX_PROBLEMS = 8;
 const UNREAD_ENVIRONMENT_MAPPING = 'an environment mapping Cejel cannot read may change what the check runs';
@@ -8156,6 +8167,26 @@ function checkPathEnvironmentProblems(
       jobProblems[position]?.push(...mapping.problems.slice(0, CHECK_ENVIRONMENT_MAX_PROBLEMS));
     }
   }
+  // Fifth pass (item C, review of #640): a job that runs in a `container:` runs its steps in an
+  // image, and with an `env:`, the reader does not read; a `services:` container that sets `env:`
+  // is not read either. Either withholds the credit of every check in the job, and is named.
+  jobs.forEach((job, position) => {
+    const column = jobColumns[position] ?? -1;
+    let inServices = false;
+    let servicesEnv = false;
+    for (let index = job.start + 1; index < job.end && index < lines.length; index += 1) {
+      const raw = lines[index] ?? '';
+      if (inBlockScalar[index] || raw.trim() === '' || raw.trimStart().startsWith('#')) continue;
+      const indent = indents[index] ?? 0;
+      if (indent <= column) inServices = false;
+      if (indent === column && JOB_CONTAINER_KEY_PATTERN.test(raw.trimStart())) jobProblems[position]?.push(JOB_CONTAINER_PROBLEM);
+      if (indent === column && JOB_SERVICES_KEY_PATTERN.test(raw.trimStart())) inServices = true;
+      else if (inServices && !servicesEnv && /^(?:-[ \t]+)?env:/.test(raw.trimStart())) {
+        servicesEnv = true;
+        jobProblems[position]?.push(JOB_SERVICES_ENV_PROBLEM);
+      }
+    }
+  });
   const writes = new Map<number, string[]>();
   for (const step of runSteps) {
     const found: string[] = [];
@@ -8245,7 +8276,7 @@ function firstCheckLineByJob(
     // Fourth pass (#627): a test script or make target the reader read and found to run no known
     // runner is named in B3's note.
     for (const { words } of commands) {
-      const reason = unrecognisedCheckReason(words, stepReading);
+      const reason = unrecognisedCheckReason(words, stepReading) ?? checkLineReason(words, stepReading);
       if (reason !== undefined) notCredited.push(reason);
     }
     const check = step.lines.find(({ text }) => shellCommands(text).some(isCheck));
@@ -9559,10 +9590,14 @@ function rootBuildScriptRunsOnlyTsc(root: string, inventory: PublishOnlyInventor
  * Third pass on #625 (F6): nor is a command given a NO_FAIL_FLAGS flag, nor an npm, pnpm, yarn or bun
  * command (or one npx, pnpx or bunx launches) unless the package-manager configuration is plain.
  */
-function isCheckCommand(input: readonly string[], reading: CheckReading): boolean {
+function isCheckCommand(input: readonly string[], reading: CheckReading, assignmentsRead = true): boolean {
   const read = checkCommandWords(input);
   if (read === undefined) return false;
   if (read.packageManager && !reading.packageManagerConfigPlain) return false;
+  // Fifth pass (item C, review of #640): an assignment on the check's own line is admitted only for
+  // an inert key, as in a script (peelCommandLaunchers). `assignmentsRead` false asks what the
+  // command would be without that rule, for B3's note (lineAssignmentReason).
+  if (assignmentsRead && read.assignments.some((key) => !isInertEnvironmentKey(key))) return false;
   const { words } = read;
   if (words.length === 0 || words.includes('--if-present')) return false;
   // Fourth pass (#627): `make test` and `make check` are checks only when the root Makefile's rule
@@ -9575,7 +9610,12 @@ function isCheckCommand(input: readonly string[], reading: CheckReading): boolea
   // fails on a finding (lintCommandFailsOnFinding).
   if (LINT_OR_FORMAT_COMMANDS.has((words[0] ?? '').toLowerCase())) return lintCommandFailsOnFinding(words);
   const text = words.join(' ').replace(/^\.\//, '');
-  if (NPM_FAMILY_TEST_SCRIPT_PATTERN.test(text) && !reading.testScriptRuns) return false;
+  if (NPM_FAMILY_TEST_SCRIPT_PATTERN.test(text)) {
+    if (!reading.testScriptRuns) return false;
+    // Fifth pass (items C and D): only words known not to change what runs or which package's
+    // script runs may follow the script's name.
+    if (packageTestArgumentsProblem(words) !== undefined) return false;
+  }
   return verificationCommandPatterns().some((pattern) => {
     const match = pattern.exec(text);
     if (!match || match.index !== 0) return false;
@@ -9655,17 +9695,72 @@ function lintCommandFailsOnFinding(words: readonly string[]): boolean {
  * status-inverted command. Shared with unrecognisedCheckReason (fourth pass), unchanged from the
  * third pass's isCheckCommand.
  */
-function checkCommandWords(input: readonly string[]): { readonly words: string[]; readonly packageManager: boolean } | undefined {
+function checkCommandWords(
+  input: readonly string[],
+): { readonly words: string[]; readonly packageManager: boolean; readonly assignments: readonly string[] } | undefined {
   const head = commandHead(input);
   if (head.inverted) return undefined;
   const words = [head.word, ...input.slice(head.argsFrom)];
   let start = 0;
-  while (start < words.length && /^[A-Za-z_][A-Za-z0-9_]*=/.test(words[start] ?? '')) start += 1;
+  const assignments: string[] = [];
+  while (start < words.length && /^[A-Za-z_][A-Za-z0-9_]*=/.test(words[start] ?? '')) {
+    assignments.push((words[start] ?? '').split('=')[0] ?? '');
+    start += 1;
+  }
   const packageManager = PACKAGE_MANAGER_COMMANDS.has(words[start] ?? '');
   if (PUBLISHING_COMMAND_LAUNCHERS.has(words[start] ?? '')) start += 1;
   else if ((words[start] === 'python' || words[start] === 'python3') && words[start + 1] === '-m') start += 2;
   else if (CHECK_COMMAND_RUN_LAUNCHERS.has(words[start] ?? '') && words[start + 1] === 'run') start += 2;
-  return { words: words.slice(start), packageManager };
+  return { words: words.slice(start), packageManager, assignments };
+}
+
+// ---- Fifth pass (items C and D, review of #640): what follows an npm-family test script's name ----
+//
+// `npm test --node-options=...` hands node a preload; `npm test --prefix stub`, `--workspaces`,
+// `-w`, `yarn test --cwd stub` and `pnpm test --filter a` run another package's script, though the
+// reader read the root's. Only words known to change neither are admitted after the script's name:
+// npm's `--silent` and `-s`, which only quiet npm. yarn and pnpm pass any later word to the script,
+// so nothing may follow there. A package-selecting flag withholds the credit; the reader does not
+// follow it to the named package.
+
+const NPM_TEST_KEPT_WORDS: ReadonlySet<string> = new Set(['--silent', '-s']);
+const PACKAGE_SELECTING_FLAGS: ReadonlySet<string> = new Set([
+  '--prefix', '-C', '--dir', '--cwd', '-w', '--workspace', '--workspaces', '--filter', '-F', '--recursive', '-r',
+]);
+const OTHER_PACKAGE_TEST_REASON = 'the test command runs the test script of another package, which Cejel did not read';
+const UNREAD_TEST_ARGUMENT_REASON = 'the test command carries a flag or argument Cejel does not read, which may change what runs';
+
+/**
+ * Fifth pass (items C and D): for `words`, an npm, pnpm or yarn run of the `test` script
+ * (NPM_FAMILY_TEST_SCRIPT_PATTERN), the reason the words after the script's name withhold credit,
+ * or undefined when there are none or only NPM_TEST_KEPT_WORDS on npm.
+ */
+function packageTestArgumentsProblem(words: readonly string[]): string | undefined {
+  const tool = (words[0] ?? '').toLowerCase();
+  const rest = words.slice((words[1] ?? '').toLowerCase() === 'run' ? 3 : 2);
+  if (rest.some((word) => PACKAGE_SELECTING_FLAGS.has(word.split('=')[0] ?? word))) return OTHER_PACKAGE_TEST_REASON;
+  const kept = tool === 'npm' ? NPM_TEST_KEPT_WORDS : new Set<string>();
+  return rest.every((word) => kept.has(word)) ? undefined : UNREAD_TEST_ARGUMENT_REASON;
+}
+
+/**
+ * Fifth pass (items C and D): the reason B3's note gives when one command would be a check but for
+ * an assignment on its line of a key that is not inert, or but for the words after an npm-family
+ * test script's name; undefined otherwise.
+ */
+function checkLineReason(input: readonly string[], reading: CheckReading): string | undefined {
+  const read = checkCommandWords(input);
+  if (read === undefined || (read.packageManager && !reading.packageManagerConfigPlain)) return undefined;
+  const key = read.assignments.find((name) => !isInertEnvironmentKey(name));
+  if (key !== undefined) {
+    if (!isCheckCommand(input, reading, false)) return undefined;
+    return NAMEABLE_ENVIRONMENT_KEY_PATTERN.test(key)
+      ? `the environment key ${key} may change what the check runs`
+      : 'an environment key Cejel does not name may change what the check runs';
+  }
+  const text = read.words.join(' ');
+  if (!NPM_FAMILY_TEST_SCRIPT_PATTERN.test(text) || !reading.testScriptRuns) return undefined;
+  return packageTestArgumentsProblem(read.words);
 }
 
 // A pull-request (or merge-queue) trigger makes a workflow a pull-request gate whatever its steps.
