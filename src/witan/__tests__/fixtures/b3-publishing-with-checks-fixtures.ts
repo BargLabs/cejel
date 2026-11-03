@@ -1273,6 +1273,179 @@ export const V4_EXCLUDED: readonly Shape[] = [
   ...SAFE_SHAPE_EXCLUDED,
 ];
 
+// ---- Fifth pass: the review of #640 (goal_cejel_v27_b3_admit_known_checks_v2) -----------------
+//
+// The adversarial review of #640 held it for six false-credit blockers. Every V5_EXCLUDED fixture
+// marked red was counted by #640's head merged with main bfd4d5965; every V5_COUNTED fixture is a
+// control that stays counted. Synthetic files only; the archive files hold placeholder text.
+
+const PASS_CJS = "process.on('exit', () => { process.exitCode = 0; });\n";
+
+/** A job-level `container:` or `services:` block (each line indented four spaces), then npm test. */
+const releaseWithJobBlock = (block: string, check = 'npm test'): string =>
+  oneJobReleaseWithJobKeys(block, `      - run: npm ci\n      - run: ${check}\n${NPM_PUBLISH}`);
+
+/** Blocker 1 (item A): a requirements line or a pip argument that installs a file from the repository. */
+export const LOCAL_ARCHIVE_EXCLUDED: readonly Shape[] = [
+  [
+    'requirements-local-sdist',
+    'Excluded (red): requirements.txt names `stub.tar.gz`, a file in the repository; pip builds it, running its setup code, before the check.',
+    { ...PY_BASE, 'requirements.txt': 'pytest\nstub.tar.gz\n', 'stub.tar.gz': 'placeholder\n', [PUBLISH]: pythonReleaseWith('pip install -r requirements.txt', 'pytest') },
+  ],
+  [
+    'requirements-local-zip-through-include',
+    'Excluded (red): requirements.txt includes `more.txt`, which names `stub.zip`, a file in the repository.',
+    {
+      ...PY_BASE,
+      'requirements.txt': '-r more.txt\npytest\n',
+      'more.txt': 'stub.zip\n',
+      'stub.zip': 'placeholder\n',
+      [PUBLISH]: pythonReleaseWith('pip install -r requirements.txt', 'pytest'),
+    },
+  ],
+  [
+    'requirements-local-wheel-python-m-pip',
+    'Excluded (red): `python -m pip install -r requirements.txt`, which names `stub-1.0-py3-none-any.whl`; a wheel can install a `.pth` file that runs on every python start.',
+    {
+      ...PY_BASE,
+      'requirements.txt': 'stub-1.0-py3-none-any.whl\npytest\n',
+      'stub-1.0-py3-none-any.whl': 'placeholder\n',
+      [PUBLISH]: pythonReleaseWith('python -m pip install -r requirements.txt', 'pytest'),
+    },
+  ],
+  [
+    'pip-install-local-archive-argument',
+    'Excluded (red): `pip install stub.tar.gz pytest build twine` names a file in the repository directly.',
+    { ...PY_BASE, 'stub.tar.gz': 'placeholder\n', [PUBLISH]: pythonReleaseWith('pip install stub.tar.gz pytest build twine', 'pytest') },
+  ],
+  [
+    'requirements-archive-suffix-not-in-repository',
+    'Excluded: requirements.txt names `stub.tgz`, which is not in the repository; an archive suffix is refused whether or not the file is there.',
+    { ...PY_BASE, 'requirements.txt': 'pytest\nstub.tgz\n', [PUBLISH]: pythonReleaseWith('pip install -r requirements.txt', 'pytest') },
+  ],
+];
+
+/** Blocker 2 (item B): a lint or format command in a form that cannot fail on a finding. */
+export const NO_FAIL_LINT_EXCLUDED: readonly Shape[] = [
+  ['ruff-check-short-exit-zero', 'Excluded (red): `ruff check -e .`; `-e` is `--exit-zero`.', { ...PY_BASE, [PUBLISH]: pythonPlainRelease('ruff check -e .') }],
+  ['ruff-check-fix', 'Excluded (red): `ruff check --fix .` rewrites what it can fix.', { ...PY_BASE, [PUBLISH]: pythonPlainRelease('ruff check --fix .') }],
+  ['eslint-fix', 'Excluded (red): `npx eslint --fix .` rewrites what it can fix.', { ...JS_BASE, [RELEASE]: releaseAfterInstall(`      - run: npx eslint --fix .\n${NPM_PUBLISH}`) }],
+  ['black-format', 'Excluded (red): `black .` formats the files and exits 0.', { ...PY_BASE, [PUBLISH]: pythonPlainRelease('black .') }],
+  ['ruff-format', 'Excluded (red): `ruff format .` formats the files and exits 0.', { ...PY_BASE, [PUBLISH]: pythonPlainRelease('ruff format .') }],
+  ['ruff-check-unknown-flag', 'Excluded (red): `ruff check --ignore ALL .`; a flag not known to keep the exit code is not a check.', { ...PY_BASE, [PUBLISH]: pythonPlainRelease('ruff check --ignore ALL .') }],
+];
+
+/** Item B, the other side: lint and format commands in a form that fails on a finding. */
+export const FAILING_LINT_COUNTED: readonly Shape[] = [
+  ['black-check', 'Counted: `black --check .` fails when a file would be reformatted.', { ...PY_BASE, [PUBLISH]: pythonPlainRelease('black --check .') }],
+  ['ruff-format-check', 'Counted: `ruff format --check .` fails when a file would be reformatted.', { ...PY_BASE, [PUBLISH]: pythonPlainRelease('ruff format --check .') }],
+  ['flake8-src', 'Counted: `flake8 src` fails on a finding.', { ...PY_BASE, [PUBLISH]: pythonPlainRelease('flake8 src') }],
+  ['eslint-dot-max-warnings', 'Counted: `npx eslint --max-warnings 0 .` fails on a finding.', { ...JS_BASE, [RELEASE]: releaseAfterInstall(`      - run: npx eslint --max-warnings 0 .\n${NPM_PUBLISH}`) }],
+];
+
+/** Blocker 4 (item C): environment the reader did not read. */
+export const UNREAD_ENVIRONMENT_EXCLUDED: readonly Shape[] = [
+  [
+    'check-line-assignment-node-options',
+    'Excluded (red): `run: NODE_OPTIONS=--require=./scripts/pass.cjs npm test`; the assignment loads a repository script into node.',
+    { ...JS_BASE, 'scripts/pass.cjs': PASS_CJS, [RELEASE]: releaseAfterInstall(`      - run: NODE_OPTIONS=--require=./scripts/pass.cjs npm test\n${NPM_PUBLISH}`) },
+  ],
+  [
+    'check-line-assignment-path',
+    'Excluded (red): `run: PATH=./fake-bin:/usr/bin npm test`; `npm` may be a repository script.',
+    { ...JS_BASE, 'fake-bin/npm': '#!/bin/sh\nexit 0\n', [RELEASE]: releaseAfterInstall(`      - run: PATH=./fake-bin:/usr/bin npm test\n${NPM_PUBLISH}`) },
+  ],
+  [
+    'check-line-assignment-pytest-addopts',
+    'Excluded (red): `run: PYTEST_ADDOPTS=--co pytest`; pytest only collects.',
+    { ...PY_BASE, [PUBLISH]: pythonPlainRelease('PYTEST_ADDOPTS=--co pytest') },
+  ],
+  [
+    'job-container-env',
+    'Excluded (red): the publishing job runs in a `container:` whose `env:` sets `NODE_OPTIONS`.',
+    {
+      ...JS_BASE,
+      'scripts/pass.cjs': PASS_CJS,
+      [RELEASE]: releaseWithJobBlock('    container:\n      image: node:20\n      env:\n        NODE_OPTIONS: --require ./scripts/pass.cjs\n'),
+    },
+  ],
+  ['job-container-image', 'Excluded (red): the publishing job runs in `container: node:20`, an image the reader does not read.', { ...JS_BASE, [RELEASE]: releaseWithJobBlock('    container: node:20\n') }],
+  [
+    'job-services-env',
+    'Excluded (red): the publishing job has a `services:` container that sets `env:`.',
+    { ...JS_BASE, [RELEASE]: releaseWithJobBlock('    services:\n      db:\n        image: postgres:16\n        env:\n          POSTGRES_PASSWORD: placeholder\n') },
+  ],
+  [
+    'npm-test-node-options-flag',
+    'Excluded (red): `run: npm test --node-options=--require=./scripts/pass.cjs`; npm passes the flag to node.',
+    { ...JS_BASE, 'scripts/pass.cjs': PASS_CJS, [RELEASE]: releaseAfterInstall(`      - run: npm test --node-options=--require=./scripts/pass.cjs\n${NPM_PUBLISH}`) },
+  ],
+  [
+    'setup-line-assignment-node-options',
+    'Excluded (red): `run: NODE_OPTIONS=--require=./scripts/pass.cjs npm ci` before the check; the install runs node with a repository script.',
+    {
+      ...JS_BASE,
+      'scripts/pass.cjs': PASS_CJS,
+      [RELEASE]: oneJobRelease(`      - run: NODE_OPTIONS=--require=./scripts/pass.cjs npm ci\n      - run: npm test\n${NPM_PUBLISH}`),
+    },
+  ],
+];
+
+/** Item C, the other side: an inert assignment and a known npm flag leave the check counted. */
+export const READ_ENVIRONMENT_COUNTED: readonly Shape[] = [
+  ['check-line-assignment-inert', 'Counted: `run: CI=true npm test`; `CI` is an inert key.', { ...JS_BASE, [RELEASE]: releaseAfterInstall(`      - run: CI=true npm test\n${NPM_PUBLISH}`) }],
+  ['npm-test-silent', 'Counted: `run: npm test --silent`; `--silent` only quiets npm.', { ...JS_BASE, [RELEASE]: releaseAfterInstall(`      - run: npm test --silent\n${NPM_PUBLISH}`) }],
+];
+
+const STUB_PACKAGE = `${JSON.stringify({ name: 'stub', version: '1.0.0', scripts: { test: 'node -e 0' } }, null, 2)}\n`;
+
+/** Blocker 5 (item D): a test command that runs another package's script. */
+export const OTHER_PACKAGE_EXCLUDED: readonly Shape[] = [
+  ['npm-test-prefix', 'Excluded (red): `npm test --prefix stub` runs stub/package.json\'s test script, `node -e 0`.', { ...JS_BASE, 'stub/package.json': STUB_PACKAGE, [RELEASE]: releaseAfterInstall(`      - run: npm test --prefix stub\n${NPM_PUBLISH}`) }],
+  ['npm-test-workspaces', 'Excluded (red): `npm test --workspaces` runs each workspace\'s test script.', { ...JS_BASE, 'stub/package.json': STUB_PACKAGE, [RELEASE]: releaseAfterInstall(`      - run: npm test --workspaces\n${NPM_PUBLISH}`) }],
+  ['npm-test-workspace-short', 'Excluded (red): `npm test -w packages/a` runs that workspace\'s test script.', { ...JS_BASE, 'packages/a/package.json': STUB_PACKAGE, [RELEASE]: releaseAfterInstall(`      - run: npm test -w packages/a\n${NPM_PUBLISH}`) }],
+  ['yarn-test-cwd', 'Excluded (red): `yarn test --cwd stub` runs stub/package.json\'s test script.', { ...JS_BASE, 'stub/package.json': STUB_PACKAGE, [RELEASE]: releaseAfterInstall(`      - run: yarn test --cwd stub\n${NPM_PUBLISH}`) }],
+  ['pnpm-test-filter', 'Excluded (red): `pnpm test --filter a` runs the test script of the package named a.', { ...JS_BASE, 'stub/package.json': STUB_PACKAGE, [RELEASE]: releaseAfterInstall(`      - run: pnpm test --filter a\n${NPM_PUBLISH}`) }],
+];
+
+/** Blocker 6 (item E): a make recipe that never runs. */
+export const MAKE_NOT_RUN_EXCLUDED: readonly Shape[] = [
+  [
+    'make-test-not-phony-test-directory',
+    'Excluded (red): `test:` is not `.PHONY` and a `test/` directory exists, so make reports it up to date and runs nothing.',
+    { ...pythonMakeRelease('test:\n\tpytest\n'), 'test/data.txt': 'placeholder\n' },
+  ],
+  [
+    'make-prerequisite-names-file',
+    'Excluded (red): `test` is `.PHONY` but its prerequisite `unit`, which runs pytest, is not, and a file `unit` exists.',
+    { ...pythonMakeRelease('.PHONY: test\n\ntest: unit\n\nunit:\n\tpytest\n'), unit: 'placeholder\n' },
+  ],
+  [
+    'make-path-assignment',
+    'Excluded (red): the Makefile sets `PATH := fake-bin:$(PATH)`, so `pytest` may be a repository script.',
+    { ...pythonMakeRelease('PATH := fake-bin:$(PATH)\n\n.PHONY: test\n\ntest:\n\tpytest\n'), 'fake-bin/pytest': '#!/bin/sh\nexit 0\n' },
+  ],
+];
+
+/** Item E, the other side: a `.PHONY` target beside a directory of its name still runs. */
+export const MAKE_RUNS_COUNTED: readonly Shape[] = [
+  [
+    'make-test-phony-with-test-directory',
+    'Counted: `test` is declared `.PHONY`, so make runs it although a `test/` directory exists.',
+    { ...pythonMakeRelease('.PHONY: test\n\ntest:\n\tpytest\n'), 'test/data.txt': 'placeholder\n' },
+  ],
+];
+
+/** This pass's counted and excluded shapes, in the order the tests read them. */
+export const V5_COUNTED: readonly Shape[] = [...FAILING_LINT_COUNTED, ...READ_ENVIRONMENT_COUNTED, ...MAKE_RUNS_COUNTED];
+export const V5_EXCLUDED: readonly Shape[] = [
+  ...LOCAL_ARCHIVE_EXCLUDED,
+  ...NO_FAIL_LINT_EXCLUDED,
+  ...UNREAD_ENVIRONMENT_EXCLUDED,
+  ...OTHER_PACKAGE_EXCLUDED,
+  ...MAKE_NOT_RUN_EXCLUDED,
+];
+
 function fixture(name: string, purpose: string, files: Record<string, string>): FalseAssuranceFixture {
   return { name, issue: '#517', purpose, commits: [files] };
 }
@@ -1297,9 +1470,15 @@ export const V4_FIXTURES: readonly FalseAssuranceFixture[] = [...V4_COUNTED, ...
   fixture(name, purpose, files),
 );
 
+export const V5_FIXTURES: readonly FalseAssuranceFixture[] = [...V5_COUNTED, ...V5_EXCLUDED].map(([name, purpose, files]) =>
+  fixture(name, purpose, files),
+);
+
 /** The publishing workflow each fixture adds. */
 export const publishingFile = (name: string): string => {
   const shape = [
+    ...V5_COUNTED,
+    ...V5_EXCLUDED,
     ...COUNTED,
     ...EXCLUDED,
     ...EDGE_COUNTED,
