@@ -45,12 +45,14 @@ name carried no evidence pointer.
   recipe, put where `{posargs}` is (at most 16 distinct sets, past that not read); a tox
   factor-conditional command line (`fast: pytest ...`, `a,b:`, `a-b:`, `!a:`) for an environment
   in envlist, or one a `tox -e` names, whose factors meet it, a condition with braces being read
-  as met; `$(NAME)` and `${NAME}` the same Makefile defines (`=`, `:=`, `::=`, `?=`, `+=`; `!=`
-  is not known), expanded a few levels; a justfile's literal `name := "..."` variables; a
+  as met; `$(NAME)` and `${NAME}` the same Makefile defines (`=`, `:=`, `::=`, `?=`, `+=`),
+  expanded a few levels, a `:=` value where it is assigned, as make does (see the review round
+  below for the names not known); a justfile's literal `name := "..."` variables; a
   justfile recipe with parameters (`test *ARGS:`), which the shared recipe reader did not see;
   `hatch run [env:]script`, resolved through `[envs.<env>.scripts]` in `hatch.toml` or
   `[tool.hatch.envs.<env>.scripts]` in `pyproject.toml` (string or array, `{args}` and
-  `{args:default}` substituted, a script naming another followed), run in that file's directory;
+  `{args:default}` substituted, a script naming another followed, one an environment inherits from
+  `default` read where no `template` is named), run in that file's directory;
   and a local composite action's `run:` steps (`uses: ./path` with `path/action.yml`). A local
   reusable workflow is a file under `.github/workflows/` and was already read.
 - **Runs named as not read** (item A). Where a run's arguments or directory cannot be known from the
@@ -66,9 +68,11 @@ name carried no evidence pointer.
   repository or naming no file in it; `--pyargs`; a `--rootdir` or `--confcutdir` it cannot
   resolve; a `working-directory` set by an expression; a pytest command in a Jenkinsfile holding
   `dir(...)`; and a job-level reusable workflow in another repository (`uses:
-  owner/repo/.github/workflows/...@ref`). A remote step action (`uses: owner/action@ref`) is not
-  named: nearly every workflow uses one (checkout, setup-python), so naming each would withhold
-  every rule in almost every repository. That is a known limit, flagged for the operator.
+  owner/repo/.github/workflows/...@ref`). The review round below adds forms, and the narrow rule
+  for remote step actions the operator chose; any other remote step action (`uses:
+  owner/action@ref`) is read as running no pytest, since nearly every workflow uses one (checkout,
+  setup-python) and naming each would withhold every rule in almost every repository. That is a
+  known limit.
 - **Options** (item B). A long option the reader does not know, followed by a word that does not
   start with `-`, makes the word's role unknown (a value or a path), so the run is not read, named
   with the option and the word. A table of long options pytest and common plugins define with no
@@ -114,6 +118,34 @@ name carried no evidence pointer.
   evidence pointer"; it said "the N hooks named" before). The note stays within its 1,000-character
   limit. The v27 glossary's non-hollow sentence names "pytest run not read" and the shared
   pointers, so every v27 certificate changes by that sentence.
+
+**Review round** (the adversarial review of #648 at `b9762e0a3`; red fixtures `8bc381385`, fix
+`33cd9508b`; ground truth pytest 9.2.0 and `make -n` on the dev host, hatch, tox and just from
+their documentation). Each of these was a crash, a false hollow or a read that could not end:
+
+1. A run not read named a long command in its evidence pointer's label, past the schema's 180
+   characters, so the scan threw. The label is now cut at 180 and marked cut.
+2. Make variables were read with values make does not use. A `:=` value is now expanded where it is
+   assigned. A name is not known where it is set by `!=`, `define` or `:::=`, inside a conditional
+   (`ifeq`, `ifneq`, `ifdef`, `ifndef`), for one target (`test: OPTS = ...`), or by a `?=` default
+   whose name a CI file holds (a CI command may set it in make's environment). A recipe command
+   whose expansion is not known, and that mentions pytest itself or through a variable, is a run not
+   read; an exported `PYTEST_ADDOPTS` not known leaves the Makefile's pytest runs not read.
+3. Forms recognised but not resolved were dropped. `hatch test` is now a run not read; a script an
+   environment inherits from `default` is read where no `template` is named, and not read where one
+   may be; `python -m tox`, `uvx tox`, `uv run tox` and `pipx run tox` are read as tox; a CI
+   `TOXENV` names the environments tox runs, and one Cejel cannot resolve leaves every
+   factor-conditional pytest line not read; a justfile's `set export` exports `PYTEST_ADDOPTS`.
+4. The narrow rule for remote steps, chosen by the operator on 2026-11-03: a step action one of
+   whose `with:` inputs runs pytest (a retry or display wrapper) is a run not read, and a workflow
+   that writes `PYTEST_ADDOPTS` to `$GITHUB_ENV`, or checks out into a `path:`, leaves each of its
+   pytest runs not read. A remote action whose inputs run no pytest changes nothing.
+5. A `PYTEST_ADDOPTS` set in an `env:` mapping was cited at the first later line holding the name,
+   which could be another job's. It is now cited at its own mapping's line.
+6. The hatch script reader and the make expansion grew far past linear on small crafted files (a
+   328-byte `hatch.toml` took 15 s; a 4.8 KB Makefile 1.8 s). Make expansion now shares a budget of
+   4,096 substitutions per Makefile, and hatch one of 256 script expansions per scan; past either
+   the run is not read. The earlier "run readers stay linear" wording did not hold for these two.
 
 **The no-rise property.** A run not read only withholds, and a withhold falls back to v17's reading;
 the narrower `testpaths` reading and the corrected configuration search can withhold less than

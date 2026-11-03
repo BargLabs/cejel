@@ -28,14 +28,21 @@ is pinned. v27 carries no precision or recall claim.
   - **Runs read whole.** A noxfile's `session.run("pytest", ...)` with literal arguments; `tox --
     <args>` passed into `{posargs}`; a tox factor-conditional command line (`py312-fast: pytest
     ...`) for an environment whose factors meet it; `$(PYTEST)` and other variables the same
-    Makefile defines (and literal justfile variables); a justfile recipe with parameters; `hatch
-    run [env:]script`, resolved through the hatch scripts in `hatch.toml` or `pyproject.toml`; and a
+    Makefile defines, as make reads them (a `:=` value expanded where it is assigned), and literal
+    justfile variables; a justfile recipe with parameters, and its `set export`; `hatch run
+    [env:]script`, resolved through the hatch scripts in `hatch.toml` or `pyproject.toml`, including
+    one an environment inherits from `default` where no `template` is named; tox run as `python -m
+    tox`, `uvx tox`, `uv run tox` or `pipx run tox`; the environments a CI `TOXENV` names; and a
     local composite action's `run:` steps.
   - **Runs named as not read.** Where a run's arguments or directory cannot be known from the
     repository (nox's `*session.posargs`, `tox -- $VAR`, a Makefile variable it does not define or a
-    make command sets, a justfile parameter, a `${{ }}` expression or a `cd` to a variable, `-c`
-    outside the repository, `--pyargs`, a `working-directory` expression, Jenkins `dir()`, a reusable
-    workflow in another repository), any option could be in force for any file it collects, so no
+    make command sets, a make variable set by `!=`, `define`, inside a conditional, for one target, or
+    by a `?=` default a CI file may replace, an unknown exported `PYTEST_ADDOPTS`, a justfile
+    parameter, `hatch test`, a `TOXENV` Cejel cannot resolve, a `${{ }}` expression or a `cd` to a
+    variable, `-c` outside the repository, `--pyargs`, a `working-directory` expression, Jenkins
+    `dir()`, a reusable workflow in another repository, a step action one of whose `with:` inputs
+    runs pytest, and every pytest run in a workflow that writes `PYTEST_ADDOPTS` to `$GITHUB_ENV` or
+    checks out into a `path:`), any option could be in force for any file it collects, so no
     removal rule is applied to a file it may collect, and A1's note says "pytest run not read:
     `<reason>` in `<path>`" (#644's "not read" clause, for a run).
   - **Options.** An option the reader does not know, before a word that may be its value or a path,
@@ -59,7 +66,10 @@ is pinned. v27 carries no precision or recall claim.
     pytest command line or the run. They share the eight pointers with the hooks the note names, in
     the note's order, and the note counts those past eight ("the N named after the first 8 carry no
     evidence pointer"). The v27 glossary's non-hollow sentence says so, and names "pytest run not
-    read".
+    read". A pointer's label is cut at the evidence limit of 180 characters.
+  - **Known limit.** Any other remote step action (`uses: owner/action@ref`) is read as running no
+    pytest: nearly every workflow uses one (checkout, setup-python), and naming each would withhold
+    every rule in almost every repository.
   - A remote step action (`uses: owner/action@ref`) is not named as a run not read: nearly every
     workflow uses one, so naming each would withhold every rule everywhere. Only a remote reusable
     workflow (`uses: .../.github/workflows/...@ref`) is.
