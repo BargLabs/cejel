@@ -16,6 +16,13 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.6.9] — 2026-11-02
+
+v17 remains the default rubric. The prospective v27 rubric stays opt-in, by `--rubric-pin` or the
+Action's new `rubric-pin` input, and carries no precision or recall claim; the v27 changes below
+apply only when it is pinned. The fixes marked "every rubric" apply to the default too; each one's
+measured effect is in `leaderboard/RUBRIC_CHANGELOG.md`.
+
 ### Added
 
 - **GitHub Action: an optional `rubric-pin` input.** A workflow that runs Cejel through the Action
