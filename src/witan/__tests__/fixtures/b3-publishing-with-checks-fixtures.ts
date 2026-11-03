@@ -934,8 +934,21 @@ export const UNKNOWN_RUNNER_EXCLUDED: readonly Shape[] = [
   ],
   ['make-test-ignored-error', 'Excluded (red): the recipe line `-pytest` ignores the runner\'s failure.', pythonMakeRelease('test:\n\t-pytest\n')],
   [
+    'make-test-prerequisite-runs-code-first',
+    'Excluded (added after the red run): the `test` target runs pytest, but its prerequisite `stub` first runs a repository script.',
+    {
+      ...pythonMakeRelease('test: stub\n\tpytest\n\nstub:\n\tpython scripts/stub.py\n'),
+      'scripts/stub.py': 'open("stub.txt", "w").write("x")\n',
+    },
+  ],
+  [
+    'make-test-oneshell',
+    'Excluded (added after the red run): `.ONESHELL:` runs the recipe in one shell, so a failing `pytest` line is followed by `true`, whose status is the recipe\'s.',
+    pythonMakeRelease('.ONESHELL:\n\ntest:\n\tpytest\n\ttrue\n'),
+  ],
+  [
     'make-test-exports-variable',
-    'Excluded (added after the red run): the Makefile exports `PYTHONPATH` to every recipe, so pytest may import a repository stub.',
+    'Excluded (added after the red run): the Makefile exports `PYTHONPATH` to every recipe, so pytest may import a repository stub; no directive line is placed by the rule reader.',
     { ...pythonMakeRelease('export PYTHONPATH := stubs\n\ntest:\n\tpytest\n'), 'stubs/pytest.py': 'raise SystemExit(0)\n' },
   ],
 ];
@@ -1220,6 +1233,7 @@ export const SAFE_SHAPE_EXCLUDED: readonly Shape[] = [
     'Excluded: `npm run build` runs vite, whose configuration `vite.config.js` is code that runs before the check.',
     {
       ...jsWithScriptsAndDev({ build: 'vite build', test: 'uvu test' }, { vite: '5.4.0', uvu: '0.5.6' }),
+      'tsconfig.json': TSCONFIG,
       'vite.config.js': "import { writeFileSync } from 'node:fs';\nwriteFileSync('stub.txt', 'x');\nexport default {};\n",
       [RELEASE]: releaseAfterInstall(`      - run: npm run build\n      - run: npm test\n${NPM_PUBLISH}`),
     },
@@ -1228,6 +1242,14 @@ export const SAFE_SHAPE_EXCLUDED: readonly Shape[] = [
     'publish-and-check-one-line-publish-first',
     'Excluded: `run: npm publish && npm test`; the publish runs before the test.',
     { ...JS_BASE, [RELEASE]: releaseAfterInstall('      - run: npm publish && npm test\n        env:\n          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}\n') },
+  ],
+  [
+    'pipefail-check-piped-into-publish',
+    'Excluded (added after the red run): `npm test | npm publish` after pipefail; both sides of a pipeline run together, so the publish does not wait for the test.',
+    {
+      ...JS_BASE,
+      [RELEASE]: releaseAfterInstall('      - run: |\n          set -o pipefail\n          npm test | npm publish\n        env:\n          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}\n'),
+    },
   ],
   [
     'dot-source-in-command-position-in-check-step',

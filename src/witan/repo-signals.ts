@@ -7937,8 +7937,9 @@ function checksBeforeEveryPublish(
     const first = firstCheck.get(stepsKey);
     if (first !== undefined && first.line < line) return true;
     // Fourth pass (#630 C4): on the check's own line, a publish after it in one `&&` chain runs only
-    // when the check passed.
-    if (first !== undefined && first.line === line && first.command < command && command <= first.andChainEnd) return true;
+    // when the check passed. No publish comes before the check on its line: only setup commands may
+    // (commandsBeforeCheckAreSetup), and none of them publishes.
+    if (first !== undefined && first.line === line && command <= first.andChainEnd) return true;
     const job = jobOf(stepsKey);
     return job !== undefined && needsCheck(job);
   });
@@ -8518,9 +8519,6 @@ function requirementsFileIsPlain(root: string, inventory: PublishOnlyInventory, 
   return start !== undefined && visit(start, 0, new Set());
 }
 
-// Fourth pass (#629): the Pipfile sections a plain Pipfile may hold. `[scripts]` is not one:
-// `pipenv run <name>` runs a script of that name in place of the command.
-const PIPFILE_SECTIONS: ReadonlySet<string> = new Set(['[[source]]', '[packages]', '[dev-packages]', '[requires]', '[pipenv]']);
 const PIPFILE_KEY_VALUE_PATTERN = /^([A-Za-z0-9_.-]+)[ \t]*=[ \t]*([^]*)$/;
 const PIPFILE_VERSION_TABLE_PATTERN = /^\{[ \t]*version[ \t]*=[ \t]*"([^"]*)"[ \t]*\}$/;
 // The keys a Pipfile.lock entry for an index package carries.
@@ -8535,7 +8533,8 @@ function pipfileVersionIsPlain(value: string): boolean {
 
 /**
  * Fourth pass (#629), CheckReading.pipfileIsPlain: true when the root Pipfile is scanned and holds
- * only PIPFILE_SECTIONS; every source is the PyPI index; every package names only an index version
+ * entries only in `[[source]]`, `[packages]`, `[dev-packages]`, `[requires]` and `[pipenv]` (never
+ * `[scripts]`); every source is the PyPI index; every package names only an index version
  * (pipfileVersionIsPlain), never a path, an editable install, a VCS or a file; and Pipfile.lock,
  * when present, is scanned, lists only that index, and every entry carries only
  * PIPFILE_LOCK_ENTRY_KEYS with `index` "pypi". A root `.env`, which pipenv loads, refuses too.
@@ -8549,7 +8548,6 @@ function pipfileIsPlain(root: string, inventory: PublishOnlyInventory): boolean 
     const line = stripYamlComment(raw).trim();
     if (line === '') continue;
     if (line.startsWith('[')) {
-      if (!PIPFILE_SECTIONS.has(line)) return false;
       section = line;
       continue;
     }
@@ -8563,7 +8561,11 @@ function pipfileIsPlain(root: string, inventory: PublishOnlyInventory): boolean 
       if (!pipfileVersionIsPlain(value)) return false;
     } else if (section === '[requires]') {
       if (key !== 'python_version' && key !== 'python_full_version') return false;
-    } else if (section !== '[pipenv]' || key !== 'allow_prereleases') return false;
+    } else if (section !== '[pipenv]' || key !== 'allow_prereleases') {
+      // Any other section's entry refuses, `[scripts]` among them: `pipenv run <name>` runs a
+      // script of that name in place of the command.
+      return false;
+    }
   }
   if (!inventory.known.has('Pipfile.lock')) return true;
   if (!inventory.scanned.has('Pipfile.lock')) return false;
@@ -9323,12 +9325,10 @@ type ScriptReading = 'runner' | 'unrecognised' | 'unread';
 
 // Fourth pass (#627): make targets a CI step may run as a check.
 const MAKE_CHECK_TARGETS: readonly string[] = ['test', 'check'];
-// Makefile text the rule reader does not place: directives that bring in or change rules,
-// variables or the shell (`include`, `export`, `define`, `override`, conditionals), and settings
-// that change how recipes run or fail (`.ONESHELL`, `.IGNORE`, `SHELL`, `MAKEFLAGS`). Matched
-// anywhere, so a mention in a recipe is doubt too.
-const MAKEFILE_UNREAD_DIRECTIVE_PATTERN =
-  /^[ \t]*(?:-?include|sinclude|export|unexport|define|endef|override|vpath|ifeq|ifneq|ifdef|ifndef|else|endif)\b/m;
+// Makefile settings that change how recipes run or fail (`.ONESHELL`, `.IGNORE`, `SHELL`,
+// `MAKEFLAGS`), each of which a rule line can set. Matched anywhere, so a mention in a recipe is
+// doubt too. Directives (`include`, `export`, `define`, `override`, conditionals) need no list: no
+// such line is a rule, assignment, recipe or comment, so readMakefileRules places none of them.
 const MAKEFILE_UNREAD_SETTING_PATTERN = /\.ONESHELL|\.IGNORE|\.SHELLFLAGS|\.EXPORT_ALL_VARIABLES|\.DEFAULT\b|\bSHELL\b|MAKEFLAGS|\bMFLAGS\b/;
 const MAKEFILE_ASSIGNMENT_PATTERN = /^[A-Za-z_.][A-Za-z0-9_.-]*[ \t]*(?:[:+?!]?=|::=)/;
 const MAKEFILE_RULE_PATTERN = /^([^:#=\t][^:#=]*):(?![:=])([^]*)$/;
@@ -9344,12 +9344,13 @@ interface MakefileRule {
  * Fourth pass (#627): a Makefile's explicit rules, by target, read line by line: a rule line
  * `targets: prerequisites[; recipe]` and the tab-indented recipe lines under it. Assignments,
  * comments, blank lines and special targets (`.PHONY`) are passed over; a pattern rule is not
- * recorded. Null when the reader cannot place the file: a line continuation, an unread directive or
- * setting, a target or prerequisite holding `$`, `%`, `|` or `=`, a double-colon rule, two recipes
- * for one target, or any other line. Linear in the file.
+ * recorded. Null when the reader cannot place the file: a line continuation, a setting
+ * MAKEFILE_UNREAD_SETTING_PATTERN names, a target or prerequisite holding `$`, `%`, `|` or `=`, a
+ * double-colon rule, two recipes for one target, or any other line (a directive such as `include`
+ * or `export`). Linear in the file.
  */
 function readMakefileRules(text: string): Map<string, MakefileRule> | null {
-  if (/\\\r?\n/.test(text) || MAKEFILE_UNREAD_DIRECTIVE_PATTERN.test(text) || MAKEFILE_UNREAD_SETTING_PATTERN.test(text)) return null;
+  if (/\\\r?\n/.test(text) || MAKEFILE_UNREAD_SETTING_PATTERN.test(text)) return null;
   const rules = new Map<string, MakefileRule>();
   let targets: string[] = [];
   let recipe: string[] = [];
