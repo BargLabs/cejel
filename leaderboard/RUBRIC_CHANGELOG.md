@@ -183,55 +183,101 @@ v17 counts it, so B3 can only return to v17's value, never rise past it. `checkN
 `lostFindings` pass on every fixture of `b3-publishing-with-checks.test.ts`, and the generated
 shards pass.
 
-**Fixtures** (`b3-publishing-with-checks-fixtures.ts`, `V4_COUNTED` 16 and `V4_EXCLUDED` 42). The 53
-written first were committed red against main `d2d178233` (`46326b381`): 55 of 202 tests of
+**Fixtures** (`b3-publishing-with-checks-fixtures.ts`; counts re-derived from the file at this
+entry's last commit: the fourth pass's `V4_COUNTED` 16 and `V4_EXCLUDED` 42, the fifth pass's
+`V5_COUNTED` 7 and `V5_EXCLUDED` 36, the sixth pass's `V6_COUNTED` 3 and `V6_EXCLUDED` 20; 221 in
+all, with the 155 of #625 and earlier). The fourth pass's 53 written first were committed red against main
+`d2d178233` (`46326b381`): 55 of 202 tests of
 `b3-publishing-with-checks.test.ts` failed, exactly the new credit paths, the false-credit fixtures
 and the note assertions. One of those 55, a mutation fixture (`npm test || true` then `npm publish`
 in one block), was invalid: a `||` in the step makes its publish conditional, so main does not read
 the workflow as publishing at all. It was replaced by a backgrounded check before the commit, and
 its own test was re-run and passes on main; the commit's "54 of 202" is that count less one, not a
 whole-suite re-run. Five more fixtures were added after the red run, from the mutation runs below.
-`b3-publishing-with-checks-v17.json` pins v17's projection of all 155 fixtures, written with main
-`d2d178233`'s code (the scoring source swapped in for the run); every earlier entry and the HTML
-pin came out byte-identical.
+The fifth pass's fixtures were committed red at `0a5272474`, and the sixth pass's at `78e1e536e`
+(42 of 322 tests failed at `5b3a622d5`, exactly its new fixtures, note assertions and the pin
+check). `b3-publishing-with-checks-v17.json` pins v17's projection of all 221 fixtures, written with
+main `bfd4d5965`'s code (the scoring source swapped in for the run); the fourth pass first pinned
+its 155 with `d2d178233`, and each later re-pin left every earlier entry and the HTML pin
+byte-identical. The sixth pass changed three counted controls whose `env:` or line assignment used
+`CI` or `NODE_ENV` (`job-level-keys-written-plainly`, `env-inert-keys-and-secret-token`,
+`check-line-assignment-inert`) to keys that stay inert (`TZ`, `LANG`, `FORCE_COLOR`); their v17
+projections match the pin unchanged.
 
-**Measured** (re-measured by the reviewing session at code `07461359f`, after the fifth pass's last
-fix; the interrupted run's own measurement predates that fix and differed in two note-only rows).
-Main `bfd4d5965` and this head scored the same 538 synthetic checkouts: the 198 fixtures of
-`b3-publishing-with-checks-fixtures.ts` (fourth and fifth passes included), every fixture of
+**Measured** (at the sixth pass's final code `690bd8ee3`, after its last code commit). Main
+`bfd4d5965` and this head scored the same 561 synthetic checkouts: the 221 fixtures of
+`b3-publishing-with-checks-fixtures.ts` (fourth, fifth and sixth passes included), every fixture of
 `false-assurance-fixtures.ts` and `ci-claims-followups-fixtures.ts`. Each checkout was built once
 on each side and scored under all eleven selectable rubrics; report JSON, HTML and Markdown were
 compared by hash, with the checkout path replaced. Errors: 0 on both sides. For main's side, the
 three source files this branch changes (`repo-signals.ts`, `certificate-presentation.ts`,
 `rubric-version.ts`) were main's.
 
-- v17-v26: 5,370 of 5,380 reports byte-identical to main, and their HTML and Markdown too. The
+- v17-v26: 5,600 of 5,610 reports byte-identical to main, and their HTML and Markdown too. The
   other 10 are `review4-a4-working-directory-through-tracked-symlink` under each of the ten rubrics,
   which #625's entry describes: its commit holds a symlink to a freshly made temporary directory, so
   its head SHA differs between builds; no criterion differs.
-- v27: 476 of 538 reports byte-identical to main. Leaving out that same fixture, 61 move, in B3
+- v27: 477 of 561 reports byte-identical to main. Leaving out that same fixture, 83 move, in B3
   only:
-  - 13 rise to v17's B3 value, the new credit paths: `pip-install-requirements-plain`,
+  - 14 rise to v17's B3 value, the new credit paths: `pip-install-requirements-plain`,
     `pip-install-requirements-hashed-and-included`, `pipenv-install-plain-pipfile`,
     `prepare-husky-before-check`, `steps-at-key-indent`, `build-tsc-before-check`,
-    `needs-block-list-at-key-indent`, `check-and-publish-one-line`, `ruff-check-dot`,
-    `ruff-format-check`, `black-check`, `eslint-dot-max-warnings` and `mypy-dot`;
-  - 36 fall from v17's value, the false credit main gave: 13 test commands (scripts that run
+    `build-tsc-outdir-fresh-lib`, `needs-block-list-at-key-indent`, `check-and-publish-one-line`,
+    `ruff-check-dot`, `ruff-format-check`, `black-check`, `eslint-dot-max-warnings` and `mypy-dot`;
+  - 48 fall from v17's value, the false credit main gave: 14 test commands (scripts that run
     `/bin/true`, `node -e 0`, `printf ok`, a chain to a no-op, a runner `|| true`, a `pretest` that
-    runs repository code or a `NODE_OPTIONS=` assignment; `npm test --node-options=...`, `--prefix`,
-    `-w`, `--workspaces`, `pnpm test --filter`, `yarn test --cwd`), 9 make targets (an `@true`
-    recipe, a no-op prerequisite, a `-` line, a prerequisite that runs repository code first,
-    `.ONESHELL`, an `export`, a target that is not `.PHONY` beside a `test/` directory, a
-    prerequisite named after a file, a `PATH` assignment), 13 environments (an assignment on the
-    check's or a setup command's line, `NODE_OPTIONS`, `PATH`, `LD_PRELOAD` or `PYTHONPATH` in an
-    `env:` mapping, a job `container:` with or without `env:`, a `services:` container with `env:`,
-    a credential key without a secret) and 1 local archive given to `pip install`;
-  - 12 change in B3's note only, which now says why a check was not counted (no-op and help or
-    version test scripts, `npm test --if-present`, `github-path-write-before-check`).
+    runs repository code or a `NODE_OPTIONS=` assignment, a `tsc` before the runner writing into
+    `node_modules/uvu`; `npm test --node-options=...`, `--prefix`, `-w`, `--workspaces`,
+    `pnpm test --filter`, `yarn test --cwd`), 15 make targets (an `@true` recipe, a no-op
+    prerequisite, a `-` line, a prerequisite that runs repository code first, `.ONESHELL`, an
+    `export`, a target that is not `.PHONY` beside a `test/` or `Test/` directory or a `CHECK` file,
+    a prerequisite named after a file, a committed `GNUMAKEFILE`, and four Makefile assignments:
+    `PATH`, `HOME`, `PYTEST_ADDOPTS` and an unreferenced `VERSION`), 15 environments (an assignment
+    on the check's or a setup command's line, including `CI=false`; `NODE_OPTIONS`, `PATH`,
+    `LD_PRELOAD`, `PYTHONPATH` or `NODE_ENV` in an `env:` mapping; a job `container:` with or
+    without `env:`; a `services:` container with `env:`; a credential key without a secret), 3
+    commands written as a path that main credited through the `./` it stripped (`./pytest`,
+    `./make test`, `npx ./jest`) and 1 local archive given to `pip install`;
+  - 21 change in B3's note only: it now says why a check was not counted (no-op and help or version
+    test scripts, `npm test --if-present`, `github-path-write-before-check`, five tsc builds whose
+    output is not admitted, three commands written as a path that main already excluded), or, for
+    `flake8-src`, which main also counted, that the lint configuration is not read.
 - v27 B3 above v17 B3 on the same commit: 0.
 - Every v27 HTML and Markdown report differs from main's, because the v27 glossary sentence
-  changed. Rendering is a function of the report and the presentation code, and for the 476
+  changed. Rendering is a function of the report and the presentation code, and for the 477
   reports whose JSON is identical the only presentation change is that sentence.
+- The Makefile assignment rule (blocker 3) moves 3 checkouts beyond what the fifth pass's `PATH`
+  refusal already moved: `make-home-assignment-pth`, `make-pytest-addopts-assignment` and
+  `make-unreferenced-assignment`, all added by this round; none of the 538 checkouts measured
+  before it moves. `make-unreferenced-assignment` is the false exclusion it causes by design: a
+  Makefile whose only assignment (`VERSION = 1.0`) is never exported and never read by a runner is
+  no longer credited. An exception for such variables was not made: make exports any variable the
+  environment also sets, and which names a runner or tool reads from the environment is no fixed
+  list, so the exception would itself be a list of names.
+
+**This round** (the adversarial review of #645 at `5b3a622d5`, four false-credit blockers and three
+should-fix items). Red fixtures `78e1e536e`; fix `690bd8ee3`. (1) A command word holding a `/`
+(`./ruff format .`, `./eslint --fix .`, `./make test`, `npx ./jest`, `bin/pytest`) runs that file,
+so it is no check, runner, lint form or setup step; `isCheckCommand` stripped a leading `./` before
+its vocabulary match, while its lint gate read the word unstripped, so the gate was skipped and the
+match succeeded. B3's note says such a command runs a file in the repository or on the runner. The
+script, recipe and setup readers already matched words exactly; each now refuses a path word
+explicitly. (2) Make targets are compared with repository paths case-insensitively on every runner,
+as macOS resolves them (`test:` beside `Test/`, `check:` beside `CHECK`), and no Makefile is read
+beside a `GNUmakefile` or `makefile` in any case; pip path lookups on the credit path compare the
+same way. `.PHONY` stays exact, as make matches it. (3) Any Makefile assignment withholds the credit
+of every target, with a note; see the last Measured item for its false exclusion. (4) A tsc build,
+or tsc before a runner in a test script or recipe, is admitted only as `tsc` or `tsc --noEmit`
+where every place it writes (`outDir`, `declarationDir`, `outFile`'s directory) holds no tracked
+file, is no tracked path, has none above it, and has no `node_modules` part, compared
+case-insensitively; a tsconfig.json with `extends`, a build-info file (`incremental`, `composite`,
+`tsBuildInfoFile`), the deprecated `out`, an output option spelled in another case, or no `outDir`
+or `outFile`, refuses. (5) `CI` and `NODE_ENV` left the inert keys; three counted controls moved to
+`TZ`, `LANG` and `FORCE_COLOR`. (6) B3's note adds "(a lint or format check, whose configuration
+Cejel does not read)" to a counted workflow whose credited check is one, in its long and short
+sentence and, as "some on ...", in the closing count; the note's 1,000-character budget is
+unchanged. (7) The Fixtures paragraph above was corrected. Left open: `python -m pytest` with a
+committed `pytest/` package runs the repository's module, not the runner (cejel #647), and #641's items.
 
 **Mutation runs.** Each refusal was disabled alone and the fourth pass's fixtures scored under v27;
 each run below failed the fixtures named. The runner vocabulary read as "runs anything" (9

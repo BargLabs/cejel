@@ -25,7 +25,7 @@ pinned, and carries no precision or recall claim.
   runner, a lint form that fails on a finding, and an environment and package it admits; safe
   check-then-publish shapes are now read** (#627, #628, #629, #630; the fourth pass on #517's
   check-before-publish reading, with the fifth pass from the review of #640, which this
-  supersedes). Under `witan-rubric-v27-prospective-2026-10-19`:
+  supersedes, and the sixth from the review of #645). Under `witan-rubric-v27-prospective-2026-10-19`:
   - *A test script or make target is a check only when it runs a known test runner* (#627). Before,
     an npm, pnpm or yarn test script counted unless it was only `true`, `:`, `echo` or `exit 0`, so
     `/bin/true`, `node -e 0` or `printf ok` passed, and `make test` counted whatever its recipe
@@ -64,8 +64,24 @@ pinned, and carries no precision or recall claim.
     run another package's script, withhold the credit. A make target counts only when it and every
     target on its path are `.PHONY` or have no file or directory of their name in the repository,
     and a Makefile that assigns `PATH` is not read. B3's note names each reason.
+  - *Sixth pass: what the review of #645 found still credited* (four blockers and three should-fix
+    items, each now a fixture). A command word written as a path (`./ruff`, `bin/pytest`,
+    `npx ./jest`, `./make test`) runs that file, not the tool of its name, so it is never a check, a
+    test runner, a lint form or a setup step; before, a leading `./` was stripped before the match.
+    A make target's name is compared to the repository's paths case-insensitively, as macOS does, so
+    `test:` beside `Test/` and a committed `GNUMAKEFILE` withhold the credit. A Makefile that assigns
+    any variable credits none of its targets, since make exports a variable the environment also
+    sets with the Makefile's value (`HOME := fakehome` with a `.pth` file under it); this also
+    excludes a Makefile whose assignments are harmless, a false exclusion by design. A tsc build
+    before the check, or tsc before the runner in a test script or recipe, is admitted only when
+    every place it writes is a directory that holds no tracked file and is not under
+    `node_modules`, and `tsconfig.json` does not `extends` another file. `CI` and `NODE_ENV` are no
+    longer inert environment keys (with `CI=false`, jest writes missing snapshots instead of
+    failing). Where the credit rests on a lint or format check, B3's note says Cejel does not read
+    the tool's configuration.
   - The v27 certificate's glossary sentence for the PR-gate CI count states these conditions as
-    what Cejel reads, and says that this is not a proof that the check can fail. #640's wording,
+    what Cejel reads (the sixth pass adds the path, Makefile-assignment and tsc-output conditions),
+    and says that this is not a proof that the check can fail. #640's wording,
     which said no environment setting could change what the check runs, was not true.
 
   v17 and every rubric but v27 are unchanged. The measured effect is in

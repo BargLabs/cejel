@@ -1,0 +1,26 @@
+[
+  {
+    "statement": "A vocabulary match on a command word must read the word as written: stripping a leading `./` before matching turns a repository file into the tool it is named after. A guard keyed to one variable name is a refusal list too. Incident: cejel #645 at 5b3a622d5, src/witan/repo-signals.ts:9639-9640. isCheckCommand gated the lint form on `words[0]`, `./ruff`, then matched `words.join(' ').replace(/^\\.\\//, '')`, so `run: ./ruff format .` with a committed `ruff` that exits 0 was credited, as were `./make test` and `npx ./jest`. Line 9485 refused a Makefile only for `PATH`; `HOME := fakehome` with a `.pth` file made python exit 0 before pytest. Fix: a word holding `/` is never a check, runner, lint form or setup step, and any Makefile assignment withholds the credit, a false exclusion the records state.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "static-analysis",
+      "evidence-discipline"
+    ],
+    "tags": [
+      "admit-what-the-reader-proves",
+      "refusal-list",
+      "false-credit",
+      "credit-path",
+      "adversarial-review"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-11-03T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 645
+    }
+  }
+]
