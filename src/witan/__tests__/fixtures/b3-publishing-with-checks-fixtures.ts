@@ -1487,6 +1487,188 @@ export const V5_EXCLUDED: readonly Shape[] = [
   ...MAKE_NOT_RUN_EXCLUDED,
 ];
 
+// ---- Sixth pass: the review of #645 at 5b3a622d5 ----------------------------------------------
+//
+// The adversarial review of #645 held it for four false-credit blockers and three should-fix items.
+// Every V6_EXCLUDED fixture marked red was counted by #645's head 5b3a622d5; every V6_COUNTED fixture
+// is a control that stays counted. Synthetic files only.
+
+const EXIT_0_SCRIPT = '#!/bin/sh\nexit 0\n';
+
+/** A JavaScript package whose build script is `tsc`, whose tsconfig.json is `tsconfig`, released after `npm run build` and `npm test`. */
+const tscBuildRelease = (tsconfig: string, extra: Record<string, string> = {}): Record<string, string> => ({
+  ...jsWithScriptsAndDev({ build: 'tsc', test: 'uvu test' }, { typescript: '5.9.3', uvu: '0.5.6' }),
+  'tsconfig.json': tsconfig,
+  ...extra,
+  [RELEASE]: releaseAfterInstall(`      - run: npm run build\n      - run: npm test\n${NPM_PUBLISH}`),
+});
+
+/** A tsconfig.json emitting index.js under `compilerOptions` plus `options`. */
+const tsconfigWith = (options: Record<string, unknown>, top: Record<string, unknown> = {}): string =>
+  `${JSON.stringify({ ...top, compilerOptions: { module: 'nodenext', target: 'es2022', allowJs: true, ...options }, include: ['index.js'] }, null, 2)}\n`;
+
+/** Blocker 1: a check command written as a path runs that file, not the tool of its name. */
+export const PATH_COMMAND_EXCLUDED: readonly Shape[] = [
+  [
+    'path-qualified-ruff-format',
+    'Excluded (red): `run: ./ruff format .` with a committed `ruff` script that exits 0; `./ruff` runs the repository file.',
+    { ...PY_BASE, ruff: EXIT_0_SCRIPT, [PUBLISH]: pythonPlainRelease('./ruff format .') },
+  ],
+  [
+    'path-qualified-eslint-fix',
+    'Excluded (red): `run: ./eslint --fix .` with a committed `eslint` script that exits 0.',
+    { ...JS_BASE, eslint: EXIT_0_SCRIPT, [RELEASE]: releaseAfterInstall(`      - run: ./eslint --fix .\n${NPM_PUBLISH}`) },
+  ],
+  [
+    'path-qualified-pytest',
+    'Excluded: `run: ./pytest` with a committed `pytest` script that exits 0; excluded at 5b3a622d5 by another reading, and the note now says why.',
+    { ...PY_BASE, pytest: EXIT_0_SCRIPT, [PUBLISH]: pythonPlainRelease('./pytest') },
+  ],
+  [
+    'path-qualified-make-test',
+    'Excluded (red): `run: ./make test` with a committed `make` script that exits 0; the Makefile is never read.',
+    { ...pythonMakeRelease('.PHONY: test\n\ntest:\n\tpytest\n', './make test'), make: EXIT_0_SCRIPT },
+  ],
+  [
+    'npx-path-qualified-jest',
+    'Excluded (red): `run: npx ./jest`; npx runs the repository file `jest`.',
+    { ...JS_BASE, jest: EXIT_0_SCRIPT, [RELEASE]: releaseAfterInstall(`      - run: npx ./jest\n${NPM_PUBLISH}`) },
+  ],
+  [
+    'directory-path-pytest',
+    'Excluded: `run: bin/pytest` with a committed `bin/pytest`; excluded at 5b3a622d5 too, and the note now says why.',
+    { ...PY_BASE, 'bin/pytest': EXIT_0_SCRIPT, [PUBLISH]: pythonPlainRelease('bin/pytest') },
+  ],
+];
+
+/** Blocker 2: make compares a target to the files beside it case-insensitively on macOS. */
+export const MAKE_CASE_EXCLUDED: readonly Shape[] = [
+  [
+    'make-test-not-phony-capital-test-directory',
+    'Excluded (red): `test:` is not `.PHONY` and a `Test/` directory exists; on a case-insensitive file system make reports it up to date.',
+    { ...pythonMakeRelease('test:\n\tpytest\n'), 'Test/data.txt': 'placeholder\n' },
+  ],
+  [
+    'make-check-not-phony-uppercase-file',
+    'Excluded (red): `check:` is not `.PHONY` and a file `CHECK` exists.',
+    { ...pythonMakeRelease('check:\n\tpytest\n', 'make check'), CHECK: 'placeholder\n' },
+  ],
+  [
+    'make-uppercase-gnumakefile',
+    'Excluded (red): a committed `GNUMAKEFILE`, whose test recipe runs nothing, is what make reads first on a case-insensitive file system.',
+    { ...pythonMakeRelease('.PHONY: test\n\ntest:\n\tpytest\n'), GNUMAKEFILE: '.PHONY: test\n\ntest:\n\t@true\n' },
+  ],
+];
+
+/** Blocker 2, the other side: a `.PHONY` target beside a directory of its name in another case still runs. */
+export const MAKE_CASE_COUNTED: readonly Shape[] = [
+  [
+    'make-test-phony-capital-test-directory',
+    'Counted: `test` is `.PHONY`, so make runs it although a `Test/` directory exists.',
+    { ...pythonMakeRelease('.PHONY: test\n\ntest:\n\tpytest\n'), 'Test/data.txt': 'placeholder\n' },
+  ],
+];
+
+/** Blocker 3: a Makefile assignment make may export to the runner. */
+export const MAKE_ASSIGNMENT_EXCLUDED: readonly Shape[] = [
+  [
+    'make-home-assignment-pth',
+    'Excluded (red): `HOME := fakehome` and a committed `.pth` file in a user site under it; make exports HOME, and python exits 0 before pytest runs.',
+    {
+      ...pythonMakeRelease('HOME := fakehome\n\n.PHONY: test\n\ntest:\n\tpytest\n'),
+      'fakehome/.local/lib/python3.12/site-packages/zz.pth': 'import os; os._exit(0)\n',
+    },
+  ],
+  [
+    'make-pytest-addopts-assignment',
+    'Excluded (red): `PYTEST_ADDOPTS = --co`; make exports it when the environment sets it, and pytest only collects.',
+    pythonMakeRelease('PYTEST_ADDOPTS = --co\n\n.PHONY: test\n\ntest:\n\tpytest\n'),
+  ],
+  [
+    'make-unreferenced-assignment',
+    'Excluded (red; a false exclusion by design): `VERSION = 1.0` is never exported or read, but every Makefile assignment withholds the credit.',
+    pythonMakeRelease('VERSION = 1.0\n\n.PHONY: test\n\ntest:\n\tpytest\n'),
+  ],
+];
+
+/** Blocker 4: a tsc build whose output may overwrite the runner or the tests. */
+export const TSC_OUTPUT_EXCLUDED: readonly Shape[] = [
+  [
+    'build-tsc-outdir-node-modules-runner',
+    'Excluded (red): the tsc build writes into `node_modules/uvu`, the runner the check runs.',
+    tscBuildRelease(tsconfigWith({ outDir: 'node_modules/uvu' })),
+  ],
+  [
+    'build-tsc-outdir-test-directory',
+    'Excluded (red): the tsc build writes into `test/`, which holds the tests.',
+    tscBuildRelease(tsconfigWith({ outDir: 'test' })),
+  ],
+  [
+    'build-tsc-declaration-dir-node-modules',
+    'Excluded (red): the tsc build writes declarations into `node_modules/uvu`.',
+    tscBuildRelease(tsconfigWith({ outDir: 'dist', declaration: true, declarationDir: 'node_modules/uvu' })),
+  ],
+  [
+    'build-tsc-no-outdir',
+    'Excluded (red): with no `outDir`, tsc writes each output beside its source.',
+    tscBuildRelease(tsconfigWith({})),
+  ],
+  [
+    'build-tsc-extends',
+    'Excluded (red): tsconfig.json `extends` another file, which the reader does not follow.',
+    tscBuildRelease(`${JSON.stringify({ extends: './tsconfig.base.json', include: ['index.js'] }, null, 2)}\n`, {
+      'tsconfig.base.json': tsconfigWith({ outDir: 'node_modules/uvu' }),
+    }),
+  ],
+  [
+    'test-script-tsc-outdir-node-modules',
+    'Excluded (red): the test script runs `tsc && uvu test`, and tsc writes into `node_modules/uvu` before uvu runs.',
+    {
+      ...jsWithScriptsAndDev({ test: 'tsc && uvu test' }, { typescript: '5.9.3', uvu: '0.5.6' }),
+      'tsconfig.json': tsconfigWith({ outDir: 'node_modules/uvu' }),
+      [RELEASE]: releaseAfterInstall(`      - run: npm test\n${NPM_PUBLISH}`),
+    },
+  ],
+];
+
+/** Blocker 4, the other side: a tsc build into a new directory outside node_modules stays counted. */
+export const TSC_OUTPUT_COUNTED: readonly Shape[] = [
+  [
+    'build-tsc-outdir-fresh-lib',
+    'Counted: the tsc build writes only into `lib/`, which holds no tracked file and is not under node_modules.',
+    tscBuildRelease(tsconfigWith({ outDir: 'lib' })),
+  ],
+];
+
+/** Item 5: `CI` and `NODE_ENV` change what a check does, so they are not inert. */
+export const NOT_INERT_ENVIRONMENT_EXCLUDED: readonly Shape[] = [
+  [
+    'check-line-assignment-ci-false',
+    'Excluded (red): `run: CI=false npm test`; with CI=false jest writes missing snapshots instead of failing.',
+    { ...JS_BASE, [RELEASE]: releaseAfterInstall(`      - run: CI=false npm test\n${NPM_PUBLISH}`) },
+  ],
+  [
+    'workflow-env-node-env',
+    'Excluded (red): the workflow sets `NODE_ENV: production`, which changes what a test run loads.',
+    { ...JS_BASE, [RELEASE]: releaseAfterInstall(`      - run: npm test\n${NPM_PUBLISH}`).replace(PUSH_MAIN, `${PUSH_MAIN}env:\n  NODE_ENV: production\n`) },
+  ],
+];
+
+/** Item 5, the other side: an assignment of a key that stays inert. */
+export const STILL_INERT_ENVIRONMENT_COUNTED: readonly Shape[] = [
+  ['check-line-assignment-tz', 'Counted: `run: TZ=UTC npm test`; `TZ` is an inert key.', { ...JS_BASE, [RELEASE]: releaseAfterInstall(`      - run: TZ=UTC npm test\n${NPM_PUBLISH}`) }],
+];
+
+/** This pass's counted and excluded shapes, in the order the tests read them. */
+export const V6_COUNTED: readonly Shape[] = [...MAKE_CASE_COUNTED, ...TSC_OUTPUT_COUNTED, ...STILL_INERT_ENVIRONMENT_COUNTED];
+export const V6_EXCLUDED: readonly Shape[] = [
+  ...PATH_COMMAND_EXCLUDED,
+  ...MAKE_CASE_EXCLUDED,
+  ...MAKE_ASSIGNMENT_EXCLUDED,
+  ...TSC_OUTPUT_EXCLUDED,
+  ...NOT_INERT_ENVIRONMENT_EXCLUDED,
+];
+
 function fixture(name: string, purpose: string, files: Record<string, string>): FalseAssuranceFixture {
   return { name, issue: '#517', purpose, commits: [files] };
 }
@@ -1515,9 +1697,15 @@ export const V5_FIXTURES: readonly FalseAssuranceFixture[] = [...V5_COUNTED, ...
   fixture(name, purpose, files),
 );
 
+export const V6_FIXTURES: readonly FalseAssuranceFixture[] = [...V6_COUNTED, ...V6_EXCLUDED].map(([name, purpose, files]) =>
+  fixture(name, purpose, files),
+);
+
 /** The publishing workflow each fixture adds. */
 export const publishingFile = (name: string): string => {
   const shape = [
+    ...V6_COUNTED,
+    ...V6_EXCLUDED,
     ...V5_COUNTED,
     ...V5_EXCLUDED,
     ...COUNTED,
