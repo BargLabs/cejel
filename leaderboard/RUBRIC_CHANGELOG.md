@@ -195,34 +195,42 @@ whole-suite re-run. Five more fixtures were added after the red run, from the mu
 `d2d178233`'s code (the scoring source swapped in for the run); every earlier entry and the HTML
 pin came out byte-identical.
 
-**Measured.** Main `d2d178233` and this head scored the same 495 synthetic checkouts: the 155
-fixtures of `b3-publishing-with-checks-fixtures.ts`, every fixture of `false-assurance-fixtures.ts`
-and `ci-claims-followups-fixtures.ts`. Each checkout was built once on each side and scored under
-all eleven selectable rubrics; report JSON, HTML and Markdown were compared by hash, with the
-checkout path replaced. Errors: 0 on both sides. For main's side, the three source files this
-branch changes (`repo-signals.ts`, `certificate-presentation.ts`, `rubric-version.ts`) were main's.
+**Measured** (re-measured by the reviewing session at code `07461359f`, after the fifth pass's last
+fix; the interrupted run's own measurement predates that fix and differed in two note-only rows).
+Main `bfd4d5965` and this head scored the same 538 synthetic checkouts: the 198 fixtures of
+`b3-publishing-with-checks-fixtures.ts` (fourth and fifth passes included), every fixture of
+`false-assurance-fixtures.ts` and `ci-claims-followups-fixtures.ts`. Each checkout was built once
+on each side and scored under all eleven selectable rubrics; report JSON, HTML and Markdown were
+compared by hash, with the checkout path replaced. Errors: 0 on both sides. For main's side, the
+three source files this branch changes (`repo-signals.ts`, `certificate-presentation.ts`,
+`rubric-version.ts`) were main's.
 
-- v17-v26: 4,940 of 4,950 reports byte-identical to main, and their HTML and Markdown too. The
+- v17-v26: 5,370 of 5,380 reports byte-identical to main, and their HTML and Markdown too. The
   other 10 are `review4-a4-working-directory-through-tracked-symlink` under each of the ten rubrics,
   which #625's entry describes: its commit holds a symlink to a freshly made temporary directory, so
   its head SHA differs between builds; no criterion differs.
-- v27: 459 of 495 reports byte-identical to main. Leaving out that same fixture, 35 move, in B3
+- v27: 476 of 538 reports byte-identical to main. Leaving out that same fixture, 61 move, in B3
   only:
-  - 10 rise to v17's B3 value, the new credit paths: `pip-install-requirements-plain`,
+  - 13 rise to v17's B3 value, the new credit paths: `pip-install-requirements-plain`,
     `pip-install-requirements-hashed-and-included`, `pipenv-install-plain-pipfile`,
     `prepare-husky-before-check`, `steps-at-key-indent`, `build-tsc-before-check`,
-    `needs-block-list-at-key-indent`, `check-and-publish-one-line`, `ruff-check-dot` and `mypy-dot`;
-  - 19 fall from v17's value, the false credit main gave: seven test scripts (`/bin/true`,
-    `node -e 0`, `printf ok`, a chain to `/bin/true`, `uvu test || true`, a `pretest` script, a
-    `NODE_OPTIONS=` assignment), six make targets (an `@true` recipe, a no-op prerequisite, a
-    `-pytest` line, a prerequisite that runs a repository script first, `.ONESHELL`, an `export`),
-    and six environments (`NODE_OPTIONS` on the job and on an install step, `PATH` and `LD_PRELOAD`
-    on the check step, `PYTHONPATH` on the workflow, `NPM_TOKEN` without a secret);
-  - 6 change in B3's note only, which now says why a check was not counted: the second pass's five
-    no-op test scripts (empty, `true`, `exit 0`, `echo`, `:`) and `github-path-write-before-check`.
-- v27 B3 above v17 B3 on the same commit: 0 (`checkNoRise` over all 155 fixtures).
+    `needs-block-list-at-key-indent`, `check-and-publish-one-line`, `ruff-check-dot`,
+    `ruff-format-check`, `black-check`, `eslint-dot-max-warnings` and `mypy-dot`;
+  - 36 fall from v17's value, the false credit main gave: 13 test commands (scripts that run
+    `/bin/true`, `node -e 0`, `printf ok`, a chain to a no-op, a runner `|| true`, a `pretest` that
+    runs repository code or a `NODE_OPTIONS=` assignment; `npm test --node-options=...`, `--prefix`,
+    `-w`, `--workspaces`, `pnpm test --filter`, `yarn test --cwd`), 9 make targets (an `@true`
+    recipe, a no-op prerequisite, a `-` line, a prerequisite that runs repository code first,
+    `.ONESHELL`, an `export`, a target that is not `.PHONY` beside a `test/` directory, a
+    prerequisite named after a file, a `PATH` assignment), 13 environments (an assignment on the
+    check's or a setup command's line, `NODE_OPTIONS`, `PATH`, `LD_PRELOAD` or `PYTHONPATH` in an
+    `env:` mapping, a job `container:` with or without `env:`, a `services:` container with `env:`,
+    a credential key without a secret) and 1 local archive given to `pip install`;
+  - 12 change in B3's note only, which now says why a check was not counted (no-op and help or
+    version test scripts, `npm test --if-present`, `github-path-write-before-check`).
+- v27 B3 above v17 B3 on the same commit: 0.
 - Every v27 HTML and Markdown report differs from main's, because the v27 glossary sentence
-  changed. Rendering is a function of the report and the presentation code, and for the 459
+  changed. Rendering is a function of the report and the presentation code, and for the 476
   reports whose JSON is identical the only presentation change is that sentence.
 
 **Mutation runs.** Each refusal was disabled alone and the fourth pass's fixtures scored under v27;
