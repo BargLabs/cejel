@@ -524,7 +524,9 @@ const REVIEW_626_FIXTURES: readonly WithholdFixture[] = [
   withheld(
     'a1wh-r2-restore-nested-def-called',
     'A',
-    'Control: the hook defines a nested function that extends the list, and calls it after the clear.',
+    // goal_cejel_v27_a1_restore_proof_v2_2026-11-02: a nested function is not a shape the outcome-2
+    // allowlist recognises, so this real restore moves from outcome 2 to outcome 3 (named).
+    'The hook defines a nested function that extends the list, and calls it after the clear: a real restore, not read.',
     {
       'tests/conftest.py': conftestHook([
         '    saved = list(items)',
@@ -536,7 +538,7 @@ const REVIEW_626_FIXTURES: readonly WithholdFixture[] = [
         '    put_back()',
       ]),
     },
-    [RESTORED],
+    [notRead('def put_back():')],
   ),
   withheld(
     'a1wh-r2-restore-dunder-iadd',

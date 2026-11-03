@@ -279,9 +279,11 @@ export const HOOK_OUTCOME_FIXTURES: readonly HookOutcomeFixture[] = [
   fixture(
     'a1ho-c-lambda-restore-called',
     'C',
-    'A lambda bound at the top level restores the saved copy, and is called after the clear.',
+    // goal_cejel_v27_a1_restore_proof_v2_2026-11-02: a lambda is not a shape the outcome-2
+    // allowlist recognises, so this real restore moves from outcome 2 to outcome 3 (named).
+    'A lambda bound at the top level restores the saved copy, and is called after the clear: a real restore, not read.',
     hook(['    saved = list(items)', '    put_back = lambda: items.extend(saved)', '    items.clear()', '    put_back()']),
-    restores,
+    unread('put_back = lambda: items.extend(saved)'),
   ),
   fixture(
     'a1ho-c-helper-by-keyword',

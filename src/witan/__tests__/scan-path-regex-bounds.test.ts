@@ -417,6 +417,31 @@ describe('scaling: each v27 A1 reader the CI-line guard exercises grows no faste
     expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
   }, 60_000);
 
+  // goal_cejel_v27_a1_restore_proof_v2_2026-11-02, item F: a hook body of N stored lambdas that each
+  // name items took 1.5 s at N = 2,000 and 41 s at N = 12,000 in the reader of #638 (the set of
+  // closure names was rebuilt for every statement). The clear at the end must still be read, so
+  // the answer at both lengths is the same deselect-everything hook.
+  it('the conftest hook reader, on a hook body of L/80 and 2L/80 stored lambdas that each name items', () => {
+    const repos = new Map<number, string>();
+    const repoFor = (length: number): string => {
+      const existing = repos.get(length);
+      if (existing) return existing;
+      const count = Math.floor(length / 80);
+      const body = Array.from({ length: count }, (_, index) => `    cb${index} = lambda: items.sort()\n`).join('');
+      const repo = makeRepo({
+        'tests/test_lines.py': 'def test_value():\n    assert 1 == 1\n',
+        'tests/conftest.py': `def pytest_collection_modifyitems(config, items):\n${body}    items.clear()\n`,
+      });
+      repos.set(length, repo);
+      return repo;
+    };
+    const files = ['tests/conftest.py', 'tests/test_lines.py'];
+    const { ratio, timing, atL, at2L } = scalingRatio((length) => findPytestRunWideSkips(repoFor(length), files));
+    expect(atL.map((skip) => skip.kind)).toEqual(['clear']);
+    expect(at2L).toEqual(atL);
+    expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
+  }, 60_000);
+
   it('the pytest run reader, on six CI lines of length L and 2L, each ending in a pytest run', () => {
     const files = CI_LINE_UNITS.map((_, index) => `.github/workflows/w${index}.yml`);
     const textsFor = (length: number): Map<string, string> =>

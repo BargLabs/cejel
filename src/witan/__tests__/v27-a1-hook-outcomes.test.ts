@@ -5,8 +5,11 @@ import type { WitanCriterionScore, WitanReport } from '../schemas.js';
 import { scoreRepoWithPublicCejel } from '../public-scan.js';
 import { WITAN_RUBRIC_VERSION_V17, WITAN_RUBRIC_VERSION_V27 } from '../rubric-version.js';
 import { buildFalseAssuranceFixture } from './fixtures/false-assurance-fixtures.js';
+import { ALLOWLIST_FIXTURES, type AllowlistFixture } from './fixtures/v27-a1-allowlist-fixtures.js';
 import { HOOK_OUTCOME_FIXTURES, notedPath, type HookOutcomeFixture } from './fixtures/v27-a1-hook-outcome-fixtures.js';
 import { checkNoRise } from './v27-no-rise.js';
+
+type OutcomeFixture = HookOutcomeFixture | AllowlistFixture;
 
 // goal_cejel_v27_a1_restore_proof_and_hookwrapper_2026-11-02 (#631, #632, #634). Under
 // witan-rubric-v27 every pytest_collection_modifyitems hook that touches `items` reaches one of
@@ -19,7 +22,7 @@ const V27 = WITAN_RUBRIC_VERSION_V27;
 const reports = new Map<string, WitanReport>();
 const repos = new Map<string, string>();
 
-function scan(fixture: HookOutcomeFixture, rubricVersion: string): WitanReport {
+function scan(fixture: OutcomeFixture, rubricVersion: string): WitanReport {
   const key = `${fixture.name}@${rubricVersion}`;
   const cached = reports.get(key);
   if (cached) return cached;
@@ -41,7 +44,7 @@ function scan(fixture: HookOutcomeFixture, rubricVersion: string): WitanReport {
   return scored;
 }
 
-function a1(fixture: HookOutcomeFixture, rubricVersion: string): WitanCriterionScore {
+function a1(fixture: OutcomeFixture, rubricVersion: string): WitanCriterionScore {
   const found = scan(fixture, rubricVersion).criteria.find(({ id }) => id === 'A1');
   if (!found) throw new Error(`${fixture.name}@${rubricVersion} has no A1`);
   return found;
@@ -55,7 +58,7 @@ const NOT_READ = /hook not read: /i;
 /** The rule as A1's note writes it: the path it names in the note's form. */
 const notedRule = (rule: string) => rule.replace(/^(run-wide skip: (?:hook|pytestmark) in )(.*)$/, (_, lead: string, path: string) => `${lead}${notedPath(path)}`);
 
-function expectDeselects(fixture: HookOutcomeFixture): void {
+function expectDeselects(fixture: OutcomeFixture): void {
   const v17 = a1(fixture, V17);
   const v27 = a1(fixture, V27);
   const notes = v27.notes ?? '';
@@ -71,11 +74,17 @@ function expectDeselects(fixture: HookOutcomeFixture): void {
     ).toBe(true);
   }
   expect(share(v27), fixture.name).toBe((share(v17) ?? 0) - removed.length);
-  expect(notes, fixture.name).not.toMatch(NOT_APPLIED);
+  const alsoSaid = 'alsoSaid' in fixture ? fixture.alsoSaid : undefined;
+  if (alsoSaid !== undefined) {
+    // Another hook, or a run, withholds the rule for some file, and the note says so.
+    expect(notes.toLowerCase(), fixture.name).toContain(alsoSaid.toLowerCase());
+  } else {
+    expect(notes, fixture.name).not.toMatch(NOT_APPLIED);
+  }
   expect(notes, fixture.name).not.toMatch(NOT_READ);
 }
 
-function expectReadAsV17(fixture: HookOutcomeFixture): void {
+function expectReadAsV17(fixture: OutcomeFixture): void {
   const v17 = a1(fixture, V17);
   const v27 = a1(fixture, V27);
   expect(v27.score, fixture.name).toBe(v17.score);
@@ -89,7 +98,7 @@ function expectReadAsV17(fixture: HookOutcomeFixture): void {
   expect(v17.notes ?? '', fixture.name).not.toMatch(NOT_READ);
 }
 
-function expectOutcome(fixture: HookOutcomeFixture): void {
+function expectOutcome(fixture: OutcomeFixture): void {
   const v27 = a1(fixture, V27);
   const notes = v27.notes ?? '';
   expect(notes.length, fixture.name).toBeLessThanOrEqual(1000);
@@ -104,7 +113,8 @@ function expectOutcome(fixture: HookOutcomeFixture): void {
     return;
   }
   const clause = fixture.clause ?? '';
-  expect(notes.toLowerCase(), fixture.name).toContain(clause.toLowerCase());
+  if (typeof clause === 'string') expect(notes.toLowerCase(), fixture.name).toContain(clause.toLowerCase());
+  else expect(notes, fixture.name).toMatch(clause);
   if (fixture.outcome === 'restores') {
     expect(notes, fixture.name).not.toMatch(NOT_READ);
     // The hook is cited at its def, so its path is exact (item E).
@@ -124,6 +134,16 @@ for (const item of ['A', 'B', 'C', 'D', 'E'] as const) {
   });
 }
 
+// goal_cejel_v27_a1_restore_proof_v2_2026-11-02 (supersedes #638): outcome 2 is an allowlist over
+// the whole hook body, read as tokenised logical statements; nothing else reaches it.
+for (const item of ['A', 'B', 'C', 'D', 'E'] as const) {
+  describe(`allowlist round, item ${item}`, () => {
+    for (const fixture of ALLOWLIST_FIXTURES.filter((entry) => entry.item === item)) {
+      it(`${fixture.outcome}: ${fixture.name} — ${fixture.purpose}`, () => expectOutcome(fixture));
+    }
+  });
+}
+
 describe('item E — evidence pointers', () => {
   it('a note that lists more rated files than carry evidence pointers says how many carry none', () => {
     const fixture = HOOK_OUTCOME_FIXTURES.find(({ name }) => name === 'a1ho-e-many-rated-files') as HookOutcomeFixture;
@@ -134,7 +154,7 @@ describe('item E — evidence pointers', () => {
 });
 
 describe('no rise — v27 never scores any of these fixtures above v17', () => {
-  for (const fixture of HOOK_OUTCOME_FIXTURES) {
+  for (const fixture of [...HOOK_OUTCOME_FIXTURES, ...ALLOWLIST_FIXTURES]) {
     it(fixture.name, () => {
       expect(checkNoRise(scan(fixture, V17), scan(fixture, V27)).problems).toEqual([]);
     });
