@@ -2491,7 +2491,7 @@ function collectA1TestIntegrityEvidence(
     })
     .slice(0, A1_NOTE_EVIDENCE_LIMIT);
   for (const pointer of clausePointers) {
-    evidence.push(evidenceForRelativeAtLine(repoPath, pointer.path, 'test_run', pointer.label, pointer.line));
+    evidence.push(evidenceForRelativeAtLine(repoPath, pointer.path, 'test_run', a1ClauseLabel(pointer.label), pointer.line));
   }
   // item C: a run that may read a configuration file above the repository's root, which the scan
   // cannot see, is said once where a file is rated hollow on a run that collects it.
@@ -13081,6 +13081,18 @@ const A1_RUN_NOT_READ = 'pytest run not read: ';
 // A clause that names what the reader could not read, said alone rather than as a rule not applied.
 const A1_NOT_READ_CLAUSE_PATTERN = /^(?:hook|pytest run) not read: /;
 
+/**
+ * The review of #648: a clause pointer's label within the evidence schema's limit. A run not read
+ * is labelled with the command as written, which may be of any length; it is cut, and marked cut.
+ */
+function a1ClauseLabel(label: string): string {
+  if (label.length <= EVIDENCE_LABEL_MAX_LENGTH) return label;
+  let cut = label.slice(0, EVIDENCE_LABEL_MAX_LENGTH - 1);
+  const last = cut.charCodeAt(cut.length - 1);
+  if (last >= 0xd800 && last <= 0xdbff) cut = cut.slice(0, -1);
+  return `${cut}\u2026`;
+}
+
 /** A withheld rule's clause as A1's note says it. */
 function a1WithheldClause(rule: string, reason: string): string {
   return A1_NOT_READ_CLAUSE_PATTERN.test(reason) ? reason : `${rule} not applied: ${reason}`;
@@ -13220,6 +13232,8 @@ interface PytestInvocation {
   readonly text?: string;
   /** item A: why the run's arguments or directory cannot be known from the repository, where they cannot. */
   readonly unread?: string;
+  /** The review of #648: the 0-based line of the `env:` entry that sets `addopts`, where one does. */
+  readonly addoptsAnchor?: number;
 }
 
 /** One group of pytest flags, with where A1's note says they are set and where its evidence points. */
@@ -13522,7 +13536,8 @@ function resolvePytestRun(invocation: PytestInvocation, repo: PytestRepositoryVi
     groups.push({
       words: invocation.addopts,
       where: `in PYTEST_ADDOPTS in ${a1NotePath(invocation.source ?? '')}`,
-      at: (_token, label) => commandAt([])('PYTEST_ADDOPTS', label),
+      at: (_token, label) => () =>
+        file === '' ? undefined : { path: file, line: repo.lineOf(file, ['PYTEST_ADDOPTS'], invocation.addoptsAnchor ?? anchor), label },
     });
   }
   if (invocation.args.length > 0) groups.push({ words: invocation.args, where: commandWhere, at: commandAt(['pytest', 'py.test']) });
@@ -14321,8 +14336,9 @@ function recipeTargetsNamed(words: readonly string[]): string[] {
 }
 
 /** The environments a `tox` command asks for with -e / --env, or []. */
-function toxEnvironmentsNamed(words: readonly string[]): string[] {
-  if (basename(words[0] ?? '') !== 'tox') return [];
+function toxEnvironmentsNamed(command: readonly string[]): string[] {
+  const words = asToxCommand(command);
+  if (words === undefined) return [];
   const names: string[] = [];
   for (let index = 1; index < words.length; index += 1) {
     const word = words[index] ?? '';
@@ -14498,6 +14514,8 @@ interface GithubRunStep {
   readonly command: string;
   readonly directory: string | null;
   readonly addopts?: readonly string[];
+  /** The review of #648: the 0-based line of the `env:` entry that sets `addopts`, where one does. */
+  readonly addoptsLine?: number;
   /** item E: the 0-based line of the step's `run:` key. */
   readonly line: number;
   /** item A: the working-directory expression that leaves `directory` unknown. */
@@ -14554,19 +14572,23 @@ function readGithubRunSteps(text: string): GithubRunStep[] {
     index === undefined ? undefined : yamlPlainScalar(lines[index]?.value ?? '');
   const isFalse = (value: string | undefined) => value !== undefined && /^(?:false|\$\{\{\s*false\s*\}\})$/.test(value);
   const defaultDirectory = (keys: Map<string, number>) => scalarAt(childKeys(childKeys(keys.get('defaults')).get('run')).get('working-directory'));
-  const addoptsIn = (keys: Map<string, number>) => scalarAt(childKeys(keys.get('env')).get('PYTEST_ADDOPTS'));
+  const addoptsLineIn = (keys: Map<string, number>) => childKeys(keys.get('env')).get('PYTEST_ADDOPTS');
+  const addoptsIn = (keys: Map<string, number>) => scalarAt(addoptsLineIn(keys));
   interface MappingFacts {
     readonly never: boolean;
     readonly directory?: string;
     readonly addopts?: string;
+    readonly addoptsLine?: number;
   }
   const factsOf = (keys: Map<string, number>): MappingFacts => {
     const directory = defaultDirectory(keys);
     const addopts = addoptsIn(keys);
+    const addoptsLine = addoptsLineIn(keys);
     return {
       never: isFalse(scalarAt(keys.get('if'))),
       ...(directory === undefined ? {} : { directory }),
       ...(addopts === undefined ? {} : { addopts }),
+      ...(addoptsLine === undefined ? {} : { addoptsLine }),
     };
   };
   const firstRootLine = lines.findIndex((line) => !line.blank);
@@ -14596,7 +14618,9 @@ function readGithubRunSteps(text: string): GithubRunStep[] {
     if (isFalse(scalarAt(stepKeys.get('if'))) || job.never) continue;
     const directoryValue = scalarAt(stepKeys.get('working-directory')) ?? job.directory ?? root.directory;
     const directory = directoryValue === undefined ? '' : directoryValue.includes('${{') ? null : resolveCommandPath('', directoryValue);
-    const addoptsValue = addoptsIn(stepKeys) ?? job.addopts ?? root.addopts;
+    const stepAddopts = addoptsIn(stepKeys);
+    const addoptsValue = stepAddopts ?? job.addopts ?? root.addopts;
+    const addoptsLine = stepAddopts !== undefined ? addoptsLineIn(stepKeys) : job.addopts !== undefined ? job.addoptsLine : root.addoptsLine;
     let command: string;
     if (/^[|>]/.test(line.value)) {
       const block: string[] = [];
@@ -14618,6 +14642,7 @@ function readGithubRunSteps(text: string): GithubRunStep[] {
       line: index,
       ...(directory === null && directoryValue !== undefined ? { unknownDirectory: `working-directory: ${directoryValue}` } : {}),
       ...(addoptsValue === undefined || addoptsValue.includes('${{') ? {} : { addopts: shellWords(addoptsValue) }),
+      ...(addoptsValue === undefined || addoptsValue.includes('${{') || addoptsLine === undefined ? {} : { addoptsLine }),
     });
   }
   return steps;
@@ -14641,7 +14666,20 @@ export function readPytestInvocations(
   const toxPosargs: { words: readonly string[]; text: string; source: string; file: string; anchor: number }[] = [];
   const fileSet = new Set(repoFiles);
   let hatchScripts: HatchScripts | undefined;
-  const visitor = (source: string, file: string, anchor: number, depth = 0): ShellCommandVisitor => (words, directory, addopts, unknownDirectory) => {
+  // The review of #648: the hatch script expansions left, across the whole read, so a script list
+  // that names itself many times cannot make the work grow past linear; past it the run is not read.
+  let hatchExpansionsLeft = HATCH_EXPANSION_BUDGET;
+  // The review of #648: the text of every CI file read, where a CI command may set a variable in the
+  // environment of the make or tox it runs (a `?=` default, TOXENV).
+  const environmentTexts: string[] = [];
+  const visitor = (
+    source: string,
+    file: string,
+    anchor: number,
+    depth = 0,
+    // The review of #648: where an `env:` mapping set the PYTEST_ADDOPTS words `envAddopts` (0-based line).
+    envAddopts?: { readonly words: readonly string[]; readonly line: number },
+  ): ShellCommandVisitor => (words, directory, addopts, unknownDirectory) => {
     for (const target of recipeTargetsNamed(words)) namedTargets.add(target);
     for (const name of makeAssignmentsNamed(words)) makeOverrides.add(name);
     for (const environment of toxEnvironmentsNamed(words)) namedToxEnvironments.add(environment);
@@ -14650,12 +14688,28 @@ export function readPytestInvocations(
     const text = words.join(' ');
     const unread = (reason: string) => invocations.push({ source, file, anchor, directory: '', args: [], text, unread: reason });
     // item A: `hatch run [env:]script`, resolved through the hatch scripts in hatch.toml or pyproject.toml.
+    // The review of #648: `hatch test` runs pytest with arguments hatch adds from its own
+    // configuration, which Cejel does not read.
+    if (basename(words[0] ?? '') === 'hatch' && words[1] === 'test') {
+      unread(text);
+      return;
+    }
     const hatch = hatchRunOf(words);
     if (hatch !== undefined && depth < 4) {
       hatchScripts ??= readHatchScripts(fileSet, readText);
-      const script = hatchScripts.get(hatch.environment)?.get(hatch.name);
+      const own = hatchScripts.get(hatch.environment)?.get(hatch.name);
+      // The review of #648: an environment inherits the scripts of its template (`default` unless
+      // it says otherwise), so a script found only there is the template's where no template is
+      // named, and not read where one may be.
+      const inherited = own === undefined && hatch.environment !== 'default' ? hatchScripts.get('default')?.get(hatch.name) : undefined;
+      if (inherited !== undefined && hatchNamesTemplate(fileSet, readText)) {
+        unread(text);
+        return;
+      }
+      const script = own ?? inherited;
       if (script !== undefined) {
-        if (script.commands === undefined) {
+        hatchExpansionsLeft -= script.commands?.length ?? 1;
+        if (script.commands === undefined || hatchExpansionsLeft < 0) {
           unread(text);
           return;
         }
@@ -14687,15 +14741,39 @@ export function readPytestInvocations(
       return;
     }
     const inForce = found.addopts ?? addopts;
-    invocations.push({ source, file, anchor, text, directory: runIn, args: found.args, ...(inForce === undefined ? {} : { addopts: inForce }) });
+    const addoptsAnchor = inForce !== undefined && envAddopts !== undefined && inForce === envAddopts.words ? envAddopts.line : undefined;
+    invocations.push({
+      source,
+      file,
+      anchor,
+      text,
+      directory: runIn,
+      args: found.args,
+      ...(inForce === undefined ? {} : { addopts: inForce }),
+      ...(addoptsAnchor === undefined ? {} : { addoptsAnchor }),
+    });
   };
   const usable = repoFiles.filter((file) => !GENERATED_OR_VENDOR_PATH_PATTERN.test(file));
   // CI first: it names the make targets and tox environments that run.
   const readActions = new Set<string>();
   const readGithubFile = (file: string, text: string): void => {
     const source = a1NotePath(file);
+    environmentTexts.push(text);
+    // The review of #648 (the narrow rule for steps Cejel does not read): a step that writes
+    // PYTEST_ADDOPTS to $GITHUB_ENV sets it for the later steps of its job, and a checkout into a
+    // `path:` moves the repository under the workspace, so a pytest run in such a file is not read.
+    const remote = readGithubRemoteSteps(text);
+    const writesAddopts = text.includes('GITHUB_ENV') && text.includes('PYTEST_ADDOPTS') ? 'PYTEST_ADDOPTS written to $GITHUB_ENV' : undefined;
+    const unreadWhy = writesAddopts ?? remote.checkoutPath;
     for (const step of readGithubRunSteps(text)) {
-      readShellCommands(step.command, step.directory, step.addopts, visitor(source, file, step.line), step.unknownDirectory);
+      const envAddopts = step.addopts !== undefined && step.addoptsLine !== undefined ? { words: step.addopts, line: step.addoptsLine } : undefined;
+      if (unreadWhy !== undefined) readShellCommands(step.command, null, step.addopts, visitor(source, file, step.line, 0, envAddopts), unreadWhy);
+      else readShellCommands(step.command, step.directory, step.addopts, visitor(source, file, step.line, 0, envAddopts), step.unknownDirectory);
+    }
+    // The review of #648: a step action whose inputs run pytest (a retry or display wrapper) runs
+    // it with arguments Cejel does not read.
+    for (const step of remote.pytestInputs) {
+      invocations.push({ source, file, anchor: step.line, directory: '', args: [], text: step.uses, unread: step.uses });
     }
     // item A: a local composite action's steps are read; a reusable workflow in another repository is not read.
     text.split(/\r?\n/).forEach((line, index) => {
@@ -14725,6 +14803,7 @@ export function readPytestInvocations(
       readGithubFile(file, text);
       continue;
     }
+    environmentTexts.push(text);
     // item A: Jenkins' dir('...') { } changes the directory in a way Cejel does not follow, so a
     // pytest run in a Jenkinsfile that holds one is not read.
     const jenkinsDir = file === 'Jenkinsfile' ? jenkinsDirCall(text) : undefined;
@@ -14758,15 +14837,45 @@ export function readPytestInvocations(
     const targets = just ? readJustRecipes(text) : readRecipeTargets(text);
     const headers = just ? new Map([...readJustRecipes(text)].map(([name, recipe]) => [name, recipe.line])) : makeTargetLines(text);
     // item A: make variables defined in the same Makefile (and just's own assignments) are expanded.
-    const variables = just ? readJustVariables(text) : readMakeVariables(text);
-    const expand = (command: string) => (just ? expandJustVariables(command, variables) : expandMakeVariables(command, variables, makeOverrides));
-    // Item D: make passes PYTEST_ADDOPTS to a recipe only where the Makefile exports it.
-    const exported = /^export[ \t]+PYTEST_ADDOPTS[ \t]*[:?+]?=[ \t]*(.*)$/m.exec(text)?.[1];
-    const exportedLater =
-      !just && (/^(?:export[ \t]*|\.EXPORT_ALL_VARIABLES[ \t]*:.*|export[ \t]+PYTEST_ADDOPTS[ \t]*)$/m.test(text)) ? variables.get('PYTEST_ADDOPTS') : undefined;
-    const exportedText = exported === undefined ? exportedLater : exported.trim();
-    const addoptsText = exportedText === undefined ? undefined : expand(exportedText);
+    // The review of #648: as make reads them, or not known (readMakeVariables); a `?=` default is
+    // not known where a CI file names the variable, since a CI command may set it.
+    const setByEnvironment = (name: string) => environmentTexts.some((ciText) => containsWord(ciText, name));
+    const justVariables = just ? readJustVariables(text) : undefined;
+    const make = just ? undefined : readMakeVariables(text, setByEnvironment);
+    const budget = { left: MAKE_EXPANSION_BUDGET };
+    const isUnknown = (name: string) => make?.unknown.has(name) === true || makeOverrides.has(name);
+    const expand = (command: string): { readonly text: string; readonly unknown: boolean } =>
+      justVariables !== undefined
+        ? { text: expandJustVariables(command, justVariables), unknown: false }
+        : expandMakeVariables(command, make?.values ?? new Map(), isUnknown, budget);
+    // Item D: make passes PYTEST_ADDOPTS to a recipe only where the Makefile exports it. The review
+    // of #648: a just file's `set export` exports every assignment.
+    let addoptsUnknown = false;
+    let addoptsText: string | undefined;
+    if (justVariables !== undefined) {
+      const exportsAll = /^set[ \t]+export(?:[ \t]*:=[ \t]*true)?[ \t]*$/m.test(text);
+      const assigned = /^(?:export[ \t]+)?PYTEST_ADDOPTS[ \t]*:=/m.test(text);
+      const exported = /^export[ \t]+PYTEST_ADDOPTS[ \t]*:=/m.test(text) || (exportsAll && assigned);
+      if (exported) {
+        addoptsText = justVariables.get('PYTEST_ADDOPTS');
+        addoptsUnknown = addoptsText === undefined;
+      }
+    } else {
+      const exported = /^(?:export[ \t]*|\.EXPORT_ALL_VARIABLES[ \t]*:.*|(?:override[ \t]+)?export[ \t]+PYTEST_ADDOPTS\b.*)$/m.test(text);
+      if (isUnknown('PYTEST_ADDOPTS')) addoptsUnknown = true;
+      else if (exported && make?.values.has('PYTEST_ADDOPTS')) {
+        const expanded = expand(make.values.get('PYTEST_ADDOPTS') ?? '');
+        if (expanded.unknown) addoptsUnknown = true;
+        else addoptsText = expanded.text;
+      }
+    }
     const addopts = addoptsText === undefined ? undefined : shellWords(shellWords(addoptsText.trim()).join(' '));
+    // The review of #648: a command whose expansion is not known is a pytest run not read where it,
+    // what it expands to, or a variable it still names mentions pytest.
+    const unknownRunsPytest = (command: string, expanded: string) =>
+      command.toLowerCase().includes('pytest') ||
+      expanded.toLowerCase().includes('pytest') ||
+      makeReferencesIn(expanded).some((name) => make?.pytestNames.has(name) === true);
     const reached = new Set<string>();
     const queue = [[...targets.keys()][0], 'test', 'tests', 'check', ...namedTargets].filter(
       (name): name is string => name !== undefined && targets.has(name),
@@ -14780,25 +14889,111 @@ export function readPytestInvocations(
       queue.push(...target.dependencies.filter((dependency) => targets.has(dependency)));
       const commands = joinRecipeContinuations(target.commands);
       for (const command of commands) {
-        readShellCommands(expand(command), repoDirectory(file), addopts, (words, directory, inForce, why) => {
+        const expanded = expand(command);
+        if (expanded.unknown && unknownRunsPytest(command, expanded.text)) {
+          invocations.push({ source: a1NotePath(file), file, anchor: headers.get(name) ?? 0, directory: '', args: [], text: command, unread: command });
+          continue;
+        }
+        readShellCommands(expanded.text, repoDirectory(file), addopts, (words, directory, inForce, why) => {
           queue.push(...recipeTargetsNamed(words).filter((named) => targets.has(named)));
-          visitor(a1NotePath(file), file, headers.get(name) ?? 0)(words, directory, inForce, why);
+          if (addoptsUnknown) visitor(a1NotePath(file), file, headers.get(name) ?? 0)(words, null, inForce, 'PYTEST_ADDOPTS');
+          else visitor(a1NotePath(file), file, headers.get(name) ?? 0)(words, directory, inForce, why);
         });
       }
     }
   }
+  // The review of #648: a CI file's TOXENV names the environments tox runs; one Cejel cannot
+  // resolve leaves every factor-conditional pytest line not read.
+  const toxenv = readToxenvValues(environmentTexts);
+  for (const name of toxenv.names) namedToxEnvironments.add(name);
   for (const file of usable.filter((candidate) => basename(candidate) === 'tox.ini')) {
     const text = readText(file);
     if (text === undefined) continue;
-    readToxCommands(file, text, namedToxEnvironments, (anchor) => visitor(a1NotePath(file), file, anchor), toxPosargs, (entry) =>
-      invocations.push({ source: entry.source, file: entry.file, anchor: entry.anchor, directory: '', args: [], text: entry.text, unread: entry.text }),
-    );
+    const notRead = (entry: { readonly text: string; readonly source: string; readonly file: string; readonly anchor: number }) =>
+      invocations.push({ source: entry.source, file: entry.file, anchor: entry.anchor, directory: '', args: [], text: entry.text, unread: entry.text });
+    readToxCommands(file, text, namedToxEnvironments, (anchor) => visitor(a1NotePath(file), file, anchor), toxPosargs, notRead, toxenv.unknown);
   }
   return invocations;
 }
 
 // `uses: <value>` in a GitHub Actions file, at a job or a step.
 const GITHUB_USES_LINE_PATTERN = /^[ \t]*(?:-[ \t]+)?uses:[ \t]*(.*)$/;
+
+// The review of #648: hatch script expansions per read (see readPytestInvocations).
+const HATCH_EXPANSION_BUDGET = 256;
+
+/** The review of #648: whether a hatch configuration names an environment `template`, which changes which scripts it inherits. */
+function hatchNamesTemplate(fileSet: ReadonlySet<string>, readText: (file: string) => string | undefined): boolean {
+  return ['hatch.toml', 'pyproject.toml'].some((file) => fileSet.has(file) && /^[ \t]*template[ \t]*=/m.test(readText(file) ?? ''));
+}
+
+/**
+ * The review of #648, the narrow rule for steps Cejel does not read: in a GitHub Actions file, each
+ * step action (not a local one, not a reusable workflow) one of whose `with:` inputs runs pytest,
+ * and the `path:` of a checkout action, if one has one. Linear in the file.
+ */
+function readGithubRemoteSteps(text: string): { readonly pytestInputs: readonly { readonly uses: string; readonly line: number }[]; readonly checkoutPath?: string } {
+  const lines = text.split(/\r?\n/);
+  const pytestInputs: { uses: string; line: number }[] = [];
+  let checkoutPath: string | undefined;
+  const indentOf = (line: string) => line.length - line.trimStart().length;
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index] ?? '';
+    const match = GITHUB_USES_LINE_PATTERN.exec(line);
+    if (!match) continue;
+    const uses = yamlPlainScalar(match[1] ?? '');
+    if (uses.startsWith('./') || uses.includes('/.github/workflows/')) continue;
+    const keyColumn = line.indexOf('uses:');
+    let withColumn = -1;
+    let runsPytest = false;
+    let next = index + 1;
+    for (; next < lines.length; next += 1) {
+      const candidate = lines[next] ?? '';
+      if (candidate.trim() === '' || candidate.trimStart().startsWith('#')) continue;
+      const indent = indentOf(candidate);
+      if (indent < keyColumn) break;
+      if (indent === keyColumn) {
+        withColumn = /^with:[ \t]*$/.test(candidate.trim()) ? indent : -1;
+        continue;
+      }
+      if (withColumn === -1) continue;
+      const entry = candidate.trim();
+      const key = /^([\w-]+):[ \t]*/.exec(entry);
+      const value = (key ? entry.slice(key[0].length) : entry).replace(/^[|>][-+]?[ \t]*/, '');
+      if (key?.[1] === 'path' && uses.startsWith('actions/checkout') && indent > withColumn) {
+        const path = yamlPlainScalar(value);
+        if (path !== '' && path !== '.' && path !== './') checkoutPath ??= `actions/checkout path: ${path}`;
+      }
+      if (!runsPytest && value.toLowerCase().includes('pytest')) {
+        readShellCommands(yamlPlainScalar(value), '', undefined, (words) => {
+          if (pytestCommandArguments(words) !== undefined) runsPytest = true;
+        });
+      }
+    }
+    if (runsPytest) pytestInputs.push({ uses: `uses: ${uses}`, line: index });
+    index = next - 1;
+  }
+  return { pytestInputs, ...(checkoutPath === undefined ? {} : { checkoutPath }) };
+}
+
+/** The review of #648: the environment names CI files give TOXENV, and whether one cannot be resolved. */
+function readToxenvValues(texts: readonly string[]): { readonly names: readonly string[]; readonly unknown: boolean } {
+  const names: string[] = [];
+  let unknown = false;
+  for (const text of texts) {
+    if (!text.includes('TOXENV')) continue;
+    for (const line of text.split(/\r?\n/)) {
+      const at = line.indexOf('TOXENV');
+      if (at === -1) continue;
+      const assignment = /^TOXENV[ \t]*[:=][ \t]*(.*)$/.exec(line.slice(at));
+      if (!assignment) continue;
+      const value = yamlPlainScalar((assignment[1] ?? '').trim()).replace(/^["']|["']$/g, '').trim();
+      if (value === '' || /[$`{}]/.test(value)) unknown = true;
+      else names.push(...value.split(',').map((part) => part.trim()).filter((part) => /^[\w.-]+$/.test(part)));
+    }
+  }
+  return { names, unknown };
+}
 
 /** item A: the first `dir(...)` call in a Jenkinsfile, as written, or undefined. Linear. */
 function jenkinsDirCall(text: string): string | undefined {
@@ -14828,9 +15023,27 @@ function makeAssignmentsNamed(words: readonly string[]): string[] {
   });
 }
 
+/**
+ * The review of #648: a command that runs tox, as `tox` and its words: `tox`, `python -m tox`,
+ * `uvx tox`, `uv run tox`, `pipx run tox`; undefined for another command.
+ */
+function asToxCommand(words: readonly string[]): readonly string[] | undefined {
+  const name = basename(words[0] ?? '');
+  if (name === 'tox') return words;
+  if (PYTHON_INTERPRETER_PATTERN.test(name)) {
+    if (words[1] === '-m' && words[2] === 'tox') return ['tox', ...words.slice(3)];
+    if (words[1] === '-mtox') return ['tox', ...words.slice(2)];
+    return undefined;
+  }
+  if (name === 'uvx' && words[1] === 'tox') return words.slice(1);
+  if ((name === 'uv' || name === 'pipx') && words[1] === 'run' && words[2] === 'tox') return words.slice(2);
+  return undefined;
+}
+
 /** item A: the words a `tox` command passes after `--` (its posargs), or undefined. */
-function toxPosargsOf(words: readonly string[]): readonly string[] | undefined {
-  if (basename(words[0] ?? '') !== 'tox') return undefined;
+function toxPosargsOf(command: readonly string[]): readonly string[] | undefined {
+  const words = asToxCommand(command);
+  if (words === undefined) return undefined;
   const separator = words.indexOf('--');
   return separator === -1 ? undefined : words.slice(separator + 1);
 }
@@ -14845,36 +15058,122 @@ function makeTargetLines(text: string): Map<string, number> {
   return lines;
 }
 
+/** A Makefile's variables as make holds them once it has read the file, and those Cejel cannot know. */
+interface MakeVariables {
+  readonly values: ReadonlyMap<string, string>;
+  /** Names whose value make uses cannot be known from the file (see readMakeVariables). */
+  readonly unknown: ReadonlySet<string>;
+  /** Names any assignment of which mentions pytest, known or not. */
+  readonly pytestNames: ReadonlySet<string>;
+}
+
+// The review of #648: at most this many variable substitutions per Makefile, so a chain of
+// references to empty variables cannot make the reader's work grow past linear in the file.
+const MAKE_EXPANSION_BUDGET = 4096;
+
 /**
  * item A: a Makefile's variables (`NAME = value`, `:=`, `::=`, `?=`, `+=`), as make would hold them
- * before any recipe runs. A `!=` (shell) value is not known, so its name is left out.
+ * before any recipe runs. The review of #648: a `:=` value is expanded where it is assigned, with the
+ * variables then defined, as make does, and a `+=` to one appends the expanded text. A name is not
+ * known where its value is a `!=` (shell) result, set by `define`, assigned inside a conditional
+ * (`ifeq`, `ifneq`, `ifdef`, `ifndef`), assigned for a target (`test: OPTS = ...`), assigned with
+ * `:::=`, or a `?=` default the environment of a CI command may replace (`setByEnvironment`).
  */
-function readMakeVariables(text: string): Map<string, string> {
-  const variables = new Map<string, string>();
+function readMakeVariables(text: string, setByEnvironment: (name: string) => boolean = () => false): MakeVariables {
+  const values = new Map<string, string>();
+  const simple = new Set<string>();
+  const unknown = new Set<string>();
+  const pytestNames = new Set<string>();
+  const budget = { left: MAKE_EXPANSION_BUDGET };
+  const forget = (name: string) => {
+    unknown.add(name);
+    values.delete(name);
+  };
+  let conditional = 0;
+  let defining: string | undefined;
   for (const line of text.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (defining !== undefined) {
+      if (/^endef\b/.test(trimmed)) defining = undefined;
+      else if (trimmed.toLowerCase().includes('pytest')) pytestNames.add(defining);
+      continue;
+    }
     if (line.startsWith('\t')) continue;
-    const match = /^(?:override[ \t]+)?(?:export[ \t]+)?([A-Za-z_][A-Za-z0-9_.-]*)[ \t]*(\?=|::=|:=|\+=|!=|=)(.*)$/.exec(line);
+    const define = /^(?:override[ \t]+)?(?:export[ \t]+)?define[ \t]+([A-Za-z_][A-Za-z0-9_.-]*)/.exec(trimmed);
+    if (define) {
+      defining = define[1] ?? '';
+      forget(defining);
+      continue;
+    }
+    if (/^(?:ifeq|ifneq|ifdef|ifndef)\b/.test(trimmed)) {
+      conditional += 1;
+      continue;
+    }
+    if (/^endif\b/.test(trimmed)) {
+      conditional = Math.max(0, conditional - 1);
+      continue;
+    }
+    const targetSpecific = /^[^#=:\t][^#=:]*:[ \t]*(?:(?:override|export|private)[ \t]+)*([A-Za-z_][A-Za-z0-9_.-]*)[ \t]*(?:\?=|:::=|::=|:=|\+=|!=|=)(.*)$/.exec(line);
+    if (targetSpecific) {
+      const name = targetSpecific[1] ?? '';
+      if ((targetSpecific[2] ?? '').toLowerCase().includes('pytest')) pytestNames.add(name);
+      forget(name);
+      continue;
+    }
+    const match = /^(?:override[ \t]+)?(?:export[ \t]+)?([A-Za-z_][A-Za-z0-9_.-]*)[ \t]*(\?=|:::=|::=|:=|\+=|!=|=)(.*)$/.exec(line);
     if (!match) continue;
     const name = match[1] ?? '';
     const operator = match[2] ?? '=';
     const value = (match[3] ?? '').trim();
-    if (operator === '!=') variables.delete(name);
-    else if (operator === '?=') {
-      if (!variables.has(name)) variables.set(name, value);
-    } else if (operator === '+=') variables.set(name, `${variables.get(name) ?? ''} ${value}`.trim());
-    else variables.set(name, value);
+    if (value.toLowerCase().includes('pytest')) pytestNames.add(name);
+    if (unknown.has(name)) continue;
+    if (conditional > 0 || operator === '!=' || operator === ':::=' || (operator === '?=' && setByEnvironment(name))) {
+      forget(name);
+      continue;
+    }
+    if (operator === '?=') {
+      if (!values.has(name)) {
+        values.set(name, value);
+        simple.delete(name);
+      }
+      continue;
+    }
+    if (operator === ':=' || operator === '::=' || (operator === '+=' && simple.has(name))) {
+      const expanded = expandMakeVariables(value, values, (other) => unknown.has(other), budget);
+      if (expanded.unknown) {
+        forget(name);
+        continue;
+      }
+      values.set(name, operator === '+=' ? `${values.get(name) ?? ''} ${expanded.text}`.trim() : expanded.text);
+      simple.add(name);
+      continue;
+    }
+    if (operator === '+=') values.set(name, `${values.get(name) ?? ''} ${value}`.trim());
+    else {
+      values.set(name, value);
+      simple.delete(name);
+    }
   }
-  return variables;
+  return { values, unknown, pytestNames };
 }
 
 /**
  * item A: a recipe command with each `$(NAME)` / `${NAME}` the Makefile defines replaced by its
- * value (recursively, a few levels), and `$$` by `$`. A variable it does not define, one a make
- * command sets, or a make function is left as written. Linear in the output, which is capped.
+ * value (recursively, a few levels), and `$$` by `$`. A variable it does not define, or a make
+ * function, is left as written. The review of #648: a variable `isUnknown` names, one past the
+ * depth limit, the output cap or the shared substitution `budget`, is left as written and makes the
+ * result unknown. The work is bounded by the budget times the longest value.
  */
-function expandMakeVariables(command: string, variables: ReadonlyMap<string, string>, overrides: ReadonlySet<string>, depth = 0): string {
-  if (!command.includes('$')) return command;
+function expandMakeVariables(
+  command: string,
+  values: ReadonlyMap<string, string>,
+  isUnknown: (name: string) => boolean,
+  budget: { left: number },
+  depth = 0,
+): { readonly text: string; readonly unknown: boolean } {
+  if (!command.includes('$')) return { text: command, unknown: false };
   let out = '';
+  let unknown = false;
   // Once a closer is missing after one opener it is missing after every later one: stop looking.
   const unclosed = { '(': false, '{': false };
   for (let index = 0; index < command.length; index += 1) {
@@ -14893,16 +15192,48 @@ function expandMakeVariables(command: string, variables: ReadonlyMap<string, str
       const close = command.indexOf(next === '(' ? ')' : '}', index + 2);
       if (close === -1) unclosed[next] = true;
       const name = close === -1 ? '' : command.slice(index + 2, close);
-      const value = /^[A-Za-z_][A-Za-z0-9_.-]*$/.test(name) && !overrides.has(name) ? variables.get(name) : undefined;
-      if (value !== undefined && depth < 4 && out.length < 4096) {
-        out += expandMakeVariables(value, variables, overrides, depth + 1);
-        index = close;
-        continue;
+      if (/^[A-Za-z_][A-Za-z0-9_.-]*$/.test(name)) {
+        const value = values.get(name);
+        if (isUnknown(name)) unknown = true;
+        else if (value !== undefined) {
+          budget.left -= 1;
+          if (budget.left < 0 || depth >= 4 || out.length >= 4096) unknown = true;
+          else {
+            const inner = expandMakeVariables(value, values, isUnknown, budget, depth + 1);
+            out += inner.text;
+            if (inner.unknown) unknown = true;
+            index = close;
+            continue;
+          }
+        }
       }
     }
     out += character;
   }
-  return out;
+  return { text: out, unknown };
+}
+
+/** The review of #648: whether `name` appears in `text` as a whole word (letters, digits and `_` around it). */
+function containsWord(text: string, name: string): boolean {
+  if (name === '') return false;
+  const word = (code: number) => (code >= 48 && code <= 57) || (code >= 65 && code <= 90) || (code >= 97 && code <= 122) || code === 95;
+  for (let at = text.indexOf(name); at !== -1; at = text.indexOf(name, at + 1)) {
+    if ((at === 0 || !word(text.charCodeAt(at - 1))) && (at + name.length >= text.length || !word(text.charCodeAt(at + name.length)))) return true;
+  }
+  return false;
+}
+
+/** The review of #648: the names of the `$(NAME)` and `${NAME}` references left in `text`. Linear. */
+function makeReferencesIn(text: string): string[] {
+  const names: string[] = [];
+  for (let at = text.indexOf('$'); at !== -1; at = text.indexOf('$', at + 1)) {
+    const opener = text[at + 1];
+    if (opener !== '(' && opener !== '{') continue;
+    const close = text.indexOf(opener === '(' ? ')' : '}', at + 2);
+    if (close === -1) break;
+    names.push(text.slice(at + 2, close));
+  }
+  return names;
 }
 
 /** item A: a justfile's `name := "literal"` assignments; any other value is not known. */
@@ -15163,6 +15494,7 @@ function readToxCommands(
   visitAt: (anchor: number) => ShellCommandVisitor,
   posargs: readonly { readonly words: readonly string[]; readonly text: string; readonly source: string; readonly file: string; readonly anchor: number }[] = [],
   notRead: (entry: { readonly text: string; readonly source: string; readonly file: string; readonly anchor: number }) => void = () => undefined,
+  factorsUnknown = false,
 ): void {
   const sections = readIniSections(text);
   const toxDirectory = repoDirectory(file);
@@ -15211,6 +15543,10 @@ function readToxCommands(
         // item A: a factor-conditional line (`py38: ...`, `a,b: ...`, `a-b: ...`, `!a: ...`) runs
         // for an environment whose factors meet it; one with braces is read as meeting it.
         const factor = /^([\w.,!{}-]+):[ \t]/.exec(line);
+        if (factor && factorsUnknown && /\b(?:pytest|py\.test)\b/.test(line)) {
+          notRead({ text: line, source: a1NotePath(file), file, anchor: lineOfText.get(raw.trim()) ?? 0 });
+          continue;
+        }
         if (factor) {
           if (!toxFactorConditionMet(factor[1] ?? '', names)) continue;
           line = line.slice(factor[0].length).trim();

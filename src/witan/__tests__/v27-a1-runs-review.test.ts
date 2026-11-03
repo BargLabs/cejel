@@ -17,7 +17,7 @@ const V27 = WITAN_RUBRIC_VERSION_V27;
 
 const fixture = (name: string, files: Readonly<Record<string, string>>): FalseAssuranceFixture => ({
   name,
-  issue: '#648',
+  issue: '#633',
   purpose: name,
   commits: [{ ...PY_BASE, 'tests/test_cache.py': SKIPPED_CACHE_TEST, ...files }],
 });
@@ -57,7 +57,7 @@ describe('v27 A1, review of #648: a run-not-read label never exceeds the evidenc
         '      - run: python -m pytest ${{ matrix.test-path }} --cov=cachelib --cov-report=xml --cov-report=term-missing --junitxml=junit/test-results-${{ matrix.python-version }}.xml --durations=20',
       ]),
     });
-    expect(v27.notes ?? '').toContain('pytest run not read: ');
+    expect(v27.notes ?? '').toMatch(/pytest run not read: /i);
   });
 
   it('a 2,000-character unread command keeps the note within its limit', () => {
