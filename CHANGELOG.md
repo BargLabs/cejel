@@ -43,7 +43,9 @@ is pinned. v27 carries no precision or recall claim.
     `yield` is rated hollow. A hook that an `if`, `return`, second `yield` or other conditional
     statement stops, that has any other decorator, or that uses `items` in a way Cejel does not read
     (an imported helper, a method, `*` arguments, an `append` loop, an alias, `__iadd__`, a clear
-    inside a loop) is no longer passed silently: the note names it with the reason. A real restore
+    inside a loop, `session.items` or any use of the hook's `session` after the clear, since pytest
+    passes the hook that same list, or a `global`) is no longer passed silently: the note names it
+    with the reason. A real restore
     Cejel cannot prove is never rated hollow.
   - **A wrapped `def` (#634).** A hook whose parameters run onto later lines (black's wrapping, with
     or without a trailing comma) is read as the hook.

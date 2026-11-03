@@ -2463,15 +2463,16 @@ function collectA1TestIntegrityEvidence(
     );
   }
   // v27 (goal_cejel_v27_a1_restore_proof_and_hookwrapper_2026-11-02, item E): each hook the note
-  // names as not read is cited at its `def`, in the note's order, so its path is exact.
-  const unreadHooks = withheldClauses.flatMap((clause) => {
-    const hook = clause.startsWith(A1_HOOK_NOT_READ) ? runWideHooks.find((entry) => entry.withheld === clause) : undefined;
+  // names (not read, putting the items back, or rebinding them) is cited at its `def`, in the
+  // note's order, so its path is exact.
+  const namedHooks = withheldClauses.flatMap((clause) => {
+    const hook = runWideHooks.find((entry) => entry.withheld !== undefined && clause.endsWith(entry.withheld));
     return hook === undefined ? [] : [hook];
   });
-  for (const hook of unreadHooks.slice(0, A1_NOTE_EVIDENCE_LIMIT)) {
-    evidence.push(
-      evidenceForRelativeAtLine(repoPath, hook.path, 'test_run', `pytest collection hook not read (${hook.unread ?? ''})`, hook.line),
-    );
+  for (const hook of namedHooks.slice(0, A1_NOTE_EVIDENCE_LIMIT)) {
+    const label =
+      hook.unread !== undefined ? `pytest collection hook not read (${hook.unread})` : 'pytest collection hook whose clear is not applied';
+    evidence.push(evidenceForRelativeAtLine(repoPath, hook.path, 'test_run', label, hook.line));
   }
   for (const skip of runWideSkips.slice(0, 2)) {
     const governed = allTestFiles.filter((file) => hookGoverns(skip, file)).length;
@@ -2580,17 +2581,19 @@ function a1WithheldSentence(clauses: readonly string[], shown: number): string {
     return `A removal rule was not applied in ${count} case${count === 1 ? '' : 's'}; none is listed, for the note's length limit.`;
   }
   const more = count - shown;
-  // item E: hooks named as not read past the evidence limit carry no evidence pointer, and the sentence says how many.
-  const unread = clauses.slice(0, shown).filter((clause) => clause.startsWith(A1_HOOK_NOT_READ)).length;
-  const pointerless = Math.max(0, unread - A1_NOTE_EVIDENCE_LIMIT);
+  // item E: hooks named past the evidence limit carry no evidence pointer, and the sentence says how many.
+  const hooks = clauses.slice(0, shown).filter((clause) => A1_NOTE_HOOK_CLAUSE_PATTERN.test(clause)).length;
+  const pointerless = Math.max(0, hooks - A1_NOTE_EVIDENCE_LIMIT);
   const text = `${clauses.slice(0, shown).join('; ')}${more === 0 ? '' : `; and ${more} more not listed`}${
     pointerless === 0 ? '' : `; the ${pointerless} hooks named after the first ${A1_NOTE_EVIDENCE_LIMIT} carry no evidence pointer`
   }.`;
   return `${text.charAt(0).toUpperCase()}${text.slice(1)}`;
 }
 
-/** A1's v27 evidence cites at most this many rated-hollow files, and as many unread hooks. */
+/** A1's v27 evidence cites at most this many rated-hollow files, and as many hooks the note names. */
 const A1_NOTE_EVIDENCE_LIMIT = 8;
+// A withheld-rule clause naming a hook: not read, putting the items back, or rebinding them.
+const A1_NOTE_HOOK_CLAUSE_PATTERN = /^hook not read: |^run-wide skip rule not applied: the hook in /;
 
 /** v27: test_to_source_ratio counts conftest.py files that are the only test-shaped files. */
 function a1ConftestSurfaceSentence(count: number): string {
@@ -13402,7 +13405,9 @@ function pythonCallArguments(afterParen: string): string[] {
 // Anything else that names the list, an alias, a closure over it, or a `.items` attribute (pytest's
 // `session.items` is the same list) is not read: an add from any other source, `append`, `insert`,
 // `__iadd__`, a call of a function the conftest.py does not define once at its top level, a method
-// call, `*` arguments, a clear or add inside a loop, a closure stored or called with arguments. A
+// call, `*` arguments, a clear or add inside a loop, a closure stored or called with arguments, a
+// use of the hook's `session` parameter or of a `.session` attribute once the list is emptied, and
+// a `global` or `nonlocal` in the hook or a helper it calls. A
 // use not read before the last clear, with any call after it, is not read either: the call may
 // reach a reference the use stored. At the end: the list empty, outcome 1; every collected item
 // back, outcome 2; anything else, outcome 3.

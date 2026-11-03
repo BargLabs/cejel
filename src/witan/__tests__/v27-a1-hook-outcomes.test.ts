@@ -107,6 +107,8 @@ function expectOutcome(fixture: HookOutcomeFixture): void {
   expect(notes.toLowerCase(), fixture.name).toContain(clause.toLowerCase());
   if (fixture.outcome === 'restores') {
     expect(notes, fixture.name).not.toMatch(NOT_READ);
+    // The hook is cited at its def, so its path is exact (item E).
+    expect(v27.evidence.some(({ label }) => label === 'pytest collection hook whose clear is not applied'), fixture.name).toBe(true);
     return;
   }
   // Not read: the hook is cited at its def, with the reason, so its path is exact.

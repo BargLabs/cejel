@@ -230,7 +230,8 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     [*items], tuple(items) or sorted(items, ...) and mentioned nowhere else), and the rule is
 //     withheld and said; (3) not read, where it proves neither (another source, append, insert,
 //     __iadd__, an alias, an imported or unseen helper, a method, * arguments, a use inside a
-//     loop, a closure stored or called with arguments, a session.items, an if, return, second
+//     loop, a closure stored or called with arguments, a session.items, a use of the hook's
+//     session or of a .session attribute after the clear, a global or nonlocal, an if, return, second
 //     yield or other statement the conditional rule stops, an unknown decorator), and the rule
 //     makes no claim while A1's note names the hook ("hook not read: `<reason>` in <path>") and
 //     its evidence cites the def. A source proven empty (an empty literal, range(0), a
