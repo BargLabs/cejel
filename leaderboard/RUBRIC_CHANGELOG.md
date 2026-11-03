@@ -22,6 +22,107 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
+## 2026-11-02 (three outcomes) — v27 A1 reads every pytest collection hook that touches `items` as deselecting everything, putting the items back on proof, or not read and named; v17-v26 byte-identical, certificate text included; v27 never above v17; no published score moved
+
+**Status.** A scoring change under `witan-rubric-v27-prospective-2026-10-19` only, with no
+identifier change (goal_cejel_v27_a1_restore_proof_and_hookwrapper_2026-11-02; #631, #632, #634).
+No holdout or calibration ran for it, and this entry makes no precision or recall claim. The
+default stays v17.
+
+**Why.** #626's restore reader (the entry below) withheld the run-wide skip rule on any `extend`,
+`+=` or slice assignment after the clear from a source it could not show to be empty. So a hook
+that puts nothing back still got v17's credit, and the note said it "puts the collected items
+back": a saved copy aliased and cleared before the restore, `list(items)[:0]`, `saved[5:5]`,
+`sorted(items)[:0]`, a helper adding `src and []` or `src * 0` (#631). A hook any `if`, `return`
+or `yield` touched made no claim and was not named, including a hookwrapper that empties `items`
+after its `yield` (#632). And some real restores were rated hollow: a lambda called later, a
+helper called by keyword or with `*`, a method, a `def` wrapped across lines (#634).
+
+**Change.** Every last top-level `pytest_collection_modifyitems` with an `items` parameter whose
+body names `items` reaches one of three outcomes, and none by default:
+
+- **Deselects** (the rule applies, as before). The reader proves the hook leaves the list empty:
+  after the last clear, nothing that runs at the hook's top level, or in a closure it calls,
+  could add to it. A clear is `items.clear()`, `items[:] = []` or `()`, `del items[:]`, a
+  whole-slice assignment from a source proven empty, or a same-file helper that clears its list
+  parameter. A source is proven empty when it is an empty literal, `range(0)`, a zero-length slice
+  (`x[:0]`, `x[0:0]`, `x[k:k]` for one integer or name `k`), a name whose last top-level binding is
+  one of those with no mention since, or, while the list is empty, the list or a copy of it.
+  Reading the list, reporting a saved copy (`config.hook.pytest_deselected(items=dropped)`) or
+  iterating over one changes nothing, so the common deselect-everything hook stays caught.
+- **Restores** (withheld, and said, as before). The reader proves every collected item is back:
+  `items.extend(S)`, `items += S` or `items[:] = S` (or `S[:]`) on `items` itself, after the clear,
+  at the hook's top level, directly or through a helper the same `conftest.py` defines once at its
+  top level, undecorated (its arguments by position or by its own parameter names; inside the
+  helper the source may also be `list(S)`, `tuple(S)`, `sorted(S, ...)`, `[*S]` or `S.copy()`), or
+  through a lambda or nested function without parameters bound at the top level and called there.
+  `S` must be a name bound once, at the top level, before anything changes the list, to
+  `list(items)`, `items[:]`, `items.copy()`, `[*items]`, `tuple(items)` or `sorted(items, ...)`, and
+  mentioned nowhere else in the hook at any depth. `sorted(items, ...)` is added to the card's five
+  full copies, since it holds every item; it keeps #626's reorder fixtures (`ordered =
+  sorted(items, key=...)`, clear, extend) at this outcome.
+- **Not read** (new). The reader proves neither, so the rule makes no claim for the hook. A1's
+  note names it ("Hook not read: `<reason>` in <path>"), and its evidence cites the hook's `def`.
+  The reason is the statement the reader stopped at, at most 48 characters, strings blanked, or the
+  keyword: an `if`, `return`, `while`, `with`, `try` or other statement the conditional rule stops,
+  `skipif`, a second or nested `yield`, an unknown decorator, a backslash continuation, or an
+  f-string that may name `items`. A use the reader does not prove is not read too: an add from any
+  other source, `append`, `insert`, `__iadd__`, an alias as the restore's target, an imported or
+  unseen helper, a method, `*` arguments, a clear or add inside a loop, a closure stored or called
+  with arguments, `session.items` or any use of the hook's `session` once the list is emptied
+  (pytest 9.1.0's `Session.perform_collect` passes the hook `self.items`, so the session holds the
+  same list), a `global` or `nonlocal`, and a use not read before the last clear when any call
+  follows it.
+- **Hookwrappers and wrapped `def`s** (#632, #634). A hook decorated `@pytest.hookimpl(hookwrapper=True)`
+  or `wrapper=True` is read as the code after its single top-level `yield` (a final `return` of the
+  result is dropped), so one that empties `items` after `yield` is rated hollow. A `def` whose
+  parameters run onto later lines is read as the hook.
+- **Exact paths** (#634). In A1's note a path holding `, `, `; `, ` (`, a backtick or a double quote
+  is written in double quotes, with `\` and `"` escaped; the v27 glossary's non-hollow entry states
+  the rule. Each hook a withheld-rule clause names (not read, putting the items back, or rebinding
+  them) is cited at its `def`; the note says how many rated files, or named hooks, past the eight
+  evidence pointers carry none.
+
+A hook the reader reads as never emptying the list (it only reads, reorders or adds) is not named,
+and a hook that rebinds the name `items` before its clear keeps #626's withhold.
+
+**The no-rise property.** Outcome 3 makes no claim, so the file keeps v17's reading; outcome 1
+lowers only where v17 already scores. v27 cannot score A1 above v17 on the same commit.
+
+**Measured** (code at `4da6ec50c`). The same 393 synthetic repositories #626's entry names, built
+once at fixed paths from the fixture files at `26a7d4795` (269 false-assurance, 39 removal and 85
+withhold fixtures), scanned with main `d2d178233` and with this branch. v17 and v27 scanned all
+393, v18 to v26 the 124 v27 A1 fixtures: 1,902 reports each side, 0 errors. Each report was
+rendered as HTML and Markdown with the code that scanned it.
+
+- v17: 393 of 393 reports byte-identical to main, and 393 of 393 HTML and Markdown certificates.
+- v18 to v26: 124 of 124 each, reports and certificates.
+- v27: 367 of 393 reports byte-identical. All 26 that moved moved in A1 alone (every other
+  criterion's record is identical). One A1 score changed: `a1wh-r2-imported-helper-call`, a hook
+  that gives an imported helper the list after its clear, rose from 1.7 (critical) to v17's 2.3,
+  since the helper may put the items back (outcome 3). 16 more now name a hook as not read in the
+  note and evidence, with their scores unchanged: 10 conditional hooks (`if`, `skipif`, an early
+  `return`) that #626 passed silently, an append loop, `__iadd__` and an alias restore that #626
+  read as restores, two closures stored on `config`, and a clear inside a loop over a configured
+  list. 9 gain only the new evidence pointer at a hook the note already named as putting the items
+  back or rebinding them. Every v27 certificate changes, by the glossary sentence.
+- v27 A1 above v17 A1 on the same repository: 0 of 393. Headline scores (code trust, process
+  trust, overall) above v17: 0 of 1,170 compared; 3 reports abstain with no headline score, as on
+  main.
+
+The 38 hook-outcome fixtures (`src/witan/__tests__/fixtures/v27-a1-hook-outcome-fixtures.ts`) are
+not in the 393. The first 33 were committed red (`42d1b46ca`): against main, 28 of their 34
+outcome checks failed, and the 6 that passed are controls. One of them was edited after that
+commit and re-run against main, with the same result. Two more pin a bug the measurement found
+(a loop over `items` read as a use not read) and fail at `704adebca`, the commit before its fix;
+three pin the session and global guards and fail on main, where all three are rated hollow (the
+two session ones though pytest would run their tests). Four #626 fixtures
+change their expected outcome, as above. pytest itself was not run on any fixture: Python could
+not be run in this session, so each fixture's claim rests on reading pytest 9.1.0's source, not on
+a run. No holdout or calibration ran.
+
+No published score moved: the board is scored under v17.
+
 ## 2026-11-02 — v27 A1 names every file it rates hollow, withholds a rule only on evidence the setting is in force for a pytest run that collects the file or the items are put back, and says every withhold; v17-v26 byte-identical; v27 never above v17; no published score moved
 
 **Status.** A scoring change under `witan-rubric-v27-prospective-2026-10-19` only, with no
