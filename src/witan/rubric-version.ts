@@ -220,25 +220,44 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     pytestmark; from 2026-11-02 (goal_cejel_v27_a1_test_count_overmatch_v2_2026-11-02, which
 //     supersedes #621; as fixed after the #626 review) a rule is withheld only on evidence; and
 //     from 2026-11-02 (goal_cejel_v27_a1_restore_proof_and_hookwrapper_2026-11-02, #631, #632,
-//     #634) every collection hook that touches `items` reaches one of three outcomes, none by
-//     default: (1) deselects, where the reader proves it leaves `items` empty, and the rule
-//     applies; (2) restores, where it proves the collected items are back when the hook returns
-//     (items.extend(S), items += S or items[:] = S, or S[:], on items itself after the clear,
-//     directly, through a same-file helper called by position or by its own parameter names, or
-//     through a parameterless lambda or nested function called at the top level, from a name S
-//     bound once at the top level before the list changes to list(items), items[:], items.copy(),
-//     [*items], tuple(items) or sorted(items, ...) and mentioned nowhere else), and the rule is
-//     withheld and said; (3) not read, where it proves neither (another source, append, insert,
-//     __iadd__, an alias, an imported or unseen helper, a method, * arguments, a use inside a
-//     loop, a closure stored or called with arguments, a session.items, a use of the hook's
-//     session or of a .session attribute after the clear, a global or nonlocal, an if, return, second
-//     yield or other statement the conditional rule stops, an unknown decorator), and the rule
-//     makes no claim while A1's note names the hook ("hook not read: `<reason>` in <path>") and
-//     its evidence cites the def. A source proven empty (an empty literal, range(0), a
-//     zero-length slice x[:0] or x[k:k], a name bound to one, or a copy taken after the clear)
-//     adds nothing. A hookwrapper (hookwrapper=True or wrapper=True) is read as the code after
-//     its single top-level yield, and a def whose parameters run onto later lines is read as the
-//     hook. A hook that rebinds `items` at top level before the clear keeps its withhold. Paths in
+//     #634; as revised from 2026-11-02 by goal_cejel_v27_a1_restore_proof_v2_2026-11-02, which
+//     supersedes #638) every collection hook that touches `items` (or calls exec, eval, getattr,
+//     globals or the like) reaches one of three outcomes, none by default: (1) deselects, where
+//     the reader proves it leaves `items` empty, and the rule applies; (2) restores, and the rule
+//     is withheld and said, only where every statement of the hook's body is on an allowlist and
+//     nothing else is in it: a copy binding S = list(items), items[:], items.copy(), [*items] or
+//     tuple(items) before anything empties the list, with S mentioned at most once more (list
+//     and tuple only where the module binds neither name anywhere; sorted is never a copy); an
+//     emptying items.clear(), del items[:] or items[:] = []; a restore after it, items.extend(S),
+//     items += S, items[:] = S or items[:] = S[:]; a call of a same-file helper that is a plain,
+//     undecorated, synchronous def at module level, defined once, named nowhere else in the module
+//     at any indent or in any string, with two parameters, whose body is only an optional
+//     docstring, an optional emptying of one parameter and one restore of it from the other; a
+//     report, config.hook.pytest_deselected(items=D) for a copy D, or a print or logging call
+//     (print where the module does not bind it; logging imported, or a logger bound once to
+//     logging.getLogger) whose arguments are string literals or plain names other than items and
+//     the copies; and a docstring. The list reading must agree that the items are back; (3) not
+//     read, for anything else that empties or may empty the list (a lambda, a nested, decorated or
+//     async def, sorted, a slice that is not the whole list, another name bound to the list, an
+//     f-string field, exec or getattr, an append, an imported or unseen helper, a method, a use
+//     inside a loop, a session.items, a global or nonlocal, an if, return, second yield or other
+//     statement the conditional rule stops, an unknown decorator), and the rule makes no claim
+//     while A1's note names the hook ("hook not read: `<reason>` in <path>") and its evidence
+//     cites the def. A source proven empty (an empty literal, range(0), a zero-length slice
+//     x[:0] or x[k:k], a name whose binding to one is its first mention in the hook, or a copy
+//     taken after the clear) adds nothing. conftest.py is tokenised as Python reads it (strings,
+//     f-string fields, comments, brackets and backslash continuations), so the body ends where
+//     Python ends it and a comment or docstring naming the hook binds nothing. A hookwrapper
+//     (hookwrapper=True or wrapper=True) is read as the code after its single top-level yield,
+//     and a def whose parameters run onto later lines is read as the hook. A hook that rebinds
+//     `items` at top level to a copy the reader reads (items = list(items)) before the clear keeps
+//     its withhold; any other statement that may bind `items` at or before its emptying (items =
+//     copy.copy(items), a for target) is not read, never rated hollow. A hook that deselects or
+//     skips everything rates every collected test file hollow, not only those under its
+//     directory, since pytest calls it with every collected item, where the run collecting the
+//     file also collects the hook's directory (and nothing in the repository may stop pytest
+//     collecting it: a directory pytest skips by default, collect_ignore or pytest_ignore_collect);
+//     a run that does not is said as a withhold. Paths in
 //     A1's note holding ", ", "; ", " (", a backtick or a double quote are written in double
 //     quotes with \ and " escaped, and the note says how many files or hooks it names past the
 //     eight evidence pointers carry none; a pytest setting

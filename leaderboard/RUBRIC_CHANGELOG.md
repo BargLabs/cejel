@@ -22,9 +22,131 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
-## 2026-11-02 (three outcomes) — v27 A1 reads every pytest collection hook that touches `items` as deselecting everything, putting the items back on proof, or not read and named; v17-v26 byte-identical, certificate text included; v27 never above v17; no published score moved
+## 2026-11-02 (allowlist) — v27 A1 says a collection hook puts the items back only when every statement of its body is on an allowlist; a deselect-everything hook in any conftest.py reaches every collected test; v17-v26 byte-identical, certificate text included; v27 never above v17; no published score moved
 
 **Status.** A scoring change under `witan-rubric-v27-prospective-2026-10-19` only, with no
+identifier change (goal_cejel_v27_a1_restore_proof_v2_2026-11-02, which supersedes #638; #638
+closed unmerged, and its change is carried here). It revises the three-outcomes entry below, which
+never reached main; that entry is kept as #638's record, with its rebinding sentence corrected. No
+holdout or calibration ran, and this entry makes no precision or recall claim. The default stays
+v17.
+
+**Why.** An adversarial review of #638 (comment on #638, 2026-11-02) found that outcome 2 ("the
+hook puts the collected items back") was still reached by default: the reader interpreted the hook
+body and treated whatever it did not model as harmless. Writing `R` for `saved = list(items)`,
+`items.clear()`, `items.extend(saved)`, the review found nine shapes where pytest 9.2.0 runs no test
+and v27 still gave v17's credit and said the items were put back: `R` then `items[0:] = []` or
+`items[::1] = ()` (and `items[1:] = []`, which keeps one test of three); `R`, a triple-quoted string
+whose closing line starts at column 0, then `items.clear()` (the body's end was measured by
+raw-line indentation); `sorted(items)` as the copy; another name holding the list (`keep = [items]`,
+`a, b = items, 1`); a restore in a nested or module-level `async def`; a decorated nested restore;
+a helper redefined under `if True:` or `try:`; a shadowed `list` or `sorted`; and `exec`, `getattr`,
+an f-string field, or a helper called before a nested `def` of the same name. It also found two
+false hollow ratings (`items = copy.copy(items)` before the clear; an extend from a name a closure
+defined earlier fills), four silent passes (`items[0:] = []`, `items[:len(items)] = ()`, a helper
+doing `lst[0:] = []`, a docstring or trailing comment naming the hook), a quadratic cost (N stored
+lambdas naming `items`), and a nested `conftest.py` whose clear rated only its own directory.
+
+**Change.**
+
+- **Outcome 2 is an allowlist over the whole hook body.** A hook reaches it only when every
+  statement of its body (after a hookwrapper's `yield`; before it, only docstrings) is one of: a
+  copy `S = list(items)`, `items[:]`, `items.copy()`, `[*items]` or `tuple(items)`, taken before the
+  list is emptied and mentioned at most once more; an emptying `items.clear()`, `del items[:]` or
+  `items[:] = []`; a restore after it from a copy not used yet, `items.extend(S)`, `items += S`,
+  `items[:] = S` or `items[:] = S[:]`; a call of a same-file helper that is a plain, undecorated,
+  synchronous `def` at module level, defined once, named nowhere else in the module at any indent
+  or in any string, with two parameters and a body of only an optional docstring, an optional
+  emptying of one parameter and one restore of it from the other; a report,
+  `config.hook.pytest_deselected(items=D)` for a copy `D`, or a `print` or logging call whose
+  arguments are string literals or plain names other than `items` and the copies (`print` only
+  where the module does not bind it; `logging` imported, or a logger bound once to
+  `logging.getLogger`); and a docstring. `sorted` is not a copy; `list` and `tuple` count only where
+  the module binds neither name anywhere. The list reading must also end with the items back. Any
+  other statement sends a hook that is not provably outcome 1 to outcome 3, named with the first
+  statement outside the allowlist. A hook that calls `exec`, `eval`, `compile`, `getattr`,
+  `setattr`, `delattr`, `globals`, `locals`, `vars` or `__import__` is touched even where it never
+  names `items`, and is never read.
+- **A tokenised `conftest.py`.** Strings (triple-quoted too), f-string fields (whose code is read as
+  code), comments, brackets and backslash continuations are tokenised as Python does; a body ends at
+  the next logical line at column 0. A comment, or a statement that is only a string, that names
+  the hook no longer stops Cejel reading it, and the conditional rule reads code, so an `if` in a
+  docstring is not a condition. A backslash continuation is now read as one logical line rather than
+  sending the hook to outcome 3.
+- **No false hollow rating.** A statement that may bind the name `items` itself (an assignment
+  target, a `for` target, `as`, `del`, `def`, `import`, `:=`) at or before the hook's last emptying
+  stops outcome 1, so `items = copy.copy(items)` then `items.clear()` and `for items in
+  [list(items)]:` are not read. #626's read-only rebind (`items = list(items)` at the top level)
+  keeps its "rebinds items" withhold. A name counts as bound to an empty list only where that
+  binding is its first mention in the hook, so a closure defined before it may not fill it.
+- **No silent pass.** An assignment to a slice that is not the whole list is never read as adding
+  nothing, in the hook or in a helper; the three slice shapes above are named as not read.
+- **A hook in any `conftest.py` reaches every collected test** (item E). pytest calls every loaded
+  `conftest.py`'s collection hook with every collected item, so a hook that deselects or skips
+  everything rates every collected test file hollow, not only those under its directory, where the
+  run collecting the file also collects the hook's directory. A run that names no path at, above or
+  below it, ignores it, or sets `norecursedirs` or `--ignore-glob` withholds the rule for that file,
+  and A1's note says so. Where a directory on the hook's path is one pytest skips by default, or
+  any `conftest.py` names `collect_ignore` or `pytest_ignore_collect`, the hook keeps to its own
+  directory, as before. A file is attributed to a hook whose directory holds it first. The v27
+  glossary's non-hollow sentence says so, and no longer says "no file under it".
+- **Linear time** (item F). The reader's set of closure names is kept as it changes, not rebuilt
+  for every statement. A scaling check reads a hook of L/80 and 2L/80 stored lambdas and refuses a
+  time ratio above 3; against #638 it measured 131 ms and 594 ms, ratio 4.53.
+
+Real restores outside the allowlist move from outcome 2 to outcome 3: a lambda or nested function
+called after the clear, a helper restoring from `sorted(...)`, and a reorder through
+`sorted(items, key=...)`. Their score is v17's either way; only the note's wording changes.
+
+**The no-rise property.** Outcome 3 makes no claim, so the file keeps v17's reading; outcome 1
+lowers only where v17 already scores. v27 cannot score A1 above v17 on the same commit.
+
+**Measured.** The same 393 synthetic repositories #638's entry names, built once from the fixture
+files at `26a7d4795` (269 false-assurance, 39 removal and 85 withhold fixtures), scanned with main
+`bfd4d5965`, with #638's head merged with main (`1e6c0d9f3`), and with this branch (`c7916f656`
+with the v27 glossary sentence and the comments committed beside this entry). v17 and v27 scanned
+all 393, v18 to v26 the 124 v27 A1 fixtures: 1,902 reports each side, 0 errors. Each report was
+rendered as HTML and Markdown with the code that scanned it.
+
+- v17: 393 of 393 reports, HTML and Markdown certificates byte-identical to main.
+- v18 to v26: 124 of 124 each, reports and certificates.
+- v27 against main: 366 of 393 reports byte-identical. All 27 that moved moved in A1 alone (every
+  other criterion's record is identical; two also move code trust and overall, through A1). Two A1
+  scores changed: `a1wh-r2-imported-helper-call` rose from 1.7 (critical) to v17's 2.3, as in
+  #638's entry (an imported helper may put the items back: not read); and
+  `a1rm-hook-in-subdirectory`, a skip-every-item hook in `tests/integration/conftest.py`, fell from
+  2.1 (warning) to 1.7 (critical), since it now rates all three collected test files hollow, not
+  one (item E). 20 more now name a hook as not read, with their scores unchanged: the 10 conditional
+  hooks of #638's entry, the append loop, `__iadd__` and alias restores, the two closures stored on
+  `config` and the clear inside a loop over a configured list (all as in #638's entry), and four
+  hooks #638 credited with outcome 2: the nested-function restore, the helper restoring from
+  `sorted(...)`, and two reorders through `sorted(items, key=lambda ...)`. 5 gain only the evidence
+  pointer at a hook the note already named as putting the items back or rebinding them. Every v27
+  certificate changes, by the glossary sentence.
+- v27 against #638's head merged with main: 388 of 393 reports byte-identical; the 5 that moved
+  moved in A1 alone: the four outcome-2 hooks above, now not read, and `a1rm-hook-in-subdirectory`.
+- v27 A1 above v17 A1 on the same repository: 0 of 393. Headline scores (code trust, process
+  trust, overall) above v17: 0 of 1,170 compared; 3 reports abstain with no headline score, as on
+  main.
+
+The 44 allowlist fixtures (`src/witan/__tests__/fixtures/v27-a1-allowlist-fixtures.ts`) are not in
+the 393. They were committed red (`9ea019eb9`) with four moved pins and the scaling check: against
+#638's head merged with main, 37 outcome checks failed in the three A1 suites, and the scaling
+check failed at ratio 4.53. Three blocker fixtures (`a1al-a4-list-holding-items`,
+`a1al-a4-tuple-unpacked-alias`, `a1al-a9-getattr-session-items`) already passed there and are kept
+as regression pins. Two red expectations were corrected in the item E commit (`c7916f656`): they
+asked A1's note to name a restoring hook in a second `conftest.py` while the first one's clear rated
+every file hollow, which A1 never says (it names a withheld rule only for a file no rule moved,
+since #626 item C). pytest was not run on any fixture: Python packages could not be run in this
+session, so each fixture's claim rests on reading pytest's hook-calling and collection code, not
+on a run. No holdout or calibration ran.
+
+No published score moved: the board is scored under v17.
+
+## 2026-11-02 (three outcomes; superseded by the allowlist entry above) — v27 A1 reads every pytest collection hook that touches `items` as deselecting everything, putting the items back on proof, or not read and named; v17-v26 byte-identical, certificate text included; v27 never above v17; no published score moved
+
+**Status.** #638's record. #638 closed unmerged; the allowlist entry above supersedes it and
+re-measures the whole change against main. A scoring change under `witan-rubric-v27-prospective-2026-10-19` only, with no
 identifier change (goal_cejel_v27_a1_restore_proof_and_hookwrapper_2026-11-02; #631, #632, #634).
 No holdout or calibration ran for it, and this entry makes no precision or recall claim. The
 default stays v17.
@@ -84,7 +206,10 @@ body names `items` reaches one of three outcomes, and none by default:
   evidence pointers carry none.
 
 A hook the reader reads as never emptying the list (it only reads, reorders or adds) is not named,
-and a hook that rebinds the name `items` before its clear keeps #626's withhold.
+and a hook that rebinds the name `items` to a copy the reader reads (`items = list(items)`) before
+its clear keeps #626's withhold. (Corrected by the allowlist entry above: #638 as written rated
+`items = copy.copy(items)` then `items.clear()` hollow, though pytest runs every test; any other
+rebinding of `items` before its clear is now not read.)
 
 **The no-rise property.** Outcome 3 makes no claim, so the file keeps v17's reading; outcome 1
 lowers only where v17 already scores. v27 cannot score A1 above v17 on the same commit.

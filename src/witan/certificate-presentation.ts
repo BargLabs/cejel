@@ -363,10 +363,12 @@ const V27_PR_GATE_CI_WORKFLOW_COUNT_DEFINITION =
 
 // The non-hollow share's definition on a witan-rubric-v27 certificate only
 // (goal_cejel_v27_a1_restore_proof_and_hookwrapper_2026-11-02, #634 item E): how A1's note writes
-// the paths it names, and what a pytest collection hook it names as not read means. Every other
+// the paths it names, and what a pytest collection hook it names as not read means; and, from
+// goal_cejel_v27_a1_restore_proof_v2_2026-11-02 item E, that a deselect-everything or
+// skip-everything hook reaches files outside its directory. Every other
 // rubric's certificate keeps CERTIFICATE_GLOSSARY's sentence, so its text stays byte-identical.
 const V27_NON_HOLLOW_TEST_SHARE_DEFINITION =
-  'test files that actually assert something rather than being empty or skipped. Under the prospective witan-rubric-v27, A1\'s note names each file a v27 rule rates hollow, and each pytest collection hook it did not read (as "hook not read", with the reason and the conftest.py\'s path: it could prove neither that the hook leaves no test to run nor that it puts the collected tests back, so no file under it was rated hollow for it). A path that holds a comma or semicolon followed by a space, a space followed by an opening parenthesis, a backtick or a double quote is written in double quotes, with each backslash and double quote in it preceded by a backslash; any other path is written as it is. The evidence cites the first eight files rated hollow and the first eight collection hooks the note names, and the note says how many it names beyond those carry no evidence pointer.';
+  'test files that actually assert something rather than being empty or skipped. Under the prospective witan-rubric-v27, A1\'s note names each file a v27 rule rates hollow, and each pytest collection hook it did not read (as "hook not read", with the reason and the conftest.py\'s path: it could prove neither that the hook leaves no test to run nor that it puts the collected tests back, so no file was rated hollow for it). A collection hook that removes or skips every test is applied to every test file a pytest run that loads it collects, inside its directory and outside it, since pytest calls it with every collected test. A path that holds a comma or semicolon followed by a space, a space followed by an opening parenthesis, a backtick or a double quote is written in double quotes, with each backslash and double quote in it preceded by a backslash; any other path is written as it is. The evidence cites the first eight files rated hollow and the first eight collection hooks the note names, and the note says how many it names beyond those carry no evidence pointer.';
 
 /** `entry` as a certificate under `rubricVersion` shows it: only v27 words two entries differently. */
 export function glossaryEntryForRubric(
