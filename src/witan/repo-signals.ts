@@ -14699,20 +14699,35 @@ function readPythonParameterEffect(fn: PythonFunction, position: number, scope: 
 //     `items[:] = S` or `items[:] = S[:]`;
 //   - a call of a same-file helper read strictly (pytestStrictRestoreHelper) given `items` and a
 //     copy not used yet;
-//   - a report: `config.hook.pytest_deselected(items=D)` for a copy D not used yet, or a `print`
-//     or logging call whose arguments are string literals or plain names other than `items` and
-//     the copies (`print` only where the module does not bind it; a logger only `logging` itself
-//     or a name bound once at the module's top level to `logging.getLogger(...)`);
 //   - a docstring (a statement that is only string literals).
 // It ends with the list put back. Anything else (a lambda, a nested or async def, a decorator,
 // `sorted`, a slice, another name for the list, exec, getattr, an f-string field, ...) is outside
 // the allowlist, and the hook is not credited with outcome 2.
+//
+// The review of #644 at bca7ebfbf: an allowlist that admits a call trusts every name the call can
+// reach. So it admits no report call (`config.hook.pytest_deselected(...)`, which any conftest.py
+// or plugin may implement; `print` and logging calls, which run handlers and their arguments'
+// `__str__`), and a hook whose body passes is still refused where its conftest.py can rebind a name
+// the allowlist trusts without spelling it (pythonModuleRebindHazard): a star import, `setattr`,
+// `builtins` or `__builtins__`, `sys.modules`, a module `__getattr__`, or an assignment to `list`
+// or `tuple` through an attribute. Each such hook is named (outcome 3), never credited.
 
 /** A name read as Python's own builtin, or exec-like access the reader cannot follow. */
 const PYTHON_DYNAMIC_ACCESS_PATTERN =
   /(?<![\w.])(?:exec|eval|compile|getattr|setattr|delattr|globals|locals|vars|__import__|__builtins__)\b|\.[ \t]*__dict__\b/;
 const PYTHON_STRING_ONLY_PATTERN = /^(?:""[ \t]*)+$/;
-const PYTHON_LOG_METHODS: ReadonlySet<string> = new Set(['debug', 'info', 'warning', 'warn', 'error', 'critical', 'exception']);
+// A conftest.py naming any of these, bare or as an attribute, may rebind a name the allowlist
+// trusts without spelling it: setattr(sys.modules[__name__], "li" + "st", ...), builtins.print = ...,
+// __builtins__["list"] = ..., vars(module)[...], a module __getattr__ (#644 review at bca7ebfbf).
+const PYTHON_REBIND_HAZARD_NAMES: ReadonlySet<string> = new Set([
+  'setattr', 'delattr', '__setattr__', '__delattr__', 'builtins', '__builtins__', 'modules', '__dict__',
+  '__globals__', '__getattr__', '__getattribute__', '__import__', 'importlib',
+]);
+// The same, read only where the name is bare (Python's builtin), not an attribute (`re.compile`).
+const PYTHON_REBIND_HAZARD_BUILTINS: ReadonlySet<string> = new Set(['exec', 'eval', 'compile', 'globals', 'vars', 'locals']);
+// Names the allowlist trusts as Python's builtins: an attribute of that name other than a call
+// (`conftest.list = ...`, `sys.modules[__name__].tuple = ...`) may bind the module's global.
+const PYTHON_TRUSTED_BUILTINS: ReadonlySet<string> = new Set(['list', 'tuple']);
 const PYTHON_REBINDING_KEYWORDS: ReadonlySet<string> = new Set(['for', 'as', 'def', 'class', 'import', 'global', 'nonlocal']);
 
 /** A same-file helper the allowlist reads: which parameter it fills, from which, and whether it empties first. */
@@ -14727,8 +14742,8 @@ interface PythonStrictHelper {
 interface PythonModuleFacts {
   /** True where the module never binds `name` (every mention a call or a subscript, never in a def, class or string). */
   readonly unbound: (name: string) => boolean;
-  /** True for `logging` imported and only used through attributes, or a module logger bound once to logging.getLogger(...). */
-  readonly logger: (name: string) => boolean;
+  /** The first statement of the module that may rebind a name the allowlist trusts without spelling it, or undefined. */
+  readonly hazard: () => PythonCodeStatement | undefined;
   /** The helper `name` read strictly, where the hook mentions it `hookMentions` times; undefined otherwise. */
   readonly helper: (name: string, hookMentions: number) => PythonStrictHelper | undefined;
 }
@@ -14765,31 +14780,21 @@ function pythonModuleFacts(source: PythonSourceLines): PythonModuleFacts {
     cache.set(name, result);
     return result;
   };
-  const loggers = new Map<string, boolean>();
-  const logger = (name: string): boolean => {
-    const known = loggers.get(name);
-    if (known !== undefined) return known;
-    let result = false;
-    if (name === 'logging') {
-      result =
-        !named('logging') &&
-        topLevel.filter(({ code }) => code === 'import logging').length === 1 &&
-        mentions('logging').filter(({ next }) => !next.startsWith('.')).length === 1;
-    } else if (/^[A-Za-z_]\w*$/.test(name) && name !== 'logging') {
-      const binding = new RegExp(`^${name}[ \\t]*=[ \\t]*logging[ \\t]*\\.[ \\t]*getLogger[ \\t]*\\([ \\t]*(?:""|__name__)?[ \\t]*\\)$`);
-      result =
-        logger('logging') &&
-        !named(name) &&
-        topLevel.filter(({ code }) => binding.test(code)).length === 1 &&
-        mentions(name).filter(({ next }) => !next.startsWith('.')).length === 1;
+  let hazardRead = false;
+  let hazardFound: PythonCodeStatement | undefined;
+  const hazard = (): PythonCodeStatement | undefined => {
+    if (!hazardRead) {
+      hazardRead = true;
+      hazardFound = pythonModuleRebindHazard(source);
     }
-    loggers.set(name, result);
-    return result;
+    return hazardFound;
   };
   const helper = (name: string, hookMentions: number): PythonStrictHelper | undefined => {
     if (!/^[A-Za-z_]\w*$/.test(name) || named(name)) return undefined;
-    // Bound nowhere else: its one `def` and the hook's mentions are every mention, at any indent.
+    // Bound nowhere else: its one `def` and the hook's mentions are every mention, at any indent,
+    // and no attribute of that name is written (`conftest.refill = ...` rebinds the global).
     if (mentions(name).length !== 1 + hookMentions) return undefined;
+    if (masked.some((code) => pythonAttributeMentions(code, name).length > 0)) return undefined;
     const defs = topLevel.filter(({ code }) => new RegExp(`^def[ \\t]+${name}[ \\t]*\\(`).test(code));
     const definition = defs[0];
     if (defs.length !== 1 || definition === undefined) return undefined;
@@ -14819,7 +14824,47 @@ function pythonModuleFacts(source: PythonSourceLines): PythonModuleFacts {
     }
     return undefined;
   };
-  return { unbound, logger, helper };
+  return { unbound, hazard, helper };
+}
+
+/** Each place `code` names `name` as an attribute (after a `.`), with the two characters after it. Linear. */
+function pythonAttributeMentions(code: string, name: string): { readonly at: number; readonly next: string }[] {
+  const found: { at: number; next: string }[] = [];
+  if (!code.includes(name)) return found;
+  for (const match of code.matchAll(PYTHON_IDENTIFIER_PATTERN)) {
+    if (match[0] !== name) continue;
+    const at = match.index ?? 0;
+    if (code[pythonIndexBefore(code, at)] !== '.') continue;
+    const after = pythonIndexAfter(code, at + name.length);
+    found.push({ at, next: code.slice(after, after + 2) });
+  }
+  return found;
+}
+
+/**
+ * The first logical statement of a conftest.py that may rebind a name the allowlist trusts without
+ * spelling it (#644 review at bca7ebfbf), or undefined: a star import; a name of
+ * PYTHON_REBIND_HAZARD_NAMES anywhere, or of PYTHON_REBIND_HAZARD_BUILTINS bare; an attribute named
+ * `list` or `tuple` that is not called. A module that cannot be split into statements is a hazard.
+ * Read from code with strings blanked and comments dropped. Linear in the text.
+ */
+function pythonModuleRebindHazard(source: PythonSourceLines): PythonCodeStatement | undefined {
+  const statements = pythonCodeStatements(source, 0, source.masked.length);
+  if ('stop' in statements) return { indent: 0, code: '', shown: statements.stop, first: 0, last: 0 };
+  for (const statement of statements) {
+    const code = statement.code;
+    if (/^from\b/.test(code) && code.includes('*')) return statement;
+    for (const match of code.matchAll(PYTHON_IDENTIFIER_PATTERN)) {
+      const name = match[0];
+      const at = match.index ?? 0;
+      if (at > 0 && /\w/.test(code[at - 1] ?? '')) continue;
+      if (PYTHON_REBIND_HAZARD_NAMES.has(name)) return statement;
+      const attribute = code[pythonIndexBefore(code, at)] === '.';
+      if (!attribute && PYTHON_REBIND_HAZARD_BUILTINS.has(name)) return statement;
+      if (attribute && PYTHON_TRUSTED_BUILTINS.has(name) && code[pythonIndexAfter(code, at + name.length)] !== '(') return statement;
+    }
+  }
+  return undefined;
 }
 
 /** True when `code` is `<list>.clear()`, `del <list>[:]` or `<list>[:] = []`. */
@@ -14927,8 +14972,6 @@ function pytestHookRestoreAllowlist(
   let state: 'collected' | 'empty' | 'restored' = 'collected';
   const copies = new Map<string, boolean>();
   const unusedCopy = (name: string): boolean => copies.get(name) === false;
-  const plainArgument = (argument: string): boolean =>
-    PYTHON_STRING_ONLY_PATTERN.test(argument) || (/^[A-Za-z_]\w*$/.test(argument) && argument !== 'items' && !copies.has(argument));
   for (const statement of body) {
     const code = statement.code;
     if (statement.indent !== indent) return refuse(statement);
@@ -14955,26 +14998,11 @@ function pytestHookRestoreAllowlist(
       state = 'restored';
       continue;
     }
-    const deselected = /^config[ \t]*\.[ \t]*hook[ \t]*\.[ \t]*pytest_deselected[ \t]*\([ \t]*items[ \t]*=[ \t]*([A-Za-z_]\w*)[ \t]*\)$/.exec(code);
-    if (deselected && parameters.includes('config')) {
-      if (!unusedCopy(deselected[1] ?? '')) return refuse(statement);
-      copies.set(deselected[1] ?? '', true);
-      continue;
-    }
-    const call = /^([A-Za-z_]\w*)(?:[ \t]*\.[ \t]*([A-Za-z_]\w*))?[ \t]*\(/.exec(code);
+    // No report call: config.hook.*, print and logging run code outside the proved steps (#644 review).
+    const call = /^([A-Za-z_]\w*)[ \t]*\(/.exec(code);
     if (call && callClosesAtEnd(code, call[0].length - 1)) {
       const callee = call[1] ?? '';
-      const method = call[2];
-      const args = pythonCallArguments(code.slice(call[0].length));
-      const reports =
-        method === undefined
-          ? callee === 'print' && facts.unbound('print')
-          : PYTHON_LOG_METHODS.has(method) && facts.logger(callee);
-      if (reports) {
-        if (!args.every(plainArgument)) return refuse(statement);
-        continue;
-      }
-      const helper = method === undefined ? facts.helper(callee, counts.get(callee) ?? 0) : undefined;
+      const helper = facts.helper(callee, counts.get(callee) ?? 0);
       if (helper !== undefined) {
         const mapped = pythonMapArguments({ parameters: helper.parameters, body: [], effects: new Map() }, code.slice(call[0].length));
         const copy = mapped?.get(helper.source) ?? '';
@@ -14987,7 +15015,10 @@ function pytestHookRestoreAllowlist(
     }
     return refuse(statement);
   }
-  return state === 'restored' ? { restores: true } : refuse();
+  if (state !== 'restored') return refuse();
+  // A body the allowlist reads whole is still refused where the module may rebind what it trusts.
+  const hazard = facts.hazard();
+  return hazard === undefined ? { restores: true } : refuse(hazard);
 }
 
 /** True when `code` names the hook's `items` (not as an attribute or keyword), or a `.items` attribute. */
