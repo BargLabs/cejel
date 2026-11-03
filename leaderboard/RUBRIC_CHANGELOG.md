@@ -22,7 +22,7 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
-## 2026-11-02 (B3 fourth pass) — under v27 a check before a publish is credited only when it runs a known test runner in an environment that cannot change what runs, and safe check-then-publish shapes are read (#627, #628, #629, #630); v17-v26 byte-identical; no published score moved
+## 2026-11-02 (B3 fourth and fifth passes) — under v27 a check before a publish is credited only where the reader reads a known test runner, a lint form that fails on a finding, and an environment and package it admits, and safe check-then-publish shapes are read (#627, #628, #629, #630; the fifth pass from the review of #640, which this supersedes); v17-v26 byte-identical; no published score moved
 
 **Status.** A scoring change under `witan-rubric-v27-prospective-2026-10-19` only, with no
 identifier change. It reaches only GitHub Actions workflows with no pull-request trigger that
@@ -42,6 +42,24 @@ indent, C2 a build before the check, C3 a `needs:` list at the key's indent, C4 
 in one step, C5 `ruff check .`, whose `.` was read as the `source` builtin). #625's lesson applies
 throughout: a refusal list of spellings is evaded by any other spelling with the same effect, so
 this pass admits what the reader proves rather than refusing spellings.
+
+**Why a fifth pass.** The fourth pass was opened as #640 and held by its adversarial review for six
+false-credit blockers, each confirmed on #640's head merged with main `bfd4d5965` (the fixtures
+below were committed red there, `0a5272474`): (1) a requirements line, or a name given to
+`pip install`, naming a local archive (`stub.tar.gz`, `stub.zip` through `-r more.txt`,
+`stub-1.0-py3-none-any.whl` through `python -m pip`), which pip installs from the file, running its
+build code or a `.pth` file before the check; (2) C5 crediting lint and format commands that cannot
+fail on a finding (`ruff check -e .`, `ruff check --fix .`, `eslint --fix .`, `black .`,
+`ruff format .`); (3) the v27 glossary sentence, which said no environment setting on the check's
+path can change what it runs, which was not true; (4) environment the reader did not read: an
+assignment on the check's own line (`NODE_OPTIONS=--require=./x.cjs npm test`,
+`PATH=./fake-bin:/usr/bin npm test`, `PYTEST_ADDOPTS=--co pytest`), a job `container:` (with or
+without its own `env:`), a `services:` container with `env:`, and `npm test --node-options=...`;
+(5) a test command that runs another package's script (`npm test --prefix stub`, `--workspaces`,
+`-w packages/a`, `yarn test --cwd stub`, `pnpm test --filter a`), while the reader read the root's;
+(6) make targets whose recipe never runs: `test:` without `.PHONY` beside a `test/` directory, a
+prerequisite named after an existing file, and `PATH := fake-bin:$(PATH)` in the Makefile. #640
+closes unmerged; its commits are this branch's base, so this entry replaces its entry.
 
 **Change.** Under v27, on the credit path of #625's reading only:
 
@@ -115,9 +133,50 @@ this pass admits what the reader proves rather than refusing spellings.
 - **Root readings.** Every reading of a root file (the test script, the Makefile, the build script,
   requirements files, the Pipfile) holds only where the workflow sets no `working-directory` and the
   check's step changes no directory, as item E already required of the test script.
-- **Certificate text.** The PR-gate CI count's v27 glossary sentence (v27 certificates only) adds
-  that a test script or make target the check runs reaches a known test runner, and that no
-  environment setting on its path can change what it runs. v17's sentence is unchanged.
+- **Fifth pass A — requirements (blocker 1).** A requirements line (and each line of an included
+  file) or a name given directly to `pip install` on the credit path is admitted only as a PEP 508
+  project name (beginning and ending with a letter or digit), with optional extras, a version
+  specifier and, in a file, `--hash` options. A name ending in an archive or wheel suffix (`.tar.gz`,
+  `.tgz`, `.tar`, `.zip`, `.whl`, `.egg`, and pip's other archive extensions, in any case) is
+  refused whether or not the file exists, and so is a name that is a path in the repository: from
+  the root, or from the requirements file's own directory; under a `working-directory` or after a
+  `cd`, any path part of that name. Environment markers stay refused, as in the fourth pass.
+- **Fifth pass B — lint and format (blocker 2).** A lint or format command is a check only as
+  `ruff check` (no `--fix`, `--fix-only`, `--exit-zero` or `-e`), `ruff format --check`,
+  `black --check`, `eslint` (no `--fix` or `--fix-dry-run`), `mypy` or `flake8`, each with only
+  flags from a list known to keep the exit code (for example `--quiet`, `--no-cache`,
+  `--output-format`, `--diff`, `--max-warnings`, `--strict`, `--count`); any other flag, any other
+  subcommand, and pylint, which is not listed, are not a check. Paths and C5's `.` are arguments.
+- **Fifth pass C — environment on every path (blocker 4).** The workflow-line reader applies the
+  script reader's assignment rule: an assignment before a check command, or before a setup command,
+  is admitted only for an inert key of item B, and B3's note names the key. A job with a
+  `container:` (any image, with or without `env:`), or a `services:` container that sets `env:`,
+  withholds the credit of its checks, and the note says so. After the name of an npm, pnpm or yarn
+  test script, only npm's `--silent` and `-s` are admitted (yarn and pnpm pass any later word to the
+  script), so `npm test --node-options=...` and any other word withhold the credit.
+- **Fifth pass D — which package runs (blocker 5).** `--prefix`, `-C`, `--dir`, `--cwd`, `-w`,
+  `--workspace`, `--workspaces` and `--filter` (and `-F`, `--recursive`, `-r`) after the script's
+  name withhold the credit; the reader does not follow them to the named package's `package.json`.
+  The note says the test command runs another package's script.
+- **Fifth pass E — a make recipe that runs (blocker 6).** `make test` or `make check` is a check
+  only when the target and every target on its path (each prerequisite, each `$(MAKE) <target>`)
+  is declared `.PHONY` or has no file or directory of its name in the repository; otherwise make may
+  report it up to date and run nothing, and the note says so. A Makefile that assigns `PATH` is not
+  read (`SHELL` and `.SHELLFLAGS` already were not).
+- **Certificate text (blocker 3).** The PR-gate CI count's v27 glossary sentence (v27 certificates
+  only) now lists the conditions as what Cejel reads: a test script or make target the check runs
+  reaches a test runner from a fixed list; a lint or format command is in a form that fails on a
+  finding; every environment key it reads on the check's path (in `env:` mappings, in an assignment
+  on a command's line, or written to `GITHUB_ENV`) is from a fixed list of keys that do not choose
+  what runs; no earlier step writes to `GITHUB_PATH`; the job runs in no container and has no
+  service container that sets `env:`. It then says that this is not a proof that the check can
+  fail, since Cejel does not read a test runner's or linter's own configuration. #640's wording
+  ("no environment setting on its path can change what it runs") is gone. v17's sentence is
+  unchanged.
+- **Not in this change** (cejel #641): no-fail flags that still list tests (a runner's list or
+  dry-run modes) and runners that are repository code (a runner installed from a path, `tsc`
+  writing into `node_modules`); and two false exclusions, `NODE_OPTIONS=--experimental-vm-modules`
+  before jest and `eslint . && vitest`.
 
 **The no-rise property** (`src/witan/__tests__/v27-no-rise.ts`). A counted workflow is counted as
 v17 counts it, so B3 can only return to v17's value, never rise past it. `checkNoRise` and
