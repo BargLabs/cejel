@@ -190,6 +190,23 @@ const NOT_CREDITED_REASONS: Readonly<Record<string, string>> = {
   'setup-step-env-node-options': 'the environment key NODE_OPTIONS may change what the check runs',
   'credential-key-without-secret-expression': 'the environment key NPM_TOKEN is not set from a secret',
   'github-path-write-before-check': 'an earlier step writes to $GITHUB_PATH, which may change what the check runs',
+  // Fifth pass (review of #640), items C, D and E.
+  'check-line-assignment-node-options': 'the environment key NODE_OPTIONS may change what the check runs',
+  'check-line-assignment-path': 'the environment key PATH may change what the check runs',
+  'check-line-assignment-pytest-addopts': 'the environment key PYTEST_ADDOPTS may change what the check runs',
+  'job-container-env': 'the job runs in a container, whose image and environment may change what the check runs',
+  'job-container-image': 'the job runs in a container, whose image and environment may change what the check runs',
+  'job-services-env': 'a service container of the job sets env:, which Cejel does not read',
+  'npm-test-node-options-flag': 'the test command carries a flag or argument Cejel does not read, which may change what runs',
+  'npm-test-prefix': 'the test command runs the test script of another package, which Cejel did not read',
+  'npm-test-workspaces': 'the test command runs the test script of another package, which Cejel did not read',
+  'npm-test-workspace-short': 'the test command runs the test script of another package, which Cejel did not read',
+  'yarn-test-cwd': 'the test command runs the test script of another package, which Cejel did not read',
+  'pnpm-test-filter': 'the test command runs the test script of another package, which Cejel did not read',
+  'make-test-not-phony-test-directory':
+    "the Makefile's test target, or one it needs, is not .PHONY and has the name of a file or directory in the repository, so make may not run it",
+  'make-prerequisite-names-file':
+    "the Makefile's test target, or one it needs, is not .PHONY and has the name of a file or directory in the repository, so make may not run it",
 };
 
 describe('fourth pass — B3 names why a check was not credited', () => {

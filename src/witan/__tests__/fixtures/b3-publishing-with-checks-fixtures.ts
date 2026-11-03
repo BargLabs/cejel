@@ -1436,9 +1436,50 @@ export const MAKE_RUNS_COUNTED: readonly Shape[] = [
   ],
 ];
 
+/**
+ * Item F: for each credit path #640 added, the counted workflow with only its check changed so that
+ * it cannot fail, without `|| true`. Each is excluded.
+ */
+export const CREDIT_PATH_NO_FAIL_MUTATION_EXCLUDED: readonly Shape[] = [
+  ['steps-at-key-indent-test-help', 'Excluded: as steps-at-key-indent (C1), with the check `npm test -- --help`, which prints usage and exits 0.', { ...JS_BASE, [RELEASE]: compactStepsRelease('npm test -- --help') }],
+  [
+    'build-tsc-before-check-test-script-help',
+    'Excluded: as build-tsc-before-check (C2, the tsc build), with the test script `uvu --help`.',
+    {
+      ...jsWithScriptsAndDev({ build: 'tsc', test: 'uvu --help' }, { typescript: '5.9.3', uvu: '0.5.6' }),
+      'tsconfig.json': TSCONFIG,
+      [RELEASE]: releaseAfterInstall(`      - run: npm run build\n      - run: npm test\n${NPM_PUBLISH}`),
+    },
+  ],
+  ['needs-block-list-at-key-indent-test-version', 'Excluded: as needs-block-list-at-key-indent (C3), with the check `npm test -- --version`.', { ...JS_BASE, [RELEASE]: needsBlockAtKeyIndentRelease('npm test -- --version') }],
+  [
+    'check-and-publish-one-line-test-script-version',
+    'Excluded: as check-and-publish-one-line (C4), with the test script `uvu --version`.',
+    { ...jsWithTestScript('uvu --version'), [RELEASE]: releaseAfterInstall('      - run: npm test && npm publish\n        env:\n          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}\n') },
+  ],
+  ['ruff-check-dot-exit-zero', 'Excluded: as ruff-check-dot (C5), with `ruff check --exit-zero .`.', { ...PY_BASE, [PUBLISH]: pythonPlainRelease('ruff check --exit-zero .') }],
+  ['mypy-dot-version', 'Excluded: as mypy-dot (C5), with `mypy --version .`, which prints its version and exits 0.', { ...PY_BASE, [PUBLISH]: pythonPlainRelease('mypy --version .') }],
+  [
+    'pip-install-requirements-plain-collect-only',
+    'Excluded: as pip-install-requirements-plain, with the check `pytest --collect-only`.',
+    { ...PY_BASE, 'requirements.txt': 'pytest==8.3.3\nbuild >= 1.2\ntwine\n', [PUBLISH]: pythonReleaseWith('pip install -r requirements.txt', 'pytest --collect-only') },
+  ],
+  [
+    'pipenv-install-plain-pipfile-collect-only',
+    'Excluded: as pipenv-install-plain-pipfile, with the check `pipenv run pytest --co`.',
+    { ...PY_BASE, Pipfile: PIPFILE_PLAIN, 'Pipfile.lock': PIPFILE_LOCK_PLAIN, [PUBLISH]: pipenvRelease('pipenv run pytest --co') },
+  ],
+  [
+    'prepare-husky-test-script-help',
+    'Excluded: as prepare-husky-before-check (the inert prepare), with the test script `uvu --help`.',
+    { ...jsWithScripts({ test: 'uvu --help', prepare: 'husky' }), [RELEASE]: releaseAfterInstall(`      - run: npm test\n${NPM_PUBLISH}`) },
+  ],
+];
+
 /** This pass's counted and excluded shapes, in the order the tests read them. */
 export const V5_COUNTED: readonly Shape[] = [...FAILING_LINT_COUNTED, ...READ_ENVIRONMENT_COUNTED, ...MAKE_RUNS_COUNTED];
 export const V5_EXCLUDED: readonly Shape[] = [
+  ...CREDIT_PATH_NO_FAIL_MUTATION_EXCLUDED,
   ...LOCAL_ARCHIVE_EXCLUDED,
   ...NO_FAIL_LINT_EXCLUDED,
   ...UNREAD_ENVIRONMENT_EXCLUDED,
