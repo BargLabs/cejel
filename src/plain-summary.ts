@@ -22,6 +22,7 @@ import {
 } from './witan/certificate-presentation.js';
 import { computeMeasuredCoverage } from './witan/coverage.js';
 import { METRIC_DERIVED_FINDING_PATTERN } from './witan/finding-presentation.js';
+import { SHALLOW_HISTORY_LIMITATION, SHALLOW_HISTORY_V27_ABSTENTION } from './witan/history-depth.js';
 import {
   type NextCheckKind,
   type PlainDisclosureKind,
@@ -290,6 +291,223 @@ function disclosureKind(sentence: string): PlainDisclosureKind {
   return DISCLOSURE_PREFIXES.find(({ prefix }) => sentence.startsWith(prefix))?.kind ?? 'other';
 }
 
+// ---- limitations, reworded (goal_cejel_four_question_summary_v2_2026-11-03, item A) ---------------
+//
+// A scan or history limitation is never replaced by a generic sentence because its text holds an
+// engine word. The limitations the engine writes with a fixed shape are reworded through
+// LIMITATION_TABLE, each entry restating the producer's sentence (repo-signals.ts and
+// history-depth.ts). Any other limitation is reworded word by word through PLAIN_VOCABULARY, which
+// covers every word PLAIN_WORD_GUARD keeps off the page, so the result is always plain and always
+// says what the limitation says.
+
+const PLAIN_VOCABULARY: ReadonlyArray<readonly [RegExp, string]> = [
+  [/\bcriteria\b/gi, 'areas'],
+  [/\bcriterion\b/gi, 'area'],
+  [/\brubrics\b/gi, 'sets of scoring rules'],
+  [/\brubric\b/gi, 'scoring rules'],
+  [/\bpinned\b/gi, 'fixed'],
+  [/\bpinning\b/gi, 'fixing'],
+  [/\bpins\b/gi, 'fixed versions'],
+  [/\bpin\b/gi, 'fixed version'],
+  [/\battestations\b/gi, 'signed records'],
+  [/\battestation\b/gi, 'signed record'],
+  [/\bcomposites\b/gi, 'overall scores'],
+  [/\bcomposite\b/gi, 'overall score'],
+  [/\bbands\b/gi, 'ranges'],
+  [/\bband\b/gi, 'range'],
+  [/\bdimensions\b/gi, 'areas'],
+  [/\bdimension\b/gi, 'area'],
+  [/\bsarif\b/gi, 'scanner report'],
+  [/\bdigests\b/gi, 'fingerprints'],
+  [/\bdigest\b/gi, 'fingerprint'],
+  [/\bsafely\b/gi, 'without harm'],
+  [/\bsafety\b/gi, 'protection'],
+  [/\bsafe\b/gi, 'harmless'],
+  [/\bsecurely\b/gi, 'with protection'],
+  [/\bsecure\b/gi, 'protected'],
+  [/\bcorrectly\b/gi, 'accurately'],
+  [/\bcorrectness\b/gi, 'accuracy'],
+  [/\bcorrect\b/gi, 'accurate'],
+  [/\bcompletely\b/gi, 'fully'],
+  [/\bcompleteness\b/gi, 'coverage'],
+  [/\bcomplete\b/gi, 'full'],
+  [/\bcompliant\b/gi, 'conforming'],
+  [/\bcompliance\b/gi, 'conformance'],
+];
+
+function matchCase(original: string, replacement: string): string {
+  const first = original.charAt(0);
+  return first !== first.toLowerCase() ? `${replacement.charAt(0).toUpperCase()}${replacement.slice(1)}` : replacement;
+}
+
+/** An area id ("A3"), or a measurement id ("A3.observability_depth"), in plain words. */
+function plainCriterionReference(id: string, measurement?: string): string {
+  const area = PLAIN_AREA_NAMES[id] ?? 'another';
+  return measurement === undefined
+    ? `"${area}" area`
+    : `"${measurement.replaceAll('_', ' ')}" (${area})`;
+}
+
+/** Engine text reworded word by word; the meaning is kept and the result is always plain. */
+export function rewordInPlainWords(text: string): string {
+  let result = text
+    .replace(/\b(A[1-5]|B[1-6])\.([A-Za-z0-9_]+)\b/g, (_match, id: string, measurement: string) =>
+      plainCriterionReference(id, measurement),
+    )
+    .replace(/\b(A[1-5]|B[1-6])\b/g, (_match, id: string) => plainCriterionReference(id));
+  for (const [pattern, replacement] of PLAIN_VOCABULARY) {
+    result = result.replace(pattern, (match) => matchCase(match, replacement));
+  }
+  return result;
+}
+
+const areas = (count: string): string => `${count} ${count === '1' ? 'area' : 'areas'}`;
+const measurements = (count: string): string => `${count} ${count === '1' ? 'measurement' : 'measurements'}`;
+const measurementList = (list: string): string => rewordInPlainWords(list);
+
+/**
+ * The limitations with a fixed shape, each reworded. `pattern` matches the producer's sentence
+ * exactly (its counts and lists are captured); `plain` restates it.
+ */
+const LIMITATION_TABLE: ReadonlyArray<{
+  readonly key: string;
+  readonly pattern: RegExp;
+  readonly plain: (match: RegExpExecArray) => string;
+}> = [
+  {
+    key: 'content-unreadable',
+    pattern:
+      /^(\d+) (?:criterion|criteria) abstained because relevant repository content could not be read(?: and the affected signal could not be isolated)?\. Counts and errno classes are recorded in contentReadSummary; file paths are intentionally omitted\.$/,
+    plain: (m) =>
+      `${areas(m[1] ?? '')} gave no score because files they read could not be read; the certificate below counts those files by cause and does not name them.`,
+  },
+  {
+    key: 'content-declined',
+    pattern:
+      /^(\d+) (?:criterion|criteria) abstained because relevant repository content was declined under the repository content size limit or excluded from scanning by policy(?: — a disclosed coverage limit, not a read failure\. This does not affect the composite score\.|, and the affected signal could not be isolated\. This is a disclosed coverage limit, not a read failure, and does not affect the composite score\.)$/,
+    plain: (m) =>
+      `${areas(m[1] ?? '')} gave no score because files they read were over Cejel's size limit or are left out of scanning by its rules; this is a stated limit, not a read failure, and it does not change the overall score.`,
+  },
+  {
+    key: 'signal-unreadable',
+    pattern:
+      /^(\d+) signals? abstained because its own repository content could not be read, while other signals in the same criterion were unaffected: (.+)\.$/,
+    plain: (m) =>
+      `${measurements(m[1] ?? '')} gave no reading because a file ${m[1] === '1' ? 'it reads' : 'each reads'} could not be read; the other measurements in the same area were not affected: ${measurementList(m[2] ?? '')}.`,
+  },
+  {
+    key: 'signal-large-file',
+    pattern:
+      /^(\d+) signals? declined a large implementation file that exceeded the repository content size limit, while other signals in the same criterion were unaffected: (.+)\. That file is undercounted, not scored as clean or absent — this is a disclosed coverage limit, not a read failure\.$/,
+    plain: (m) =>
+      `${measurements(m[1] ?? '')} skipped a source file over Cejel's size limit; the other measurements in the same area were not affected: ${measurementList(m[2] ?? '')}. That file is counted as not read, not as clean or absent; this is a stated limit, not a read failure.`,
+  },
+  {
+    key: 'signal-other-declined',
+    pattern:
+      /^(\d+) signals? declined under an extension exclusion or a non-regular-file skip, while other signals in the same criterion were unaffected: (.+)\. This is a disclosed coverage limit, not a read failure\.$/,
+    plain: (m) =>
+      `${measurements(m[1] ?? '')} skipped a file of a type Cejel does not read, or one that is not a regular file; the other measurements in the same area were not affected: ${measurementList(m[2] ?? '')}. This is a stated limit, not a read failure.`,
+  },
+  {
+    key: 'limitations-capped',
+    pattern: /^(\d+) additional disclosed scan limitation\(s\) omitted at the 16-entry cap — see contentReadSummary for full counts\.$/,
+    plain: (m) =>
+      `${m[1]} more ${m[1] === '1' ? 'limit' : 'limits'} on what was read ${m[1] === '1' ? 'is' : 'are'} not listed, because the report keeps at most 16; the certificate below has the full counts.`,
+  },
+  {
+    key: 'shallow-history',
+    pattern: new RegExp(`^${escapeRegExp(SHALLOW_HISTORY_LIMITATION)}$`),
+    plain: () =>
+      'This is a shallow clone, so its commit history is cut short. Secrets and data isolation looks for credentials and .env files in earlier commits and saw only the commits present; on a full clone its result may differ. Pull request history leaves out its merge count when fewer commits are present than it reads, and is then rated on the CI workflows, pull request template and review records in the files.',
+  },
+  {
+    key: 'shallow-history-no-verdict',
+    pattern: new RegExp(`^${escapeRegExp(SHALLOW_HISTORY_V27_ABSTENTION)}$`),
+    plain: () =>
+      'This is a shallow clone, so its commit history is cut short, and under these scoring rules a shallow clone gets no overall score and no verdict; each area is still read and shown. Secrets and data isolation gives no score unless a confirmed critical secret finding stands, because its decision rests on scans of earlier commits. Pull request history leaves out its merge count when fewer commits are present than it reads, and is rated on the CI workflows it counts, the pull request template and review records in the files, or gives no score where none of those remains.',
+  },
+];
+
+function escapeRegExp(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/** A scan or history limitation in plain words: its table entry, or its own words reworded. */
+export function plainLimitation(limitation: string): string {
+  for (const entry of LIMITATION_TABLE) {
+    const match = entry.pattern.exec(limitation);
+    if (match) return entry.plain(match);
+  }
+  return rewordInPlainWords(limitation);
+}
+
+/** The limitation table's keys, so a test can pin them. */
+export function plainLimitationTableKeys(): string[] {
+  return LIMITATION_TABLE.map(({ key }) => key);
+}
+
+const SHALLOW_HISTORY_LIMITATIONS: readonly string[] = [SHALLOW_HISTORY_LIMITATION, SHALLOW_HISTORY_V27_ABSTENTION];
+
+/** The area ids a limitation names, by id or by measurement id. */
+function criteriaNamedIn(text: string): Set<string> {
+  return new Set([...text.matchAll(/\b(A[1-5]|B[1-6])\b/g)].map((match) => match[1] ?? ''));
+}
+
+type ReadGapCause = 'files' | 'scan-limit' | 'shallow-history' | 'history';
+
+/** Every area the report says it could not fully read, and why: affectedCriteria, or named by a limitation. */
+function readGaps(report: WitanReport): Map<string, Set<ReadGapCause>> {
+  const gaps = new Map<string, Set<ReadGapCause>>();
+  const add = (id: string, cause: ReadGapCause): void => {
+    const causes = gaps.get(id) ?? new Set<ReadGapCause>();
+    causes.add(cause);
+    gaps.set(id, causes);
+  };
+  for (const id of report.contentReadSummary?.affectedCriteria ?? []) add(id, 'files');
+  for (const limitation of report.scanLimitations ?? []) {
+    for (const id of criteriaNamedIn(limitation)) add(id, 'scan-limit');
+  }
+  for (const limitation of report.historyLimitations ?? []) {
+    const cause: ReadGapCause = SHALLOW_HISTORY_LIMITATIONS.includes(limitation) ? 'shallow-history' : 'history';
+    for (const id of criteriaNamedIn(limitation)) add(id, cause);
+  }
+  return gaps;
+}
+
+function skippedFilePhrases(report: WitanReport): string[] {
+  const byReason = report.contentReadSummary?.byReason;
+  if (!byReason) return ['could not be read'];
+  const phrases = [
+    byReason.unreadable > 0 ? 'could not be read' : undefined,
+    byReason.tooLarge > 0 ? 'were over the size limit' : undefined,
+    byReason.deniedPath > 0 ? 'sit on a denied path' : undefined,
+    byReason.nonRegularFile > 0 ? 'are not regular files' : undefined,
+    byReason.excludedByExtension > 0 ? 'are of a type Cejel does not read' : undefined,
+    (byReason.lfsPointer ?? 0) > 0 ? 'are Git LFS pointers' : undefined,
+  ].filter((phrase): phrase is string => phrase !== undefined);
+  return phrases.length > 0 ? phrases : ['could not be read'];
+}
+
+function readGapClauses(report: WitanReport, causes: ReadonlySet<ReadGapCause>): string[] {
+  const clauses: string[] = [];
+  if (causes.has('files')) clauses.push(`some files this area reads ${joinOr(skippedFilePhrases(report))}`);
+  if (causes.has('scan-limit')) clauses.push('a limit on reading, listed under Reading the repository, applies to it');
+  if (causes.has('shallow-history')) {
+    clauses.push('this is a shallow clone, so only part of the commit history it reads is present');
+  } else if (causes.has('history')) {
+    clauses.push('only part of the commit history it reads could be read');
+  }
+  return clauses;
+}
+
+function readGapQualifier(causes: ReadonlySet<ReadGapCause>): string {
+  const files = causes.has('files') || causes.has('scan-limit');
+  const history = causes.has('shallow-history') ? 'history' : causes.has('history') ? 'history-other' : undefined;
+  if (files && history) return history === 'history' ? 'files-and-history' : 'files-and-history-other';
+  return history ?? 'files';
+}
+
 // ---- helpers ---------------------------------------------------------------------------------------
 
 const SEVERITY_RANK: Record<WitanFinding['severity'], number> = { critical: 0, warning: 1, info: 2 };
@@ -525,7 +743,10 @@ function buildNotKnown(report: WitanReport): PendingCheck[] {
     );
   }
 
-  // 2. Every criterion that was not examined or recorded nothing to examine.
+  // 2. Every criterion that was not examined, recorded nothing to examine, or could not be fully
+  // read. An area the report says it could not read (contentReadSummary.affectedCriteria, or named
+  // by a scan or history limitation) is "not read", never "found nothing to measure".
+  const gaps = readGaps(report);
   for (const criterion of report.criteria) {
     const base = {
       id: `not-known/criterion/${criterion.id}`,
@@ -533,12 +754,34 @@ function buildNotKnown(report: WitanReport): PendingCheck[] {
       source: { kind: 'criterion', criterionId: criterion.id } as const,
       anchor: plainCriterionAnchor(criterion.id),
     };
+    const causes = gaps.get(criterion.id);
+    const clauses = causes ? readGapClauses(report, causes) : [];
+    const notRead = causes !== undefined && clauses.length > 0;
     switch (criterion.status) {
       case 'not_applicable':
-        add({ ...base, text: 'Not examined: Cejel decided this area does not apply to this repository.' }, 'not-applicable', SECTION_AREA, criterion.id);
+        add(
+          {
+            ...base,
+            text: notRead
+              ? `Not examined: Cejel decided this area does not apply to this repository, although ${joinAnd(clauses)}.`
+              : 'Not examined: Cejel decided this area does not apply to this repository.',
+          },
+          notRead ? 'not-read' : 'not-applicable',
+          SECTION_AREA,
+          notRead ? readGapQualifier(causes) : criterion.id,
+        );
         break;
       case 'insufficient_data':
-        add({ ...base, text: 'Not measured: Cejel found nothing here it could measure.' }, 'not-measured', SECTION_AREA, criterion.id);
+        if (notRead) {
+          add(
+            { ...base, text: `Not read: Cejel gave this area no score because ${joinAnd(clauses)}.` },
+            'not-read',
+            SECTION_AREA,
+            readGapQualifier(causes),
+          );
+        } else {
+          add({ ...base, text: 'Not measured: Cejel recorded no measurement for this area.' }, 'not-measured', SECTION_AREA, criterion.id);
+        }
         break;
       case 'unverified':
         add({ ...base, text: 'No evidence was supplied for this area, so it counts as zero.' }, 'no-evidence', SECTION_AREA, criterion.id);
@@ -563,6 +806,19 @@ function buildNotKnown(report: WitanReport): PendingCheck[] {
           'unrecognised-status',
           SECTION_AREA,
         );
+    }
+    // An area that was rated although part of what it reads was not read says so.
+    if (notRead && criterion.status !== 'not_applicable' && criterion.status !== 'insufficient_data') {
+      add(
+        {
+          ...base,
+          id: `not-known/not-read/${criterion.id}`,
+          text: `Partly not read: ${joinAnd(clauses)}; its result rests only on what was read.`,
+        },
+        'not-read',
+        SECTION_AREA,
+        readGapQualifier(causes),
+      );
     }
   }
 
@@ -615,9 +871,7 @@ function buildNotKnown(report: WitanReport): PendingCheck[] {
       {
         id: `not-known/scan-limitation/${limitationIndex}`,
         area: 'Reading the repository',
-        text: isPlainText(limitation)
-          ? limitation
-          : 'Cejel could read only part of the evidence; the limit is described in the certificate below.',
+        text: plainLimitation(limitation),
         source: { kind: 'scan-limitation', limitationIndex },
         anchor: plainScanLimitationAnchor(limitationIndex),
       },
@@ -630,9 +884,7 @@ function buildNotKnown(report: WitanReport): PendingCheck[] {
       {
         id: `not-known/history-limitation/${limitationIndex}`,
         area: 'Commit history',
-        text: isPlainText(limitation)
-          ? limitation
-          : 'Cejel read only part of the commit history; the certificate below says what this affects.',
+        text: plainLimitation(limitation),
         source: { kind: 'history-limitation', limitationIndex },
         anchor: plainHistoryLimitationAnchor(limitationIndex),
       },

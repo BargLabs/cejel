@@ -19,6 +19,7 @@ export type NextCheckKind =
   | 'low-score'
   | 'not-applicable'
   | 'not-measured'
+  | 'not-read'
   | 'no-evidence'
   | 'no-measurement'
   | 'unrecognised-status'
@@ -48,6 +49,19 @@ export const PLAIN_DISCLOSURE_KINDS = [
   'other',
 ] as const;
 export type PlainDisclosureKind = (typeof PLAIN_DISCLOSURE_KINDS)[number];
+
+/**
+ * Why an area was not fully read (goal_cejel_four_question_summary_v2_2026-11-03, item A): files
+ * it reads were skipped or a scan limitation names it ('files'), a shallow clone cut its history
+ * short ('history'), another history limitation names it ('history-other'), or both.
+ */
+export const PLAIN_READ_GAP_QUALIFIERS = [
+  'files',
+  'history',
+  'history-other',
+  'files-and-history',
+  'files-and-history-other',
+] as const;
 
 /** The criteria whose notes can carry a "cannot be settled from static evidence" sentence. */
 export const SETTLING_CRITERIA = ['A2', 'A3', 'A5'] as const;
@@ -84,8 +98,13 @@ const NEXT_CHECKS: Readonly<Record<string, string>> = {
     "Look at this area's weakest measurements in the certificate below and add the evidence they look for.",
   'not-applicable':
     'If you expected this area to apply here, read the reason given in the certificate below; Cejel did not examine it.',
-  'not-measured':
-    'Check that the files this area reads are in the repository and readable, then scan again.',
+  // v2 (#635 review): an area with no measurement is not always missing files, so this line no
+  // longer sends the reader to check that files are present and readable.
+  'not-measured': "Read this area's notes in the certificate below to see why it has no measurement.",
+  'not-read:files':
+    'Make the skipped files readable (the certificate below counts them by cause), then scan again.',
+  'not-read:history': `${FULL_CLONE.charAt(0).toUpperCase()}${FULL_CLONE.slice(1)}, then scan again.`,
+  'not-read:files-and-history': `Make the skipped files readable and ${FULL_CLONE}, then scan again.`,
   'no-evidence': 'Supply the evidence this area asks for, then scan again; until then it counts as zero.',
   'no-measurement':
     'Treat this area as unchecked; the certificate below shows what was recorded for it.',
@@ -171,6 +190,7 @@ export function nextCheckKeySpace(): ReadonlyArray<{ kind: NextCheckKind; qualif
   ];
   return [
     ...perCriterion.flatMap((kind) => ALL_CRITERION_IDS.map((qualifier) => ({ kind, qualifier }))),
+    ...PLAIN_READ_GAP_QUALIFIERS.map((qualifier) => ({ kind: 'not-read' as const, qualifier })),
     ...WITAN_ABSTENTION_LABELS.map((qualifier) => ({ kind: 'abstention' as const, qualifier })),
     ...PLAIN_DISCLOSURE_KINDS.map((qualifier) => ({ kind: 'disclosure' as const, qualifier })),
     ...SETTLING_CRITERIA.map((qualifier) => ({ kind: 'settling' as const, qualifier })),
