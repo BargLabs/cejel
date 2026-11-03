@@ -232,11 +232,14 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     items += S, items[:] = S or items[:] = S[:]; a call of a same-file helper that is a plain,
 //     undecorated, synchronous def at module level, defined once, named nowhere else in the module
 //     at any indent or in any string, with two parameters, whose body is only an optional
-//     docstring, an optional emptying of one parameter and one restore of it from the other; a
-//     report, config.hook.pytest_deselected(items=D) for a copy D, or a print or logging call
-//     (print where the module does not bind it; logging imported, or a logger bound once to
-//     logging.getLogger) whose arguments are string literals or plain names other than items and
-//     the copies; and a docstring. The list reading must agree that the items are back; (3) not
+//     docstring, an optional emptying of one parameter and one restore of it from the other; and
+//     a docstring. No report call is on it (config.hook.pytest_deselected, print, logging: each
+//     runs code outside those steps), and a body that passes is still not credited where its
+//     conftest.py may rebind a name the allowlist trusts without spelling it (a star import,
+//     setattr or delattr, builtins or __builtins__, sys.modules, a module __getattr__, exec, eval,
+//     compile, globals, vars or locals, __dict__, __import__ or importlib, an uncalled attribute
+//     named list or tuple, or any attribute named after the helper), from the #644 review at
+//     bca7ebfbf. The list reading must agree that the items are back; (3) not
 //     read, for anything else that empties or may empty the list (a lambda, a nested, decorated or
 //     async def, sorted, a slice that is not the whole list, another name bound to the list, an
 //     f-string field, exec or getattr, an append, an imported or unseen helper, a method, a use

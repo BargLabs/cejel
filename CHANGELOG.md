@@ -34,10 +34,15 @@ is pinned. v27 carries no precision or recall claim.
     list is emptied and mentioned at most once more; an emptying `items.clear()`, `del items[:]` or
     `items[:] = []`; a restore after it, `items.extend(S)`, `items += S`, `items[:] = S` or
     `items[:] = S[:]`; a call of a plain, undecorated `def` helper the same `conftest.py` defines
-    once and names nowhere else, whose body is only that emptying and restore; a
-    `config.hook.pytest_deselected(items=D)` report or a `print` or logging call whose arguments are
-    string literals or plain names; and a docstring. `sorted` is not a copy, and `list` and `tuple`
-    count only where the module never binds them. Anything else (a lambda or nested function, an
+    once and names nowhere else, whose body is only that emptying and restore; and a docstring.
+    `sorted` is not a copy, and `list` and `tuple` count only where the module never binds them. No
+    report call is on the allowlist: `config.hook.pytest_deselected(...)` (any `conftest.py` or
+    plugin may implement it), `print` and logging calls (they run handlers and their arguments'
+    `__str__`) make a restoring hook "not read". So does a `conftest.py` that may rebind a name the
+    allowlist trusts without spelling it: a star import, `setattr`, `builtins` or `__builtins__`,
+    `sys.modules`, a module `__getattr__`, `exec`, `vars` and the like, or an assignment to `list`,
+    `tuple` or the helper through an attribute. The common deselect-everything hook, which reports
+    its copy, stays caught. Anything else (a lambda or nested function, an
     `async` or decorated `def`, a slice that is not the whole list, another name bound to the list,
     `exec`, `getattr`, an f-string field) makes a hook that is not provably deselecting everything
     "not read". So the lambda and nested-function restores #638 credited, and a helper restoring
