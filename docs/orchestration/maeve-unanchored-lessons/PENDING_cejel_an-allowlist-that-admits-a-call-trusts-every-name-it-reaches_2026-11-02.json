@@ -1,0 +1,25 @@
+[
+  {
+    "statement": "Cejel #644's v27 A1 allowlist credited a pytest hook with putting the collected items back when every statement was a copy, an emptying, a restore, a same-file helper call, a docstring or a report (config.hook.pytest_deselected, print, a logging call). Review at bca7ebfbf found pytest 9.2.0 ran no test while the note said the items were back: the same conftest.py implemented pytest_deselected to clear session.items; print(W) and log.warning(W) ran a W.__str__ that cleared it; a star import, setattr(sys.modules[__name__], \"li\" + \"st\", ...), sys.modules[__name__].tuple = ... or a self-import assigning conftest.list rebound a trusted name the file never spelled. Rule: an allowlist that admits a call trusts every name the call can reach, so admit no call that can run code outside the proved steps, and refuse the credit where the module can rebind a trusted name without spelling it. Fix: report calls left the allowlist, and such modules send the hook to the named not-read outcome.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "detector-design",
+      "false-assurance"
+    ],
+    "tags": [
+      "allowlist-not-denylist",
+      "dynamic-name-binding",
+      "proof-by-default",
+      "adversarial-review"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-11-02T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 644
+    }
+  }
+]

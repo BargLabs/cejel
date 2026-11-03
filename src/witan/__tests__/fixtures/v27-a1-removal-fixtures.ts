@@ -331,7 +331,10 @@ export const REMOVAL_FIXTURES: readonly RemovalFixture[] = [
   fixture(
     'a1rm-hook-in-subdirectory',
     'run-wide skip',
-    'Control: a hook in tests/integration/conftest.py skips every item; only the files under it are named.',
+    // goal_cejel_v27_a1_restore_proof_v2_2026-11-02, item E: pytest calls a conftest.py's
+    // collection hook with every collected item, not only those under its directory, so every
+    // collected test file is named (this pin moved from the one file under tests/integration/).
+    'A hook in tests/integration/conftest.py skips every item it is given, which is every collected item; every test file is named.',
     {
       'tests/integration/conftest.py': conftestHook([
         '    for item in items:',
@@ -339,7 +342,11 @@ export const REMOVAL_FIXTURES: readonly RemovalFixture[] = [
       ]),
       'tests/integration/test_service.py': LIVE_PY_TEST('service'),
     },
-    [['tests/integration/test_service.py', 'run-wide skip: hook in tests/integration/conftest.py']],
+    [
+      ['tests/integration/test_service.py', 'run-wide skip: hook in tests/integration/conftest.py'],
+      ['tests/test_cache.py', 'run-wide skip: hook in tests/integration/conftest.py'],
+      ['tests/test_lru.py', 'run-wide skip: hook in tests/integration/conftest.py'],
+    ],
   ),
   // ---- run-wide skip: pytestmark ----------------------------------------------------------
   fixture('a1rm-pytestmark-list-conditional-skip', 'run-wide skip', 'pytestmark is a list holding a skip only under a condition.', {

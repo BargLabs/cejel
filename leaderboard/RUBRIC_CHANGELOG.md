@@ -22,6 +22,764 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
+## 2026-11-03 — v27 A1 reads the pytest runs, options and configuration search pytest itself uses, names a run it cannot read instead of rating its files hollow, and points each setting clause at its line (#633, #643); v17-v26 byte-identical; v27 never above v17; no published score moved
+
+**Status.** A scoring change under `witan-rubric-v27-prospective-2026-10-19` only, with no
+identifier change (goal_cejel_v27_a1_pytest_runs_and_config_2026-11-02). No holdout or
+calibration ran for it, and this entry makes no precision or recall claim. The default stays v17.
+
+**Why.** #626 (the 2026-11-02 entry below, "v27 A1 names every file it rates hollow…") withholds a
+removal rule only where a setting is in force for a pytest run that collects the file. #633 lists
+where its reading of runs, options and configuration falls short. Each gap is a setting really in
+force that the reader did not see, so the withhold did not happen and the certificate said a file
+pytest runs "runs no test": the safe direction for credit, but a false assertion. The root cause
+was one shape: a run the reader could not read whole (a variable in a path, an expression as its
+working directory, `-c` outside the repository, `--pyargs`, Jenkins `dir()`) was dropped from the
+list of runs, which reads its files under pytest's defaults. #643: the files the withhold clauses
+name carried no evidence pointer.
+
+**Change.**
+
+- **Runs read whole** (item A). A noxfile's `session.run("pytest", ...)` whose arguments are
+  string literals (in the noxfile's directory; every session counts); `tox -- <args>` from CI or a
+  recipe, put where `{posargs}` is (at most 16 distinct sets, past that not read); a tox
+  factor-conditional command line (`fast: pytest ...`, `a,b:`, `a-b:`, `!a:`) for an environment
+  in envlist, or one a `tox -e` names, whose factors meet it, a condition with braces being read
+  as met; `$(NAME)` and `${NAME}` the same Makefile defines (`=`, `:=`, `::=`, `?=`, `+=`),
+  expanded a few levels, a `:=` value where it is assigned, as make does (see the review round
+  below for the names not known); a justfile's literal `name := "..."` variables; a
+  justfile recipe with parameters (`test *ARGS:`), which the shared recipe reader did not see;
+  `hatch run [env:]script`, resolved through `[envs.<env>.scripts]` in `hatch.toml` or
+  `[tool.hatch.envs.<env>.scripts]` in `pyproject.toml` (string or array, `{args}` and
+  `{args:default}` substituted, a script naming another followed, one an environment inherits from
+  `default` read where no `template` is named), run in that file's directory;
+  and a local composite action's `run:` steps (`uses: ./path` with `path/action.yml`). A local
+  reusable workflow is a file under `.github/workflows/` and was already read.
+- **Runs named as not read** (item A). Where a run's arguments or directory cannot be known from the
+  repository, any option may be in force for it and it may collect any file, so it switches off
+  every removal rule (conftest, run-wide skip, every test skipped) for every file, and A1's note
+  names it with #644's not-read clause, for a run: "pytest run not read: `<reason>` in `<path>`".
+  The forms: a nox call with any other argument (`*session.posargs`, a name, an f-string, `env=`)
+  or a noxfile that calls `session.chdir`; `tox -- ` with a word holding `$`, a backtick or braces;
+  a Makefile variable it does not define (make expands it to the environment's or the command
+  line's value), or one a CI or recipe `make NAME=...` sets; a just recipe parameter; a `${{ }}`
+  expression or other variable in a path argument (so a local reusable workflow passing its
+  caller's input); a `cd` to a path the reader cannot resolve; `-c` or `--config-file` outside the
+  repository or naming no file in it; `--pyargs`; a `--rootdir` or `--confcutdir` it cannot
+  resolve; a `working-directory` set by an expression; a pytest command in a Jenkinsfile holding
+  `dir(...)`; and a job-level reusable workflow in another repository (`uses:
+  owner/repo/.github/workflows/...@ref`). The review round below adds forms, and the narrow rule
+  for remote step actions the operator chose; any other remote step action (`uses:
+  owner/action@ref`) is read as running no pytest, since nearly every workflow uses one (checkout,
+  setup-python) and naming each would withhold every rule in almost every repository. That is a
+  known limit.
+- **Options** (item B). A long option the reader does not know, followed by a word that does not
+  start with `-`, makes the word's role unknown (a value or a path), so the run is not read, named
+  with the option and the word. A table of long options pytest and common plugins define with no
+  value (`--strict-markers`, `--doctest-modules`, `--lf`, `--no-cov`, `--reuse-db`, and the rest)
+  keeps those runs read; `--setup-plan` moved there from the with-value table. `--cov`, `--debug`
+  and `--cache-show` take an optional value (argparse `nargs="?"`): the next word is the value only
+  where it does not start with `-`. pytest-cov declares `--cov` with `nargs="?"` and `const=True`;
+  pytest-cov was not run in this session (no Python package could be installed), so this rests on
+  reading its option declaration, not on a run, and no version is claimed. `testpaths` entries are
+  expanded as `glob.glob(..., recursive=True)` expands them from the root (`*`, `?`, `[...]` per
+  path part, `**` recursive, no match for a name starting with `.` unless the part does), not read
+  as the directory before their first glob character.
+- **Configuration search** (item C). pytest 9's `determine_setup`: with no `-c`, `locate_config`
+  from the common ancestor of the run's paths, then a `setup.py` at or above the ancestor as the
+  root, and only then, where the paths' directories are not just the ancestor, `locate_config` from
+  each of them (the per-argument fallback), else the common ancestor of the invocation directory and
+  the ancestor. #626 ran the per-argument search before the `setup.py` check and whenever a
+  `--rootdir` was given, so a configuration file in one argument's directory could be read where
+  pytest reads none. The search cannot see above the repository's root, and `locate_config` looks
+  there before it falls back to a `pyproject.toml` without a pytest table. Where a run that collects
+  a rated file finds no file holding pytest's configuration in the repository, A1's note says once:
+  "A pytest run that finds no configuration file in the repository may read one above its root,
+  which the scan cannot see; no rule is rated on what it might hold." The rating stands as the
+  repository shows it.
+- **Two choices kept, for the operator to confirm** (item D).
+  - A plain `pytest` at the repository's root always counts as a run, so the root configuration is
+    always in force. Reason: it is pytest's documented default invocation, the one a contributor
+    runs without reading CI.
+  - A Makefile `PYTEST_ADDOPTS = ...` without `export` is not read. Reason: make passes to a
+    recipe's environment only exported variables (and those the environment already set), so pytest
+    never sees it. This changes #626's first pass (`892a95a40`), whose line reader read such a line
+    as in force; the later passes of #626 already read only `export PYTEST_ADDOPTS = ...`. This
+    change adds the other ways make exports it: an `export PYTEST_ADDOPTS` line, a bare `export`
+    line, or `.EXPORT_ALL_VARIABLES:`.
+- **Evidence pointers for setting clauses** (item E, #643). Each withhold clause carries an evidence
+  pointer: a setting from a configuration file at the line of its key (`addopts`, `python_files`,
+  `norecursedirs`, ...); a flag on a command line at the first line, from the command's own step,
+  target or tox line onward, holding its word (else the command's line, else the line in the file
+  that holds the word); a `PYTEST_ADDOPTS` setting at the line that sets it; a reason that names
+  the pytest command line at that line; a run not read at the line holding its reason; a hook at
+  its `def`, as before. The pointers share the one limit of eight, in the note's order, and the
+  withhold sentence counts the clauses named past it ("the N named after the first 8 carry no
+  evidence pointer"; it said "the N hooks named" before). The note stays within its 1,000-character
+  limit. The v27 glossary's non-hollow sentence names "pytest run not read" and the shared
+  pointers, so every v27 certificate changes by that sentence.
+
+**Review round** (the adversarial review of #648 at `b9762e0a3`; red fixtures `8bc381385`, fix
+`33cd9508b`; ground truth pytest 9.2.0 and `make -n` on the dev host, hatch, tox and just from
+their documentation). Each of these was a crash, a false hollow or a read that could not end:
+
+1. A run not read named a long command in its evidence pointer's label, past the schema's 180
+   characters, so the scan threw. The label is now cut at 180 and marked cut.
+2. Make variables were read with values make does not use. A `:=` value is now expanded where it is
+   assigned. A name is not known where it is set by `!=`, `define` or `:::=`, inside a conditional
+   (`ifeq`, `ifneq`, `ifdef`, `ifndef`), for one target (`test: OPTS = ...`), or by a `?=` default
+   whose name a CI file holds (a CI command may set it in make's environment). A recipe command
+   whose expansion is not known, and that mentions pytest itself or through a variable, is a run not
+   read; an exported `PYTEST_ADDOPTS` not known leaves the Makefile's pytest runs not read.
+3. Forms recognised but not resolved were dropped. `hatch test` is now a run not read; a script an
+   environment inherits from `default` is read where no `template` is named, and not read where one
+   may be; `python -m tox`, `uvx tox`, `uv run tox` and `pipx run tox` are read as tox; a CI
+   `TOXENV` names the environments tox runs, and one Cejel cannot resolve leaves every
+   factor-conditional pytest line not read; a justfile's `set export` exports `PYTEST_ADDOPTS`.
+4. The narrow rule for remote steps, chosen by the operator on 2026-11-03: a step action one of
+   whose `with:` inputs runs pytest (a retry or display wrapper) is a run not read, and a workflow
+   that names both `$GITHUB_ENV` and `PYTEST_ADDOPTS` (so may write the one to the other, for the
+   later steps of a job), or checks out into a `path:`, leaves each of its pytest runs not read. The
+   first test is by name, not by reading the write, so it also withholds for a workflow that sets
+   `PYTEST_ADDOPTS` in an `env:` mapping and writes something else to `$GITHUB_ENV`: a false
+   exclusion, in the safe direction. A remote action whose inputs run no pytest changes nothing.
+5. A `PYTEST_ADDOPTS` set in an `env:` mapping was cited at the first later line holding the name,
+   which could be another job's. It is now cited at its own mapping's line.
+6. The hatch script reader and the make expansion grew far past linear on small crafted files (a
+   328-byte `hatch.toml` took 15 s; a 4.8 KB Makefile 1.8 s). Make expansion now shares a budget of
+   4,096 substitutions per Makefile, and hatch one of 256 script expansions per scan; past either
+   the run is not read. The earlier "run readers stay linear" wording did not hold for these two.
+
+**The no-rise property.** A run not read only withholds, and a withhold falls back to v17's reading;
+the narrower `testpaths` reading and the corrected configuration search can withhold less than
+#626 did, which can lower v27's A1 only where v17 already scores it. v27 cannot score A1 above v17
+on the same commit.
+
+**Measured** (code at `d5ff81601`, the last code commit; the records commits beside this entry
+change comments and records only). The same 393 synthetic repositories #626's entry names, built
+once from the fixture files at `26a7d4795` (269 false-assurance, 39 removal and 85 withhold
+fixtures), scanned with main `6f116b110` and with this branch. v17 and v27 scanned all 393, v18 to
+v26 the 124 v27 A1 fixtures: 1,902 reports each side, 0 errors. Each report was rendered as HTML
+and Markdown with the code that scanned it.
+
+- v17: 393 of 393 reports, HTML and Markdown certificates byte-identical to main.
+- v18 to v26: 124 of 124 each, reports and certificates byte-identical.
+- v27 against main: 367 of 393 reports byte-identical. All 26 that moved moved in A1 alone, and no
+  A1 score or status changed. 25 gain only the new evidence pointer of the setting clause their
+  note already held, at the line holding the setting (for example `pyproject.toml:8` for
+  `addopts = "-p no:skipping"`, `tox.ini:5` for `[pytest]`'s `addopts`, `Makefile:2` for the
+  recipe's pytest line, `.github/workflows/ci.yml:10` for a job's `PYTEST_ADDOPTS`), or at the
+  pytest command line for the three "does not load the hook" reasons. One,
+  `a1wh-r2-subdir-pyproject-root-run` (the root run finds no configuration file in the repository),
+  gains only the above-root sentence, its two rated files unchanged. None of the 393 holds a run
+  form this change newly reads or names as not read, so none moves by item A or B. Every v27 HTML and
+  Markdown certificate changes, by the glossary sentence.
+- v27 A1 above v17 A1 on the same repository: 0 of 393. Headline scores (code trust, process trust,
+  overall) above v17: 0 of 1,170 compared.
+
+**Measured again after the review round**, by the reviewing session. Code at `33cd9508b` (the
+commits after it change comments and records only), against main `6f116b110`, on 803 synthetic
+repositories built from the fixture files of this branch: the B3, false-assurance and CI-claims
+sets, and every v27 A1 set (removal, hook outcome, allowlist, withhold and this change's 29 run
+fixtures). Every selectable rubric was scanned, 8,833 reports per side, with 0 errors.
+
+- v17 to v26: 8,020 of 8,030 reports, with their HTML and Markdown certificates, byte-identical. The
+  other 10 are the symlink fixture `review4-a4-working-directory-through-tracked-symlink`, whose
+  commit SHA differs per build; no criterion differs.
+- v27: 749 of 803 reports byte-identical. Of the 54 that differ:
+  - 28 change only in a note, with no score or status change. 26 of them are the same 26 corpus
+    repositories as the measurement above, so the review round moved none of them. One is an
+    allowlist fixture, `a1al-e-nested-not-loaded-by-a-run`, which gains its pointer. One is the
+    symlink fixture.
+  - 26 are this change's own run fixtures; the other 3 run fixtures are identical. 22 move in A1's
+    score: 20 rise towards v17, because main rated a file hollow that pytest runs, and 2 fall as
+    designed, because main withheld where pytest does not (`a1run-setup-py-before-per-argument-fallback`
+    and `a1run-testpaths-glob`). 4 change only in a note.
+- v27 A1 above v17 A1: 0 of 803. Overall score above v17: 0 of 800 compared.
+- The review round's own fixtures are in `src/witan/__tests__/v27-a1-runs-review.test.ts` and are
+  not in this count.
+
+The 29 run fixtures (`src/witan/__tests__/fixtures/v27-a1-run-fixtures.ts`, run by
+`src/witan/__tests__/v27-a1-runs.test.ts`) are not in the 393. 28 were committed red-first
+(`9cc0fae49`), checked against main: 35 of 70 checks failed there, in 25 fixtures covering every run
+form of item A, the option readings of item B, the configuration search of item C and the pointers
+of item E (with the pointer-count check); the other three are controls and passed (a tox factor no
+environment has, a Makefile `PYTEST_ADDOPTS` without `export`, a known flag before a path). The 29th,
+`a1run-make-export-all-variables`, was added with the fix (`d5ff81601`) and pins the
+`.EXPORT_ALL_VARIABLES` reading. pytest, tox, nox, hatch and pytest-cov were not run on any
+fixture: no Python package could be installed in this session, so each fixture's claim rests on
+reading pytest 9's `findpaths.determine_setup` and `locate_config`, tox's posargs and factor rules,
+make's export rule, just's parameters, hatch's scripts and pytest-cov's option declaration, not on
+a run. The ReDoS guard (1,180 regex literals, 0 failures), the scan timing guards and the full suite
+(178 files, 7,000 tests passed, 2 skipped) ran at `d5ff81601`. No holdout or calibration ran.
+
+No published score moved: the board is scored under v17.
+
+## 2026-11-02 (B3 fourth and fifth passes) — under v27 a check before a publish is credited only where the reader reads a known test runner, a lint form that fails on a finding, and an environment and package it admits, and safe check-then-publish shapes are read (#627, #628, #629, #630; the fifth pass from the review of #640, which this supersedes); v17-v26 byte-identical; no published score moved
+
+**Status.** A scoring change under `witan-rubric-v27-prospective-2026-10-19` only, with no
+identifier change. It reaches only GitHub Actions workflows with no pull-request trigger that
+publish, release or deploy on every run, which #625's entry (2026-11-01, below) counts when a check
+runs before every publish. No holdout or calibration ran for it, and this entry makes no precision
+or recall claim. The default stays v17.
+
+**Why.** The review of #625 left four follow-ups. Two were false credit, confirmed on main
+`5600f75c8` with a synthetic checkout: B3 said "counted as CI verification because a check runs
+before it publishes" where no real check ran. #627: a root test script `/bin/true`, `node -e 0` or
+`printf ok`, or a `make test` recipe `@true`, before `run: npm publish`; only a refusal list (`true`,
+`:`, `echo`, `exit 0`) stood in the way. #628: `NODE_OPTIONS: --require ./x.cjs` on the job, or
+`PATH: ./fake-bin` on the check step; `PYTHONPATH`, `LD_PRELOAD` and similar keys were not refused
+either. Two were false exclusions of safe shapes: #629 (setup refused more broadly than its risk:
+`pip install -r`, `pipenv install`, any root `prepare` script) and #630 (C1 step items at the key's
+indent, C2 a build before the check, C3 a `needs:` list at the key's indent, C4 the check and publish
+in one step, C5 `ruff check .`, whose `.` was read as the `source` builtin). #625's lesson applies
+throughout: a refusal list of spellings is evaded by any other spelling with the same effect, so
+this pass admits what the reader proves rather than refusing spellings.
+
+**Why a fifth pass.** The fourth pass was opened as #640 and held by its adversarial review for six
+false-credit blockers, each confirmed on #640's head merged with main `bfd4d5965` (the fixtures
+below were committed red there, `0a5272474`): (1) a requirements line, or a name given to
+`pip install`, naming a local archive (`stub.tar.gz`, `stub.zip` through `-r more.txt`,
+`stub-1.0-py3-none-any.whl` through `python -m pip`), which pip installs from the file, running its
+build code or a `.pth` file before the check; (2) C5 crediting lint and format commands that cannot
+fail on a finding (`ruff check -e .`, `ruff check --fix .`, `eslint --fix .`, `black .`,
+`ruff format .`); (3) the v27 glossary sentence, which said no environment setting on the check's
+path can change what it runs, which was not true; (4) environment the reader did not read: an
+assignment on the check's own line (`NODE_OPTIONS=--require=./x.cjs npm test`,
+`PATH=./fake-bin:/usr/bin npm test`, `PYTEST_ADDOPTS=--co pytest`), a job `container:` (with or
+without its own `env:`), a `services:` container with `env:`, and `npm test --node-options=...`;
+(5) a test command that runs another package's script (`npm test --prefix stub`, `--workspaces`,
+`-w packages/a`, `yarn test --cwd stub`, `pnpm test --filter a`), while the reader read the root's;
+(6) make targets whose recipe never runs: `test:` without `.PHONY` beside a `test/` directory, a
+prerequisite named after an existing file, and `PATH := fake-bin:$(PATH)` in the Makefile. #640
+closes unmerged; its commits are this branch's base, so this entry replaces its entry.
+
+**Change.** Under v27, on the credit path of #625's reading only:
+
+- **A — a test script or make target is a check only when it runs a known test runner (#627).**
+  An npm, pnpm or yarn run of the root `test` script, and `make test` or `make check` written
+  exactly so, is a check only when the reader proves the script or target runs a runner from a
+  fixed vocabulary: jest, vitest, mocha, ava, uvu, tap, tape, jasmine, qunit, lab, ts-mocha, pytest,
+  rspec, phpunit, ctest; `node --test`, `tsx --test`, `bun test`, `deno test`, `playwright test`,
+  `cypress run`, `karma start`, `go test`, `cargo test` or `cargo nextest`, `dotnet test`, `mvn test`
+  or `mvn verify`, `gradle test` or `gradle check`; `python -m pytest` or `python -m unittest`. The
+  vocabulary was widened first, so no runner the fixtures already used (uvu, in the fixtures' base
+  package) is excluded. The reader follows `npm run` chains and the `pre` and `post` scripts npm
+  runs around each, and make prerequisites (each once) and `$(MAKE) <target>` lines, to a depth of 8
+  and 64 commands. Launchers it reads: `npx`, `pnpx`, `bunx`, `pnpm exec`, `env` and `cross-env`,
+  the coverage wrappers `c8`, `nyc` and `coverage run`, `uv`, `poetry`, `pdm`, `pipenv` or `hatch`
+  then `run`, `bundle exec`, and `NAME=value` assignments of the inert keys of item B. Every command
+  must be joined by `&&` alone, with no background `&`, substitution, subshell, group or line break,
+  and nothing may run before the runner but tsc, pyright, ruff or black, whose configuration is not
+  code (eslint, mypy, pylint and flake8 can load repository code, so are not admitted before it). A
+  recipe line with make's `-` prefix is not a runner. The Makefile is read only when it is the one
+  make reads (no `GNUmakefile` or `makefile`) and every line is placed: a rule, an assignment, a
+  recipe line, a comment or a blank; a line continuation, a setting that changes how recipes run or
+  fail (`.ONESHELL`, `.IGNORE`, `SHELL`, `.SHELLFLAGS`, `MAKEFLAGS`, ...), a `$`, `%`, `|` or `=` in a
+  target or prerequisite, a double-colon rule or two recipes for one target leave it unread, and a
+  directive (`include`, `export`, `define`, a conditional) is no placed line. Where the script or
+  target is read and runs no known runner, B3's note names it: "A check in it was not counted: the
+  test script in package.json does not run a test runner Cejel recognises." (or "the Makefile's
+  test target ..."), never quoting its text. `just test`, `tox`, `nox`, `turbo run test`, gradle and
+  maven still count by name; their configuration is not read (left open, see the PR).
+- **B — the check's environment cannot change what runs (#628).** A check is credited only when
+  every `env:` key on its path is admitted: the workflow's, its job's, and every step item's of its
+  job up to and including the check's (a setup step run with `NODE_OPTIONS` runs repository code
+  before the check). Admitted: `CI`, `NODE_ENV`, `TZ`, `LANG`, `LANGUAGE`, `LC_ALL`, `FORCE_COLOR`,
+  `NO_COLOR`, `TERM`, `COLUMNS`, `PYTHONUNBUFFERED`, `PYTHONDONTWRITEBYTECODE`, `PYTHONHASHSEED`,
+  `PYTHONIOENCODING`, `PYTHONUTF8`, `RUST_BACKTRACE`, `CARGO_TERM_COLOR`, `CARGO_INCREMENTAL`,
+  `DEBIAN_FRONTEND`, `HUSKY`; and `NODE_AUTH_TOKEN`, `NPM_TOKEN`, `GITHUB_TOKEN` and `TWINE_*` only
+  when set to one `${{ secrets.NAME }}` or `${{ github.token }}` expression. Any other key, an
+  `env:` mapping the reader cannot place, and a `run:` step before the check's that writes to
+  `$GITHUB_PATH`, or writes to `$GITHUB_ENV` a key that is not admitted (or one it cannot read),
+  withholds the credit, and the note names the key ("the environment key NODE_OPTIONS may change
+  what the check runs", "the environment key NPM_TOKEN is not set from a secret"), at most three
+  reasons then a count.
+- **C — setup refusals narrowed (#629).** (1) `pip install -r <file>` (also `--requirement`, with
+  `pip`, `python -m pip` or `uv pip`) is a setup step when the file, from the root, is scanned and
+  every line is a plain index requirement: a name, optional extras and an optional version
+  specifier, then only `--hash=<algorithm>:<hex>`; a comment or blank is passed over, and an include
+  (`-r`, `-c`) of another scanned file inside the repository is read the same way. A URL, a path,
+  `-e`, an index or any other option, an environment marker, a backslash or an include outside the
+  repository refuses. (2) `pipenv install` (with `--dev`, `-d`, `--deploy` or `--system` only) is a
+  setup step when the root Pipfile is scanned and its entries are only in `[[source]]` (the PyPI
+  index), `[packages]` and `[dev-packages]` (each `"*"`, a version specifier or `{version = "..."}`),
+  `[requires]` and `[pipenv]` (`allow_prereleases`); never `[scripts]`, whose names `pipenv run`
+  runs in place of the command; and Pipfile.lock, when present, is scanned, lists only that index,
+  and every entry carries only `hashes`, `index` ("pypi"), `version`, `markers` and `extras`. A root
+  `.env`, which pipenv loads, refuses. (3) A root `prepare` script exactly `husky` or `husky install`
+  no longer stops an npm-family install being a setup step; every other install lifecycle script
+  still does. (4) `yarnPath` stays refused, by design: a committed yarn release cannot be verified
+  offline. (5) A package-manager configuration that is present but not read (here an `.npmrc` too
+  large to scan) now has a fixture, and refuses, as on main.
+- **D — safe shapes read (#630).** C1: step items written at the `steps:` key's own indent are read
+  as YAML reads them, while the lines at that indent are `- ` items. C3: a `needs:` block list at
+  the key's own indent is read. C2: `npm run build`, `pnpm run build`, `pnpm build`, `yarn build` or
+  `yarn run build`, written exactly so, is a setup step when the root `build` script (with its pre
+  and post scripts) runs only `tsc` and `tsconfig.json` is scanned; a vite, webpack or rollup build
+  runs its code configuration before the check, so stays excluded. C4: a publish on the check's own
+  line counts as after it when the two are one `&&` chain, in a one-line step (separate lines under
+  bash -e were already read); no publish can precede the check on its line, since only setup
+  commands may. C5: in a check's step, `.` is read as the `source` builtin only as a command's first
+  word or after `builtin` or `command`, so `ruff check .` and `mypy .` are checks; A4's reading of
+  the same words is unchanged.
+- **Root readings.** Every reading of a root file (the test script, the Makefile, the build script,
+  requirements files, the Pipfile) holds only where the workflow sets no `working-directory` and the
+  check's step changes no directory, as item E already required of the test script.
+- **Fifth pass A — requirements (blocker 1).** A requirements line (and each line of an included
+  file) or a name given directly to `pip install` on the credit path is admitted only as a PEP 508
+  project name (beginning and ending with a letter or digit), with optional extras, a version
+  specifier and, in a file, `--hash` options. A name ending in an archive or wheel suffix (`.tar.gz`,
+  `.tgz`, `.tar`, `.zip`, `.whl`, `.egg`, and pip's other archive extensions, in any case) is
+  refused whether or not the file exists, and so is a name that is a path in the repository: from
+  the root, or from the requirements file's own directory; under a `working-directory` or after a
+  `cd`, any path part of that name. Environment markers stay refused, as in the fourth pass.
+- **Fifth pass B — lint and format (blocker 2).** A lint or format command is a check only as
+  `ruff check` (no `--fix`, `--fix-only`, `--exit-zero` or `-e`), `ruff format --check`,
+  `black --check`, `eslint` (no `--fix` or `--fix-dry-run`), `mypy` or `flake8`, each with only
+  flags from a list known to keep the exit code (for example `--quiet`, `--no-cache`,
+  `--output-format`, `--diff`, `--max-warnings`, `--strict`, `--count`); any other flag, any other
+  subcommand, and pylint, which is not listed, are not a check. Paths and C5's `.` are arguments.
+- **Fifth pass C — environment on every path (blocker 4).** The workflow-line reader applies the
+  script reader's assignment rule: an assignment before a check command, or before a setup command,
+  is admitted only for an inert key of item B, and B3's note names the key. A job with a
+  `container:` (any image, with or without `env:`), or a `services:` container that sets `env:`,
+  withholds the credit of its checks, and the note says so. After the name of an npm, pnpm or yarn
+  test script, only npm's `--silent` and `-s` are admitted (yarn and pnpm pass any later word to the
+  script), so `npm test --node-options=...` and any other word withhold the credit.
+- **Fifth pass D — which package runs (blocker 5).** `--prefix`, `-C`, `--dir`, `--cwd`, `-w`,
+  `--workspace`, `--workspaces` and `--filter` (and `-F`, `--recursive`, `-r`) after the script's
+  name withhold the credit; the reader does not follow them to the named package's `package.json`.
+  The note says the test command runs another package's script.
+- **Fifth pass E — a make recipe that runs (blocker 6).** `make test` or `make check` is a check
+  only when the target and every target on its path (each prerequisite, each `$(MAKE) <target>`)
+  is declared `.PHONY` or has no file or directory of its name in the repository; otherwise make may
+  report it up to date and run nothing, and the note says so. A Makefile that assigns `PATH` is not
+  read (`SHELL` and `.SHELLFLAGS` already were not).
+- **Certificate text (blocker 3).** The PR-gate CI count's v27 glossary sentence (v27 certificates
+  only) now lists the conditions as what Cejel reads: a test script or make target the check runs
+  reaches a test runner from a fixed list; a lint or format command is in a form that fails on a
+  finding; every environment key it reads on the check's path (in `env:` mappings, in an assignment
+  on a command's line, or written to `GITHUB_ENV`) is from a fixed list of keys that do not choose
+  what runs; no earlier step writes to `GITHUB_PATH`; the job runs in no container and has no
+  service container that sets `env:`. It then says that this is not a proof that the check can
+  fail, since Cejel does not read a test runner's or linter's own configuration. #640's wording
+  ("no environment setting on its path can change what it runs") is gone. v17's sentence is
+  unchanged.
+- **Not in this change** (cejel #641): no-fail flags that still list tests (a runner's list or
+  dry-run modes) and runners that are repository code (a runner installed from a path, `tsc`
+  writing into `node_modules`); and two false exclusions, `NODE_OPTIONS=--experimental-vm-modules`
+  before jest and `eslint . && vitest`.
+
+**The no-rise property** (`src/witan/__tests__/v27-no-rise.ts`). A counted workflow is counted as
+v17 counts it, so B3 can only return to v17's value, never rise past it. `checkNoRise` and
+`lostFindings` pass on every fixture of `b3-publishing-with-checks.test.ts`, and the generated
+shards pass.
+
+**Fixtures** (`b3-publishing-with-checks-fixtures.ts`; counts re-derived from the file at this
+entry's last commit: the fourth pass's `V4_COUNTED` 16 and `V4_EXCLUDED` 42, the fifth pass's
+`V5_COUNTED` 7 and `V5_EXCLUDED` 36, the sixth pass's `V6_COUNTED` 3 and `V6_EXCLUDED` 20; 221 in
+all, with the 155 of #625 and earlier). The fourth pass's 53 written first were committed red against main
+`d2d178233` (`46326b381`): 55 of 202 tests of
+`b3-publishing-with-checks.test.ts` failed, exactly the new credit paths, the false-credit fixtures
+and the note assertions. One of those 55, a mutation fixture (`npm test || true` then `npm publish`
+in one block), was invalid: a `||` in the step makes its publish conditional, so main does not read
+the workflow as publishing at all. It was replaced by a backgrounded check before the commit, and
+its own test was re-run and passes on main; the commit's "54 of 202" is that count less one, not a
+whole-suite re-run. Five more fixtures were added after the red run, from the mutation runs below.
+The fifth pass's fixtures were committed red at `0a5272474`, and the sixth pass's at `78e1e536e`
+(42 of 322 tests failed at `5b3a622d5`, exactly its new fixtures, note assertions and the pin
+check). `b3-publishing-with-checks-v17.json` pins v17's projection of all 221 fixtures, written with
+main `bfd4d5965`'s code (the scoring source swapped in for the run); the fourth pass first pinned
+its 155 with `d2d178233`, and each later re-pin left every earlier entry and the HTML pin
+byte-identical. The sixth pass changed three counted controls whose `env:` or line assignment used
+`CI` or `NODE_ENV` (`job-level-keys-written-plainly`, `env-inert-keys-and-secret-token`,
+`check-line-assignment-inert`) to keys that stay inert (`TZ`, `LANG`, `FORCE_COLOR`); their v17
+projections match the pin unchanged.
+
+**Measured** (at the sixth pass's final code `690bd8ee3`, after its last code commit). Main
+`bfd4d5965` and this head scored the same 561 synthetic checkouts: the 221 fixtures of
+`b3-publishing-with-checks-fixtures.ts` (fourth, fifth and sixth passes included), every fixture of
+`false-assurance-fixtures.ts` and `ci-claims-followups-fixtures.ts`. Each checkout was built once
+on each side and scored under all eleven selectable rubrics; report JSON, HTML and Markdown were
+compared by hash, with the checkout path replaced. Errors: 0 on both sides. For main's side, the
+three source files this branch changes (`repo-signals.ts`, `certificate-presentation.ts`,
+`rubric-version.ts`) were main's.
+
+- v17-v26: 5,600 of 5,610 reports byte-identical to main, and their HTML and Markdown too. The
+  other 10 are `review4-a4-working-directory-through-tracked-symlink` under each of the ten rubrics,
+  which #625's entry describes: its commit holds a symlink to a freshly made temporary directory, so
+  its head SHA differs between builds; no criterion differs.
+- v27: 477 of 561 reports byte-identical to main. Leaving out that same fixture, 83 move, in B3
+  only:
+  - 14 rise to v17's B3 value, the new credit paths: `pip-install-requirements-plain`,
+    `pip-install-requirements-hashed-and-included`, `pipenv-install-plain-pipfile`,
+    `prepare-husky-before-check`, `steps-at-key-indent`, `build-tsc-before-check`,
+    `build-tsc-outdir-fresh-lib`, `needs-block-list-at-key-indent`, `check-and-publish-one-line`,
+    `ruff-check-dot`, `ruff-format-check`, `black-check`, `eslint-dot-max-warnings` and `mypy-dot`;
+  - 48 fall from v17's value, the false credit main gave: 14 test commands (scripts that run
+    `/bin/true`, `node -e 0`, `printf ok`, a chain to a no-op, a runner `|| true`, a `pretest` that
+    runs repository code or a `NODE_OPTIONS=` assignment, a `tsc` before the runner writing into
+    `node_modules/uvu`; `npm test --node-options=...`, `--prefix`, `-w`, `--workspaces`,
+    `pnpm test --filter`, `yarn test --cwd`), 15 make targets (an `@true` recipe, a no-op
+    prerequisite, a `-` line, a prerequisite that runs repository code first, `.ONESHELL`, an
+    `export`, a target that is not `.PHONY` beside a `test/` or `Test/` directory or a `CHECK` file,
+    a prerequisite named after a file, a committed `GNUMAKEFILE`, and four Makefile assignments:
+    `PATH`, `HOME`, `PYTEST_ADDOPTS` and an unreferenced `VERSION`), 15 environments (an assignment
+    on the check's or a setup command's line, including `CI=false`; `NODE_OPTIONS`, `PATH`,
+    `LD_PRELOAD`, `PYTHONPATH` or `NODE_ENV` in an `env:` mapping; a job `container:` with or
+    without `env:`; a `services:` container with `env:`; a credential key without a secret), 3
+    commands written as a path that main credited through the `./` it stripped (`./pytest`,
+    `./make test`, `./jest` run by npx) and 1 local archive given to `pip install`;
+  - 21 change in B3's note only: it now says why a check was not counted (no-op and help or version
+    test scripts, `npm test --if-present`, `github-path-write-before-check`, five tsc builds whose
+    output is not admitted, three commands written as a path that main already excluded), or, for
+    `flake8-src`, which main also counted, that the lint configuration is not read.
+- v27 B3 above v17 B3 on the same commit: 0.
+- Every v27 HTML and Markdown report differs from main's, because the v27 glossary sentence
+  changed. Rendering is a function of the report and the presentation code, and for the 477
+  reports whose JSON is identical the only presentation change is that sentence.
+- The Makefile assignment rule (blocker 3) moves 3 checkouts beyond what the fifth pass's `PATH`
+  refusal already moved: `make-home-assignment-pth`, `make-pytest-addopts-assignment` and
+  `make-unreferenced-assignment`, all added by this round; none of the 538 checkouts measured
+  before it moves. `make-unreferenced-assignment` is the false exclusion it causes by design: a
+  Makefile whose only assignment (`VERSION = 1.0`) is never exported and never read by a runner is
+  no longer credited. An exception for such variables was not made: make exports any variable the
+  environment also sets, and which names a runner or tool reads from the environment is no fixed
+  list, so the exception would itself be a list of names.
+
+**This round** (the adversarial review of #645 at `5b3a622d5`, four false-credit blockers and three
+should-fix items). Red fixtures `78e1e536e`; fix `690bd8ee3`. (1) A command word holding a `/`
+(`./ruff format .`, `./eslint --fix .`, `./make test`, `./jest` run by npx, `bin/pytest`) runs that file,
+so it is no check, runner, lint form or setup step; `isCheckCommand` stripped a leading `./` before
+its vocabulary match, while its lint gate read the word unstripped, so the gate was skipped and the
+match succeeded. B3's note says such a command runs a file in the repository or on the runner. The
+script, recipe and setup readers already matched words exactly; each now refuses a path word
+explicitly. (2) Make targets are compared with repository paths case-insensitively on every runner,
+as macOS resolves them (`test:` beside `Test/`, `check:` beside `CHECK`), and no Makefile is read
+beside a `GNUmakefile` or `makefile` in any case; pip path lookups on the credit path compare the
+same way. `.PHONY` stays exact, as make matches it. (3) Any Makefile assignment withholds the credit
+of every target, with a note; see the last Measured item for its false exclusion. (4) A tsc build,
+or tsc before a runner in a test script or recipe, is admitted only as `tsc` or `tsc --noEmit`
+where every place it writes (`outDir`, `declarationDir`, `outFile`'s directory) holds no tracked
+file, is no tracked path, has none above it, and has no `node_modules` part, compared
+case-insensitively; a tsconfig.json with `extends`, a build-info file (`incremental`, `composite`,
+`tsBuildInfoFile`), the deprecated `out`, an output option spelled in another case, or no `outDir`
+or `outFile`, refuses. (5) `CI` and `NODE_ENV` left the inert keys; three counted controls moved to
+`TZ`, `LANG` and `FORCE_COLOR`. (6) B3's note adds "(a lint or format check, whose configuration
+Cejel does not read)" to a counted workflow whose credited check is one, in its long and short
+sentence and, as "some on ...", in the closing count; the note's 1,000-character budget is
+unchanged. (7) The Fixtures paragraph above was corrected. Left open: `python -m pytest` with a
+committed `pytest/` package runs the repository's module, not the runner (cejel #647), and #641's items.
+
+**Mutation runs.** Each refusal was disabled alone and the fourth pass's fixtures scored under v27;
+each run below failed the fixtures named. The runner vocabulary read as "runs anything" (9
+fixtures); pre and post scripts not read (1); a separator other than `&&` admitted in a script (1);
+any assignment admitted before a runner (1); make's `-` prefix not read (1); make prerequisites not
+read (2, one counted fixture lost); the make settings list (1, `.ONESHELL`); environment problems
+ignored (6); a credential without a secret admitted (1); earlier steps' `env:` not read (1); a
+requirements include outside the repository admitted (1); requirements option lines admitted (2);
+any Pipfile package value admitted (1); Pipfile `[scripts]` entries admitted (1); any `prepare`
+script admitted (1); any build command admitted (1, after the vite fixture was given the
+`tsconfig.json` its counted twin has, which before then excluded it); the `&&` bound on a publish on
+the check's line (1, `npm test | npm publish` after pipefail); `.` read as `source` anywhere (1).
+Three refusals no fixture could make load-bearing were dropped, each already enforced by a broader
+rule: a Makefile directive list (no directive line is a placed line), a Pipfile section list (an
+unknown section's entries refuse), and an order test for a publish before the check on its line
+(only setup commands may precede the check, and none publishes). Two readings have no fixture of
+their own: a `$GITHUB_ENV` write of a named key, and an `env:` mapping the reader cannot place.
+
+No holdout or calibration ran. No behaviour-fingerprint pin moves: the fingerprint corpus holds no
+check-then-publish workflow. No published score moved: the board is scored under v17.
+
+## 2026-11-02 (allowlist) — v27 A1 says a collection hook puts the items back only when every statement of its body is on an allowlist; a deselect-everything hook in any conftest.py reaches every collected test; v17-v26 byte-identical, certificate text included; v27 never above v17; no published score moved
+
+**Status.** A scoring change under `witan-rubric-v27-prospective-2026-10-19` only, with no
+identifier change (goal_cejel_v27_a1_restore_proof_v2_2026-11-02, which supersedes #638; #638
+closed unmerged, and its change is carried here). It revises the three-outcomes entry below, which
+never reached main; that entry is kept as #638's record, with its rebinding sentence corrected. No
+holdout or calibration ran, and this entry makes no precision or recall claim. The default stays
+v17.
+
+**Why.** An adversarial review of #638 (comment on #638, 2026-11-02) found that outcome 2 ("the
+hook puts the collected items back") was still reached by default: the reader interpreted the hook
+body and treated whatever it did not model as harmless. Writing `R` for `saved = list(items)`,
+`items.clear()`, `items.extend(saved)`, the review found nine shapes where pytest 9.2.0 runs no test
+and v27 still gave v17's credit and said the items were put back: `R` then `items[0:] = []` or
+`items[::1] = ()` (and `items[1:] = []`, which keeps one test of three); `R`, a triple-quoted string
+whose closing line starts at column 0, then `items.clear()` (the body's end was measured by
+raw-line indentation); `sorted(items)` as the copy; another name holding the list (`keep = [items]`,
+`a, b = items, 1`); a restore in a nested or module-level `async def`; a decorated nested restore;
+a helper redefined under `if True:` or `try:`; a shadowed `list` or `sorted`; and `exec`, `getattr`,
+an f-string field, or a helper called before a nested `def` of the same name. It also found two
+false hollow ratings (`items = copy.copy(items)` before the clear; an extend from a name a closure
+defined earlier fills), four silent passes (`items[0:] = []`, `items[:len(items)] = ()`, a helper
+doing `lst[0:] = []`, a docstring or trailing comment naming the hook), a quadratic cost (N stored
+lambdas naming `items`), and a nested `conftest.py` whose clear rated only its own directory.
+
+**Change.**
+
+- **Outcome 2 is an allowlist over the whole hook body.** A hook reaches it only when every
+  statement of its body (after a hookwrapper's `yield`; before it, only docstrings) is one of: a
+  copy `S = list(items)`, `items[:]`, `items.copy()`, `[*items]` or `tuple(items)`, taken before the
+  list is emptied and mentioned at most once more; an emptying `items.clear()`, `del items[:]` or
+  `items[:] = []`; a restore after it from a copy not used yet, `items.extend(S)`, `items += S`,
+  `items[:] = S` or `items[:] = S[:]`; a call of a same-file helper that is a plain, undecorated,
+  synchronous `def` at module level, defined once, named nowhere else in the module at any indent
+  or in any string, with two parameters and a body of only an optional docstring, an optional
+  emptying of one parameter and one restore of it from the other; and a docstring. No report call
+  is on it (since the review of #644 at `bca7ebfbf`: see "This round" below). `sorted` is not a copy; `list` and `tuple` count only where
+  the module binds neither name anywhere. The list reading must also end with the items back. Any
+  other statement sends a hook that is not provably outcome 1 to outcome 3, named with the first
+  statement outside the allowlist. A hook that calls `exec`, `eval`, `compile`, `getattr`,
+  `setattr`, `delattr`, `globals`, `locals`, `vars` or `__import__` is touched even where it never
+  names `items`, and is never read.
+- **A tokenised `conftest.py`.** Strings (triple-quoted too), f-string fields (whose code is read as
+  code), comments, brackets and backslash continuations are tokenised as Python does; a body ends at
+  the next logical line at column 0. A comment, or a statement that is only a string, that names
+  the hook no longer stops Cejel reading it, and the conditional rule reads code, so an `if` in a
+  docstring is not a condition. A backslash continuation is now read as one logical line rather than
+  sending the hook to outcome 3.
+- **No false hollow rating.** A statement that may bind the name `items` itself (an assignment
+  target, a `for` target, `as`, `del`, `def`, `import`, `:=`) at or before the hook's last emptying
+  stops outcome 1, so `items = copy.copy(items)` then `items.clear()` and `for items in
+  [list(items)]:` are not read. #626's read-only rebind (`items = list(items)` at the top level)
+  keeps its "rebinds items" withhold. A name counts as bound to an empty list only where that
+  binding is its first mention in the hook, so a closure defined before it may not fill it.
+- **No silent pass.** An assignment to a slice that is not the whole list is never read as adding
+  nothing, in the hook or in a helper; the three slice shapes above are named as not read.
+- **A hook in any `conftest.py` reaches every collected test** (item E). pytest calls every loaded
+  `conftest.py`'s collection hook with every collected item, so a hook that deselects or skips
+  everything rates every collected test file hollow, not only those under its directory, where the
+  run collecting the file also collects the hook's directory. A run that names no path at, above or
+  below it, ignores it, or sets `norecursedirs` or `--ignore-glob` withholds the rule for that file,
+  and A1's note says so. Where a directory on the hook's path is one pytest skips by default, or
+  any `conftest.py` names `collect_ignore` or `pytest_ignore_collect`, the hook keeps to its own
+  directory, as before. A file is attributed to a hook whose directory holds it first. The v27
+  glossary's non-hollow sentence says so, and no longer says "no file under it".
+- **Linear time** (item F). The reader's set of closure names is kept as it changes, not rebuilt
+  for every statement. A scaling check reads a hook of L/80 and 2L/80 stored lambdas and refuses a
+  time ratio above 3; against #638 it measured 131 ms and 594 ms, ratio 4.53.
+
+Real restores outside the allowlist move from outcome 2 to outcome 3: a lambda or nested function
+called after the clear, a helper restoring from `sorted(...)`, and a reorder through
+`sorted(items, key=...)`. Their score is v17's either way; only the note's wording changes.
+
+**This round: the review of #644 at `bca7ebfbf`.** The review (comment on #644, 2026-11-02) found
+that outcome 2 still trusted calls and names Python can rebind without the file spelling them out,
+and reproduced, with pytest 9.2.0, hooks that run no test while v27 said the hook "puts the
+collected items back": the same `conftest.py` defines `def pytest_deselected(items):
+items[0].session.items.clear()` and the restoring hook ends with
+`config.hook.pytest_deselected(items=dropped)` (pytest reports 3 deselected); `print(W)` or
+`log.warning(W)` where `W.__str__` clears `session.items`; `from helpers import *` bringing in a
+`list` or the restore helper; `builtins.print = ...`; and `setattr(sys.modules[__name__], "li" +
+"st", ...)`. Our own probes added `sys.modules[__name__].tuple = ...`, a self-import assigning
+`conftest.list`, `__builtins__["li" + "st"] = ...` and a module `__getattr__` (which breaks
+pytest's own lookups, so collection errors before the hook runs). The change:
+
+- **No report call on the allowlist.** `config.hook.pytest_deselected(...)` (any `conftest.py` or
+  plugin may implement it), `print` and logging calls (they run handlers and their arguments'
+  `__str__`) are dropped. A restoring hook holding one goes to outcome 3, named with that call.
+  The deselect-everything hook (copy, clear, report the copy) is read before the allowlist and
+  stays at outcome 1.
+- **No credit in a module that may rebind a trusted name.** A body the allowlist reads whole is
+  still sent to outcome 3, named with the module's first such statement, where its `conftest.py`
+  has a star import; `setattr`, `delattr`, `__setattr__` or `__delattr__`; `builtins` or
+  `__builtins__`; `modules` (so `sys.modules`); `__dict__`, `__globals__`, `__getattr__`,
+  `__getattribute__`, `__import__` or `importlib`; a bare `exec`, `eval`, `compile`, `globals`,
+  `vars` or `locals`; or an attribute named `list` or `tuple` that is not called. A strict helper
+  is also refused where any attribute of its name is written (`conftest.refill = ...`). Strings
+  are blanked and comments dropped before reading, and the read is linear (a new scaling check
+  reads a module of L/80 and 2L/80 lines beside a restoring hook).
+
+Each moved hook keeps v17's reading (outcome 3 makes no claim), so this round lowers nothing and
+raises nothing: it changes only which sentence A1's note holds.
+
+**Known limit (cejel #646).** Outcome 2 reads only the hook's own `conftest.py`. A builtin or
+helper patched from another file (a module the conftest imports by name, a second `conftest.py`,
+or a plugin) is not read, so outcome 2's sentence holds only where nothing outside that file
+rebinds `list`, `tuple` or the helper. This needs deliberate tampering in another file; it is not
+read, and it is stated here and in the v27 declaration. Real restores that print or log, or
+that sit beside such a module, are now named as not read: a miss, never a false sentence. The
+fixtures are item F of `src/witan/__tests__/fixtures/v27-a1-allowlist-fixtures.ts`, committed red
+(`203b953ad`); 16 outcome checks failed at `bca7ebfbf`, among them the two report controls of item
+A, which move to outcome 3. Besides the four controls, one new fixture,
+`a1al-f-self-import-attribute-helper`, already passed there and is kept as a pin. pytest 9.2.0 was
+run on the probe shape of each item F fixture. All 109 probe
+repositories of the #638 and #644 reviews and this round were scanned at the fix (`9e196656d`):
+none says "puts the collected items back" where pytest runs fewer than every test, and 16 moved
+from outcome 2 to outcome 3 against `bca7ebfbf`: 13 where pytest runs no test (three of them
+because pytest errors or fails to start), and 3 where it runs every test.
+
+**The no-rise property.** Outcome 3 makes no claim, so the file keeps v17's reading; outcome 1
+lowers only where v17 already scores. v27 cannot score A1 above v17 on the same commit.
+
+**Measured.** The same 393 synthetic repositories #638's entry names, built once from the fixture
+files at `26a7d4795` (269 false-assurance, 39 removal and 85 withhold fixtures), scanned with main
+`bfd4d5965`, with #638's head merged with main (`1e6c0d9f3`), and with this branch (`c7916f656`
+with the v27 glossary sentence and the comments committed beside this entry). v17 and v27 scanned
+all 393, v18 to v26 the 124 v27 A1 fixtures: 1,902 reports each side, 0 errors. Each report was
+rendered as HTML and Markdown with the code that scanned it.
+
+- v17: 393 of 393 reports, HTML and Markdown certificates byte-identical to main.
+- v18 to v26: 124 of 124 each, reports and certificates.
+- v27 against main: 366 of 393 reports byte-identical. All 27 that moved moved in A1 alone (every
+  other criterion's record is identical; two also move code trust and overall, through A1). Two A1
+  scores changed: `a1wh-r2-imported-helper-call` rose from 1.7 (critical) to v17's 2.3, as in
+  #638's entry (an imported helper may put the items back: not read); and
+  `a1rm-hook-in-subdirectory`, a skip-every-item hook in `tests/integration/conftest.py`, fell from
+  2.1 (warning) to 1.7 (critical), since it now rates all three collected test files hollow, not
+  one (item E). 20 more now name a hook as not read, with their scores unchanged: the 10 conditional
+  hooks of #638's entry, the append loop, `__iadd__` and alias restores, the two closures stored on
+  `config` and the clear inside a loop over a configured list (all as in #638's entry), and four
+  hooks #638 credited with outcome 2: the nested-function restore, the helper restoring from
+  `sorted(...)`, and two reorders through `sorted(items, key=lambda ...)`. 5 gain only the evidence
+  pointer at a hook the note already named as putting the items back or rebinding them. Every v27
+  certificate changes, by the glossary sentence.
+- v27 against #638's head merged with main: 388 of 393 reports byte-identical; the 5 that moved
+  moved in A1 alone: the four outcome-2 hooks above, now not read, and `a1rm-hook-in-subdirectory`.
+- v27 A1 above v17 A1 on the same repository: 0 of 393. Headline scores (code trust, process
+  trust, overall) above v17: 0 of 1,170 compared; 3 reports abstain with no headline score, as on
+  main.
+
+The 44 allowlist fixtures (`src/witan/__tests__/fixtures/v27-a1-allowlist-fixtures.ts`) are not in
+the 393. They were committed red (`9ea019eb9`) with four moved pins and the scaling check: against
+#638's head merged with main, 37 outcome checks failed in the three A1 suites, and the scaling
+check failed at ratio 4.53. Three blocker fixtures (`a1al-a4-list-holding-items`,
+`a1al-a4-tuple-unpacked-alias`, `a1al-a9-getattr-session-items`) already passed there and are kept
+as regression pins. Two red expectations were corrected in the item E commit (`c7916f656`): they
+asked A1's note to name a restoring hook in a second `conftest.py` while the first one's clear rated
+every file hollow, which A1 never says (it names a withheld rule only for a file no rule moved,
+since #626 item C). pytest was not run on any fixture: Python packages could not be run in this
+session, so each fixture's claim rests on reading pytest's hook-calling and collection code, not
+on a run. No holdout or calibration ran.
+
+**Re-measured for this round** (code at `73e26cbe4`; the records commit beside this text changes
+comments and records only). The same 393 repositories, from the fixture files at `26a7d4795`,
+scanned with main `bfd4d5965`, with `bca7ebfbf` (this branch before the round) and with this
+round: v17 and v27 all 393, v18 to v26 the 124 v27 A1 fixtures, 1,902 reports each side, 0 errors,
+each rendered as HTML and Markdown.
+
+- Against `bca7ebfbf`: 1,902 of 1,902 reports, and every HTML and Markdown certificate,
+  byte-identical. None of the 393 holds a restoring hook with a report call or beside such a
+  module, so the round moves none of them.
+- Against main `bfd4d5965`: v17 393 of 393 reports and certificates byte-identical; v18 to v26 124
+  of 124 each; v27 366 of 393 reports byte-identical, all 27 that moved moving in A1 alone, the two
+  A1 score changes as above (`a1wh-r2-imported-helper-call` 1.7 to v17's 2.3,
+  `a1rm-hook-in-subdirectory` 2.1 to 1.7), and every v27 certificate changing by the glossary
+  sentence, as stated above.
+- v27 A1 above v17 A1 on the same repository: 0 of 393. Headline scores above v17: 0 of 1,170
+  compared.
+
+No holdout or calibration ran, and this round makes no precision or recall claim.
+
+No published score moved: the board is scored under v17.
+
+## 2026-11-02 (three outcomes; superseded by the allowlist entry above) — v27 A1 reads every pytest collection hook that touches `items` as deselecting everything, putting the items back on proof, or not read and named; v17-v26 byte-identical, certificate text included; v27 never above v17; no published score moved
+
+**Status.** #638's record. #638 closed unmerged; the allowlist entry above supersedes it and
+re-measures the whole change against main. A scoring change under `witan-rubric-v27-prospective-2026-10-19` only, with no
+identifier change (goal_cejel_v27_a1_restore_proof_and_hookwrapper_2026-11-02; #631, #632, #634).
+No holdout or calibration ran for it, and this entry makes no precision or recall claim. The
+default stays v17.
+
+**Why.** #626's restore reader (the entry below) withheld the run-wide skip rule on any `extend`,
+`+=` or slice assignment after the clear from a source it could not show to be empty. So a hook
+that puts nothing back still got v17's credit, and the note said it "puts the collected items
+back": a saved copy aliased and cleared before the restore, `list(items)[:0]`, `saved[5:5]`,
+`sorted(items)[:0]`, a helper adding `src and []` or `src * 0` (#631). A hook any `if`, `return`
+or `yield` touched made no claim and was not named, including a hookwrapper that empties `items`
+after its `yield` (#632). And some real restores were rated hollow: a lambda called later, a
+helper called by keyword or with `*`, a method, a `def` wrapped across lines (#634).
+
+**Change.** Every last top-level `pytest_collection_modifyitems` with an `items` parameter whose
+body names `items` reaches one of three outcomes, and none by default:
+
+- **Deselects** (the rule applies, as before). The reader proves the hook leaves the list empty:
+  after the last clear, nothing that runs at the hook's top level, or in a closure it calls,
+  could add to it. A clear is `items.clear()`, `items[:] = []` or `()`, `del items[:]`, a
+  whole-slice assignment from a source proven empty, or a same-file helper that clears its list
+  parameter. A source is proven empty when it is an empty literal, `range(0)`, a zero-length slice
+  (`x[:0]`, `x[0:0]`, `x[k:k]` for one integer or name `k`), a name whose last top-level binding is
+  one of those with no mention since, or, while the list is empty, the list or a copy of it.
+  Reading the list, reporting a saved copy (`config.hook.pytest_deselected(items=dropped)`) or
+  iterating over one changes nothing, so the common deselect-everything hook stays caught.
+- **Restores** (withheld, and said, as before). The reader proves every collected item is back:
+  `items.extend(S)`, `items += S` or `items[:] = S` (or `S[:]`) on `items` itself, after the clear,
+  at the hook's top level, directly or through a helper the same `conftest.py` defines once at its
+  top level, undecorated (its arguments by position or by its own parameter names; inside the
+  helper the source may also be `list(S)`, `tuple(S)`, `sorted(S, ...)`, `[*S]` or `S.copy()`), or
+  through a lambda or nested function without parameters bound at the top level and called there.
+  `S` must be a name bound once, at the top level, before anything changes the list, to
+  `list(items)`, `items[:]`, `items.copy()`, `[*items]`, `tuple(items)` or `sorted(items, ...)`, and
+  mentioned nowhere else in the hook at any depth. `sorted(items, ...)` is added to the card's five
+  full copies, since it holds every item; it keeps #626's reorder fixtures (`ordered =
+  sorted(items, key=...)`, clear, extend) at this outcome.
+- **Not read** (new). The reader proves neither, so the rule makes no claim for the hook. A1's
+  note names it ("Hook not read: `<reason>` in <path>"), and its evidence cites the hook's `def`.
+  The reason is the statement the reader stopped at, at most 48 characters, strings blanked, or the
+  keyword: an `if`, `return`, `while`, `with`, `try` or other statement the conditional rule stops,
+  `skipif`, a second or nested `yield`, an unknown decorator, a backslash continuation, or an
+  f-string that may name `items`. A use the reader does not prove is not read too: an add from any
+  other source, `append`, `insert`, `__iadd__`, an alias as the restore's target, an imported or
+  unseen helper, a method, `*` arguments, a clear or add inside a loop, a closure stored or called
+  with arguments, `session.items` or any use of the hook's `session` once the list is emptied
+  (pytest 9.1.0's `Session.perform_collect` passes the hook `self.items`, so the session holds the
+  same list), a `global` or `nonlocal`, and a use not read before the last clear when any call
+  follows it.
+- **Hookwrappers and wrapped `def`s** (#632, #634). A hook decorated `@pytest.hookimpl(hookwrapper=True)`
+  or `wrapper=True` is read as the code after its single top-level `yield` (a final `return` of the
+  result is dropped), so one that empties `items` after `yield` is rated hollow. A `def` whose
+  parameters run onto later lines is read as the hook.
+- **Exact paths** (#634). In A1's note a path holding `, `, `; `, ` (`, a backtick or a double quote
+  is written in double quotes, with `\` and `"` escaped; the v27 glossary's non-hollow entry states
+  the rule. Each hook a withheld-rule clause names (not read, putting the items back, or rebinding
+  them) is cited at its `def`; the note says how many rated files, or named hooks, past the eight
+  evidence pointers carry none.
+
+A hook the reader reads as never emptying the list (it only reads, reorders or adds) is not named,
+and a hook that rebinds the name `items` to a copy the reader reads (`items = list(items)`) before
+its clear keeps #626's withhold. (Corrected by the allowlist entry above: #638 as written rated
+`items = copy.copy(items)` then `items.clear()` hollow, though pytest runs every test; any other
+rebinding of `items` before its clear is now not read.)
+
+**The no-rise property.** Outcome 3 makes no claim, so the file keeps v17's reading; outcome 1
+lowers only where v17 already scores. v27 cannot score A1 above v17 on the same commit.
+
+**Measured** (code at `4da6ec50c`). The same 393 synthetic repositories #626's entry names, built
+once at fixed paths from the fixture files at `26a7d4795` (269 false-assurance, 39 removal and 85
+withhold fixtures), scanned with main `d2d178233` and with this branch. v17 and v27 scanned all
+393, v18 to v26 the 124 v27 A1 fixtures: 1,902 reports each side, 0 errors. Each report was
+rendered as HTML and Markdown with the code that scanned it.
+
+- v17: 393 of 393 reports byte-identical to main, and 393 of 393 HTML and Markdown certificates.
+- v18 to v26: 124 of 124 each, reports and certificates.
+- v27: 367 of 393 reports byte-identical. All 26 that moved moved in A1 alone (every other
+  criterion's record is identical). One A1 score changed: `a1wh-r2-imported-helper-call`, a hook
+  that gives an imported helper the list after its clear, rose from 1.7 (critical) to v17's 2.3,
+  since the helper may put the items back (outcome 3). 16 more now name a hook as not read in the
+  note and evidence, with their scores unchanged: 10 conditional hooks (`if`, `skipif`, an early
+  `return`) that #626 passed silently, an append loop, `__iadd__` and an alias restore that #626
+  read as restores, two closures stored on `config`, and a clear inside a loop over a configured
+  list. 9 gain only the new evidence pointer at a hook the note already named as putting the items
+  back or rebinding them. Every v27 certificate changes, by the glossary sentence.
+- v27 A1 above v17 A1 on the same repository: 0 of 393. Headline scores (code trust, process
+  trust, overall) above v17: 0 of 1,170 compared; 3 reports abstain with no headline score, as on
+  main.
+
+The 38 hook-outcome fixtures (`src/witan/__tests__/fixtures/v27-a1-hook-outcome-fixtures.ts`) are
+not in the 393. The first 33 were committed red (`42d1b46ca`): against main, 28 of their 34
+outcome checks failed, and the 6 that passed are controls. One of them was edited after that
+commit and re-run against main, with the same result. Two more pin a bug the measurement found
+(a loop over `items` read as a use not read) and fail at `704adebca`, the commit before its fix;
+three pin the session and global guards and fail on main, where all three are rated hollow (the
+two session ones though pytest would run their tests). Four #626 fixtures
+change their expected outcome, as above. pytest itself was not run on any fixture: Python could
+not be run in this session, so each fixture's claim rests on reading pytest 9.1.0's source, not on
+a run. No holdout or calibration ran.
+
+No published score moved: the board is scored under v17.
+
 ## 2026-11-02 — v27 A1 names every file it rates hollow, withholds a rule only on evidence the setting is in force for a pytest run that collects the file or the items are put back, and says every withhold; v17-v26 byte-identical; v27 never above v17; no published score moved
 
 **Status.** A scoring change under `witan-rubric-v27-prospective-2026-10-19` only, with no
@@ -123,7 +881,8 @@ ratio no longer reads 0 there.
 **Measured** (after the second review's fixes: branch code and fixtures at `26a7d4795`; `411b5a2d6`
 changes one fixture's tox description only). The third pass (`96c39746f`) scanned the same 393
 repositories again under v17 and v27: every report byte-identical to `26a7d4795`'s. The last round
-(`0aa1116b8`) changes only how a same-file helper call is read and was not re-measured. Main `fe8c261de` and this branch scanned the same 393 synthetic repositories,
+(`0aa1116b8`) changes only how a same-file helper call is read and was not re-measured (it was on
+2026-11-02: see the correction below). Main `fe8c261de` and this branch scanned the same 393 synthetic repositories,
 built once at fixed paths: the 269 false-assurance fixtures, #621's 38 removal fixtures and the 86
 withhold fixtures (this change's 33 and the second review's 53). v17 and v27 scanned all 393; v18
 to v26 scanned the 124 v27 A1 fixtures. Errors: 0 on both sides.
@@ -150,6 +909,17 @@ pytest table) were not genuine, since pytest reads the `pyproject.toml` there, a
 each has a fixture that fails when it alone is removed. No holdout or calibration ran.
 
 No published score moved: the board is scored under v17.
+
+**Correction (2026-11-02, goal_cejel_v27_a1_restore_proof_and_hookwrapper_2026-11-02, item F).**
+The last round, `0aa1116b8`, is now measured. The same 393 synthetic repositories, built once at
+fixed paths from the fixture files at `26a7d4795`, were scanned with the code at `0aa1116b8` and at
+its parent `6010c5521` (whose code is the third pass's; the parent changes only fixtures). v17 and
+v27 scanned all 393, and v18 to v26 the 124 v27 A1 fixtures: 1,902 reports on each side, 0 errors,
+and all 1,902 byte-identical between the two. The last round moves nothing this entry states: none
+of the 393 repositories holds a hook whose reading the round changed (its own fixtures were added
+after the measurement). One count above is corrected: at `26a7d4795` the 124 v27 A1 fixtures are 39
+removal fixtures and 85 withhold fixtures, not 38 and 86; the total, and every count measured over
+it, stand.
 
 ## 2026-11-01 (B3) — under v27 a publishing workflow with no pull-request trigger is counted as CI again only when a failed check really stops every publish; third pass 2026-11-02; v17-v26 byte-identical, certificate text included; no published score moved
 

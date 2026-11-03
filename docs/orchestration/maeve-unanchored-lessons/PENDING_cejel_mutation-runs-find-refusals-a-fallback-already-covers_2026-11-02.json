@@ -1,0 +1,26 @@
+[
+  {
+    "statement": "On cejel's v27 B3 fourth pass, disabling one refusal at a time showed three that no fixture could make load-bearing (a Makefile directive list, a Pipfile section list, a same-line order test): a broader rule already enforced each, so they were dropped. Two fixtures were excluded for the wrong reason: a vite-build refusal fixture lacked the tsconfig.json the credited one had, and a mutation writing `npm test || true` in the publishing step made the publish itself conditional, so the workflow was no longer read as publishing. Rules: disable each named refusal and drop it if no fixture fails; a refusal fixture differs from a credited one only in the property that refusal checks; a mutation of a credit path keeps every upstream classification unchanged.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "testing",
+      "evidence-discipline"
+    ],
+    "tags": [
+      "mutation-testing",
+      "refusal-list",
+      "load-bearing-fixture",
+      "fixture-isolates-one-property",
+      "own-error"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-11-02T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 644
+    }
+  }
+]

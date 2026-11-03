@@ -24,6 +24,15 @@ import {
   V3_COUNTED,
   V3_EXCLUDED,
   V3_FIXTURES,
+  V4_COUNTED,
+  V4_EXCLUDED,
+  V4_FIXTURES,
+  V5_COUNTED,
+  V5_EXCLUDED,
+  V5_FIXTURES,
+  V6_COUNTED,
+  V6_EXCLUDED,
+  V6_FIXTURES,
   publishingFile,
 } from './fixtures/b3-publishing-with-checks-fixtures.js';
 import { buildFalseAssuranceFixture } from './fixtures/false-assurance-fixtures.js';
@@ -40,7 +49,7 @@ import { checkNoRise, lostFindings } from './v27-no-rise.js';
 const V17 = WITAN_RUBRIC_VERSION_V17;
 const V27 = WITAN_RUBRIC_VERSION_V27;
 
-const ALL = [...PUBLISHING_WITH_CHECKS_FIXTURES, ...EDGE_FIXTURES, ...V2_FIXTURES, ...V3_FIXTURES];
+const ALL = [...PUBLISHING_WITH_CHECKS_FIXTURES, ...EDGE_FIXTURES, ...V2_FIXTURES, ...V3_FIXTURES, ...V4_FIXTURES, ...V5_FIXTURES, ...V6_FIXTURES];
 
 const repos = new Map<string, string>();
 const reports = new Map<string, WitanReport>();
@@ -82,6 +91,11 @@ function metricValues(score: WitanCriterionScore): Record<string, number | undef
 const NOT_COUNTED_SENTENCE = (file: string) =>
   `1 workflow that publishes, releases or deploys with no pull-request trigger (an unconditional step runs a publish, release or deploy command or action) is not counted as CI verification, whatever else it runs: ${file}.`;
 
+// Sixth pass (review of #645, should-fix 6): where a counted workflow's credit rests on a lint or
+// format check, B3's note says that Cejel does not read the tool's configuration.
+const LINT_CREDITED: readonly string[] = ['ruff-check-dot', 'mypy-dot', 'black-check', 'ruff-format-check', 'flake8-src', 'eslint-dot-max-warnings'];
+const LINT_CONFIGURATION_CLAUSE = ' (a lint or format check, whose configuration Cejel does not read)';
+
 const COUNTED_DETAILS: Readonly<Record<string, string>> = {
   'npm-test-then-publish': 'is triggered by push to main, and its publishing job declares no environment.',
   'npm-test-in-needed-job': 'is triggered by push to main, and its publishing job declares no environment.',
@@ -94,10 +108,11 @@ const COUNTED_DETAILS: Readonly<Record<string, string>> = {
   'npmrc-registry-only': 'is triggered by push to main, and its publishing job declares no environment.',
   'poetry-install-no-root-before-check': 'is triggered by push to main, and its publishing job declares no environment.',
   'job-level-keys-written-plainly': 'is triggered by push to main, and its publishing job declares no environment.',
+  ...Object.fromEntries([...V4_COUNTED, ...V5_COUNTED, ...V6_COUNTED].map(([name]) => [name, 'is triggered by push to main, and its publishing job declares no environment.'])),
 };
 
 describe('v27 (#517 correction) — a publishing workflow that checks before it publishes is counted', () => {
-  for (const [name] of [...COUNTED, ...EDGE_COUNTED, ...V2_COUNTED, ...V3_COUNTED]) {
+  for (const [name] of [...COUNTED, ...EDGE_COUNTED, ...V2_COUNTED, ...V3_COUNTED, ...V4_COUNTED, ...V5_COUNTED, ...V6_COUNTED]) {
     it(`v27 counts ${name}, as v17 does`, () => {
       const file = publishingFile(name);
       const b3 = criterion(name, V27, 'B3');
@@ -108,8 +123,9 @@ describe('v27 (#517 correction) — a publishing workflow that checks before it 
 
     it(`v27's B3 note says ${name} is counted because a check runs before it publishes`, () => {
       const file = publishingFile(name);
+      const clause = LINT_CREDITED.includes(name) ? LINT_CONFIGURATION_CLAUSE : '';
       expect(criterion(name, V27, 'B3').notes, name).toBe(
-        `${file} is counted as CI verification because a check runs before it publishes; it ${COUNTED_DETAILS[name]}`,
+        `${file} is counted as CI verification because a check runs before it publishes${clause}; it ${COUNTED_DETAILS[name]}`,
       );
     });
   }
@@ -119,7 +135,7 @@ describe('v27 (#517 correction) — a publishing workflow that checks before it 
 const TAG_TRIGGERED_ONLY: ReadonlySet<string> = new Set(['pytest-before-twine-on-tag']);
 
 describe('v27 (#517 correction) — a publishing workflow with no check before its publish step is still excluded', () => {
-  for (const [name] of [...EXCLUDED, ...EDGE_EXCLUDED, ...V2_EXCLUDED, ...V3_EXCLUDED]) {
+  for (const [name] of [...EXCLUDED, ...EDGE_EXCLUDED, ...V2_EXCLUDED, ...V3_EXCLUDED, ...V4_EXCLUDED, ...V5_EXCLUDED, ...V6_EXCLUDED]) {
     it(`v27 excludes ${name}, with the note and disclosure unchanged`, () => {
       const file = publishingFile(name);
       const b3 = criterion(name, V27, 'B3');
@@ -151,13 +167,116 @@ describe('B2 and B3 agree about every workflow here (#527)', () => {
   });
 
   it('a workflow B3 counts under this correction is one B2 credits: neither leaves it uncredited', () => {
-    for (const [name] of [...COUNTED, ...EDGE_COUNTED, ...V2_COUNTED, ...V3_COUNTED]) {
+    for (const [name] of [...COUNTED, ...EDGE_COUNTED, ...V2_COUNTED, ...V3_COUNTED, ...V4_COUNTED, ...V5_COUNTED, ...V6_COUNTED]) {
       const file = publishingFile(name);
       for (const id of ['B2', 'B3']) {
         const score = criterion(name, V27, id);
         expect(score.notes ?? '', `${name} ${id}`).not.toContain('not counted');
         expect(score.disclosures ?? [], `${name} ${id}`).not.toContainEqual(expect.stringContaining(file));
       }
+    }
+  });
+});
+
+// Sixth pass (review of #645): the reasons B3's note gives for a command written as a path, a
+// Makefile that assigns a variable, and a tsc build whose output may overwrite what the check runs.
+const PATH_COMMAND_REASON = 'a check command is written as a path, so it runs a file in the repository or on the runner, not the tool of that name';
+const MAKE_ASSIGNMENT_REASON = 'the Makefile assigns a variable, which make exports to what the target runs when the environment also sets it';
+const TSC_OUTPUT_REASON = 'the build script in package.json runs tsc, whose output may overwrite what the check runs';
+
+// Fourth pass (#627 item A, #628 item B): where a check is not credited because its test script or
+// make target runs no test runner Cejel recognises, or because an environment key on its path may
+// change what it runs, B3's note says so after the workflow's trigger clause, naming the script or
+// target and the key.
+const NOT_CREDITED_REASONS: Readonly<Record<string, string>> = {
+  'npm-test-script-bin-true': 'the test script in package.json does not run a test runner Cejel recognises',
+  'npm-test-script-node-e-0': 'the test script in package.json does not run a test runner Cejel recognises',
+  'npm-test-script-printf-ok': 'the test script in package.json does not run a test runner Cejel recognises',
+  'npm-test-script-chain-to-noop': 'the test script in package.json does not run a test runner Cejel recognises',
+  'npm-test-script-runner-or-true': 'the test script in package.json does not run a test runner Cejel recognises',
+  'npm-test-script-pretest-runs-code': 'the test script in package.json does not run a test runner Cejel recognises',
+  'npm-test-script-node-options-assignment': 'the test script in package.json does not run a test runner Cejel recognises',
+  'make-test-recipe-at-true': "the Makefile's test target does not run a test runner Cejel recognises",
+  'make-test-prerequisite-noop': "the Makefile's test target does not run a test runner Cejel recognises",
+  'make-test-ignored-error': "the Makefile's test target does not run a test runner Cejel recognises",
+  'job-env-node-options-require': 'the environment key NODE_OPTIONS may change what the check runs',
+  'check-step-env-path-fake-bin': 'the environment key PATH may change what the check runs',
+  'workflow-env-pythonpath': 'the environment key PYTHONPATH may change what the check runs',
+  'check-step-env-ld-preload': 'the environment key LD_PRELOAD may change what the check runs',
+  'setup-step-env-node-options': 'the environment key NODE_OPTIONS may change what the check runs',
+  'credential-key-without-secret-expression': 'the environment key NPM_TOKEN is not set from a secret',
+  'github-path-write-before-check': 'an earlier step writes to $GITHUB_PATH, which may change what the check runs',
+  // Fifth pass (review of #640), items C, D and E.
+  'check-line-assignment-node-options': 'the environment key NODE_OPTIONS may change what the check runs',
+  'check-line-assignment-path': 'the environment key PATH may change what the check runs',
+  'check-line-assignment-pytest-addopts': 'the environment key PYTEST_ADDOPTS may change what the check runs',
+  'job-container-env': 'the job runs in a container, whose image and environment may change what the check runs',
+  'job-container-image': 'the job runs in a container, whose image and environment may change what the check runs',
+  'job-services-env': 'a service container of the job sets env:, which Cejel does not read',
+  'npm-test-node-options-flag': 'the test command carries a flag or argument Cejel does not read, which may change what runs',
+  'npm-test-prefix': 'the test command runs the test script of another package, which Cejel did not read',
+  'npm-test-workspaces': 'the test command runs the test script of another package, which Cejel did not read',
+  'npm-test-workspace-short': 'the test command runs the test script of another package, which Cejel did not read',
+  'yarn-test-cwd': 'the test command runs the test script of another package, which Cejel did not read',
+  'pnpm-test-filter': 'the test command runs the test script of another package, which Cejel did not read',
+  'make-test-not-phony-test-directory':
+    "the Makefile's test target, or one it needs, is not .PHONY and has the name of a file or directory in the repository, so make may not run it",
+  'make-prerequisite-names-file':
+    "the Makefile's test target, or one it needs, is not .PHONY and has the name of a file or directory in the repository, so make may not run it",
+  // Sixth pass (review of #645 at 5b3a622d5): blockers 1 to 3 and item 5.
+  'path-qualified-ruff-format': PATH_COMMAND_REASON,
+  'path-qualified-eslint-fix': PATH_COMMAND_REASON,
+  'path-qualified-pytest': PATH_COMMAND_REASON,
+  'path-qualified-make-test': PATH_COMMAND_REASON,
+  'npx-path-qualified-jest': PATH_COMMAND_REASON,
+  'directory-path-pytest': PATH_COMMAND_REASON,
+  'make-test-not-phony-capital-test-directory':
+    "the Makefile's test target, or one it needs, is not .PHONY and has the name of a file or directory in the repository, so make may not run it",
+  'make-check-not-phony-uppercase-file':
+    "the Makefile's check target, or one it needs, is not .PHONY and has the name of a file or directory in the repository, so make may not run it",
+  'make-home-assignment-pth': MAKE_ASSIGNMENT_REASON,
+  'make-pytest-addopts-assignment': MAKE_ASSIGNMENT_REASON,
+  'make-unreferenced-assignment': MAKE_ASSIGNMENT_REASON,
+  'build-tsc-outdir-node-modules-runner': TSC_OUTPUT_REASON,
+  'build-tsc-outdir-test-directory': TSC_OUTPUT_REASON,
+  'build-tsc-declaration-dir-node-modules': TSC_OUTPUT_REASON,
+  'build-tsc-no-outdir': TSC_OUTPUT_REASON,
+  'build-tsc-extends': TSC_OUTPUT_REASON,
+  'check-line-assignment-ci-false': 'the environment key CI may change what the check runs',
+  'workflow-env-node-env': 'the environment key NODE_ENV may change what the check runs',
+};
+
+describe('fourth pass — B3 names why a check was not credited', () => {
+  for (const [name, reason] of Object.entries(NOT_CREDITED_REASONS)) {
+    it(`v27's B3 note says why ${name}'s check is not credited`, () => {
+      const file = publishingFile(name);
+      expect(criterion(name, V27, 'B3').notes ?? '', name).toContain(
+        `${file} is triggered by push to main, and its publishing job declares no environment. A check in it was not counted: ${reason}.`,
+      );
+    });
+  }
+
+  it('no counted fixture carries a not-credited reason', () => {
+    for (const [name] of [...COUNTED, ...EDGE_COUNTED, ...V2_COUNTED, ...V3_COUNTED, ...V4_COUNTED, ...V5_COUNTED, ...V6_COUNTED]) {
+      expect(criterion(name, V27, 'B3').notes ?? '', name).not.toContain('was not counted:');
+    }
+  });
+});
+
+describe('sixth pass — B3 says a lint or format check is counted without reading its configuration', () => {
+  for (const name of LINT_CREDITED) {
+    it(`v27's B3 note says ${name}'s lint configuration is not read`, () => {
+      const file = publishingFile(name);
+      expect(criterion(name, V27, 'B3').notes, name).toBe(
+        `${file} is counted as CI verification because a check runs before it publishes${LINT_CONFIGURATION_CLAUSE}; it ${COUNTED_DETAILS[name]}`,
+      );
+    });
+  }
+
+  it('no counted fixture whose check is a test carries the clause', () => {
+    for (const [name] of [...COUNTED, ...EDGE_COUNTED, ...V2_COUNTED, ...V3_COUNTED, ...V4_COUNTED, ...V5_COUNTED, ...V6_COUNTED]) {
+      if (LINT_CREDITED.includes(name)) continue;
+      expect(criterion(name, V27, 'B3').notes ?? '', name).not.toContain(LINT_CONFIGURATION_CLAUSE);
     }
   });
 });
@@ -200,7 +319,9 @@ describe('no rise against v17 on these fixtures', () => {
 // that commit's v17 certificate HTML for one fixture (item H). To re-pin, set
 // B3_PUBLISHING_CHECKS_V17_PIN to the JSON output path, B3_PUBLISHING_CHECKS_V17_HTML to the HTML
 // output path and B3_PUBLISHING_CHECKS_V17_COMMIT to the commit, and run only the test named
-// "writes the pin". The second pass re-pinned at main's fe8c261de with every fixture here.
+// "writes the pin". The second pass re-pinned at main's fe8c261de with every fixture here. The
+// fourth pass (#627-#630) re-pinned at main's d2d178233 with its fixtures added: every earlier
+// entry, and the HTML pin, came out byte-identical.
 
 interface CriterionProjection {
   readonly score: number;

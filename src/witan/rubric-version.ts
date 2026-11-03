@@ -198,7 +198,46 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     workflow names a script shell, node options or a yarn path and no pnpmfile or yarn plugin is
 //     committed (else no npm-family command is a check or setup), that a setup install runs no
 //     root lifecycle script and installs no project or path, and that a check carries no flag with
-//     which it cannot fail);
+//     which it cannot fail; the fourth pass (#627-#630, 2026-11-02) admits an npm, pnpm or yarn test
+//     script, or `make test` / `make check`, as a check only when the reader proves it runs a test
+//     runner from a fixed vocabulary (jest, vitest, mocha, ava, uvu, tap, tape, jasmine, node --test,
+//     pytest, python -m pytest or unittest, go test, cargo test, and others), through `npm run`
+//     chains, pre and post scripts and make prerequisites, joined only by `&&`, with nothing before
+//     the runner but tsc, pyright, ruff or black, and B3's note names the script or target where it
+//     does not; credits a check only when every `env:` key on its path (the workflow's, its job's,
+//     and every step's up to and including the check's) is one known not to change what runs, or a
+//     publish credential (NODE_AUTH_TOKEN, NPM_TOKEN, GITHUB_TOKEN, TWINE_*) set from a secret, and
+//     reads an earlier $GITHUB_ENV or $GITHUB_PATH write the same way, the note naming the key;
+//     admits as setup `pip install -r` of a requirements file whose every line is a plain index
+//     requirement (includes inside the repository followed), `pipenv install` of a Pipfile and
+//     Pipfile.lock that name only index packages and no `[scripts]`, a `prepare` script that is
+//     exactly `husky` or `husky install`, and a root `build` script that runs only tsc beside a
+//     tsconfig.json (a vite, webpack or rollup build runs its code configuration first, so stays
+//     excluded); reads step items and a `needs:` block list written at their key's own indent;
+//     counts a publish on the check's own line when the two are one `&&` chain; and reads `.` as
+//     the source builtin only in command position. A committed yarn release (`yarnPath`) stays
+//     refused by design: Cejel cannot verify offline what that file runs; the fifth pass (review of
+//     #640, 2026-11-02) admits a requirements line or pip argument only as a PEP 508 project name
+//     that ends in no archive or wheel suffix and is no path in the repository; counts a lint or
+//     format command only as `ruff check`, `ruff format --check`, `black --check`, `eslint`, `mypy`
+//     or `flake8`, with only flags known to keep the exit code (so no `--fix`, `--exit-zero` or
+//     `-e`, and no pylint); admits an assignment on the check's or a setup command's own line only
+//     for an inert key; withholds the credit of a check whose job runs in a `container:` or has a
+//     `services:` container that sets `env:`; admits after an npm-family test script's name only
+//     npm's `--silent` and `-s`, so `--prefix`, `-w`, `--workspaces`, `--cwd`, `--filter` and the
+//     rest withhold the credit; counts a make target only when it and every target on its path are
+//     `.PHONY` or have no file or directory of their name in the repository, and reads no Makefile
+//     that assigns PATH; B3's note names each reason. Its glossary sentence states these as what
+//     the reader reads, not a proof that the check can fail; the sixth pass (review of #645,
+//     2026-11-03) refuses a command word written as a path (`./ruff`, `bin/pytest`, `npx ./jest`)
+//     as a check, runner, lint form or setup step, where a leading `./` was stripped before the
+//     match; compares make targets with repository paths case-insensitively, and reads no Makefile
+//     beside a `GNUmakefile` or `makefile` in any case; credits no target of a Makefile that
+//     assigns any variable (make exports one the environment also sets); admits a tsc build, or tsc
+//     before a runner, only when every place it writes is a directory holding no tracked file and
+//     not under node_modules and tsconfig.json has no `extends`; drops `CI` and `NODE_ENV` from the
+//     inert environment keys; and says in B3's note when a credited check is a lint or format
+//     command whose configuration is not read);
 //   - A1: conftest.py is not a concrete test file (not cited as one, and rated hollow where it
 //     asserts; from 2026-11-01 test_to_source_ratio counts it as test surface, as v17 does), and
 //     an unconditional run-wide pytest skip
@@ -218,16 +257,54 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     these rules rate hollow, with the rule, and no rule claims where its condition is not read:
 //     a hook without an `items` parameter, or a skip that sits inside another mark's arguments in
 //     pytestmark; from 2026-11-02 (goal_cejel_v27_a1_test_count_overmatch_v2_2026-11-02, which
-//     supersedes #621; as fixed after the #626 review) a rule is withheld only on evidence: a
-//     hook's clear only where, at the hook's top level after its last clear, the same hook puts
-//     the items back in a shape the reader understands (extend, +=, a slice assignment, __iadd__,
-//     append or insert on the list or a name bound to it, a top-level loop of them, or a call of a
-//     function the conftest.py defines that adds to the list at its own top level before any
-//     branch or exit, without rebinding its source, from a copy of the list saved before the
-//     clear, and is not a generator), from a source not known to be empty (an empty
-//     literal or zero-length slice, the cleared list, or a copy of it taken after the clear), or
-//     rebinds `items` at top level before the clear, never for copying, reporting,
-//     iterating, a builtin, a logger, an unknown helper or an unknown method; a pytest setting
+//     supersedes #621; as fixed after the #626 review) a rule is withheld only on evidence; and
+//     from 2026-11-02 (goal_cejel_v27_a1_restore_proof_and_hookwrapper_2026-11-02, #631, #632,
+//     #634; as revised from 2026-11-02 by goal_cejel_v27_a1_restore_proof_v2_2026-11-02, which
+//     supersedes #638) every collection hook that touches `items` (or calls exec, eval, getattr,
+//     globals or the like) reaches one of three outcomes, none by default: (1) deselects, where
+//     the reader proves it leaves `items` empty, and the rule applies; (2) restores, and the rule
+//     is withheld and said, only where every statement of the hook's body is on an allowlist and
+//     nothing else is in it: a copy binding S = list(items), items[:], items.copy(), [*items] or
+//     tuple(items) before anything empties the list, with S mentioned at most once more (list
+//     and tuple only where the module binds neither name anywhere; sorted is never a copy); an
+//     emptying items.clear(), del items[:] or items[:] = []; a restore after it, items.extend(S),
+//     items += S, items[:] = S or items[:] = S[:]; a call of a same-file helper that is a plain,
+//     undecorated, synchronous def at module level, defined once, named nowhere else in the module
+//     at any indent or in any string, with two parameters, whose body is only an optional
+//     docstring, an optional emptying of one parameter and one restore of it from the other; and
+//     a docstring. No report call is on it (config.hook.pytest_deselected, print, logging: each
+//     runs code outside those steps), and a body that passes is still not credited where its
+//     conftest.py may rebind a name the allowlist trusts without spelling it (a star import,
+//     setattr or delattr, builtins or __builtins__, sys.modules, a module __getattr__, exec, eval,
+//     compile, globals, vars or locals, __dict__, __import__ or importlib, an uncalled attribute
+//     named list or tuple, or any attribute named after the helper), from the #644 review at
+//     bca7ebfbf. Only that conftest.py is read: a builtin or helper patched from another file (a
+//     module it imports, a second conftest.py or a plugin) is not, cejel #646. The list reading must
+//     agree that the items are back; (3) not
+//     read, for anything else that empties or may empty the list (a lambda, a nested, decorated or
+//     async def, sorted, a slice that is not the whole list, another name bound to the list, an
+//     f-string field, exec or getattr, an append, an imported or unseen helper, a method, a use
+//     inside a loop, a session.items, a global or nonlocal, an if, return, second yield or other
+//     statement the conditional rule stops, an unknown decorator), and the rule makes no claim
+//     while A1's note names the hook ("hook not read: `<reason>` in <path>") and its evidence
+//     cites the def. A source proven empty (an empty literal, range(0), a zero-length slice
+//     x[:0] or x[k:k], a name whose binding to one is its first mention in the hook, or a copy
+//     taken after the clear) adds nothing. conftest.py is tokenised as Python reads it (strings,
+//     f-string fields, comments, brackets and backslash continuations), so the body ends where
+//     Python ends it and a comment or docstring naming the hook binds nothing. A hookwrapper
+//     (hookwrapper=True or wrapper=True) is read as the code after its single top-level yield,
+//     and a def whose parameters run onto later lines is read as the hook. A hook that rebinds
+//     `items` at top level to a copy the reader reads (items = list(items)) before the clear keeps
+//     its withhold; any other statement that may bind `items` at or before its emptying (items =
+//     copy.copy(items), a for target) is not read, never rated hollow. A hook that deselects or
+//     skips everything rates every collected test file hollow, not only those under its
+//     directory, since pytest calls it with every collected item, where the run collecting the
+//     file also collects the hook's directory (and nothing in the repository may stop pytest
+//     collecting it: a directory pytest skips by default, collect_ignore or pytest_ignore_collect);
+//     a run that does not is said as a withhold. Paths in
+//     A1's note holding ", ", "; ", " (", a backtick or a double quote are written in double
+//     quotes with \ and " escaped, and the note says how many files or hooks it names past the
+//     eight evidence pointers carry none; a pytest setting
 //     only for a file a pytest run collects where the setting is in force for that run (the plain
 //     pytest at the root, or a command starting with pytest in a CI step with its
 //     working-directory, env and if, a reached Makefile or justfile target, or a running tox
@@ -238,7 +315,38 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     reaching names not starting with test or Test the Python per-test reader, -p no:skipping
 //     every skip rule); and a hook for a file a run collects with --noconftest or a confcutdir
 //     strictly below the hook's directory, where pytest does not load it. Every withhold is said in
-//     A1's note ("<rule> not applied: <reason>"), never silently;
+//     A1's note ("<rule> not applied: <reason>"), never silently. From 2026-11-03
+//     (goal_cejel_v27_a1_pytest_runs_and_config_2026-11-02, #633, #643) the runs read also include
+//     a noxfile's session.run("pytest", ...) with literal arguments, `tox -- <args>` passed into
+//     {posargs}, a tox factor-conditional command line for an environment whose factors meet it,
+//     variables the same Makefile defines (and literal justfile variables), justfile recipes with
+//     parameters, `hatch run [env:]script` through the hatch scripts of hatch.toml or pyproject.toml,
+//     and a local composite action's steps; a run whose arguments or directory cannot be known from
+//     the repository (nox posargs, `tox -- $VAR`, a Makefile variable it does not define or a make
+//     command sets, a justfile parameter, an expression or `cd` to a variable, -c outside the
+//     repository, --pyargs, a working-directory expression, Jenkins dir(), a reusable workflow in
+//     another repository, or an option the reader does not know before a word that may be its
+//     value or a path; after the review of #648, also a make variable set by !=, define, inside a
+//     conditional, for one target or by a ?= default a CI file may replace, hatch test, a TOXENV
+//     Cejel cannot resolve, a step action whose with: input runs pytest, and every pytest run in a
+//     workflow that names both $GITHUB_ENV and PYTEST_ADDOPTS or checks out into a path:) is named in A1's
+//     note as "pytest run not read: `<reason>` in <path>" (#644's
+//     not-read clause, for a run), and switches off every removal rule for every file, since any
+//     option may be in force for any file it collects. Any other remote step action is read as running
+//     no pytest: nearly every workflow uses one. A Makefile's := value is expanded where it is
+//     assigned, as make does; make and hatch expansion each stop at a fixed budget, past which the
+//     run is not read. --cov takes its value only where the next word does not start with
+//     `-` (pytest-cov's nargs="?"), testpaths globs are expanded as glob.glob does, and the
+//     configuration search follows determine_setup (a setup.py at or above the common ancestor is
+//     the root before the per-argument search). A run that finds no configuration file in the
+//     repository may read one above its root, which the scan cannot see; A1's note says so once
+//     where a file is rated hollow on such a run, and nothing is rated on what it might hold. Two
+//     choices are kept, for the operator to confirm: a plain `pytest` at the root always counts as
+//     a run, as the documented default invocation, so the root configuration is always in force;
+//     and a Makefile `PYTEST_ADDOPTS = ...` without export is not read, since make does not pass it
+//     to a recipe (#626's first pass, 892a95a40, read it; an `export PYTEST_ADDOPTS` line, a bare
+//     `export` or .EXPORT_ALL_VARIABLES exports it). Each setting, command-line and not-read clause
+//     carries an evidence pointer at its line, sharing the eight with the hooks, the rest counted;
 //   - every criterion: a read of a Git LFS pointer is a content-read skip, so the criterion that
 //     read it abstains as a read failure instead of scoring the pointer text, unless its
 //     collector made a critical finding (it then scores as under v17);
