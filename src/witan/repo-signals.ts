@@ -8326,6 +8326,9 @@ function unrecognisedCheckReason(input: readonly string[], reading: CheckReading
   if (words[0] === 'make' && words.length === 2 && reading.makeTargets.get(target) === 'unrecognised') {
     return `the Makefile's ${target} target does not run a test runner Cejel recognises`;
   }
+  if (words[0] === 'make' && words.length === 2 && reading.makeTargets.get(target) === 'not-run') {
+    return `the Makefile's ${target} target, or one it needs, is not .PHONY and has the name of a file or directory in the repository, so make may not run it`;
+  }
   return undefined;
 }
 
@@ -9417,8 +9420,11 @@ function rootTestScriptReading(root: string, inventory: PublishOnlyInventory): S
   return commands !== undefined && kindsRunKnownRunner(kinds) ? 'runner' : 'unrecognised';
 }
 
-/** Whether a script or make target runs a known test runner, or was not read. */
-type ScriptReading = 'runner' | 'unrecognised' | 'unread';
+/**
+ * Whether a script or make target runs a known test runner, or was not read. Fifth pass (item E):
+ * 'not-run' for a make target make may skip as up to date (makeTargetCommandKinds).
+ */
+type ScriptReading = 'runner' | 'unrecognised' | 'unread' | 'not-run';
 
 // Fourth pass (#627): make targets a CI step may run as a check.
 const MAKE_CHECK_TARGETS: readonly string[] = ['test', 'check'];
@@ -9427,7 +9433,7 @@ const MAKE_CHECK_TARGETS: readonly string[] = ['test', 'check'];
 // doubt too. Directives (`include`, `export`, `define`, `override`, conditionals) need no list: no
 // such line is a rule, assignment, recipe or comment, so readMakefileRules places none of them.
 const MAKEFILE_UNREAD_SETTING_PATTERN = /\.ONESHELL|\.IGNORE|\.SHELLFLAGS|\.EXPORT_ALL_VARIABLES|\.DEFAULT\b|\bSHELL\b|MAKEFLAGS|\bMFLAGS\b/;
-const MAKEFILE_ASSIGNMENT_PATTERN = /^[A-Za-z_.][A-Za-z0-9_.-]*[ \t]*(?:[:+?!]?=|::=)/;
+const MAKEFILE_ASSIGNMENT_PATTERN = /^([A-Za-z_.][A-Za-z0-9_.-]*)[ \t]*(?:[:+?!]?=|::=)/;
 const MAKEFILE_RULE_PATTERN = /^([^:#=\t][^:#=]*):(?![:=])([^]*)$/;
 const MAKEFILE_TARGET_PATTERN = /^[A-Za-z0-9_./-]+$/;
 const MAKEFILE_RECURSION_PATTERN = /^(?:\$\(MAKE\)|\$\{MAKE\}|make)[ \t]+([A-Za-z0-9_./-]+)[ \t]*$/;
@@ -9472,7 +9478,13 @@ function readMakefileRules(text: string): Map<string, MakefileRule> | null {
     if (line.trim() === '' || line.startsWith('#')) continue;
     if (!close()) return null;
     inRule = false;
-    if (MAKEFILE_ASSIGNMENT_PATTERN.test(line)) continue;
+    const assignment = MAKEFILE_ASSIGNMENT_PATTERN.exec(line);
+    // Fifth pass (item E, review of #640): a Makefile that assigns PATH may run a repository script
+    // in place of the runner a recipe names (SHELL and .SHELLFLAGS are refused anywhere, above).
+    if (assignment) {
+      if (assignment[1] === 'PATH') return null;
+      continue;
+    }
     const rule = MAKEFILE_RULE_PATTERN.exec(line);
     if (!rule) return null;
     const named = (rule[1] ?? '').trim().split(/[ \t]+/);
@@ -9502,13 +9514,24 @@ function readMakefileRules(text: string): Map<string, MakefileRule> | null {
  * (commandsAreAndChain) is 'other'. Undefined when a target it reaches has no explicit rule, or on
  * a cycle or beyond SCRIPT_EXPANSION_MAX_DEPTH or SCRIPT_EXPANSION_MAX_COMMANDS.
  */
-function makeTargetCommandKinds(rules: ReadonlyMap<string, MakefileRule>, target: string): ('runner' | 'check' | 'other')[] | undefined {
+function makeTargetCommandKinds(
+  rules: ReadonlyMap<string, MakefileRule>,
+  target: string,
+  mayBeUpToDate: (name: string) => boolean,
+): ('runner' | 'check' | 'other')[] | 'not-run' | undefined {
   const kinds: ('runner' | 'check' | 'other')[] = [];
   const made = new Set<string>();
+  let notRun = false;
   const build = (name: string, depth: number, stack: ReadonlySet<string>): boolean => {
     const rule = rules.get(name);
     if (rule === undefined || depth > SCRIPT_EXPANSION_MAX_DEPTH || stack.has(name)) return false;
     if (made.has(name)) return true;
+    // Fifth pass (item E, review of #640): a target that is not `.PHONY` and has the name of a file
+    // or directory make may find up to date, and then runs nothing for it.
+    if (mayBeUpToDate(name)) {
+      notRun = true;
+      return false;
+    }
     made.add(name);
     const inner = new Set(stack).add(name);
     for (const prerequisite of rule.prerequisites) if (!build(prerequisite, depth + 1, inner)) return false;
@@ -9535,7 +9558,8 @@ function makeTargetCommandKinds(rules: ReadonlyMap<string, MakefileRule>, target
     }
     return true;
   };
-  return build(target, 0, new Set()) ? kinds : undefined;
+  if (build(target, 0, new Set())) return kinds;
+  return notRun ? 'not-run' : undefined;
 }
 
 /**
@@ -9549,10 +9573,14 @@ function rootMakeTargetReadings(root: string, inventory: PublishOnlyInventory): 
   if (!inventory.scanned.has('Makefile') || inventory.known.has('GNUmakefile') || inventory.known.has('makefile')) return readings;
   const rules = readMakefileRules(readRepoText(join(root, 'Makefile'), 'utf8'));
   if (rules === null) return readings;
+  // Fifth pass (item E): the targets `.PHONY` names, which make runs whatever files exist.
+  const phony = new Set(rules.get('.PHONY')?.prerequisites ?? []);
+  const mayBeUpToDate = (name: string) => !phony.has(name) && inventory.entries.has(name);
   for (const target of MAKE_CHECK_TARGETS) {
     if (!rules.has(target)) continue;
-    const kinds = makeTargetCommandKinds(rules, target);
-    readings.set(target, kinds !== undefined && kindsRunKnownRunner(kinds) ? 'runner' : 'unrecognised');
+    const kinds = makeTargetCommandKinds(rules, target, mayBeUpToDate);
+    if (kinds === 'not-run') readings.set(target, 'not-run');
+    else readings.set(target, kinds !== undefined && kindsRunKnownRunner(kinds) ? 'runner' : 'unrecognised');
   }
   return readings;
 }
