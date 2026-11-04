@@ -7,7 +7,11 @@ import { afterAll, describe, expect, it } from 'vitest';
 
 import { WITAN_RUBRIC_VERSION_V17, WITAN_RUBRIC_VERSION_V27 } from '../rubric-version.js';
 import { criterionOf } from './fixtures/shallow-history-matrix.js';
-import { buildUnreadHistoryCases, removeUnreadHistoryFixtures } from './fixtures/unread-history-cases.js';
+import {
+  buildUnreadHistoryCases,
+  buildWideUnreadHistoryCases,
+  removeUnreadHistoryFixtures,
+} from './fixtures/unread-history-cases.js';
 
 // The before/after measurement for goal_cejel_v17_unread_history_no_verdict_2026-11-02 (item E).
 // Runs only in vitest's 'measure' mode (`pnpm exec vitest run --mode measure <this file>`): it
@@ -23,7 +27,7 @@ afterAll(() => removeUnreadHistoryFixtures());
 describe.skipIf(!measuring)('unread-history measurement (vitest --mode measure)', () => {
   it('records every case under v17 and v27', () => {
     const rows = [];
-    for (const entry of buildUnreadHistoryCases()) {
+    for (const entry of [...buildUnreadHistoryCases(), ...buildWideUnreadHistoryCases()]) {
       for (const rubric of [WITAN_RUBRIC_VERSION_V17, WITAN_RUBRIC_VERSION_V27]) {
         const report = entry.scan(rubric);
         const a2 = criterionOf(report, 'A2');

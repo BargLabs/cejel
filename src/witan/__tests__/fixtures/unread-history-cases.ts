@@ -4,8 +4,15 @@ import { join } from 'node:path';
 
 import type { WitanReport } from '../../schemas.js';
 
-import { buildShallowA2Origin, cloneShallowA2Origin, ISSUE_556_SHAPE, removeShallowA2Fixtures } from './shallow-a2-shapes.js';
-import { buildMatrixOrigin, cloneRepository, scanRepository } from './shallow-history-matrix.js';
+import {
+  ISSUE_556_SHAPE,
+  SHALLOW_A2_SHAPES,
+  buildShallowA2Origin,
+  cloneShallowA2Origin,
+  removeShallowA2Fixtures,
+  shallowA2ShapeName,
+} from './shallow-a2-shapes.js';
+import { DEPTHS, EVIDENCE, HISTORIES, buildMatrixOrigin, cloneRepository, scanRepository } from './shallow-history-matrix.js';
 import { buildDataLayerOrigin } from './verdict-cap-data-layer.js';
 
 // Synthetic checkouts whose git history Cejel could not read in full, beside the complete clone of
@@ -127,5 +134,43 @@ export function buildUnreadHistoryCases(): UnreadHistoryCase[] {
   add('secret in tree, full', 'complete', inTreeFull);
   add('secret in tree, depth 1', 'shallow', cloneShallowA2Origin(inTree, 1), 'secret in tree, full');
   add('secret in tree, no .git', 'no git', withoutGit(inTreeFull), 'secret in tree, full');
+  return cases;
+}
+
+/**
+ * The wider set the measurement reads beside the cases above: #604's matrix (twelve repositories,
+ * full and at depths 1, 5, 11 and 12, and each without its .git) and #556's twelve A2 shapes (full
+ * and at depths 1 and 12, and without .git). Slow; used only by the measurement.
+ */
+export function buildWideUnreadHistoryCases(): UnreadHistoryCase[] {
+  const cases: UnreadHistoryCase[] = [];
+  const add = (label: string, cause: UnreadHistoryCause, path: string, fullClone?: string) => {
+    cases.push({
+      label,
+      cause,
+      ...(fullClone ? { fullClone } : {}),
+      path,
+      noGitOnPath: false,
+      scan: (rubric) => scanRepository(path, rubric),
+    });
+  };
+  for (const history of HISTORIES) {
+    for (const evidence of EVIDENCE) {
+      const name = `matrix ${history} ${evidence}`;
+      const origin = buildMatrixOrigin(history, evidence);
+      const full = cloneRepository(origin);
+      add(`${name}, full`, 'complete', full);
+      for (const depth of DEPTHS) add(`${name}, depth ${depth}`, 'shallow', cloneRepository(origin, depth), `${name}, full`);
+      add(`${name}, no .git`, 'no git', withoutGit(full), `${name}, full`);
+    }
+  }
+  for (const shape of SHALLOW_A2_SHAPES) {
+    const name = `A2 ${shallowA2ShapeName(shape)}`;
+    const origin = buildShallowA2Origin(shape);
+    const full = cloneShallowA2Origin(origin, 'full');
+    add(`${name}, full`, 'complete', full);
+    for (const depth of [1, 12] as const) add(`${name}, depth ${depth}`, 'shallow', cloneShallowA2Origin(origin, depth), `${name}, full`);
+    add(`${name}, no .git`, 'no git', withoutGit(full), `${name}, full`);
+  }
   return cases;
 }
