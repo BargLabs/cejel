@@ -207,3 +207,27 @@ describe('should-fix 4: the scan-limitation line follows the limitation\'s own c
     expect(limitationCheck(report)?.text).not.toContain('making the files readable');
   });
 });
+
+describe('should-fix 5: a Wrong area with no finding of its own is worded from its score, never "scored low"', () => {
+  it('a hand-built abstained report where imported evidence moves B3 to Warning', () => {
+    const base = fixtureReport('v27/fa/history-shallow-clone-with-committed-secret');
+    expect(base.verdict).toBe('insufficient_source');
+    const report = variant(base, (draft) => {
+      const b3 = draft.criteria.find((criterion) => criterion.id === 'B3');
+      if (b3) {
+        b3.nativeStatus = b3.status;
+        b3.nativeScore = b3.score;
+        b3.status = 'warning';
+        b3.score = 2.2;
+        b3.findings = [];
+      }
+    });
+    const plain = buildPlainSummary(report);
+    const b3 = plain.wrong.find((item) => item.id === 'wrong/criterion/B3');
+    expect(b3?.text).toBe('Scored 2.2 out of 4, with no single finding of its own.');
+    expect(plain.wrongNote).toBeDefined();
+    for (const text of [...plain.wrong.map((item) => item.text), plain.wrongNote ?? '']) {
+      expect(text).not.toMatch(/scored low/i);
+    }
+  });
+});
