@@ -75,6 +75,16 @@ export const PLAIN_READ_GAP_QUALIFIERS = [
 ] as const;
 
 /**
+ * What a scan limitation's check-next line follows (#654 review, should-fix 4): its own cause, from
+ * its table entry in plain-summary.ts (LIMITATION_TABLE). Files that could not be read are narrowed
+ * to unreadable files or Git LFS pointers when the report ties only that cause to them; a size limit
+ * or rule is a stated limit; 'capped' is the line that says more limits were not listed; 'other' is
+ * a limitation no entry knows, which takes the general line.
+ */
+export const PLAIN_SCAN_LIMITATION_KINDS = ['unreadable', 'lfs', 'read-failure', 'stated-limit', 'capped', 'other'] as const;
+export type PlainScanLimitationKind = (typeof PLAIN_SCAN_LIMITATION_KINDS)[number];
+
+/**
  * The kinds of insufficientSourceReason the engine produces (goal_cejel_four_question_summary_v2_2026-11-03,
  * item B). Each is recognised by its producer's fixed wording (plain-summary.ts,
  * INSUFFICIENT_SOURCE_TABLE); a reason no entry matches is 'other'. The producers:
@@ -205,7 +215,18 @@ const NEXT_CHECKS: Readonly<Record<string, string>> = {
   'abstention:history-depth-unknown':
     'Make sure git is installed and can open this repository (git rev-parse --is-shallow-repository prints true or false), then scan again.',
   'verdict-capped': `To get a result that is not lowered, ${FULL_CLONE}.`,
-  'scan-limitation': 'Fix what this limit describes, for example by making the files readable, then scan again.',
+  // #654 review, should-fix 4: keyed by the limitation's own cause; the general line gives no example.
+  'scan-limitation':
+    'Read what this limit says in the certificate below; where it names something in the repository you can change, change it and scan again.',
+  'scan-limitation:unreadable':
+    'Make the files that could not be read readable (the certificate below counts them by cause), then scan again.',
+  'scan-limitation:lfs': LFS_PULL,
+  'scan-limitation:read-failure':
+    'Look at the files the certificate below counts by cause and fix what stopped each one being read, then scan again.',
+  'scan-limitation:stated-limit':
+    'Nothing in the repository needs fixing for this limit: Cejel sets it on what it reads. If the files it left out matter, look at them yourself.',
+  'scan-limitation:capped':
+    'The certificate below counts every skipped file by cause; look there for the limits not listed here.',
   'history-limitation': `To see results over the whole history, ${FULL_CLONE} and compare.`,
   'disclosure:placeholder-set-aside':
     'Look at the values listed in the certificate below and confirm they are examples, not real credentials.',
@@ -282,13 +303,13 @@ export function nextCheckKeySpace(): ReadonlyArray<{ kind: NextCheckKind; qualif
     ...[...PLAIN_INSUFFICIENT_SOURCE_KINDS, 'other'].map((qualifier) => ({ kind: 'abstention' as const, qualifier })),
     ...PLAIN_DISCLOSURE_KINDS.map((qualifier) => ({ kind: 'disclosure' as const, qualifier })),
     ...SETTLING_CRITERIA.map((qualifier) => ({ kind: 'settling' as const, qualifier })),
+    ...PLAIN_SCAN_LIMITATION_KINDS.map((qualifier) => ({ kind: 'scan-limitation' as const, qualifier })),
     ...(
       [
         'unrecognised-status',
         'score-not-given',
         'imported-status',
         'verdict-capped',
-        'scan-limitation',
         'history-limitation',
         'coverage-not-measured',
         'coverage-unpublished',

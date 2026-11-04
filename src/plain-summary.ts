@@ -35,6 +35,7 @@ import {
   type PlainDisclosureKind,
   type PlainInsufficientSourceKind,
   type PlainReadGapFileAdvice,
+  type PlainScanLimitationKind,
   resolveNextCheck,
 } from './witan/next-checks.js';
 import { usesV27FalseAssuranceClosure } from './witan/repo-signals.js';
@@ -676,6 +677,36 @@ function limitationCause(report: WitanReport, limitation: string): FileGapCause 
   }
 }
 
+/**
+ * The cause a scan limitation's check-next line follows (#654 review, should-fix 4). "N areas gave
+ * no score because files they read could not be read" is narrowed by those areas' own notes: Git
+ * LFS pointers when every one of them names Git LFS pointers, unreadable files when the report
+ * counts only those.
+ */
+function scanLimitationKind(report: WitanReport, limitation: string): PlainScanLimitationKind {
+  switch (limitationTableKey(limitation)) {
+    case 'content-unreadable': {
+      const causes = new Set(
+        (report.contentReadSummary?.affectedCriteria ?? [])
+          .map((id) => abstentionNoteCause(report, report.criteria.find((criterion) => criterion.id === id)))
+          .filter((cause) => cause !== 'stated-limit'),
+      );
+      const [only] = [...causes];
+      return causes.size === 1 && (only === 'lfs' || only === 'unreadable') ? only : 'read-failure';
+    }
+    case 'signal-unreadable':
+      return readFailureCause(report);
+    case 'content-declined':
+    case 'signal-large-file':
+    case 'signal-other-declined':
+      return 'stated-limit';
+    case 'limitations-capped':
+      return 'capped';
+    default:
+      return 'other';
+  }
+}
+
 /** Every area the report says it could not fully read, and why: affectedCriteria, or named by a limitation. */
 function readGaps(report: WitanReport): Map<string, ReadGap> {
   const gaps = new Map<string, ReadGap>();
@@ -1192,6 +1223,7 @@ function buildNotKnown(report: WitanReport): PendingCheck[] {
       },
       'scan-limitation',
       'Scan limitations',
+      scanLimitationKind(report, limitation),
     );
   });
   (report.historyLimitations ?? []).forEach((limitation, limitationIndex) => {
