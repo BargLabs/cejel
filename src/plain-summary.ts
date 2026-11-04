@@ -113,6 +113,8 @@ export interface PlainSummary {
   readonly holds: readonly PlainItem[];
   /** Present exactly when What holds is empty: the one sentence saying why (v2 item C). */
   readonly holdsNote?: string;
+  /** Present when a listed area scores below 4: its label and its score are set separately (v2 item D). */
+  readonly holdsLead?: string;
   readonly wrong: readonly PlainWrongItem[];
   /** Present when the Wrong count differs from the certificate's findings list; names the difference. */
   readonly wrongNote?: string;
@@ -411,6 +413,7 @@ export function plainSummaryFixedSentences(): string[] {
   return [
     ...Object.values(PLAIN_AREA_NAMES),
     PLAIN_INSUFFICIENT_SOURCE_FALLBACK,
+    PLAIN_HOLDS_LEAD,
     ...SETTLING_SENTENCES.map(({ plain }) => plain),
     ...Object.values(DISCLOSURE_SENTENCES),
     ...Object.values(PLAIN_ABSENCE_FINDINGS),
@@ -739,13 +742,15 @@ function buildHolds(report: WitanReport): PlainItem[] {
       (criterion) => (criterion.status === 'verified' || criterion.status === 'info') && hasExaminedEvidence(criterion),
     )
     .map((criterion) => {
-      // No score here: the status this list reads is calibrated apart from the weighted score, so a
-      // Verified area can carry a lower number, and showing both would need the certificate's
-      // explanation of why the labels differ. The certificate below shows the number.
+      // v2 item D: the list is chosen by label, as before, and each line states the area's score.
+      // The #635 version said "top level" for every Verified area, including B3 at 1.0 of 4. No
+      // threshold is added: what the report labels Verified or Info is listed with its number, and
+      // only the maximum is called the top score. holdsLead says the label and score can differ.
+      const score = `at ${criterion.score.toFixed(1)} out of 4${criterion.score === 4 ? ', the top score' : ''}`;
       const lead =
         criterion.status === 'verified'
-          ? 'Holds: Cejel rates this area at its top level.'
-          : 'Partly holds: Cejel rates this area one level below the top.';
+          ? `Rated Verified, ${score}.`
+          : `Rated Info, one label below Verified, ${score}.`;
       const strongest = strongestMeasurement(criterion);
       return {
         id: `holds/criterion/${criterion.id}`,
@@ -755,6 +760,14 @@ function buildHolds(report: WitanReport): PlainItem[] {
         anchor: plainCriterionAnchor(criterion.id),
       };
     });
+}
+
+export const PLAIN_HOLDS_LEAD =
+  "Each area's label and its score out of 4 are set separately, so a Verified area can have a low score; each area's card in the certificate below compares the two.";
+
+function scoreOf(report: WitanReport, item: PlainItem): number {
+  const id = item.source.kind === 'criterion' ? item.source.criterionId : undefined;
+  return report.criteria.find((criterion) => criterion.id === id)?.score ?? 0;
 }
 
 /**
@@ -1200,6 +1213,7 @@ export function buildPlainSummary(report: WitanReport): PlainSummary {
     areasLine: buildAreasLine(areas),
     holds,
     ...(holds.length === 0 ? { holdsNote: buildHoldsNote(report) } : {}),
+    ...(holds.some((item) => scoreOf(report, item) < 4) ? { holdsLead: PLAIN_HOLDS_LEAD } : {}),
     wrong: wrong.map(({ item }) => item),
     ...(otherWrong > 0
       ? {

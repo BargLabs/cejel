@@ -310,7 +310,7 @@ function renderPlainFirstPage(report: WitanReport, plain: PlainSummary): string 
     '✓',
     'What holds',
     plain.holds.length,
-    [plain.areasLine],
+    [plain.areasLine, plain.holdsLead],
     plain.holds.map(renderPlainItemBody),
     // v2 item C: an empty list prints its one sentence, and only that one.
     plain.holdsNote ?? '',
