@@ -13372,10 +13372,8 @@ export function readPytestDeclaredOptions(repoFiles: readonly string[], readText
       let readable = true;
       let action: string | undefined;
       for (const arg of call.args) {
-        if (arg.startsWith('*')) {
-          readable = false;
-          continue;
-        }
+        // `*args` and `**kwargs` are neither a keyword nor a string literal, so they fall to the
+        // last line below and leave the declaration unreadable.
         const keyword = /^([A-Za-z_]\w*)[ \t]*=(?!=)[ \t]*([\s\S]*)$/.exec(arg);
         if (keyword) {
           if (keyword[1] === 'nargs') readable = false;
