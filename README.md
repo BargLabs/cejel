@@ -80,36 +80,42 @@ boundary—which defect classes any shipped rule targets—and is explicitly not
 The first page of `certificate.html` (and the block printed after the verdict in the terminal)
 answers four questions in plain words, built only from `report.json`:
 
-- **What holds:** the measured areas the report labels Verified, or Info (one label below), each
-  with its score out of 4 and the strongest measurement it saw, for example "Rated Verified, at 1.0
-  out of 4". Only a score of 4.0 is called the top score. A label and a score are set separately,
-  so a Verified area can have a low score; each area's card in the certificate compares the two.
-  An area Cejel did not examine, or examined with no measurement, is never listed here. When the
-  list is empty, one sentence says why: no overall result, no area labelled Verified or Info, or
-  both.
+- **What holds:** the measured areas the report labels Verified, or Info (one label below, listed
+  as "Partly holds"), each with its score out of 4 and the strongest measurement it saw, for
+  example "Rated Verified, at 1.0 out of 4". Only a score of 4.0 is called the top score. A label
+  and a score are set separately, so a Verified area can have a low score; each area's card in the
+  certificate compares the two. An area Cejel did not examine, or examined with no measurement, is
+  never listed here. When the list is empty, one sentence says why: no overall result, no area
+  labelled Verified or Info, or both.
 - **What is wrong:** every critical and warning-level finding, most serious first, naming the file
-  or area and what is wrong. A score made up of several measurements is given with its number and
-  level, for example "give 3.1 out of 4, which Cejel counts as a warning".
+  or area and what is wrong, and every area labelled Critical or Warning that has no critical or
+  warning finding of its own, with its score ("Scored 2.2 out of 4, with no single finding of its own"). A score made
+  up of several measurements is given with its number and level, for example "give 3.1 out of 4,
+  which Cejel counts as a warning".
 - **What is not known:** what the report records it could not establish, from these fields: an
   overall result it withheld, with its reason restated from a fixed table (a reason the table does
   not know reads "Cejel could not rate the source here; see the certificate below"); areas that do
   not apply, have no measurement, or have no score while a finding stands; areas Cejel could not
   fully read (named in the report's skipped-content summary or by a scan or history limitation),
-  listed as "not read" with what could not be read; each scan and history limitation, reworded into
-  plain words; files it did not read; a label moved by imported evidence; and each limit a check
-  recorded on what it examined. Anything the report does not record is not listed, so an empty
-  list does not mean nothing is unknown.
+  listed as "not read" with the cause the report ties to that area: files that could not be read,
+  Git LFS pointers, files left out under Cejel's size limit or rules, a scan limitation, or a
+  shallow clone; each scan and history limitation, reworded into plain words; files it did not
+  read; a label moved by imported evidence; and each limit a check recorded on what it examined.
+  Anything the report does not record is not listed, so an empty list does not mean nothing is
+  unknown.
 - **What to check next:** one line for each wrong or not-known item, taken from a fixed table of
-  reviewed sentences. An item with no table entry points to the section of the certificate that
-  holds it.
+  reviewed sentences. The line for an area not read, and for a scan limitation, follows its own
+  cause: `git lfs pull` for Git LFS pointers, making files readable only where they could not be
+  read, and no fix for a size limit or rule. An item with no table entry points to the section of
+  the certificate that holds it.
 
 The first page also says what the result does not cover: Cejel reads files and history and does
 not run the code or its tests. Under a prospective rubric such as
 `witan-rubric-v27-prospective-2026-10-19`, the first page opens, above the verdict line, with the
 same notice the certificate's header carries: the rubric is not calibrated, and its results carry
 no precision or recall claim. Every line links to its source further down; the certificate below
-the first page holds the evidence, unchanged. `summary.json` carries the same lists under
-`plainSummary`.
+the first page holds the evidence, unchanged apart from the anchors those links point to.
+`summary.json` carries the same lists under `plainSummary`.
 
 ## Install
 
