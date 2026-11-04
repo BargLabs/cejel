@@ -329,6 +329,54 @@ measured effect is in `leaderboard/RUBRIC_CHANGELOG.md`.
 
 ### Added
 
+- **A plain-language first page.** A first-time reader could not tell what a result meant without
+  help. `certificate.html` now opens with a verdict line and four lists in plain words: what holds,
+  what is wrong, what is not known, and what to check next, with a line saying what the result does
+  not cover (Cejel does not run the code or its tests). Each item links to its source further down.
+  The lists come from `report.json` alone, through a new pure function (`src/plain-summary.ts`);
+  each check-next line comes from a fixed table of reviewed sentences (`src/witan/next-checks.ts`),
+  and an item with no table entry points to the certificate section that holds it. An area that
+  was not examined is listed as not known, never as holding. A held area states its label and its
+  score out of 4 ("Rated Verified, at 1.0 out of 4"; an Info area reads "Partly holds: rated Info,
+  one label below Verified"); only 4.0 is called the top score. An area the report says it could
+  not fully read (`contentReadSummary.affectedCriteria`, or named by a scan or history limitation)
+  is listed as not read, never as having nothing to measure, with the cause the report ties to that
+  area: its own abstention note (files that could not be read, Git LFS pointers, or files left out
+  under Cejel's size limit or rules) or the kind of limitation that names it. The report-wide skip
+  counts only narrow a "could not be read" note to the one read-failure cause they hold; they never
+  add a cause the area does not carry. Its check-next line follows that cause: `git lfs pull`
+  for Git LFS pointers (the line the Files not read item gives), making files readable only where
+  they could not be read, no fix for a size limit or rule, and fetching the full history for a
+  shallow clone. A scan limitation's check-next line follows the cause its table entry names in the
+  same way; a limitation no entry knows gets a general line with no example. Each
+  insufficient-source reason the engine produces (16 kinds, from `repo-signals.ts`, `scoring.ts`
+  and `history-depth.ts`) has its own plain sentence, built from the reason's own counts; a reason
+  of no known kind reads "Cejel could not rate the source here; see the certificate below". Scan
+  and history limitations are reworded through a fixed table, or word by word, never replaced by a
+  generic sentence. An empty What holds prints one sentence, chosen by whether there is an overall
+  result and how many areas are labelled Verified or Info. Under a prospective rubric (v27), the
+  first page carries the certificate header's uncalibrated, no precision or recall notice above the
+  verdict line, in the HTML, the terminal and `plainSummary`. An area with no score that lists a
+  finding is in What is wrong for the finding, and Not known says only that its score was not
+  given. A score made up of several measurements is given with its number and level, and an area
+  labelled Critical or Warning with no finding of its own gives its score. A label moved by
+  imported evidence is explained. The terminal prints the four headings after the verdict, up to
+  three items each, and `summary.json` gains one key, `plainSummary`, holding the four lists.
+
+  The certificate below the first page is unchanged apart from the anchor ids the links point to.
+  A test removes the first page and those ids and compares what is left, byte for byte, with renders
+  captured by running the same test in a worktree of main before this change (733a464d3): the full
+  HTML of nine representative fixtures, and a sha256 of each of 644 renders, which are every
+  behaviour-corpus, disclosure-gap and false-assurance fixture under v17 and v27 except one, whose
+  committed symlink points at a fresh temporary directory, so its commit hash differs on every
+  build. `report.json`, `attestation.json`, scores, verdicts and every detector are byte-identical
+  for the same input: tests pin the report and attestation digests of the same 644 renders, and of
+  every behaviour-corpus fixture under the options the earlier pins used, to the values main
+  produced. Other test fixture families (the v27 A1 run, withhold, removal and hook fixtures, and
+  the B3 publishing, CI-claims, settling, build-step, calibration and shallow-history fixtures) are
+  not pinned. The GitHub Action's inputs, outputs and step summary are unchanged, and so is the MCP
+  and HTTP scan summary.
+
 - **GitHub Action: an optional `rubric-pin` input.** A workflow that runs Cejel through the Action
   can now opt in to a non-default rubric, for example `witan-rubric-v27-prospective-2026-10-19`,
   with the same value the CLI takes as `--rubric-pin`. Both the root and the nested `action/`
