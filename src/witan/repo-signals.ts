@@ -8642,13 +8642,15 @@ const ROOT_FILES_UNREAD = {
   requirementsFileIsPlain: () => false,
   pipfileIsPlain: false,
   pipNamesFromRoot: false,
+  // Seventh pass (#641, item D): an install, and any npm, pnpm, yarn or bun command, reads the
+  // manifest and configuration of the directory it runs in, which the root readings do not describe.
+  installRunsNoProjectScript: false,
+  packageManagerConfigPlain: false,
 } as const satisfies Partial<CheckReading>;
 
 const UNREAD_CHECK_READING: CheckReading = {
   ...ROOT_FILES_UNREAD,
   pathMayExist: () => true,
-  installRunsNoProjectScript: false,
-  packageManagerConfigPlain: false,
 };
 
 /** The CheckReading of a checkout's root, read from its inventory. */
