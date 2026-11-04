@@ -3,10 +3,12 @@ import { describe, expect, it } from 'vitest';
 import type { WitanCriterionScore, WitanReport } from '../schemas.js';
 
 import { scoreRepoWithPublicCejel } from '../public-scan.js';
+import { readPytestDeclaredOptions } from '../repo-signals.js';
 import { WITAN_RUBRIC_VERSION_V17, WITAN_RUBRIC_VERSION_V27 } from '../rubric-version.js';
 import { buildFalseAssuranceFixture, type FalseAssuranceFixture } from './fixtures/false-assurance-fixtures.js';
 import { RUN_FIXTURES, type RunFixture } from './fixtures/v27-a1-run-fixtures.js';
 import { checkNoRise } from './v27-no-rise.js';
+import { lines } from './fixtures/v27-a1-removal-fixtures.js';
 
 // goal_cejel_v27_a1_pytest_runs_and_config_2026-11-02 (#633, #643). Under witan-rubric-v27 the
 // reader reads a pytest run as pytest would, or names it as not read and applies no removal rule
@@ -98,7 +100,7 @@ function expectPointers(fixture: RunFixture): void {
   }
 }
 
-for (const item of ['A', 'B', 'C', 'E'] as const) {
+for (const item of ['A', 'B', 'C', 'E', 'F', 'G'] as const) {
   describe(`item ${item}`, () => {
     for (const fixture of RUN_FIXTURES.filter((entry) => entry.item === item)) {
       if (fixture.withheld.length === 0) {
@@ -169,4 +171,34 @@ describe('no rise — v27 never scores any of these fixtures above v17', () => {
       expect(checkNoRise(scan(fixture, V17), scan(fixture, V27)).problems).toEqual([]);
     });
   }
+});
+
+// The review of #655, should-fix 5: the conftest option reader reads CRLF text as it reads LF text.
+// Before, each line moved its offset one short, so a later call was read from the wrong place.
+describe('item G — CRLF and LF conftest.py read alike', () => {
+  it('a file of declarations reads the same with either line ending', () => {
+    const lf = lines(
+      'import pytest',
+      '',
+      '',
+      'def pytest_addoption(parser):',
+      '    parser.addoption("--runslow", action="store_true")',
+      '    parser.addoption(',
+      '        "--env",',
+      '        default="dev",',
+      '    )',
+      '    group = parser.getgroup("x")',
+      "    group.addoption('--chatty', action='count')",
+      '    parser.addoption("--sel", choices=["a", "b"])  # action="store_true"',
+    );
+    const crlf = lf.replace(/\n/g, '\r\n');
+    const read = (text: string) => [...readPytestDeclaredOptions(['conftest.py'], () => text).options].sort();
+    expect(read(lf)).toEqual([
+      ['--chatty', 'flag'],
+      ['--env', 'value'],
+      ['--runslow', 'flag'],
+      ['--sel', 'value'],
+    ]);
+    expect(read(crlf)).toEqual(read(lf));
+  });
 });

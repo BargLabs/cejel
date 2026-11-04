@@ -9,6 +9,7 @@ import {
   analyzeCoverageConfiguration,
   findPytestRunWideSkips,
   isShellWhitespaceCode,
+  readPytestDeclaredOptions,
   readPytestInvocations,
   shellWords,
 } from '../repo-signals.js';
@@ -516,6 +517,141 @@ describe('scaling: each v27 A1 reader the CI-line guard exercises grows no faste
     // The root default, then the `pytest` at the end of each line: every line was read to its end.
     expect(atL).toHaveLength(1 + CI_LINE_UNITS.length);
     expect(at2L).toEqual(atL);
+    expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
+  }, 60_000);
+});
+
+// goal_cejel_v27_a1_gaps_2026-11-03. Each new reader, on the input that maximises its work.
+describe('scaling: the v27 A1 gap readers grow no faster than linearly', () => {
+  // Item A: a hook credited on a list(items) copy reads every Python file the repository tracks for
+  // a way to reach builtins (the review of #655, blocker 3); here one helper module of L bytes holds
+  // only near misses of each alternative (`builtin_s`, `getattrs`, `re.compile`, an uncalled-looking
+  // `.list_`, `. ` before a call) and names builtins only at its end.
+  it('the builtins search, on a helper module of L and 2L bytes naming builtins at its end', () => {
+    const repos = new Map<number, string>();
+    const repoFor = (length: number): string => {
+      const existing = repos.get(length);
+      if (existing) return existing;
+      const count = Math.floor(length / 80);
+      const helper = `${Array.from({ length: count }, (_, index) => `v${index} = re.compile(x.list_, getattrs, "builtin_s") . list()`).join('\n')}\nimport builtins\n`;
+      const repo = makeRepo({
+        'tests/test_lines.py': 'def test_value():\n    assert 1 == 1\n',
+        'tests/helpers.py': helper,
+        'tests/conftest.py': 'def pytest_collection_modifyitems(config, items):\n    saved = list(items)\n    items.clear()\n    items.extend(saved)\n',
+      });
+      repos.set(length, repo);
+      return repo;
+    };
+    const files = ['tests/conftest.py', 'tests/helpers.py', 'tests/test_lines.py'];
+    const { ratio, timing, atL, at2L } = scalingRatio((length) => findPytestRunWideSkips(repoFor(length), files));
+    expect(atL.map((skip) => skip.withheld)).toEqual(['hook not read: `saved = list(items)` in tests/conftest.py calls a builtin, which tests/helpers.py may replace']);
+    expect(at2L).toEqual(atL);
+    expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
+  }, 60_000);
+
+  // Item B: without its budget, a noxfile of N calls taking *session.posargs and a CI file passing
+  // 16 distinct sets of W words cost N x 16 x W. Both grow with L here: N = L/400 calls and sets of
+  // L/2,000 words, so an unbounded reader's work grows with the square of L.
+  it('the nox posargs reader, on L/400 calls taking posargs and 16 CI sets of L/2,000 words', () => {
+    const textsFor = (length: number): Map<string, string> => {
+      const calls = Array.from({ length: Math.floor(length / 400) }, () => '    session.run("pytest", *session.posargs)').join('\n');
+      const words = Math.floor(length / 2000);
+      const steps = Array.from({ length: 16 }, (_, set) => `      - run: nox -s tests -- ${Array.from({ length: words }, (_, word) => `-k s${set}w${word}`).join(' ')}`).join('\n');
+      return new Map([
+        ['noxfile.py', `import nox\n\n\n@nox.session\ndef tests(session):\n${calls}\n`],
+        ['.github/workflows/ci.yml', `name: ci\non: push\njobs:\n  t:\n    runs-on: ubuntu-latest\n    steps:\n${steps}\n`],
+      ]);
+    };
+    const files = ['.github/workflows/ci.yml', 'noxfile.py'];
+    const texts = new Map([SCALING_LENGTH, 2 * SCALING_LENGTH].map((length) => [length, textsFor(length)]));
+    const { ratio, timing, atL, at2L } = scalingRatio((length) => readPytestInvocations(files, (file) => texts.get(length)?.get(file)));
+    // Past the budget the remaining calls are named as not read, at both lengths.
+    expect(atL.some(({ unread }) => unread === 'session.run("pytest", *session.posargs)')).toBe(true);
+    expect(at2L.some(({ unread }) => unread === 'session.run("pytest", *session.posargs)')).toBe(true);
+    expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
+  }, 60_000);
+
+  // The review of #655, blocker 2: the unread posargs entries were said once per noxfile, so M
+  // noxfiles and U unread CI entries gave M x U runs, and spreading them into one call overflowed
+  // the stack (400 and 400 threw RangeError). They are said once per read and count against the
+  // budget. The input that maximises the work: M noxfiles each taking posargs, and U CI steps each
+  // passing a variable after --; here M = U = L/2,000.
+  const unreadNoxTexts = (noxfiles: number, steps: number): { files: string[]; texts: Map<string, string> } => {
+    const texts = new Map<string, string>();
+    for (let index = 0; index < noxfiles; index += 1) {
+      texts.set(`d${index}/noxfile.py`, 'import nox\n\n\n@nox.session\ndef tests(session):\n    session.run("pytest", *session.posargs)\n');
+    }
+    const stepLines = Array.from({ length: steps }, (_, index) => `      - run: nox -- $X${index}`).join('\n');
+    texts.set('.github/workflows/ci.yml', `name: ci\non: push\njobs:\n  t:\n    runs-on: ubuntu-latest\n    steps:\n${stepLines}\n`);
+    return { files: [...texts.keys()].sort(), texts };
+  };
+
+  it('the nox reader, on 400 noxfiles taking posargs and 400 CI steps passing a variable: no crash, output linear', () => {
+    const { files, texts } = unreadNoxTexts(400, 400);
+    const read = readPytestInvocations(files, (file) => texts.get(file));
+    // One root run, one run per noxfile call read with the empty set or named past the budget, and
+    // each unread CI step named once.
+    expect(read.length).toBeLessThanOrEqual(1 + 400 + 400);
+    expect(read.filter(({ unread }) => unread === 'nox -- $X0').length).toBe(1);
+  }, 60_000);
+
+  it('the nox reader, on L/2,000 noxfiles taking posargs and L/2,000 CI steps passing a variable', () => {
+    const inputs = new Map([SCALING_LENGTH, 2 * SCALING_LENGTH].map((length) => [length, unreadNoxTexts(length / 2000, length / 2000)]));
+    const { ratio, timing, atL, at2L } = scalingRatio((length) => {
+      const { files, texts } = inputs.get(length) ?? { files: [], texts: new Map<string, string>() };
+      return readPytestInvocations(files, (file) => texts.get(file));
+    });
+    expect(atL.filter(({ unread }) => unread === 'nox -- $X0').length).toBe(1);
+    expect(at2L.filter(({ unread }) => unread === 'nox -- $X0').length).toBe(1);
+    expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
+  }, 120_000);
+
+  // The review of #655, blocker 1: a noxfile call taking posargs searches every other file that can
+  // run nox for a nox command the reader does not read. The input that maximises the work: one
+  // script of L bytes whose every line names nox only as an install or a dependency (each line swept
+  // once, `nox` after `install`, `nox  ,` after spaces), with the one command it reports on its last
+  // line, and one long line of L/8 bytes of the same.
+  it('the nox command search, on a script of L bytes of nox near misses ending in a nox command', () => {
+    const textsFor = (length: number): Map<string, string> => {
+      const line = 'pip install nox nox nox ; dep = nox      , nox>=1 ; "nox"';
+      const count = Math.floor(length / (line.length + 1));
+      return new Map([
+        ['noxfile.py', 'import nox\n\n\n@nox.session\ndef tests(session):\n    session.run("pytest", *session.posargs)\n'],
+        ['scripts/ci.sh', `${Array.from({ length: count }, () => line).join('\n')}\nnox -s tests -- -x\n`],
+        ['scripts/long.sh', `${'pip install nox '.repeat(Math.floor(length / 128))}\n`],
+      ]);
+    };
+    const files = ['noxfile.py', 'scripts/ci.sh', 'scripts/long.sh'];
+    const texts = new Map([SCALING_LENGTH, 2 * SCALING_LENGTH].map((length) => [length, textsFor(length)]));
+    const { ratio, timing, atL, at2L } = scalingRatio((length) => readPytestInvocations(files, (file) => texts.get(length)?.get(file)));
+    expect(atL.filter(({ unread }) => unread === 'nox -s tests -- -x').length).toBe(1);
+    expect(at2L.filter(({ unread }) => unread === 'nox -s tests -- -x').length).toBe(1);
+    expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
+  }, 60_000);
+
+  // Item C: the conftest option reader, on L/60 addoption calls, on one call left open to the end
+  // of a file of L bytes (read once, never again from each later line), and (the review of #655:
+  // every call on a line, CRLF text) on one CRLF line of L/50 calls and one line of L/16 quoted
+  // `.addoption(` strings, swept once beside its matches.
+  it('the conftest option reader, on L/60 declarations, an unclosed call of L bytes, and long lines of calls and quoted calls', () => {
+    const textsFor = (length: number): Map<string, string> => {
+      const declarations = Array.from({ length: Math.floor(length / 60) }, (_, index) => `    parser.addoption("--opt-${index}", action="store_true")`).join('\r\n');
+      const open = `def pytest_addoption(parser):\n    parser.addoption(\n${'        "x", parser.addoption(\n'.repeat(Math.floor(length / 40))}`;
+      const oneLine = Array.from({ length: Math.floor(length / 50) }, (_, index) => `p.addoption("--l${index}", action="count"); `).join('');
+      const quoted = `x = ${'".addoption(" + '.repeat(Math.floor(length / 16))}""`;
+      return new Map([
+        ['conftest.py', `def pytest_addoption(parser):\r\n${declarations}\r\n`],
+        ['tests/conftest.py', open],
+        ['a/conftest.py', `def pytest_addoption(p):\n    ${oneLine}\n`],
+        ['b/conftest.py', `${quoted}\n`],
+      ]);
+    };
+    const files = ['a/conftest.py', 'b/conftest.py', 'conftest.py', 'tests/conftest.py'];
+    const texts = new Map([SCALING_LENGTH, 2 * SCALING_LENGTH].map((length) => [length, textsFor(length)]));
+    const { ratio, timing, atL, at2L } = scalingRatio((length) => readPytestDeclaredOptions(files, (file) => texts.get(length)?.get(file)));
+    expect(atL.options.get('--opt-0')).toBe('flag');
+    expect(at2L.options.get('--opt-0')).toBe('flag');
+    expect(atL.options.get(`--l${Math.floor(SCALING_LENGTH / 50) - 1}`)).toBe('flag');
     expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
   }, 60_000);
 });
