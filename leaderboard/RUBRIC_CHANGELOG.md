@@ -212,6 +212,171 @@ unless told not to; item F applies the project-install rule to tox and hatch onl
 No holdout or calibration ran. No behaviour-fingerprint pin moves: the fingerprint corpus holds no
 check-then-publish workflow. No published score moved: the board is scored under v17.
 
+## 2026-11-03 (A1 gaps) — v27 A1 stops crediting a builtin copy that a tracked file may replace, reads nox posargs and the options a conftest.py declares, and pins #634's remaining shapes (part of #646; #649, #634); v17-v26 byte-identical; v27 never above v17; no published score moved
+
+**Status.** A scoring change under `witan-rubric-v27-prospective-2026-10-19` only, with no
+identifier change (goal_cejel_v27_a1_gaps_2026-11-03). No holdout or calibration ran for it, and
+this entry makes no precision or recall claim. The default stays v17.
+
+**Why.** Three issues stayed open after #644 and #648. #646: outcome 2 ("puts the collected items
+back") read only the hook's own `conftest.py` for a rebinding of `list` or `tuple`, so a module it
+imports, a second `conftest.py` or a plugin could patch the builtin at import time while A1 said
+the items were put back. #649: two over-withholds in the safe direction, both common. Every
+`*session.posargs` run was named "pytest run not read", which switched off every removal rule in
+almost every nox repository. `pytest --runslow tests` was not read while `pytest tests --runslow`
+was, so the result depended on argument order. #634: shapes deferred from #626, before #644's
+allowlist, that nobody had checked since.
+
+**Change.**
+
+- **A builtin copy (item A, part of #646).** A copy that calls a builtin is credited only where no
+  file the repository tracks may replace the builtin. That covers `S = list(items)` or
+  `tuple(items)` in the hook, and a strict helper restoring from `list(src)` or `tuple(src)`. The
+  first round searched A1's file list for the word `builtins`; the #655 review showed four ways
+  past it (`sys._getframe(0).f_builtins`, a fullwidth `ｂuiltins` that Python folds under NFKC, a
+  patch under vendor/, build/, dist/, venv/ or coverage/, which A1's file list leaves out, and a
+  `-p` plugin using `f_builtins`). The search now reads every tracked file in any directory (git
+  ls-files; outside Git, every file but .git). A Python source (`.py`, `.pyw`, `.pyx`, `.pxd`,
+  `.pxi`), read under NFKC in code, strings and comments alike, withholds the credit where it names
+  `builtins` anywhere, reaches a module, frame or namespace by a computed name (`modules`,
+  `__dict__`, `__globals__`, `__getattr__`, `__import__`, `importlib`, `setattr`, `getattr`,
+  `attrgetter`, `_getframe`, `currentframe`, `f_globals`, `tb_frame`, `gc`, `ctypes`, `pickle`,
+  `marshal`, `runpy` and the rest listed in the v27 declaration), calls Python's own `exec`,
+  `eval`, `compile`, `globals`, `vars` or `locals`, or names an attribute `list` or `tuple` that is
+  not called (`conftest.list = ...`). So does a tracked `.pyc`, `.pyo`, `.so`, `.pyd`, `.egg`,
+  `.whl`, `.zip` or `.pth` file, a source Cejel cannot read, and files it cannot list. The hook is
+  then named: "hook not read: `saved = list(items)` in tests/conftest.py calls a builtin, which
+  tests/helpers.py may replace". `items[:]`, `items.copy()` and `[*items]` call no builtin, so they
+  stay credited: built-in types cannot be patched. The files are read only where a credit rests on
+  a builtin copy. Not read, and why #646 stays open: a module installed from outside the
+  repository (an entry-point plugin, a `sitecustomize`, a `.pth` file in site-packages), and any
+  route to builtins the list does not name. In a real repository almost every builtin copy will
+  now be named rather than credited; that is a miss in the note, never a false credit.
+- **nox posargs (item B, #649).** `*session.posargs` is read as the words after `--` on each CI,
+  recipe or tox nox command, through #648's tox posargs code, which the two readers now share
+  (`partitionPosargs`). The commands read are `nox`, `python -m nox`, `uvx nox`, `uv run nox` and
+  `pipx run nox`. A nox command with no `--` passes none, but the #655 review showed that "none" was
+  assumed for every nox command the reader did not read (`poetry run nox`, `env CI=1 nox`, `hatch
+  run nox`, `pdm run nox`, `uv run --with nox nox`, `uvx --python 3.12 nox`, nox in a script),
+  which rated files hollow that main named as not read. "None" now holds only where every nox
+  command in the repository is one the reader reads. Each nox command run another way is named as
+  not read, as is the first line of any other file in A1's file list that can run nox (a script, a
+  Python module, a configuration file, a file with no extension) and names nox as it would be run.
+  Documentation, dependency shapes (`"nox"`, `nox>=2024`, `nox = ...`), `import nox` and install
+  commands are not read as nox commands. The noxfiles are now read after tox's commands too. At
+  most 16 distinct literal sets are read; a word holding `$`, a backtick or braces, or a set past
+  the 16th, is a run not read, named with that nox command. Each call taking posargs is read once
+  per set, so a budget of 4,096 (one per run read, plus the words put in) bounds the product of
+  calls and sets. The posargs not read were said once per noxfile, so 400 noxfiles and 400 unread
+  CI steps made 160,000 runs and spreading them into one call overflowed the stack; they are now
+  said once per read and each counts against the budget. The empty set is still read beside every
+  literal set, but it is inert: the reader always adds a plain pytest run at the root, which
+  collects everything it adds, and removing it fails none of the 151 run tests.
+- **Options a conftest.py declares (item C, #649).** An unknown long option before a word is now
+  looked up in the repository's `conftest.py` files, in `.addoption("--name", ...)` or
+  `._addoption(...)` on the parser or an option group, read from code: every such call on a line,
+  and CRLF text as LF (the first round's offsets drifted one character per CRLF line, so a CRLF
+  declaration was never recorded). `action` set to `store_true`, `store_false`, `count`,
+  `store_const` or `append_const` takes no value, so the word is a path. Any other literal action,
+  or none, takes the word as its value. The run stays not read in these cases: the option is
+  declared nowhere or with `**kwargs`; its action is not a literal; it sets `nargs=`; two
+  declarations disagree; or any `conftest.py` declares an option through a name or `*args`, which
+  may be this option (the review found a literal `store_true` in docs/conftest.py deciding an
+  option the root conftest.py declared through a name). A declaration in a module that is not a
+  `conftest.py` is not read.
+- **#634 (item D).** Six fixtures were committed (`8332f4d6f`, sized in `be493b44a`) and run with
+  origin/main's `repo-signals.ts` (`4cf09b263`). All six passed, so none is a false hollow, and
+  each is kept as a pin:
+  1. a restoring lambda bound after the clear, then called, is named as not read;
+  2. the strict helper called with `**{...}`, or with `items, *[saved]`, is named as not read;
+  3. `self.refill(items, saved)` in a plugin class registered from `pytest_configure` gets no
+     claim, since the reader reads no hook in a class, and the files keep v17's reading;
+  4. a hanging-indent `def` with `items` on the next line is read as the hook (it deselects);
+  5. paths holding `, ` and ` (` listed 10th and 11th, past the first eight pointers, are quoted.
+
+  For item 5, the note lists at most what fits. With 13 rated files it listed 11 and counted 2,
+  so a path past the listing is counted, never written unquoted. The hook-outcome fixtures'
+  items C, D and E already pin the first shape of each #634 item.
+
+**Bounds.** Each new reader was timed at L and 2L (L = 240,000) on the input that maximises its
+work, by the scaling checks in `scan-path-regex-bounds.test.ts` (interleaved CPU-time samples from
+`process.cpuUsage`, limit 3). Measured at `c40da18eb`, run alone on a host shared with two other
+sessions:
+
+- the builtins search, on a helper module of L bytes holding near misses of every alternative and
+  naming builtins only at its end: ratio 1.12 (each read spawns git once, a fixed cost);
+- the nox reader, on L/400 calls taking posargs and 16 CI sets of L/2,000 words: ratio 1.89 (the
+  first round measured 3.37 with the budget removed);
+- the nox reader, on L/2,000 noxfiles taking posargs and L/2,000 CI steps passing a variable:
+  ratio 1.99. Before the fix it said each unread step L/2,000 times, and 400 of each threw;
+- the nox command search, on a script of L bytes of nox installs and dependency shapes ending in
+  one nox command, and one line of L/8 bytes of installs: ratio 2.05;
+- the conftest option reader, on L/60 CRLF declarations, one call left open to the end of a file
+  of L bytes, one line of L/50 calls and one line of L/16 quoted calls: ratio 2.15.
+
+No `push(...x)` or `splice(i, 0, ...x)` on an input-sized list remains in this change.
+
+The tox posargs reader has the same product as the nox reader and no budget. It is unchanged here,
+was not timed, and is filed as cejel #653.
+
+**The no-rise property.** Item A moves a hook from outcome 2 to outcome 3. Both keep v17's reading,
+so item A changes only the sentence in A1's note. Items B and C read runs that were named as not
+read before. A read run can only withhold less than a run not read, so it can lower v27's A1 only
+where v17 already scores the file. v27 cannot score A1 above v17 on the same commit.
+
+**Measured, first round.** Code at `2fe6e4e1f`, on the set #648's "Measured again after the
+review round" names (B3, false-assurance, CI-claims and every v27 A1 set): 851 synthetic
+repositories built once, scanned with main `4cf09b263` and that commit, reports and HTML and
+Markdown certificates compared. v17 851 of 851 and v18 to v26 290 of 290 each were byte-identical,
+and v27 A1 rose above v17 on 0 of 851. That entry's per-fixture split of this change's fixtures
+was wrong: measured fixture by fixture, 5 fell (two nox fixtures and three option fixtures, not
+"three nox fixtures") and 8 changed only in the note, not 6 and 7.
+
+**Measured again after the #655 review.** Code at `c40da18eb`, the last code commit; the records
+and lesson commits after it change no code. Scope: the five v27 A1 sets (removal, hook outcome,
+allowlist, withhold, run), 317 synthetic repositories built once from this branch's fixture files,
+each scanned in one process with main `733a464d3` (whose `src/` is identical to `4cf09b263`) and
+with this branch, under v17, v26 and v27, comparing the full report JSON. Certificates were not
+rendered, v18 to v25 were not rescanned, and the B3, false-assurance and CI-claims sets were not
+compared with main this round; their pinned v27 tests pass (2,540 tests). 0 errors.
+
+- v17 and v26: 317 of 317 reports identical to main.
+- v27, the 265 repositories from main's fixture files: 264 identical. The one that moved is
+  `a1run-nox-posargs`, the pin item B moves, in A1 alone, from 2.3 (verified, "pytest run not
+  read") to 1.7 (critical): no nox command passes posargs, so the session runs plain pytest and its
+  clear hook rates both files hollow.
+- v27, this change's 52 fixtures (25 from the first round, 27 from the review round): 16
+  identical (three item A controls, six #634 pins, seven item C controls). 36 move, in A1 alone:
+  - 8 fall to critical, because main named a run not read that pytest runs and that loads the
+    clear hook: three nox fixtures (none passed, a path passed, nox named only as a dependency;
+    2.3 to 1.7, and 2.1 to 1.5 for the last) and five option fixtures (store_true, count in a
+    group, an option taking a value, a CRLF declaration, a second call on a line; 2.3 to 1.7);
+  - 28 change only in A1's note: fourteen item A hooks, now named as not read; thirteen nox
+    fixtures whose posargs are now said as settings in force or whose run is named with the nox
+    command (including the eight unread-invocation fixtures and the tox fixture); one option fixture,
+    `-p no:skipping` after a store_false option.
+- v27 A1 above v17 A1 on the same repository: 0 of 317; overall score above v17: 0, wherever both
+  reports carry a headline score.
+
+**Fixtures and tests.** The fixtures are in `src/witan/__tests__/fixtures/v27-a1-allowlist-fixtures.ts`
+(items G, A of this card, and H, #634) and `src/witan/__tests__/fixtures/v27-a1-run-fixtures.ts` (items F
+and G, B and C of this card). First round, each committed red first: item A at `fb1e17939` (3 of 6
+failed), item B at `3e4548490` (6 of 6 failed) and item C at `84561e2f3` (4 of 7 failed). Review
+round, each red commit followed by its fix: blocker 1 at `2343f0c28` (9 of 10 failed; fix
+`9e49c704a`), blocker 2 at `0cc256dbd` (2 failed, one a RangeError; fix `f81d0bd8a`), blocker 3 at
+`cc32c0121` (11 of 11 credited; fix `d1c802a7b`), should-fix 5 and 6 and the two-calls nit at
+`ab6a12c62` (4 failed; fix `285ffc3ed`). Blocker 4's three refusal fixtures (`16bab1f03`) pass on
+the code; removing each refusal alone fails its own fixture, 1 of 10 each, and the redundant
+`*args` branch was dropped (`3ff079341`). Under v27 only, one pin moved (`a1run-nox-posargs`, in
+`f45c6bd41`); no fingerprint pin moved (`rubric-behaviour-fingerprint` passes). pytest, nox and
+pytest-cov were not run on any fixture: no Python package could be run in these sessions. Each
+claim rests on reading Python's name lookup and NFKC folding, nox's documented posargs and
+argparse's actions, not on a run. The full suite was not run in the review round; the targeted
+files (the five v27 A1 test files, `scan-path-regex-bounds` alone, and every test that reads a
+changed file) and the typecheck passed.
+
+No published score moved: the board is scored under v17.
+
 ## 2026-11-03 — v27 A1 reads the pytest runs, options and configuration search pytest itself uses, names a run it cannot read instead of rating its files hollow, and points each setting clause at its line (#633, #643); v17-v26 byte-identical; v27 never above v17; no published score moved
 
 **Status.** A scoring change under `witan-rubric-v27-prospective-2026-10-19` only, with no

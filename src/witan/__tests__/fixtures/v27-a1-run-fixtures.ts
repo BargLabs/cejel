@@ -22,7 +22,7 @@ import { PYPROJECT, PY_BASE, SKIPPED_CACHE_TEST, conftestHook, lines } from './v
 // does. `pointers` lists the evidence pointers (path, line, label) v27 must cite.
 
 export interface RunFixture extends FalseAssuranceFixture {
-  readonly item: 'A' | 'B' | 'C' | 'E';
+  readonly item: 'A' | 'B' | 'C' | 'E' | 'F' | 'G';
   readonly removed: readonly (readonly [path: string, rule: string])[];
   readonly withheld: readonly string[];
   readonly pointers?: readonly (readonly [path: string, line: number, label: string])[];
@@ -115,13 +115,15 @@ export const RUN_FIXTURES: readonly RunFixture[] = [
     [NO_CONFTEST('noxfile.py')],
     [['noxfile.py', 7, 'pytest setting in force: --noconftest']],
   ),
-  withheld(
+  // goal_cejel_v27_a1_gaps_2026-11-03, item B (#649) moved this pin: no CI or recipe nox command
+  // passes posargs, so `*session.posargs` is empty, the session runs plain pytest, and the clear hook
+  // rates both files hollow. It was "pytest run not read" here before.
+  caught(
     'a1run-nox-posargs',
     'A',
-    "A noxfile session passes nox's posargs to pytest, which the repository cannot show: the run is not read.",
+    "A noxfile session passes nox's posargs to pytest, and no nox command in the repository passes any: the session runs plain pytest.",
     { 'tests/conftest.py': CLEAR_HOOK, 'noxfile.py': NOXFILE('session.run("pytest", *session.posargs)') },
-    [runNotRead('session.run("pytest", *session.posargs)', 'noxfile.py')],
-    [['noxfile.py', 7, 'pytest run not read']],
+    HOOK_REMOVED,
   ),
   withheld(
     'a1run-tox-literal-posargs',
@@ -413,6 +415,297 @@ export const RUN_FIXTURES: readonly RunFixture[] = [
     },
     [`every-test-skipped rule not applied: -p no:skipping in PYTEST_ADDOPTS in ${CI_PATH}`],
     [[CI_PATH, 8, 'pytest setting in force: -p no:skipping']],
+  ),
+
+  // ---- item F: nox posargs (goal_cejel_v27_a1_gaps_2026-11-03, item B; #649, 1) -------------
+  // `*session.posargs` holds the words after `--` on a CI or recipe nox command (`nox -s tests --
+  // ...`, or nox run as a Python module); a nox command with no `--` passes none; a word holding `$`,
+  // a backtick or braces leaves the run not read, as do more than 16 distinct sets. nox was not run
+  // on these fixtures (no Python package could be run in this session): each claim rests on nox's
+  // documented posargs, not on a run.
+  caught(
+    'a1gap-nox-posargs-ci-passes-none',
+    'F',
+    'CI runs nox -s tests with no --, so *session.posargs is empty and the session runs plain pytest, which loads the clear hook.',
+    { 'tests/conftest.py': CLEAR_HOOK, 'noxfile.py': NOXFILE('session.run("pytest", *session.posargs)'), [CI_PATH]: ciWorkflow(['pip install nox', 'nox -s tests']) },
+    HOOK_REMOVED,
+  ),
+  caught(
+    'a1gap-nox-posargs-ci-passes-a-path',
+    'F',
+    'CI runs nox -s tests -- tests: the session runs pytest tests, which loads the clear hook.',
+    { 'tests/conftest.py': CLEAR_HOOK, 'noxfile.py': NOXFILE('session.run("pytest", "-q", *session.posargs)'), [CI_PATH]: ciWorkflow(['nox -s tests -- tests']) },
+    HOOK_REMOVED,
+  ),
+  withheld(
+    'a1gap-nox-posargs-ci-passes-no-skipping',
+    'F',
+    'CI runs nox -s tests -- -p no:skipping, which nox passes to pytest through *session.posargs.',
+    { 'tests/test_cache.py': SKIPPED_CACHE_TEST, 'noxfile.py': NOXFILE('session.run("pytest", *session.posargs)'), [CI_PATH]: ciWorkflow(['nox -s tests -- -p no:skipping']) },
+    [NO_SKIPPING('noxfile.py')],
+  ),
+  withheld(
+    'a1gap-nox-python-module-posargs-in-makefile',
+    'F',
+    'A Makefile recipe CI runs calls python -m nox -s tests -- --noconftest; the session passes it to pytest.',
+    {
+      'tests/conftest.py': CLEAR_HOOK,
+      'noxfile.py': NOXFILE('session.run("pytest", *session.posargs)'),
+      Makefile: 'test:\n\tpython -m nox -s tests -- --noconftest\n',
+      [CI_PATH]: ciWorkflow(['make test']),
+    },
+    [NO_CONFTEST('noxfile.py')],
+  ),
+  withheld(
+    'a1gap-nox-posargs-variable',
+    'F',
+    'CI passes a shell variable after --: the posargs cannot be known, so the run is not read.',
+    { 'tests/conftest.py': CLEAR_HOOK, 'noxfile.py': NOXFILE('session.run("pytest", *session.posargs)'), [CI_PATH]: ciWorkflow(['nox -s tests -- $PYTEST_ARGS']) },
+    [runNotRead('nox -s tests -- $PYTEST_ARGS', CI_PATH)],
+  ),
+  withheld(
+    'a1gap-nox-posargs-past-sixteen-sets',
+    'F',
+    'CI passes 17 distinct posargs sets: past the 16-set limit the 17th is named as not read, not read in part.',
+    {
+      'tests/conftest.py': CLEAR_HOOK,
+      'noxfile.py': NOXFILE('session.run("pytest", *session.posargs)'),
+      [CI_PATH]: ciWorkflow(Array.from({ length: 17 }, (_, index) => `nox -s tests -- -k t${index}`)),
+    },
+    [runNotRead('nox -s tests -- -k t16', CI_PATH)],
+  ),
+  // The review of #655, blocker 1: "no posargs" is known only where every nox invocation in the
+  // repository is one the reader reads. A nox command through a runner or wrapper the reader does
+  // not read (poetry, env, hatch, pdm, uv run --with, uvx with options, a shell script, a Python
+  // script) may pass any posargs, so the noxfile run is not read and named with that command.
+  ...(
+    [
+      ['poetry', 'poetry run nox -s tests -- --noconftest'],
+      ['env', 'env CI=1 nox -s tests -- --noconftest'],
+      ['hatch', 'hatch run nox -s tests -- --noconftest'],
+      ['pdm', 'pdm run nox -s tests -- --noconftest'],
+      ['uv-with', 'uv run --with nox nox -s tests -- --noconftest'],
+      ['uvx-options', 'uvx --python 3.12 nox -s tests -- --noconftest'],
+    ] as const
+  ).map(([form, command]) =>
+    withheld(
+      `a1gap-nox-unread-invocation-${form}`,
+      'F',
+      `CI runs ${command}, a nox command the reader does not read: its posargs are unknown, so the noxfile run is not read, never read as passing none.`,
+      { 'tests/conftest.py': CLEAR_HOOK, 'noxfile.py': NOXFILE('session.run("pytest", *session.posargs)'), [CI_PATH]: ciWorkflow([command]) },
+      [runNotRead(command, CI_PATH)],
+    ),
+  ),
+  withheld(
+    'a1gap-nox-unread-invocation-shell-script',
+    'F',
+    'CI runs sh scripts/ci.sh, whose nox command passes --noconftest; the reader does not read the script, so the noxfile run is not read.',
+    {
+      'tests/conftest.py': CLEAR_HOOK,
+      'noxfile.py': NOXFILE('session.run("pytest", *session.posargs)'),
+      'scripts/ci.sh': lines('#!/bin/sh', 'set -e', 'nox -s tests -- --noconftest'),
+      [CI_PATH]: ciWorkflow(['sh scripts/ci.sh']),
+    },
+    [runNotRead('nox -s tests -- --noconftest', 'scripts/ci.sh')],
+  ),
+  withheld(
+    'a1gap-nox-unread-invocation-python-script',
+    'F',
+    'CI runs a Python script that calls nox with posargs through subprocess; the reader does not read the script, so the noxfile run is not read.',
+    {
+      'tests/conftest.py': CLEAR_HOOK,
+      'noxfile.py': NOXFILE('session.run("pytest", *session.posargs)'),
+      'scripts/run_tests.py': lines('import subprocess', '', 'subprocess.run(["nox", "-s", "tests", "--", "--noconftest"], check=True)'),
+      [CI_PATH]: ciWorkflow(['python scripts/run_tests.py']),
+    },
+    [runNotRead('subprocess.run(["nox", "-s", "tests", "--", "--noconftest"], check=True)', 'scripts/run_tests.py')],
+  ),
+  withheld(
+    'a1gap-nox-posargs-from-tox-command',
+    'F',
+    'tox runs nox -s tests -- --noconftest from its commands; the reader reads tox commands, so the set is read and --noconftest is in force.',
+    {
+      'tests/conftest.py': CLEAR_HOOK,
+      'noxfile.py': NOXFILE('session.run("pytest", *session.posargs)'),
+      'tox.ini': lines('[tox]', 'envlist = py', '', '[testenv]', 'deps = nox', 'commands = nox -s tests -- --noconftest'),
+      [CI_PATH]: ciWorkflow(['pip install tox', 'tox -e py']),
+    },
+    [NO_CONFTEST('noxfile.py')],
+  ),
+  caught(
+    'a1gap-nox-posargs-dependency-mentions',
+    'F',
+    'Control: nox named only as a dependency (pyproject, a requirements file, tox deps) and in a README; the one nox command passes no --, so the session runs plain pytest.',
+    {
+      'tests/conftest.py': CLEAR_HOOK,
+      'noxfile.py': NOXFILE('session.run("pytest", *session.posargs)'),
+      'pyproject.toml': lines('[project]', 'name = "cachelib"', 'version = "1.0.0"', 'dependencies = []', '', '[project.optional-dependencies]', 'dev = ["nox>=2024.3", "pytest"]'),
+      'requirements-dev.txt': lines('nox', 'pytest'),
+      'README.md': lines('# cachelib', '', 'Run `nox -s tests -- -x` to stop at the first failure.'),
+      [CI_PATH]: ciWorkflow(['pip install nox', 'nox -s tests']),
+    },
+    HOOK_REMOVED,
+  ),
+
+  // ---- item G: options a conftest.py declares (goal_cejel_v27_a1_gaps_2026-11-03, item C; #649, 2)
+  // An unknown long option before a word is looked up in the repository's conftest.py files:
+  // `parser.addoption("--name", action="store_true" | "store_false" | "count" | "store_const")`
+  // takes no value, so the word is a path; any other action, or none, takes a value; declared
+  // nowhere, or in a call Cejel cannot read, the run stays not read. pytest was not run on these
+  // fixtures (no Python package could be run in this session): each claim rests on argparse's
+  // actions, which pytest's addoption passes through, not on a run.
+  caught(
+    'a1gap-option-store-true-before-path',
+    'G',
+    'pytest --runslow tests, where the root conftest.py declares --runslow with action="store_true": tests is a path, and the run loads the clear hook.',
+    {
+      'conftest.py': lines('def pytest_addoption(parser):', '    parser.addoption("--runslow", action="store_true", default=False, help="run slow tests")'),
+      'tests/conftest.py': CLEAR_HOOK,
+      [CI_PATH]: ciWorkflow(['pytest --runslow tests']),
+    },
+    HOOK_REMOVED,
+  ),
+  caught(
+    'a1gap-option-count-in-group-before-path',
+    'G',
+    'pytest --chatty tests, where a conftest.py declares --chatty on an option group with action="count": tests is a path.',
+    {
+      'conftest.py': lines('def pytest_addoption(parser):', '    group = parser.getgroup("cachelib")', "    group.addoption('--chatty', '-C', action='count', default=0)"),
+      'tests/conftest.py': CLEAR_HOOK,
+      [CI_PATH]: ciWorkflow(['pytest --chatty tests']),
+    },
+    HOOK_REMOVED,
+  ),
+  withheld(
+    'a1gap-option-store-false-before-path-no-skipping',
+    'G',
+    'pytest --no-network tests -p no:skipping, where --no-network is declared with action="store_false": the run is read, and -p no:skipping is in force for tests.',
+    {
+      'conftest.py': lines('def pytest_addoption(parser):', '    parser.addoption(', '        "--no-network",', '        action="store_false",', '        dest="network",', '    )'),
+      'tests/test_cache.py': SKIPPED_CACHE_TEST,
+      [CI_PATH]: ciWorkflow(['pytest --no-network tests -p no:skipping']),
+    },
+    [NO_SKIPPING(CI_PATH)],
+  ),
+  caught(
+    'a1gap-option-with-value',
+    'G',
+    'pytest --env ci tests, where --env is declared with no action (argparse stores a value): ci is its value and tests a path.',
+    {
+      'conftest.py': lines('def pytest_addoption(parser):', '    parser.addoption("--env", default="dev")'),
+      'tests/conftest.py': CLEAR_HOOK,
+      [CI_PATH]: ciWorkflow(['pytest --env ci tests']),
+    },
+    HOOK_REMOVED,
+  ),
+  withheld(
+    'a1gap-option-declared-with-name-variable',
+    'G',
+    'Control: --runslow is declared through a name, not a string literal, so Cejel cannot tell whether it takes a value: the run stays not read.',
+    {
+      'conftest.py': lines('SLOW = "--runslow"', '', '', 'def pytest_addoption(parser):', '    parser.addoption(SLOW, action="store_true")'),
+      'tests/conftest.py': CLEAR_HOOK,
+      [CI_PATH]: ciWorkflow(['pytest --runslow tests']),
+    },
+    [runNotRead('--runslow tests', CI_PATH)],
+  ),
+  withheld(
+    'a1gap-option-declared-with-kwargs',
+    'G',
+    'Control: --runslow is declared with **kwargs, which may hold its action: the run stays not read.',
+    {
+      'conftest.py': lines('FLAG = {"action": "store_true"}', '', '', 'def pytest_addoption(parser):', '    parser.addoption("--runslow", **FLAG)'),
+      'tests/conftest.py': CLEAR_HOOK,
+      [CI_PATH]: ciWorkflow(['pytest --runslow tests']),
+    },
+    [runNotRead('--runslow tests', CI_PATH)],
+  ),
+  withheld(
+    'a1gap-option-declared-in-a-non-conftest-module',
+    'G',
+    'Control: --runslow is declared only in a plugin module, not a conftest.py: the run stays not read.',
+    {
+      'cachelib_plugin.py': lines('def pytest_addoption(parser):', '    parser.addoption("--runslow", action="store_true")'),
+      'tests/conftest.py': CLEAR_HOOK,
+      [CI_PATH]: ciWorkflow(['pytest --runslow tests']),
+    },
+    [runNotRead('--runslow tests', CI_PATH)],
+  ),
+  // The review of #655, blocker 4: each refusal of the declaration reader has a fixture that fails
+  // where the refusal is removed (each would then read the next word as a value or a path and rate
+  // the files hollow).
+  withheld(
+    'a1gap-option-declared-with-nargs',
+    'G',
+    'Control: --level is declared with nargs="?", so it may or may not take the next word: the run stays not read.',
+    {
+      'conftest.py': lines('def pytest_addoption(parser):', '    parser.addoption("--level", action="store", nargs="?", const="1")'),
+      'tests/conftest.py': CLEAR_HOOK,
+      [CI_PATH]: ciWorkflow(['pytest --level tests']),
+    },
+    [runNotRead('--level tests', CI_PATH)],
+  ),
+  withheld(
+    'a1gap-option-declared-twice-disagreeing',
+    'G',
+    'Control: the root conftest.py declares --runslow with action="store_true" and another conftest.py declares it with no action (a value): the run stays not read.',
+    {
+      'conftest.py': lines('def pytest_addoption(parser):', '    parser.addoption("--runslow", action="store_true")'),
+      'integration/conftest.py': lines('def pytest_addoption(parser):', '    parser.addoption("--runslow", default="no")'),
+      'tests/conftest.py': CLEAR_HOOK,
+      [CI_PATH]: ciWorkflow(['pytest --runslow tests']),
+    },
+    [runNotRead('--runslow tests', CI_PATH)],
+  ),
+  withheld(
+    'a1gap-option-declared-with-non-literal-action',
+    'G',
+    'Control: --runslow is declared with action=ACTION, a name, so Cejel cannot tell whether it takes a value: the run stays not read.',
+    {
+      'conftest.py': lines('ACTION = "store_true"', '', '', 'def pytest_addoption(parser):', '    parser.addoption("--runslow", action=ACTION)'),
+      'tests/conftest.py': CLEAR_HOOK,
+      [CI_PATH]: ciWorkflow(['pytest --runslow tests']),
+    },
+    [runNotRead('--runslow tests', CI_PATH)],
+  ),
+  // The review of #655, should-fix 5: a conftest.py with CRLF line endings is read as the same file
+  // with LF endings (the reader's offsets drifted by one per line, so the declaration was missed).
+  caught(
+    'a1gap-option-store-true-crlf',
+    'G',
+    'pytest --runslow tests, where a CRLF conftest.py declares --runslow with action="store_true": tests is a path, and the run loads the clear hook.',
+    {
+      'conftest.py': 'import pytest\r\n\r\n\r\ndef pytest_addoption(parser):\r\n    parser.addoption("--runslow", action="store_true", default=False)\r\n',
+      'tests/conftest.py': CLEAR_HOOK,
+      [CI_PATH]: ciWorkflow(['pytest --runslow tests']),
+    },
+    HOOK_REMOVED,
+  ),
+  // The review of #655, should-fix 6: a declaration through a name may declare any option, so a
+  // literal declaration elsewhere (here docs/conftest.py) does not settle how the option is read.
+  withheld(
+    'a1gap-option-literal-elsewhere-name-in-root',
+    'G',
+    'Control: docs/conftest.py declares --runslow with action="store_true", but the root conftest.py declares an option through a name, which may be --runslow taking a value: the run stays not read.',
+    {
+      'conftest.py': lines('SLOW = "--runslow"', '', '', 'def pytest_addoption(parser):', '    parser.addoption(SLOW, default="no")'),
+      'docs/conftest.py': lines('def pytest_addoption(parser):', '    parser.addoption("--runslow", action="store_true")'),
+      'tests/conftest.py': CLEAR_HOOK,
+      [CI_PATH]: ciWorkflow(['pytest --runslow tests']),
+    },
+    [runNotRead('--runslow tests', CI_PATH)],
+  ),
+  // The review of #655, nit: every .addoption( on a line is read, not only the first.
+  caught(
+    'a1gap-option-second-declaration-on-a-line',
+    'G',
+    'pytest --runslow tests, where --runslow is the second of two store_true declarations on one line: tests is a path.',
+    {
+      'conftest.py': lines('def pytest_addoption(parser):', '    parser.addoption("--fast", action="store_true"); parser.addoption("--runslow", action="store_true")'),
+      'tests/conftest.py': CLEAR_HOOK,
+      [CI_PATH]: ciWorkflow(['pytest --runslow tests']),
+    },
+    HOOK_REMOVED,
   ),
 ];
 

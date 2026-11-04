@@ -14126,6 +14126,175 @@ const PYTEST_FLAGS_WITHOUT_VALUE = new Set([
   '--random-order', '--instafail', '--mypy', '--flake8', '--black', '--isort', '--ruff', '--ruff-format', '--lsof',
 ]);
 
+/**
+ * goal_cejel_v27_a1_gaps_2026-11-03, item C (#649, 2): how a conftest.py declares a long option:
+ * 'flag' takes no value, 'value' takes the next word, 'unknown' where a declaration of the name
+ * cannot be read (a name instead of a string literal beside it, `*args` or `**kwargs`, an action
+ * that is not a string literal, an `nargs=`), or two declarations disagree.
+ */
+type PytestDeclaredOption = 'flag' | 'value' | 'unknown';
+
+// argparse's actions that take no value; pytest's addoption passes `action` through to argparse.
+const ARGPARSE_ACTIONS_WITHOUT_VALUE: ReadonlySet<string> = new Set(['store_true', 'store_false', 'count', 'store_const', 'append_const']);
+const PYTHON_ADDOPTION_CALL_PATTERN = /\.[ \t]*_?addoption[ \t]*\(/g;
+const PYTHON_PLAIN_STRING_PATTERN = /^(?:"([^"\\\n]*)"|'([^'\\\n]*)')$/;
+
+/**
+ * The top-level arguments of the Python call whose `(` is at `open` in `text`, as written and
+ * trimmed, and the index after its `)`. Strings (triple-quoted too), brackets and comments are
+ * stepped over. Linear in the call.
+ */
+function readPythonCallArguments(text: string, open: number): { readonly args: string[]; readonly end: number } {
+  const args: string[] = [];
+  let depth = 0;
+  let start = open + 1;
+  for (let index = open + 1; index < text.length; index += 1) {
+    const character = text[index] ?? '';
+    if (character === '"' || character === "'") {
+      const triple = text.startsWith(character.repeat(3), index);
+      const closer = triple ? character.repeat(3) : character;
+      let at = index + closer.length;
+      while (at < text.length && !text.startsWith(closer, at)) {
+        if (text[at] === '\\') at += 1;
+        else if (!triple && text[at] === '\n') break;
+        at += 1;
+      }
+      index = at + closer.length - 1;
+      continue;
+    }
+    if (character === '#') {
+      const newline = text.indexOf('\n', index);
+      index = newline === -1 ? text.length : newline - 1;
+      continue;
+    }
+    if (character === '(' || character === '[' || character === '{') depth += 1;
+    else if (character === ')' || character === ']' || character === '}') {
+      if (depth === 0) {
+        const last = text.slice(start, index).replace(/#[^\n]*/g, '').trim();
+        if (last !== '') args.push(last);
+        return { args, end: index + 1 };
+      }
+      depth -= 1;
+    } else if (character === ',' && depth === 0) {
+      args.push(text.slice(start, index).replace(/#[^\n]*/g, '').trim());
+      start = index + 1;
+    }
+  }
+  return { args, end: text.length };
+}
+
+/**
+ * The positions in a code line (one that does not start inside a string) of the matches of the
+ * global `pattern` that fall outside its strings and comments: one sweep of the line beside the
+ * matches, which are in order. Linear in the line.
+ */
+function pythonCodeMatchesOnLine(raw: string, pattern: RegExp): number[] {
+  const found: number[] = [];
+  let quote = '';
+  let at = 0;
+  for (const match of raw.matchAll(pattern)) {
+    const position = match.index ?? 0;
+    for (; at < position; at += 1) {
+      const character = raw[at] ?? '';
+      if (quote !== '') {
+        if (character === '\\') at += 1;
+        else if (raw.startsWith(quote, at)) {
+          at += quote.length - 1;
+          quote = '';
+        }
+      } else if (character === '#') return found;
+      else if (character === '"' || character === "'") {
+        quote = raw.startsWith(character.repeat(3), at) ? character.repeat(3) : character;
+        at += quote.length - 1;
+      }
+    }
+    if (quote === '') found.push(position);
+  }
+  return found;
+}
+
+/** item C: what the repository's conftest.py files declare. */
+export interface PytestDeclaredOptions {
+  /** Each long option declared with string literals, and how it is read. */
+  readonly options: ReadonlyMap<string, PytestDeclaredOption>;
+  /**
+   * The review of #655, should-fix 6: true where some declaration names its option through
+   * something other than a string literal (a name, `*args`), which may be any option.
+   */
+  readonly unreadName: boolean;
+}
+
+/**
+ * item C: each long option the repository's conftest.py files declare with `.addoption(...)` or
+ * `._addoption(...)` (on the parser or an option group), read from code, not comments or strings,
+ * every call on a line (the review of #655, nit), with CRLF text read as LF (should-fix 5). Linear
+ * in the files. Exported for the scaling check in scan-path-regex-bounds.test.ts.
+ */
+export function readPytestDeclaredOptions(repoFiles: readonly string[], readText: (file: string) => string | undefined): PytestDeclaredOptions {
+  const declared = new Map<string, PytestDeclaredOption>();
+  let unreadName = false;
+  const record = (name: string, kind: PytestDeclaredOption) => {
+    const known = declared.get(name);
+    declared.set(name, known === undefined || known === kind ? kind : 'unknown');
+  };
+  for (const file of repoFiles) {
+    if (!PYTEST_CONFTEST_PATTERN.test(file) || GENERATED_OR_VENDOR_PATH_PATTERN.test(file)) continue;
+    const text = readText(file);
+    if (text === undefined || !text.includes('addoption')) continue;
+    const source = pythonSourceLines(text);
+    // The offset of each line in the text, from the text itself (a CRLF line is one longer than its
+    // raw line), so a call found in a code line is read from there on.
+    let lineStart = 0;
+    let readTo = 0;
+    for (let line = 0; line < source.raw.length; line += 1, lineStart = nextLineStart(text, lineStart)) {
+      const raw = source.raw[line] ?? '';
+      if (source.inString[line] === true) continue;
+      const code = source.masked[line] ?? '';
+      if (!code.includes('addoption')) continue;
+      for (const position of pythonCodeMatchesOnLine(raw, PYTHON_ADDOPTION_CALL_PATTERN)) {
+        const at = lineStart + position;
+        if (at < readTo) continue;
+        const open = text.indexOf('(', at);
+        const call = readPythonCallArguments(text, open);
+        readTo = call.end;
+        const names: string[] = [];
+        let readable = true;
+        let action: string | undefined;
+        for (const arg of call.args) {
+          // `*args` and `**kwargs` are neither a keyword nor a string literal, so they fall to the
+          // last lines below and leave the declaration unreadable.
+          const keyword = /^([A-Za-z_]\w*)[ \t]*=(?!=)[ \t]*([\s\S]*)$/.exec(arg);
+          if (keyword) {
+            if (keyword[1] === 'nargs') readable = false;
+            if (keyword[1] === 'action') {
+              const literal = PYTHON_PLAIN_STRING_PATTERN.exec((keyword[2] ?? '').trim());
+              if (literal) action = literal[1] ?? literal[2] ?? '';
+              else readable = false;
+            }
+            continue;
+          }
+          const literal = PYTHON_PLAIN_STRING_PATTERN.exec(arg);
+          if (literal) names.push(literal[1] ?? literal[2] ?? '');
+          else {
+            readable = false;
+            // A positional argument is an option name; one that is not a literal may name any option.
+            if (!arg.startsWith('**')) unreadName = true;
+          }
+        }
+        const kind: PytestDeclaredOption = !readable ? 'unknown' : action !== undefined && ARGPARSE_ACTIONS_WITHOUT_VALUE.has(action) ? 'flag' : 'value';
+        for (const name of names) if (name.startsWith('--')) record(name, kind);
+      }
+    }
+  }
+  return { options: declared, unreadName };
+}
+
+/** The offset just after the line feed that ends the line starting at `from`, or past the text. */
+function nextLineStart(text: string, from: number): number {
+  const feed = text.indexOf('\n', from);
+  return feed === -1 ? text.length + 1 : feed + 1;
+}
+
 /** pytest's words read as Cejel needs them. */
 interface PytestArguments {
   readonly paths: string[];
@@ -14135,7 +14304,10 @@ interface PytestArguments {
   readonly unknownOption?: string;
 }
 
-function readPytestArguments(words: readonly string[]): PytestArguments {
+function readPytestArguments(
+  words: readonly string[],
+  declared: (name: string) => PytestDeclaredOption | undefined = () => undefined,
+): PytestArguments {
   const paths: string[] = [];
   const options: { name: string; value?: string }[] = [];
   let pyargs = false;
@@ -14172,7 +14344,18 @@ function readPytestArguments(words: readonly string[]): PytestArguments {
       continue;
     }
     if (word.startsWith('--') && !PYTEST_FLAGS_WITHOUT_VALUE.has(word)) {
+      // goal_cejel_v27_a1_gaps_2026-11-03, item C: an option a conftest.py declares is read as declared.
+      const kind = declared(word);
+      if (kind === 'flag') {
+        options.push({ name: word });
+        continue;
+      }
       const next = words[index + 1];
+      if (kind === 'value' && next !== undefined && !next.startsWith('-')) {
+        options.push({ name: word, value: next });
+        index += 1;
+        continue;
+      }
       if (next !== undefined && !next.startsWith('-')) unknownOption ??= `${word} ${next}`;
       options.push({ name: word });
       continue;
@@ -14236,7 +14419,14 @@ function readPytestCollectionSettings(repoPath: string, repoFiles: readonly stri
     return from < lines.length ? from + 1 : null;
   };
   const invocations = readPytestInvocations(repoFiles, readText);
-  const view: PytestRepositoryView = { fileSet, directories, configAt, lineOf };
+  // item C of goal_cejel_v27_a1_gaps_2026-11-03: read once, where a run names an option pytest's tables do not hold.
+  let declaredOptions: PytestDeclaredOptions | undefined;
+  const declaredOption = (name: string): PytestDeclaredOption | undefined => {
+    declaredOptions ??= readPytestDeclaredOptions(repoFiles, readText);
+    // The review of #655, should-fix 6: a declaration through a name may be this option's.
+    return declaredOptions.unreadName ? 'unknown' : declaredOptions.options.get(name);
+  };
+  const view: PytestRepositoryView = { fileSet, directories, configAt, lineOf, declaredOption };
   const runs = invocations.map((invocation) => resolvePytestRun(invocation, view));
   const cache = new Map<string, PytestFileSettings>();
   return {
@@ -14289,6 +14479,8 @@ interface PytestRepositoryView {
   readonly configAt: (file: string) => PytestConfigFile | undefined;
   /** item E: the 1-based line of `file` holding the first of `tokens` found at or after the 0-based `from`, then before it. */
   readonly lineOf: (file: string, tokens: readonly string[], from: number) => number | null;
+  /** goal_cejel_v27_a1_gaps_2026-11-03, item C: how the repository's conftest.py files declare a long option, if they do. */
+  readonly declaredOption?: (name: string) => PytestDeclaredOption | undefined;
 }
 
 /**
@@ -14387,7 +14579,7 @@ function resolvePytestRun(invocation: PytestInvocation, repo: PytestRepositoryVi
     });
   }
   if (invocation.args.length > 0) groups.push({ words: invocation.args, where: commandWhere, at: commandAt(['pytest', 'py.test']) });
-  const parsed = groups.map((group) => ({ group, read: readPytestArguments(group.words) }));
+  const parsed = groups.map((group) => ({ group, read: readPytestArguments(group.words, repo.declaredOption) }));
   // item A: --pyargs collects by import name, from wherever Python finds the package.
   if (parsed.some(({ read }) => read.pyargs)) return unreadPytestRun(invocation, '--pyargs', repo);
   // item B: an option the reader does not know, before a word that may be its value or a path.
@@ -14483,7 +14675,7 @@ function resolvePytestRun(invocation: PytestInvocation, repo: PytestRepositoryVi
   const addopts = values.get('addopts');
   if (addopts !== undefined) {
     const words = addopts.value.kind === 'list' ? addopts.value.items : shellWords(addopts.value.text);
-    const read = readPytestArguments(words);
+    const read = readPytestArguments(words, repo.declaredOption);
     if (read.pyargs) return unreadPytestRun(invocation, '--pyargs', repo, config?.path);
     if (read.unknownOption !== undefined) return unreadPytestRun(invocation, read.unknownOption, repo, config?.path);
     parsed.unshift({ group: { words, where: configWhere, at: configAt('addopts') }, read });
@@ -15510,6 +15702,9 @@ export function readPytestInvocations(
   const makeOverrides = new Set<string>();
   // item A: the words each tox command passes after `--`, which tox puts where {posargs} is.
   const toxPosargs: { words: readonly string[]; text: string; source: string; file: string; anchor: number }[] = [];
+  const noxPosargs: PassedPosargs[] = [];
+  // The review of #655, blocker 1: each nox command whose posargs the reader cannot see.
+  const noxUnread: NoxCommandNotRead[] = [];
   const fileSet = new Set(repoFiles);
   let hatchScripts: HatchScripts | undefined;
   // The review of #648: the hatch script expansions left, across the whole read, so a script list
@@ -15531,6 +15726,12 @@ export function readPytestInvocations(
     for (const environment of toxEnvironmentsNamed(words)) namedToxEnvironments.add(environment);
     const posargs = toxPosargsOf(words);
     if (posargs !== undefined) toxPosargs.push({ words: posargs, text: words.join(' '), source, file, anchor });
+    // goal_cejel_v27_a1_gaps_2026-11-03, item B: the words a nox command passes after `--`.
+    const noxPassed = posargsOf(words, 'nox');
+    if (noxPassed !== undefined) noxPosargs.push({ words: noxPassed, text: words.join(' '), source, file, anchor });
+    // The review of #655, blocker 1: a nox command the reader does not read (through poetry, env,
+    // hatch, pdm, `uv run --with`, uvx with options) may pass any posargs.
+    else if (asPythonToolCommand(words, 'nox') === undefined && runsNoxUnread(words)) noxUnread.push({ text: words.join(' '), source, file, anchor });
     // cejel #642: the command as written is joined only where an invocation records it. Joining
     // every segment (a CI line of hundreds of thousands of words) made the run reader's garbage
     // grow faster than its input.
@@ -15663,24 +15864,75 @@ export function readPytestInvocations(
       readShellCommands(command, jenkinsDir === undefined ? '' : null, addopts, visitor(source, file, 0), jenkinsDir);
     }
   }
-  // item A: a noxfile's session.run calls (nox runs every session it is not told to skip).
-  for (const file of usable.filter((candidate) => basename(candidate) === 'noxfile.py')) {
-    const text = readText(file);
-    if (text === undefined) continue;
-    const source = a1NotePath(file);
-    const chdir = /\bsession\.(?:chdir|cd)[ \t]*\(/.exec(text);
-    for (const call of readNoxRunCalls(text)) {
-      const found = call.words.length === 0 ? undefined : pytestCommandArguments(call.words);
-      const unread = (reason: string) => invocations.push({ source, file, anchor: call.line, directory: '', args: [], text: call.text, unread: reason });
-      if (found === undefined) {
-        if (call.unknown && /pytest/.test(call.text)) unread(call.text);
-        continue;
+  // item A: a noxfile's session.run calls (nox runs every session it is not told to skip). Item B
+  // of goal_cejel_v27_a1_gaps_2026-11-03: `*session.posargs` holds the words after `--` of a CI or
+  // recipe nox command, so the noxfiles are read after the recipes, and their runs keep this place
+  // in the list.
+  const noxAt = invocations.length;
+  const readNoxfiles = (): PytestInvocation[] => {
+    const noxRuns: PytestInvocation[] = [];
+    const partitioned = partitionPosargs(noxPosargs);
+    const { literal } = partitioned;
+    // The review of #655, blocker 1: "no posargs" is known only where every nox invocation in the
+    // repository is one the reader reads. A nox command it does not read, in a file whose commands it
+    // reads or in any other file that can run one (a script, a configuration), is named like posargs
+    // it cannot read. Searched only where a call takes posargs.
+    let hidden: readonly NoxCommandNotRead[] | undefined;
+    const unreadPosargs = (): readonly NoxCommandNotRead[] =>
+      (hidden ??= [...partitioned.unread, ...noxUnread, ...noxCommandsInUnreadFiles(repoFiles, readText, readActions)]);
+    // A nox command with no `--` passes none, as does nox run by hand; the empty set is always read.
+    const passedSets: readonly (readonly string[])[] = [[], ...literal.map((entry) => entry.words)];
+    // Each call taking posargs is read once per set, so the work is the noxfile's calls times the
+    // sets' words: a product of two inputs. A shared budget bounds it; past it the call is not read.
+    const callCost = passedSets.reduce((sum, words) => sum + 1 + words.length, 0);
+    let noxLeft = NOX_POSARGS_BUDGET;
+    // The review of #655, blocker 2: the posargs Cejel cannot read are said once per read, not once
+    // per noxfile (M noxfiles and U such entries made M x U runs), and each counts against the budget.
+    let unreadSaid = false;
+    for (const file of usable.filter((candidate) => basename(candidate) === 'noxfile.py')) {
+      const text = readText(file);
+      if (text === undefined) continue;
+      const source = a1NotePath(file);
+      const chdir = /\bsession\.(?:chdir|cd)[ \t]*\(/.exec(text);
+      for (const call of readNoxRunCalls(text)) {
+        const unread = (reason: string) => noxRuns.push({ source, file, anchor: call.line, directory: '', args: [], text: call.text, unread: reason });
+        if (call.unknown) {
+          const literalWords = call.words.filter((word) => word !== NOX_POSARGS_WORD);
+          if (/pytest/.test(call.text) || (literalWords.length > 0 && pytestCommandArguments(literalWords) !== undefined)) unread(call.text);
+          continue;
+        }
+        const takesPosargs = call.words.includes(NOX_POSARGS_WORD);
+        if (takesPosargs) {
+          noxLeft -= callCost;
+          if (noxLeft < 0) {
+            unread(call.text);
+            continue;
+          }
+        }
+        // Each posargs set read in place of `*session.posargs`; the posargs may name pytest themselves.
+        const runs = (takesPosargs ? passedSets : [[]]).flatMap((passed) => {
+          const words = call.words.flatMap((word) => (word === NOX_POSARGS_WORD ? passed : [word]));
+          const run = words.length === 0 ? undefined : pytestCommandArguments(words);
+          return run === undefined ? [] : [run];
+        });
+        if (runs.length > 0 && chdir) {
+          unread(chdir[0].slice(0, chdir[0].indexOf('(')).trimEnd());
+          continue;
+        }
+        for (const run of runs) noxRuns.push({ source, file, anchor: call.line, text: call.text, directory: repoDirectory(file), args: run.args });
+        // Posargs Cejel cannot read, or past the 16th set, leave the run not read, named once per
+        // read, where the call runs pytest or its command comes from the posargs.
+        if (takesPosargs && !unreadSaid && (runs.length > 0 || call.words[0] === NOX_POSARGS_WORD)) {
+          unreadSaid = true;
+          for (const entry of unreadPosargs()) {
+            noxLeft -= 1;
+            noxRuns.push({ source: entry.source, file: entry.file, anchor: entry.anchor, directory: '', args: [], text: entry.text, unread: entry.text });
+          }
+        }
       }
-      if (call.unknown) unread(call.text);
-      else if (chdir) unread(chdir[0].slice(0, chdir[0].indexOf('(')).trimEnd());
-      else invocations.push({ source, file, anchor: call.line, text: call.text, directory: repoDirectory(file), args: found.args });
     }
-  }
+    return noxRuns;
+  };
   for (const file of usable.filter(isRecipeFile)) {
     const text = readText(file);
     if (text === undefined) continue;
@@ -15764,7 +16016,88 @@ export function readPytestInvocations(
       invocations.push({ source: entry.source, file: entry.file, anchor: entry.anchor, directory: '', args: [], text: entry.text, unread: entry.text });
     readToxCommands(file, text, namedToxEnvironments, (anchor) => visitor(a1NotePath(file), file, anchor), toxPosargs, notRead, toxenv.unknown);
   }
+  // The review of #655, blocker 1: the noxfiles are read last, once tox's commands have named
+  // their nox commands too; their runs still go where the recipes' runs began. The review of #655,
+  // blocker 2: never spread an input-sized list into one call (400 noxfiles overflowed the stack).
+  const after = invocations.splice(noxAt);
+  for (const run of readNoxfiles()) invocations.push(run);
+  for (const run of after) invocations.push(run);
   return invocations;
+}
+
+/** The review of #655, blocker 1: a nox command whose posargs the reader cannot see, where it is written. */
+interface NoxCommandNotRead {
+  readonly text: string;
+  readonly source: string;
+  readonly file: string;
+  readonly anchor: number;
+}
+
+/**
+ * The review of #655, blocker 1: true where `words` runs nox in a form asPythonToolCommand does not
+ * read (`poetry run nox`, `env CI=1 nox`, `uv run --with nox nox`, `uvx --python 3.12 nox`): a word
+ * `nox` (any path), `-mnox`, or `-m nox`, not after `install` or `add` (`pip install nox`). Linear.
+ */
+function runsNoxUnread(words: readonly string[]): boolean {
+  for (let index = 0; index < words.length; index += 1) {
+    const word = words[index] ?? '';
+    if (word === 'install' || word === 'add') return false;
+    if (basename(word) === 'nox' || word === '-mnox' || (word === '-m' && words[index + 1] === 'nox')) return true;
+  }
+  return false;
+}
+
+// The review of #655, blocker 1: files that may run a nox command the reader does not read: scripts,
+// Python modules, configuration and files with no extension (a script in bin/). Documentation and
+// the files whose commands the reader reads (CI files, Makefiles and justfiles, tox.ini) are not here.
+const NOX_COMMAND_FILE_PATTERN =
+  /(?:\.(?:sh|bash|zsh|ksh|fish|ps1|psm1|bat|cmd|py|pyw|toml|cfg|ini|ya?ml|json)|(?:^|\/)(?:Dockerfile[^/]*|Containerfile|[^/.]+))$/i;
+// A `nox` word, an `install` or `add` word, or a shell operator that ends a command, in one sweep.
+const NOX_LINE_TOKEN_PATTERN = /(?<![\w.-])(?:nox|install|add)(?![\w.-])|&&|\|\||[;|&]/g;
+// After a `nox` in a file that is not Python: a dependency (`"nox"`, `nox>=2024`, `nox = "^2024"`,
+// `nox[uv]`, `- nox`), a key (`nox:`) or a bare `nox` at the end of its line, which passes no posargs.
+const NOX_DEPENDENCY_AFTER_PATTERN = /["']|[ \t]*(?:[<>=!~;:[\]{}@,]|$)/y;
+
+/**
+ * The review of #655, blocker 1: the first line of each repository file (not a noxfile, not
+ * documentation, not a file whose commands the reader reads) that names nox as it would be run:
+ * `nox` as a word, not `import nox` or `from nox` in Python, not a dependency, a key or a bare `nox`
+ * at the end of a line elsewhere, not after `install` or `add` in the same command. Linear in the
+ * files: each line is swept once.
+ */
+function noxCommandsInUnreadFiles(
+  repoFiles: readonly string[],
+  readText: (file: string) => string | undefined,
+  readActions: ReadonlySet<string>,
+): NoxCommandNotRead[] {
+  const found: NoxCommandNotRead[] = [];
+  for (const file of repoFiles) {
+    const name = basename(file);
+    if (name === 'noxfile.py' || name === 'tox.ini' || isCiWorkflow(file) || isRecipeFile(file) || readActions.has(file)) continue;
+    if (!NOX_COMMAND_FILE_PATTERN.test(file)) continue;
+    const text = readText(file);
+    if (text === undefined || !text.includes('nox')) continue;
+    const python = /\.pyw?$/i.test(file);
+    const lines = text.split(/\r?\n|\r/);
+    const at = lines.findIndex((line) => {
+      if (!line.includes('nox')) return false;
+      if (python && /^[ \t]*(?:import|from)[ \t]+nox\b/.test(line)) return false;
+      let installing = false;
+      for (const match of line.matchAll(NOX_LINE_TOKEN_PATTERN)) {
+        const token = match[0];
+        if (token === 'install' || token === 'add') installing = true;
+        else if (token !== 'nox') installing = false;
+        else if (!installing) {
+          if (python) return true;
+          NOX_DEPENDENCY_AFTER_PATTERN.lastIndex = (match.index ?? 0) + 3;
+          if (!NOX_DEPENDENCY_AFTER_PATTERN.test(line)) return true;
+        }
+      }
+      return false;
+    });
+    if (at !== -1) found.push({ text: (lines[at] ?? '').trim(), source: a1NotePath(file), file, anchor: at });
+  }
+  return found;
 }
 
 // `uses: <value>` in a GitHub Actions file, at a job or a step.
@@ -15879,24 +16212,63 @@ function makeAssignmentsNamed(words: readonly string[]): string[] {
  * `uvx tox`, `uv run tox`, `pipx run tox`; undefined for another command.
  */
 function asToxCommand(words: readonly string[]): readonly string[] | undefined {
+  return asPythonToolCommand(words, 'tox');
+}
+
+/**
+ * A command that runs the Python tool `tool` (tox, or nox for goal_cejel_v27_a1_gaps_2026-11-03
+ * item B), as `tool` and its words: `tool`, `python -m tool`, `uvx tool`, `uv run tool`, `pipx run
+ * tool`; undefined for another command.
+ */
+function asPythonToolCommand(words: readonly string[], tool: 'tox' | 'nox'): readonly string[] | undefined {
   const name = basename(words[0] ?? '');
-  if (name === 'tox') return words;
+  if (name === tool) return words;
   if (PYTHON_INTERPRETER_PATTERN.test(name)) {
-    if (words[1] === '-m' && words[2] === 'tox') return ['tox', ...words.slice(3)];
-    if (words[1] === '-mtox') return ['tox', ...words.slice(2)];
+    if (words[1] === '-m' && words[2] === tool) return [tool, ...words.slice(3)];
+    if (words[1] === `-m${tool}`) return [tool, ...words.slice(2)];
     return undefined;
   }
-  if (name === 'uvx' && words[1] === 'tox') return words.slice(1);
-  if ((name === 'uv' || name === 'pipx') && words[1] === 'run' && words[2] === 'tox') return words.slice(2);
+  if (name === 'uvx' && words[1] === tool) return words.slice(1);
+  if ((name === 'uv' || name === 'pipx') && words[1] === 'run' && words[2] === tool) return words.slice(2);
   return undefined;
 }
 
 /** item A: the words a `tox` command passes after `--` (its posargs), or undefined. */
 function toxPosargsOf(command: readonly string[]): readonly string[] | undefined {
-  const words = asToxCommand(command);
+  return posargsOf(command, 'tox');
+}
+
+/**
+ * The words a tox or nox command passes after `--` (its posargs), or undefined where the command
+ * is not one or has no `--`. nox, like tox, puts them where the configuration names them
+ * (`*session.posargs`; goal_cejel_v27_a1_gaps_2026-11-03, item B).
+ */
+function posargsOf(command: readonly string[], tool: 'tox' | 'nox'): readonly string[] | undefined {
+  const words = asPythonToolCommand(command, tool);
   if (words === undefined) return undefined;
   const separator = words.indexOf('--');
   return separator === -1 ? undefined : words.slice(separator + 1);
+}
+
+/** A posargs set a CI or recipe command passes, where it is written. */
+interface PassedPosargs {
+  readonly words: readonly string[];
+  readonly text: string;
+  readonly source: string;
+  readonly file: string;
+  readonly anchor: number;
+}
+
+/**
+ * item A (#648), shared with nox's posargs (goal_cejel_v27_a1_gaps_2026-11-03, item B): the
+ * distinct literal posargs sets, at most 16, so CI lines times configuration lines stays bounded;
+ * and the sets that leave a run not read: one with a word holding `$`, a backtick or braces, and
+ * every distinct set past the 16th (named as not read rather than read in part).
+ */
+function partitionPosargs(posargs: readonly PassedPosargs[]): { readonly literal: readonly PassedPosargs[]; readonly unread: readonly PassedPosargs[] } {
+  const literal = posargs.filter((entry) => !entry.words.some((word) => /[$`{}]/.test(word)));
+  const distinct = [...new Map(literal.map((entry) => [entry.words.join('\u0000'), entry])).values()];
+  return { literal: distinct.slice(0, 16), unread: [...posargs.filter((entry) => !literal.includes(entry)), ...distinct.slice(16)] };
 }
 
 /** The 0-based line of each Makefile target's header. */
@@ -16236,10 +16608,21 @@ function substituteHatchArguments(command: string, args: readonly string[]): str
   return out + command.slice(index);
 }
 
+/** goal_cejel_v27_a1_gaps_2026-11-03, item B: where a nox call's words hold `*session.posargs`. */
+const NOX_POSARGS_WORD = '\u0000session.posargs';
+/**
+ * item B: the posargs substitutions per read, counted as one per run read plus the words put in;
+ * past it a call taking posargs is not read. The input that maximises the work without it: a
+ * noxfile of N calls taking posargs and a CI file passing 16 distinct sets of W words, N x 16 x W.
+ */
+const NOX_POSARGS_BUDGET = 4096;
+
 /**
  * item A: a noxfile's `session.run(...)` calls: the literal string arguments before the first
- * argument Cejel cannot read (`*session.posargs`, a name, an f-string, an `env=` keyword), whether
- * there is one, the call as written (white space collapsed) and its 0-based line. Linear.
+ * argument Cejel cannot read (a name, an f-string, an `env=` keyword), whether there is one, the
+ * call as written (white space collapsed) and its 0-based line. Linear. Item B of
+ * goal_cejel_v27_a1_gaps_2026-11-03: a `*session.posargs` argument is read as NOX_POSARGS_WORD,
+ * which the caller replaces with the posargs a nox command passes.
  */
 function readNoxRunCalls(text: string): { words: string[]; unknown: boolean; text: string; line: number }[] {
   const calls: { words: string[]; unknown: boolean; text: string; line: number }[] = [];
@@ -16296,6 +16679,7 @@ function readNoxRunCalls(text: string): { words: string[]; unknown: boolean; tex
       }
       const literal = /^(?:"([^"\\\n]*)"|'([^'\\\n]*)')$/.exec(arg);
       if (literal && !unknown) words.push(literal[1] ?? literal[2] ?? '');
+      else if (!unknown && /^\*[ \t]*session[ \t]*\.[ \t]*posargs$/.test(arg)) words.push(NOX_POSARGS_WORD);
       else unknown = true;
     }
     calls.push({ words, unknown, text: text.slice(match.index, end).replace(/\s+/g, ' ').replace(/\( /g, '(').replace(/ \)/g, ')'), line });
@@ -16370,10 +16754,7 @@ function readToxCommands(
   // item A: posargs with a word Cejel cannot resolve leave the run not read, once each.
   // Distinct literal posargs, at most 16, so CI lines times tox lines stays bounded; past 16 the
   // run is named as not read rather than read in part.
-  const literal = posargs.filter((entry) => !entry.words.some((word) => /[$`{}]/.test(word)));
-  const distinct = [...new Map(literal.map((entry) => [entry.words.join('\u0000'), entry])).values()];
-  const literalPosargs = distinct.slice(0, 16);
-  const unreadPosargs = [...posargs.filter((entry) => !literal.includes(entry)), ...distinct.slice(16)];
+  const { literal: literalPosargs, unread: unreadPosargs } = partitionPosargs(posargs);
   let unreadSaid = false;
   const seen = new Set<Map<string, string>>();
   for (const { section, names } of environments) {
@@ -18118,6 +18499,95 @@ interface PythonStrictHelper {
   readonly list: number;
   readonly source: number;
   readonly replaces: boolean;
+  /** True where its restore copies through a builtin call (`list(src)`, `tuple(src)`). */
+  readonly callsBuiltin: boolean;
+}
+
+// goal_cejel_v27_a1_gaps_2026-11-03, item A (#646). A copy that calls a builtin (`list(items)`,
+// `tuple(items)`) is the builtin's result, and any module pytest imports (one the conftest.py
+// imports, another conftest.py, a plugin) can replace `builtins.list` at import time. The copy forms
+// that call no builtin (`items[:]`, `items.copy()`, `[*items]`) are read from the list's own type,
+// which cannot be patched. The review of #655, blocker 3: a module can reach builtins, or the
+// conftest module's own `list`, without spelling `builtins` as a word (`f_builtins`, a fullwidth
+// letter Python folds under NFKC, `sys.modules` with a joined name, `getattr`, a frame's globals,
+// `conftest.list = ...`), and the file list A1 walks leaves out vendor/, build/, dist/, venv/,
+// coverage/ and the like. So a builtin copy is credited only where no file the repository tracks,
+// in any directory, is a Python source (read under NFKC, code, strings and comments alike) naming
+// one of PYTHON_BUILTINS_REACH_PATTERN, or a compiled or archived module Cejel cannot read; and
+// where those files can be listed and read. A module installed from outside the repository (an
+// entry-point plugin, a sitecustomize, a .pth file in site-packages) is not read, nor is a way of
+// reaching builtins the pattern does not list.
+const PYTHON_BUILTIN_COPY_CALL_PATTERN = /^(?:list|tuple)[ \t]*\(/;
+// One sweep for: `builtins` anywhere (builtins, __builtins__, f_builtins); a module, frame or
+// namespace reached by a computed name; Python's own exec, eval, compile, globals, vars and locals,
+// not an attribute (`re.compile`); an attribute named list or tuple that is not called.
+const PYTHON_BUILTINS_REACH_PATTERN =
+  /builtins|(?<![A-Za-z0-9_])(?:modules|__dict__|__globals__|__getattr__|__getattribute__|__setattr__|__delattr__|__import__|importlib|setattr|delattr|getattr|attrgetter|_getframe|currentframe|f_globals|f_locals|f_back|tb_frame|gi_frame|cr_frame|ag_frame|gc|ctypes|__subclasses__|pickle|marshal|runpy|__loader__|__spec__)(?![A-Za-z0-9_])|(?<![A-Za-z0-9_.])(?:exec|eval|compile|globals|vars|locals)(?![A-Za-z0-9_])|\.[ \t]*(?:list|tuple)(?![A-Za-z0-9_])(?![ \t]*\()/;
+const PYTHON_SOURCE_FILE_PATTERN = /\.(?:py|pyw|pyx|pxd|pxi)$/i;
+// A module Python can import whose code Cejel cannot read: bytecode, an extension, an archive, a .pth.
+const PYTHON_UNREAD_MODULE_FILE_PATTERN = /\.(?:pyc|pyo|so|pyd|egg|whl|zip|pth)$/i;
+
+/**
+ * The review of #655, blocker 3: every file the repository tracks, in any directory (A1's file list
+ * leaves out vendor/, build/, dist/, venv/, coverage/ and the like), or undefined where they cannot
+ * be listed. Outside Git, every file under the root but .git. Linear in the files.
+ */
+function filesIncludingExcluded(repoPath: string): readonly string[] | undefined {
+  const tracked = readGitTrackedFileOutput(repoPath);
+  if (tracked.ok) return tracked.stdout.split('\n').filter((line) => line !== '');
+  if (!isExpectedGitAbsence(tracked)) return undefined;
+  const files: string[] = [];
+  const pending = [''];
+  for (let next = pending.pop(); next !== undefined; next = pending.pop()) {
+    let entries: Dirent[];
+    try {
+      entries = readdirSync(join(repoPath, next), { withFileTypes: true });
+    } catch {
+      return undefined;
+    }
+    for (const entry of entries) {
+      const path = next === '' ? entry.name : `${next}/${entry.name}`;
+      if (entry.isDirectory()) {
+        if (entry.name !== '.git') pending.push(path);
+      } else files.push(path);
+    }
+  }
+  return files;
+}
+
+/**
+ * The review of #655, blocker 3: why a builtin copy is not credited, as the words after "calls a
+ * builtin": the first tracked file that may replace the builtin, or that the files could not be
+ * listed; undefined where no file may. Linear in the files.
+ */
+function builtinCopyReplacedBy(repoPath: string): string | undefined {
+  const files = filesIncludingExcluded(repoPath);
+  if (files === undefined) return "and the repository's files could not be listed";
+  for (const listed of files) {
+    // git quotes a path holding unusual characters; such a file is named, not read.
+    const quoted = listed.startsWith('"') && listed.endsWith('"') && listed.length > 1;
+    const file = quoted ? listed.slice(1, -1) : listed;
+    const unread = PYTHON_UNREAD_MODULE_FILE_PATTERN.test(file);
+    if (!unread && !PYTHON_SOURCE_FILE_PATTERN.test(file)) continue;
+    const replaces = `which ${a1NotePath(file)} may replace`;
+    if (unread || quoted) return replaces;
+    const fullPath = join(repoPath, file);
+    let size: number;
+    try {
+      const stat = lstatSync(fullPath);
+      if (!stat.isFile()) return replaces;
+      size = stat.size;
+    } catch {
+      return replaces;
+    }
+    if (size > MAX_REPOSITORY_CONTENT_BYTES) return replaces;
+    const text = readRepoText(fullPath, 'utf8');
+    if (isGitLfsPointerText(text)) return replaces;
+    // Python folds identifiers under NFKC (`ｂuiltins` is builtins); ASCII text is already folded.
+    const folded = /[^\x00-\x7f]/.test(text) ? text.normalize('NFKC') : text;
+    if (PYTHON_BUILTINS_REACH_PATTERN.test(folded)) return replaces;
+  }
+  return undefined;
 }
 
 /** What the allowlist needs to know about a conftest.py's module: read on demand, each once. */
@@ -18202,7 +18672,13 @@ function pythonModuleFacts(source: PythonSourceLines): PythonModuleFacts {
       if (emptying !== undefined && !pythonEmptiesList(emptying.code, target)) continue;
       const restored = pythonRestoreFrom(restore.code, target, unbound);
       if (restored === undefined || restored.copy !== origin) continue;
-      return { parameters, list, source: from, replaces: emptying !== undefined || restored.replace };
+      return {
+        parameters,
+        list,
+        source: from,
+        replaces: emptying !== undefined || restored.replace,
+        callsBuiltin: PYTHON_BUILTIN_COPY_CALL_PATTERN.test(restored.source),
+      };
     }
     return undefined;
   };
@@ -18331,8 +18807,14 @@ function pythonStatementMayRebind(code: string, name: string): boolean {
   return mentions.some(({ at, next }) => at < lastAssignment && !next.startsWith('[') && !next.startsWith('.'));
 }
 
-/** Why the allowlist does not credit a hook: the first statement outside it, or none where the body ends without the list put back. */
-type PytestAllowlistVerdict = { readonly restores: true } | { readonly restores: false; readonly at?: PythonCodeStatement };
+/**
+ * Why the allowlist does not credit a hook: the first statement outside it, or none where the body
+ * ends without the list put back. A credited body names its first statement that copies through a
+ * builtin call, if any (item A).
+ */
+type PytestAllowlistVerdict =
+  | { readonly restores: true; readonly builtin?: PythonCodeStatement }
+  | { readonly restores: false; readonly at?: PythonCodeStatement };
 
 function pytestHookRestoreAllowlist(
   body: readonly PythonCodeStatement[],
@@ -18354,17 +18836,20 @@ function pytestHookRestoreAllowlist(
   let state: 'collected' | 'empty' | 'restored' = 'collected';
   const copies = new Map<string, boolean>();
   const unusedCopy = (name: string): boolean => copies.get(name) === false;
+  let builtin: PythonCodeStatement | undefined;
   for (const statement of body) {
     const code = statement.code;
     if (statement.indent !== indent) return refuse(statement);
     if (PYTHON_STRING_ONLY_PATTERN.test(code)) continue;
     const binding = /^([A-Za-z_]\w*)[ \t]*=(?!=)[ \t]*(.*)$/.exec(code);
-    if (binding && pythonItemsCopyOf((binding[2] ?? '').trim(), facts.unbound) === 'items') {
+    const value = (binding?.[2] ?? '').trim();
+    if (binding && pythonItemsCopyOf(value, facts.unbound) === 'items') {
       const name = binding[1] ?? '';
       if (state !== 'collected' || name === 'items' || parameters.includes(name) || copies.has(name) || (counts.get(name) ?? 0) > 2) {
         return refuse(statement);
       }
       copies.set(name, false);
+      if (builtin === undefined && PYTHON_BUILTIN_COPY_CALL_PATTERN.test(value)) builtin = statement;
       continue;
     }
     if (pythonEmptiesList(code, 'items')) {
@@ -18392,6 +18877,7 @@ function pytestHookRestoreAllowlist(
         if (state === 'restored' || (state === 'collected' && !helper.replaces)) return refuse(statement);
         copies.set(copy, true);
         state = 'restored';
+        if (builtin === undefined && helper.callsBuiltin) builtin = statement;
         continue;
       }
     }
@@ -18400,7 +18886,8 @@ function pytestHookRestoreAllowlist(
   if (state !== 'restored') return refuse();
   // A body the allowlist reads whole is still refused where the module may rebind what it trusts.
   const hazard = facts.hazard();
-  return hazard === undefined ? { restores: true } : refuse(hazard);
+  if (hazard !== undefined) return refuse(hazard);
+  return builtin === undefined ? { restores: true } : { restores: true, builtin };
 }
 
 /** True when `code` names the hook's `items` (not as an attribute or keyword), or a `.items` attribute. */
@@ -18410,14 +18897,20 @@ function pytestMentionsItems(code: string): boolean {
 
 type PytestHookReading =
   | { readonly kind: 'skip' | 'clear' | 'restores' | 'rebinds' }
-  | { readonly kind: 'not read'; readonly reason: string };
+  /** `builtins`: why a copy through a builtin is not credited, the words after "calls a builtin" (item A; #655 review, blocker 3). */
+  | { readonly kind: 'not read'; readonly reason: string; readonly builtins?: string };
 
 /**
  * Reads the last top-level `pytest_collection_modifyitems` of a conftest.py, at line `index`: what
  * the run-wide skip rule may say about it, or undefined where it has nothing to say (the hook takes
- * no `items`, never names it, or never empties or skips it).
+ * no `items`, never names it, or never empties or skips it). `builtinsNamedIn` says why a builtin
+ * copy may not be the items (builtinCopyReplacedBy), read only where a credit rests on one.
  */
-function readPytestCollectionHook(source: PythonSourceLines, index: number): PytestHookReading | undefined {
+function readPytestCollectionHook(
+  source: PythonSourceLines,
+  index: number,
+  builtinsNamedIn: () => string | undefined = () => undefined,
+): PytestHookReading | undefined {
   const lines = source.raw;
   const masked = source.masked;
   // pytest passes the collected items only to a hook that names an `items` parameter (#621); the
@@ -18512,7 +19005,12 @@ function readPytestCollectionHook(source: PythonSourceLines, index: number): Pyt
   if (reading.rebinds) return { kind: 'rebinds' };
   // Outcome 2 only for a body the allowlist reads whole, and the list reading agrees.
   const allowlist = pytestHookRestoreAllowlist(read, beforeYield, parameters, pythonModuleFacts(source));
-  if (allowlist.restores && reading.state === 'restored' && reading.cleared) return { kind: 'restores' };
+  if (allowlist.restores && reading.state === 'restored' && reading.cleared) {
+    // item A (#646): a copy through a builtin call is the builtin's result, which another file may patch.
+    const named = allowlist.builtin === undefined ? undefined : builtinsNamedIn();
+    if (allowlist.builtin !== undefined && named !== undefined) return { kind: 'not read', reason: allowlist.builtin.shown, builtins: named };
+    return { kind: 'restores' };
+  }
   if (reading.state === 'unknown') return notRead(reading.reason ?? 'items');
   if (reading.state === 'empty' || (reading.state === 'restored' && reading.cleared)) {
     return notRead(allowlist.restores ? 'items' : (allowlist.at?.shown ?? 'items'));
@@ -18563,6 +19061,16 @@ export function findPytestRunWideSkips(
 ): PytestRunWideSkip[] {
   const found: Omit<PytestRunWideSkip, 'beyondScope'>[] = [];
   let ignoresCollection = false;
+  // item A (#646): read once, and only where a credit rests on a builtin copy.
+  let builtinsRead = false;
+  let builtinsFile: string | undefined;
+  const builtinsNamedIn = (): string | undefined => {
+    if (!builtinsRead) {
+      builtinsRead = true;
+      builtinsFile = builtinCopyReplacedBy(repoPath);
+    }
+    return builtinsFile;
+  };
   for (const file of repoFiles) {
     // Test directories are where a conftest.py lives, so only generated or vendored copies are
     // excluded here, not test paths.
@@ -18603,16 +19111,17 @@ export function findPytestRunWideSkips(
       }
     }
     if (last === -1) continue;
-    const reading = readPytestCollectionHook(source, last);
+    const reading = readPytestCollectionHook(source, last, builtinsNamedIn);
     if (reading === undefined) continue;
     const scope = dirname(file);
     const where = { path: file, line: last + 1, scope: scope === '.' ? '' : scope };
     if (reading.kind === 'not read') {
+      const because = reading.builtins === undefined ? '' : ` calls a builtin, ${reading.builtins}`;
       found.push({
         ...where,
         kind: 'unread',
         unread: reading.reason,
-        withheld: `${A1_HOOK_NOT_READ}\`${reading.reason}\` in ${a1NotePath(file)}`,
+        withheld: `${A1_HOOK_NOT_READ}\`${reading.reason}\` in ${a1NotePath(file)}${because}`,
       });
     } else if (reading.kind === 'restores') {
       found.push({ ...where, kind: 'clear', withheld: `the hook in ${a1NotePath(file)} puts the collected items back` });
