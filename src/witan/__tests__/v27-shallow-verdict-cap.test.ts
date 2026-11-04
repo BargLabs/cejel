@@ -189,7 +189,7 @@ describe('unchanged by the 1 Nov ruling: v17 on a full clone, and v27 on a full 
   it('every v17 full clone is scored as before, and every v17 shallow scan abstains with v17\'s shallow-history reason', () => {
     for (const scan of scans.filter((entry) => entry.rubric === V17)) {
       const report = scan.report;
-      expect(report.verdictCap, scan.label).toBeUndefined();
+      expect((report as { verdictCap?: unknown }).verdictCap, scan.label).toBeUndefined();
       if (scan.shallow) {
         expect(report.verdict, scan.label).toBe('insufficient_source');
         expect(report.overallScore, scan.label).toBeNull();

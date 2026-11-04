@@ -793,14 +793,19 @@ describe('#442 — history Cejel did not read is not scored', () => {
   // composite; it now withholds only pr_merge_ratio and scores pr_trace_primitives, 2 as on the full
   // clone. Its status is warning from the score bands, since v17's calibrated verified reads the
   // withheld ratio (shallow-history-ratio-withheld-442.test.ts). A2 still scores what it read.
-  it('v17: A2 scores the truncated history, B2 withholds only its ratio, behind a display-only disclosure', () => {
-    expect(criterion(shallow, V17, 'A2').status).toBe('verified');
+  // Operator ruling of 2 Nov: v17 no longer scores A2 on the truncated history. A2 abstains as
+  // v27's does and the report has no composite and no verdict; B2 keeps #604's handling.
+  it('v17: A2 abstains as v27 does, B2 withholds only its ratio, and the report has no composite or verdict', () => {
+    expect(criterion(shallow, V17, 'A2').status).toBe('insufficient_data');
+    expect(criterion(shallow, V17, 'A2').notes).toBe(criterion(shallow, V27, 'A2').notes);
+    expect(report(shallow, V17).verdict).toBe('insufficient_source');
     expect(criterion('history-full-clone', V17, 'B2').status).toBe('verified');
     expect(criterion(shallow, V17, 'B2').status).toBe('warning');
     expect(criterion(shallow, V17, 'B2').score).toBe(criterion('history-full-clone', V17, 'B2').score);
     expect(criterion(shallow, V17, 'B2').metrics.map(({ name }) => name)).toEqual(['pr_trace_primitives']);
     expect(criterion(shallow, V17, 'B2').notes).toMatch(/^B2 abstained from the pull-request merge ratio only: /);
-    expect(report(shallow, V17).historyLimitations).toEqual([SHALLOW_HISTORY_LIMITATION]);
+    expect(report(shallow, V17).historyLimitations).toEqual([SHALLOW_HISTORY_V27_ABSTENTION]);
+    expect(SHALLOW_HISTORY_LIMITATION).toContain('A2 (');
   });
 
   // v27 freeze change F1 (operator decision 2026-10-28): until then A2 and B2 both abstained here as
@@ -819,7 +824,8 @@ describe('#442 — history Cejel did not read is not scored', () => {
     expect(report(shallow, V27).verdict).toBe('insufficient_source');
     expect(report(shallow, V27).codeTrustScore).toBeNull();
     expect(report(shallow, V27).processTrustScore).toBeNull();
-    expect(report(shallow, V17).processTrustScore).not.toBeNull();
+    // Since the ruling of 2 Nov v17 has no composite here either.
+    expect(report(shallow, V17).processTrustScore).toBeNull();
   });
 
   it('v27: a full clone scores exactly as v17 does', () => {
@@ -828,10 +834,20 @@ describe('#442 — history Cejel did not read is not scored', () => {
     }
   });
 
+  // Operator ruling of 2 Nov: v17's A2 note on a shallow clone no longer claims history secret
+  // scanning covered all reachable history. v27 on a shallow clone keeps its 1 Nov bytes, note
+  // included (goal_cejel_v17_unread_history_no_verdict, "v27 on a shallow clone is unchanged"), so
+  // the two differ only in that first sentence.
   it('v27: a confirmed critical secret on a shallow clone still scores A2 critical', () => {
     const a2 = criterion('history-shallow-clone-with-committed-secret', V27, 'A2');
+    const v17 = criterion('history-shallow-clone-with-committed-secret', V17, 'A2');
     expect(a2.status).toBe('critical');
-    expect(a2).toEqual(criterion('history-shallow-clone-with-committed-secret', V17, 'A2'));
+    const { notes: v27Notes, ...v27Rest } = a2;
+    const { notes: v17Notes, ...v17Rest } = v17;
+    expect(v27Rest).toEqual(v17Rest);
+    expect(v27Notes).toContain('covers all reachable git history');
+    expect(v17Notes).not.toContain('covers all reachable git history');
+    expect(v17Notes).toMatch(/^This repository is a shallow clone, so history secret scanning read only the commits present \(reason: shallow_history\)/);
   });
 });
 

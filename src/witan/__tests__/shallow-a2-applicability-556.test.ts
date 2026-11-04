@@ -91,6 +91,10 @@ const SURFACE_PINS = JSON.parse(
   readFileSync(fileURLToPath(new URL('./fixtures/shallow-a2-surface-pins.json', import.meta.url)), 'utf8'),
 ) as Record<string, string>;
 
+// Re-pinned for the operator's ruling of 2 Nov (goal_cejel_v17_unread_history_no_verdict): every
+// rubric gives a shallow clone no composite and no verdict, so the 42 pins of the depth-1 and
+// depth-12 clones moved (v17 on all twelve shapes, v18-v26 on the issue's shape), read off a full
+// recomputation of every pin; no complete-depth clone's pin moved.
 const clones = new Map<string, string>();
 const reports = new Map<string, WitanReport>();
 const key = (shape: ShallowA2Shape, clone: A2HistoryClone) => `${shallowA2ShapeName(shape)}@${clone}`;
@@ -188,16 +192,23 @@ describe("#556: the issue's shape (a secret-bearing .env committed, deleted, the
     }
   });
 
-  it('v17 still scores every incomplete clone higher than the complete clone (the calibrated behaviour)', () => {
+  // Operator ruling of 2 Nov: v17 no longer scores the shallow clones (depths 1 and 12), which scored
+  // higher than the complete clone before; they abstain as under v27, with no composite. The partial
+  // clones, whose depth is complete, keep the calibrated behaviour (left open by that ruling's card).
+  it('v17 still scores every complete-depth partial clone higher than the complete clone, and gives no composite on a shallow clone', () => {
     const expected: Record<string, string> = {
-      '1': 'not_applicable',
-      '12': 'not_applicable',
+      '1': 'insufficient_data',
+      '12': 'insufficient_data',
       blobless: 'warning',
       treeless: 'not_applicable',
       'missing-blobs': 'warning',
     };
     for (const clone of INCOMPLETE) {
       expect(a2(report(shape, clone, V17)).status, String(clone)).toBe(expected[String(clone)]);
+      if (SHALLOW.includes(clone)) {
+        expect(report(shape, clone, V17).overallScore, String(clone)).toBeNull();
+        continue;
+      }
       expect(report(shape, clone, V17).overallScore as number, String(clone)).toBeGreaterThan(
         report(shape, 'full', V17).overallScore as number,
       );
@@ -215,27 +226,28 @@ describe("#556: the issue's shape (a secret-bearing .env committed, deleted, the
         const pin = SURFACE_PINS[`${key(shape, clone)}@${rubricVersion}`];
         expect(pin, `${clone} ${rubricVersion}`).toMatch(/^[0-9a-f]{64}$/);
         expect(surface(scored), `${clone} ${rubricVersion}`).toBe(pin);
-        const expected =
-          clone === 1 || clone === 12
-            ? [SHALLOW_DISCLOSURE]
-            : clone === 'treeless'
-              ? [FAILED_READ_DISCLOSURE]
-              : undefined;
+        // Operator ruling of 2 Nov: on a shallow clone every rubric's A2 abstains as v27's does, so
+        // it writes no applicability disclosure there (until then it wrote SHALLOW_DISCLOSURE).
+        const expected = clone === 'treeless' ? [FAILED_READ_DISCLOSURE] : undefined;
         expect(a2(scored).disclosures, `${clone} ${rubricVersion}`).toEqual(expected);
       }
     }
   });
 
+  // Since the operator's ruling of 2 Nov the shallow clones abstain under v17 with no applicability
+  // disclosure (A2's abstention note says what was not read), so only the treeless clone, whose depth
+  // is complete, still carries it.
   it('v17: the certificate lists the disclosure under "What was not established"; the complete clone does not', () => {
-    for (const [clone, sentence] of [
-      [1, SHALLOW_DISCLOSURE],
-      [12, SHALLOW_DISCLOSURE],
-      ['treeless', FAILED_READ_DISCLOSURE],
-    ] as const) {
+    for (const [clone, sentence] of [['treeless', FAILED_READ_DISCLOSURE]] as const) {
       const scored = report(shape, clone, V17);
-      if (clone !== 'treeless') expect(scored.historyLimitations).toEqual([SHALLOW_HISTORY_LIMITATION]);
       expect(buildRelyingPartySummary(scored).notEstablished, String(clone)).toContain(sentence);
       expect(renderWitanMarkdownReport(scored), String(clone)).toContain(sentence);
+    }
+    for (const clone of SHALLOW) {
+      const scored = report(shape, clone, V17);
+      expect(scored.historyLimitations, String(clone)).toEqual([SHALLOW_HISTORY_V27_ABSTENTION]);
+      expect(renderWitanMarkdownReport(scored), String(clone)).not.toContain(SHALLOW_DISCLOSURE);
+      expect(SHALLOW_HISTORY_LIMITATION).toContain('A2 (');
     }
     expect(buildRelyingPartySummary(report(shape, 'full', V17)).notEstablished).not.toContain(
       WITAN_A2_HISTORY_APPLICABILITY_PREFIX,
@@ -363,8 +375,9 @@ describe("#556: the issue's shape (a secret-bearing .env committed, deleted, the
       if (FAILED_READS.includes(clone)) {
         expect(after.codeTrustScore as number, String(clone)).toBeLessThan(before.codeTrustScore as number);
       } else {
+        // Since the ruling of 2 Nov v17 has no composite on a shallow clone either.
         expect(after.codeTrustScore, String(clone)).toBeNull();
-        expect(before.codeTrustScore, String(clone)).not.toBeNull();
+        expect(before.codeTrustScore, String(clone)).toBeNull();
       }
     }
   });
@@ -392,7 +405,10 @@ describe('#556: decisions whose history reads all completed over complete histor
     }
   });
 
-  it('a directory that is not a git repository stays not applicable under v27, with no disclosure', () => {
+  // Until the operator's ruling of 2 Nov a directory that is not a git repository stayed not
+  // applicable. It has no history to read, so under every rubric A2 now abstains with reason
+  // no_git_history and the report gives no composite; still no disclosure and no history limitation.
+  it('a directory that is not a git repository abstains with no_git_history under v17 and v27, with no disclosure', () => {
     const plain = mkdtempSync(join(tmpdir(), 'cejel-shallow-a2-plain-'));
     try {
       cpSync(clones.get(key(none, 'full')) as string, plain, {
@@ -401,7 +417,9 @@ describe('#556: decisions whose history reads all completed over complete histor
       });
       for (const rubricVersion of [V17, V27]) {
         const scored = scoreAt(plain, rubricVersion);
-        expect(a2(scored).status, rubricVersion).toBe('not_applicable');
+        expect(scored.verdict, rubricVersion).toBe('insufficient_source');
+        expect(a2(scored).status, rubricVersion).toBe('insufficient_data');
+        expect(a2(scored).notes ?? '', rubricVersion).toContain('(reason: no_git_history)');
         expect(a2(scored).disclosures, rubricVersion).toBeUndefined();
         expect(scored.historyLimitations, rubricVersion).toBeUndefined();
       }

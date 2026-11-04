@@ -186,11 +186,17 @@ describe('#442: a shallow clone does not score the truncated history lower', () 
     expect([...scores]).toHaveLength(1);
   });
 
-  it('the abstention is left out of the composite: it is not a read failure held at 0', () => {
+  // Until the operator's ruling of 2 Nov every rubric but v27 kept a composite here, with B2's
+  // withheld ratio left out of it rather than held at 0. Under that ruling a shallow clone has no
+  // composite at all under every rubric, so nothing is held at 0, and nothing lowers it.
+  it('a depth-1 clone has no composite under any rubric, so nothing is held at 0', () => {
     for (const { name, shallow } of clones) {
       for (const rubricVersion of RUBRICS) {
         const report = scan(shallow, rubricVersion);
-        expect(report.processTrustScore, `${name} ${rubricVersion}`).toBe(processTrustWithoutUnscored(report));
+        expect(report.verdict, `${name} ${rubricVersion}`).toBe('insufficient_source');
+        expect(report.processTrustScore, `${name} ${rubricVersion}`).toBeNull();
+        expect(report.overallScore, `${name} ${rubricVersion}`).toBeNull();
+        expect(processTrustWithoutUnscored(report), `${name} ${rubricVersion}`).not.toBeNaN();
       }
     }
   });

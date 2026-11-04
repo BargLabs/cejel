@@ -7,7 +7,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 
 import type { WitanCriterionScore, WitanReport } from '../schemas.js';
 
-import { SHALLOW_HISTORY_LIMITATION } from '../history-depth.js';
+import { SHALLOW_HISTORY_LIMITATION, SHALLOW_HISTORY_V27_ABSTENTION } from '../history-depth.js';
 import { scoreRepoWithPublicCejel } from '../public-scan.js';
 import { WITAN_RUBRIC_VERSION_V17, WITAN_RUBRIC_VERSION_V27 } from '../rubric-version.js';
 import { HERMETIC_GIT_ENV } from './fixtures/behaviour-corpus.js';
@@ -217,35 +217,47 @@ describe('#442 (27 Oct): on a shallow clone B2 keeps its file evidence and withh
     }
   });
 
+  // Operator ruling of 2 Nov: under v17 a shallow clone gets no composite and no verdict, as under
+  // v27 since 1 Nov, so its history limitation is the sentence v27 writes. That sentence still says
+  // B2 leaves the ratio out and is scored on the files; SHALLOW_HISTORY_LIMITATION, which said A2
+  // was scored as before, is no longer written.
   it('v17, under the window: the display-only disclosure says B2 left the ratio out and was scored on the files', () => {
     for (const row of rows.filter((entry) => entry.rubric === V17 && entry.depth < WINDOW)) {
-      expect(row.shallow.historyLimitations).toEqual([SHALLOW_HISTORY_LIMITATION]);
+      expect(row.shallow.historyLimitations).toEqual([SHALLOW_HISTORY_V27_ABSTENTION]);
       expect(row.full.historyLimitations).toBeUndefined();
     }
+    expect(SHALLOW_HISTORY_V27_ABSTENTION).toContain('leaves that ratio out when fewer commits are visible than it reads');
+    expect(SHALLOW_HISTORY_V27_ABSTENTION).not.toContain('left out of the composite');
     expect(SHALLOW_HISTORY_LIMITATION).toContain('leaves that ratio out when fewer commits are visible than it reads');
-    expect(SHALLOW_HISTORY_LIMITATION).not.toContain('left out of the composite');
   });
 
-  it('v17: every criterion but B2 scores on a shallow clone exactly as on its full clone, so the overall moves only with B2', () => {
+  // Until the ruling of 2 Nov: every criterion but B2 scored as on the full clone, and the overall
+  // moved only with B2. Now A2 abstains (unless a confirmed critical finding stands) and the report
+  // has no composite or verdict; every criterion but A2 and B2 still reads as on the full clone.
+  it('v17: every criterion but A2 and B2 reads on a shallow clone exactly as on its full clone, and there is no composite', () => {
     for (const row of rows.filter((entry) => entry.rubric === V17)) {
       const label = `${row.history} ${row.evidence} depth ${row.depth}`;
       const others = (report: WitanReport) =>
-        report.criteria.filter(({ id }) => id !== 'B2').map(({ id, status, score }) => ({ id, status, score }));
+        report.criteria
+          .filter(({ id }) => id !== 'B2' && id !== 'A2')
+          .map(({ id, status, score }) => ({ id, status, score }));
       expect(others(row.shallow), label).toEqual(others(row.full));
-      expect(row.shallow.codeTrustScore, label).toBe(row.full.codeTrustScore);
-      const b2 = compare(criterion(row.shallow, 'B2').score, criterion(row.full, 'B2').score);
-      const overall = compare(row.shallow.overallScore!, row.full.overallScore!);
-      if (overall !== 'equal') expect(overall, label).toBe(b2);
-      const band = compare(BAND.indexOf(row.shallow.verdict), BAND.indexOf(row.full.verdict));
-      if (band !== 'equal') expect(band, label).toBe(b2);
+      expect(row.shallow.verdict, label).toBe('insufficient_source');
+      expect(row.shallow.overallScore, label).toBeNull();
+      expect(row.shallow.codeTrustScore, label).toBeNull();
+      const a2 = criterion(row.shallow, 'A2');
+      if (a2.status !== 'critical') expect(a2.status, label).toBe('insufficient_data');
+      expect(row.full.verdict, label).not.toBe('insufficient_source');
+      expect(BAND.indexOf(row.full.verdict), label).toBeGreaterThanOrEqual(0);
     }
   });
 
-  it('v17, at the window and without PR-trace files: B2 and the report match the full clone', () => {
+  it('v17, at the window and without PR-trace files: B2 matches the full clone, and the report has no composite', () => {
     for (const row of rows.filter((entry) => entry.rubric === V17 && (!underWindow(entry) || !hasPrTraceFiles(entry)))) {
       const label = `${row.history} ${row.evidence} depth ${row.depth}`;
       expect(criterion(row.shallow, 'B2'), label).toEqual(criterion(row.full, 'B2'));
-      expect(row.shallow.overallScore, label).toBe(row.full.overallScore);
+      expect(row.shallow.overallScore, label).toBeNull();
+      expect(row.full.overallScore, label).not.toBeNull();
       if (!hasPrTraceFiles(row)) expect(criterion(row.shallow, 'B2').status, label).toBe('insufficient_data');
     }
   });
