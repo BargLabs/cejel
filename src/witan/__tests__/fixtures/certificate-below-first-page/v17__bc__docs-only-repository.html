@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="cejel-certificate-format" content="1.0">
+  <title>Cejel Trust Certificate - Certificate pin fixture</title>
+  <style>
+:root {
+  color-scheme: dark;
+  --steel: #16212a;
+  --surface: #1d2b35;
+  --surface-2: #273946;
+  --line: rgba(238, 244, 247, .13);
+  --line-strong: rgba(238, 244, 247, .22);
+  --text: #eef4f7;
+  --muted: #b7c5cc;
+  --faint: #8799a4;
+  --teal: #2fc8a6;
+  --teal-weak: rgba(47, 200, 166, .14);
+  --periwinkle: #93a6da;
+  --periwinkle-weak: rgba(147, 166, 218, .16);
+  --warn: #e7bf72;
+  --warn-weak: rgba(231, 191, 114, .16);
+  --danger: #f09a8f;
+  --danger-weak: rgba(240, 154, 143, .14);
+  --quiet: rgba(238, 244, 247, .08);
+  --serif: "Instrument Serif", Georgia, "Times New Roman", serif;
+  --sans: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--steel);
+  color: var(--text);
+  font-family: var(--sans);
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+.certificate { max-width: 1120px; margin: 0 auto; padding: 44px 32px 64px; }
+.hero { border-bottom: 1px solid var(--line); padding-bottom: 38px; }
+.brand { display: flex; align-items: center; gap: 12px; margin-bottom: 44px; }
+.brand-mark {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; border-radius: 8px;
+  background: var(--teal); color: #06231d; font-family: var(--serif); font-size: 24px;
+}
+.brand-name { font-family: var(--serif); font-size: 24px; }
+.hero-grid { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 36px; align-items: end; }
+.eyebrow {
+  margin: 0 0 14px; color: var(--teal); font-family: var(--mono);
+  font-size: 11px; letter-spacing: .18em; text-transform: uppercase;
+}
+h1, h2, h3, p { margin-top: 0; }
+h1 { margin-bottom: 24px; font-family: var(--serif); font-size: 64px; line-height: 1; font-weight: 400; letter-spacing: 0; }
+.meta { display: grid; gap: 10px; margin: 0; max-width: 780px; }
+.meta div { display: grid; grid-template-columns: 86px minmax(0, 1fr); gap: 16px; }
+dt { color: var(--faint); font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: .12em; }
+dd { margin: 0; color: var(--muted); overflow-wrap: anywhere; }
+.score-panel { border: 1px solid var(--line-strong); border-radius: 8px; padding: 24px; background: var(--surface); }
+.score-badge {
+  display: inline-flex; margin-bottom: 14px; border: 1px solid rgba(147, 166, 218, .38);
+  border-radius: 999px; padding: 5px 10px; color: var(--periwinkle);
+  background: var(--periwinkle-weak); font-family: var(--mono); font-size: 12px;
+}
+.score { display: inline; font-family: var(--mono); font-size: 56px; line-height: 1; color: var(--teal); }
+.score-unit { display: inline; margin-left: 6px; color: var(--faint); font-family: var(--mono); }
+.verdict { margin-top: 12px; font-family: var(--serif); font-size: 30px; color: var(--periwinkle); }
+.insufficient-note { margin-top: 10px; color: var(--muted); font-size: 13px; line-height: 1.5; }
+.subscores { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 18px; color: var(--muted); font-family: var(--mono); font-size: 12px; }
+.coverage-note { margin-top: 8px; color: var(--faint); font-family: var(--mono); font-size: 11px; }
+.source-counts { margin: 8px 0 0; padding-left: 18px; font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.findings-first-summary { margin-top: 20px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface); padding: 22px; }
+.findings-first-summary ul { margin: 0; padding-left: 18px; display: grid; gap: 10px; }
+.findings-first-empty { margin: 0; color: var(--muted); }
+.verdict-explanation { margin: 10px 0 0; color: var(--muted); }
+.relying-party-summary, .glossary { margin-top: 28px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface); padding: 22px; }
+.relying-party-summary dl { display: grid; gap: 14px; margin: 0; }
+.relying-party-summary dl div { display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 18px; }
+.relying-party-summary dt, .glossary dt { color: var(--text); }
+.glossary dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 22px; margin: 0; }
+.glossary dl div { border-top: 1px solid var(--line); padding-top: 10px; }
+.glossary dd { margin-top: 4px; font-size: 13px; }
+/* Track A3: native <details>/<summary> disclosure — the summary is the clickable control, a
+   heading nests inside it as its accessible label (still exposed as a heading), and the heading's
+   own vertical margin is neutralized by making it inline, so the marker sits flush against it. */
+summary { cursor: pointer; }
+summary h2, summary h3 { display: inline; }
+summary::marker { color: var(--periwinkle); }
+summary:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--periwinkle); border-radius: 3px; }
+.glossary details[open] dl, .na-group[open] .na-list { margin-top: 16px; }
+.trust-grid, .evidence-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-top: 28px; }
+.scan-limitations-section { margin-top: 28px; border-color: rgba(231, 191, 114, .44); }
+.scan-limitations-section .scan-warning { list-style: none; margin-left: -18px; }
+.external-findings-section { margin-top: 18px; }
+.external-note { margin: 0 0 14px; color: var(--muted); font-size: 13px; }
+.criteria-column, .evidence-section { border: 1px solid var(--line); border-radius: 8px; background: var(--surface); padding: 22px; }
+h2 { font-family: var(--serif); font-size: 30px; font-weight: 400; letter-spacing: 0; margin-bottom: 18px; }
+.criteria-list { display: grid; gap: 12px; }
+.na-group { margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--line-strong); }
+.na-heading { font-family: var(--sans); font-size: 12px; font-weight: 650; letter-spacing: .04em; text-transform: uppercase; color: var(--faint); margin: 0 0 10px; }
+.na-list { display: grid; gap: 8px; font-size: 13px; }
+.na-list li { margin: 0; color: var(--muted); }
+.na-id { color: var(--faint); font-family: var(--mono); font-size: 11px; margin-right: 6px; }
+.na-reason { color: var(--muted); }
+.na-reconciliation { display: block; margin-top: 4px; color: var(--muted); }
+.na-reconciliation strong { color: var(--text); }
+.criterion { border: 1px solid var(--line); border-radius: 8px; padding: 16px; background: var(--surface-2); }
+.criterion-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; }
+.criterion-id { color: var(--periwinkle); font-family: var(--mono); font-size: 12px; margin-bottom: 4px; }
+h3 { font-size: 15px; line-height: 1.35; font-weight: 600; margin-bottom: 0; }
+.criterion-score { margin-top: 12px; color: var(--text); font-family: var(--mono); font-size: 24px; }
+.status-explanation, .scan-warning {
+  margin: 10px 0 0; border-left: 3px solid var(--periwinkle); padding: 8px 10px;
+  background: var(--periwinkle-weak); color: var(--muted); font-size: 12px; line-height: 1.5;
+}
+.scan-warning { border-left-color: var(--warn); background: var(--warn-weak); }
+.status-explanation strong, .scan-warning strong { color: var(--text); }
+.criterion-metrics { display: grid; gap: 7px; margin-top: 10px; padding: 0; list-style: none; font-size: 12px; }
+.criterion-metrics li { display: flex; justify-content: space-between; gap: 12px; border-bottom: 1px solid rgba(238, 244, 247, .08); padding-bottom: 6px; }
+.criterion-metrics strong { color: var(--text); font-weight: 650; }
+.criterion-metrics span { color: var(--muted); }
+.criterion-metrics .metric-weight { font-size: 10px; color: var(--faint); }
+.criterion-metrics > li > .metric-value {
+  min-width: 0; white-space: normal; overflow-wrap: anywhere; text-align: right;
+}
+.term-help { position: relative; cursor: help; outline: none; }
+.term-help:focus-visible { box-shadow: 0 0 0 2px var(--periwinkle); border-radius: 3px; }
+.term-tooltip {
+  position: absolute; z-index: 100; left: 0; bottom: calc(100% + 8px); width: min(320px, 75vw);
+  visibility: hidden; opacity: 0; pointer-events: none; white-space: normal;
+  overflow-wrap: anywhere;
+  border: 1px solid var(--line-strong); border-radius: 6px; padding: 9px 11px;
+  background: #101b2a; color: var(--text); font-family: var(--sans); font-size: 12px;
+  font-weight: 400; line-height: 1.45; text-transform: none; letter-spacing: normal;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, .55);
+  transition: opacity .12s ease;
+}
+.term-help:hover > .term-tooltip, .term-help:focus-within > .term-tooltip { visibility: visible; opacity: 1; }
+.metric-value .term-tooltip { left: auto; right: 0; }
+.status { flex: none; border-radius: 999px; padding: 4px 9px; font-family: var(--mono); font-size: 11px; border: 1px solid var(--line-strong); }
+.status[data-status="verified"] { color: var(--teal); background: var(--teal-weak); border-color: rgba(47, 200, 166, .42); }
+.status[data-status="info"] { color: var(--periwinkle); background: var(--periwinkle-weak); border-color: rgba(147, 166, 218, .4); }
+.status[data-status="warning"] { color: var(--warn); background: var(--warn-weak); border-color: rgba(231, 191, 114, .44); }
+.status[data-status="critical"] { color: var(--danger); background: var(--danger-weak); border-color: rgba(240, 154, 143, .46); }
+.status[data-status="unverified"] { color: var(--muted); background: var(--quiet); }
+.status[data-status="insufficient_data"] { color: var(--muted); background: var(--quiet); border-style: dashed; }
+ul { margin: 0; padding-left: 18px; }
+li { margin: 8px 0; color: var(--muted); }
+.criterion-evidence { margin-top: 12px; font-size: 13px; }
+.evidence-section li strong { display: block; color: var(--text); font-size: 14px; }
+.evidence-section li span { display: block; margin-top: 2px; font-size: 13px; }
+code { color: var(--periwinkle); font-family: var(--mono); font-size: .92em; overflow-wrap: anywhere; }
+a { color: var(--teal); text-decoration: none; }
+a:hover { text-decoration: underline; text-underline-offset: 2px; }
+@media (max-width: 840px) {
+  .certificate { padding: 28px 18px 48px; }
+  .hero-grid, .trust-grid, .evidence-grid { grid-template-columns: 1fr; }
+  .relying-party-summary dl div, .glossary dl { grid-template-columns: 1fr; }
+  h1 { font-size: 46px; }
+}
+</style>
+</head>
+<body>
+  <main class="certificate">
+    <header class="hero">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">C</span>
+        <span class="brand-name">Cejel</span>
+      </div>
+      <div class="hero-grid">
+        <section>
+          <p class="eyebrow">Trust Certificate</p>
+          <h1>Certificate pin fixture</h1>
+          <dl class="meta">
+            <div><dt>Date</dt><dd>2026-11-03</dd></div>
+            <div><dt>Run</dt><dd>certificate-pin @ 76ccaa1bf82f29ac5d83ff5871991a1e13257dc2</dd></div>
+            <div><dt>CLI</dt><dd>Cejel 0.0.0-certificate-pin</dd></div>
+            
+            <div><dt>Rubric</dt><dd>witan-rubric-v17-2026-07-24</dd></div>
+            
+            <div><dt>About the name</dt><dd>The product name and its short ID were given by whoever ran the scan, or taken from package.json or the folder name. They are not evidence from the repository, and they are not covered when Cejel says two scans of the same revision give identical results.</dd></div>
+            
+          </dl>
+        </section>
+        <aside class="score-panel" aria-label="Summary trust score">
+          <div class="score-badge">Summary</div>
+          <div class="verdict">Insufficient source</div>
+          <p class="insufficient-note">0 source file(s) found among 5 tracked file(s); repo appears to be a docs/distribution tree (README/markdown/media), not a source tree — cejel rates source, not docs. To assess a closed/bundled tool, ingest its scanner output via --ingest &lt;sarif|scorecard&gt;.</p>
+        </aside>
+      </div>
+    </header>
+
+    <section class="findings-first-summary" aria-labelledby="findings-first-heading">
+      <h2 id="findings-first-heading">Critical and warning findings</h2>
+      <p class="findings-first-empty">No critical or warning findings were identified across any criterion in this scan.</p>
+    </section>
+
+    <section class="relying-party-summary" aria-labelledby="relying-party-heading">
+      <h2 id="relying-party-heading">How to read this certificate</h2>
+      <dl>
+        <div><dt>Scope</dt><dd>This certificate is a statement about the repository tree at the revision pinned above, not about the system that tree is part of. Evidence outside that tree — for example, a test suite kept in a separate repository, or CI configuration that changes into a different working directory before running its checks — is neither seen by this scan nor claimed to be absent.</dd></div>
+        <div><dt>What was examined</dt><dd>Cejel examined the repository evidence recorded for Certificate pin fixture at revision 76ccaa1bf82f29ac5d83ff5871991a1e13257dc2 under witan-rubric-v17-2026-07-24.</dd></div>
+        <div><dt>What was established</dt><dd>The report measured 0 of the 11 rubric dimensions (code 0 of 5, process 0 of 6). 6 do not apply to this repository; 0 of the 5 that apply were measured. It recorded 0 evidence-backed findings.</dd></div>
+        <div><dt>What was not established</dt><dd>The report did not measure A1, A4, A5, B2, B3. A2, A3, B1, B4, B5, B6 were marked not applicable and therefore not examined. No content was withheld from any signal. Anything absent from the measured evidence was not established: no measurement and no finding are not clearance.</dd></div>
+        <div><dt>What to do next</dt><dd>Obtain measurable evidence for A1, A4, A5, B2, B3 — these scored dimensions have no recorded result, and could change the verdict. Confirm A2, A3, B1, B4, B5, B6 are correctly marked not applicable to this repository; they were not examined.</dd></div>
+      </dl>
+    </section>
+
+    
+
+    
+
+    
+
+    <section class="trust-grid" aria-label="Rubric criteria">
+      <section class="criteria-column">
+        <h2>Code trust</h2>
+        <div class="criteria-list">
+          <article class="criterion">
+            <div class="criterion-top">
+              <div>
+                <div class="criterion-id">A1</div>
+                <h3>Test integrity and regression signal</h3>
+              </div>
+              <span class="status term-help" data-status="insufficient_data" tabindex="0" aria-describedby="tooltip-A1-status-labels">dimension band: insufficient_data<span class="term-tooltip" id="tooltip-A1-status-labels" role="tooltip">Three labels can appear on one line because they answer three different questions. Finding severity describes how serious one issue is. The dimension band summarizes the criterion evidence. The numeric band comes from the weighted score.</span></span>
+            </div>
+            <div class="criterion-score">No data</div>
+            <p class="status-explanation"><strong>Why no label comparison applies:</strong> this dimension has insufficient measurable data, so it has no weighted numeric score band to compare.</p>
+            
+            <ul class="criterion-metrics">
+              <li>No measured depth metrics supplied.</li>
+            </ul>
+            <ul class="criterion-evidence">
+              <li>No concrete evidence supplied.</li>
+            </ul>
+          </article><article class="criterion">
+            <div class="criterion-top">
+              <div>
+                <div class="criterion-id">A4</div>
+                <h3>Dependency hygiene</h3>
+              </div>
+              <span class="status term-help" data-status="insufficient_data" tabindex="0" aria-describedby="tooltip-A4-status-labels">dimension band: insufficient_data<span class="term-tooltip" id="tooltip-A4-status-labels" role="tooltip">Three labels can appear on one line because they answer three different questions. Finding severity describes how serious one issue is. The dimension band summarizes the criterion evidence. The numeric band comes from the weighted score.</span></span>
+            </div>
+            <div class="criterion-score">No data</div>
+            <p class="status-explanation"><strong>Why no label comparison applies:</strong> this dimension has insufficient measurable data, so it has no weighted numeric score band to compare.</p>
+            
+            <ul class="criterion-metrics">
+              <li>No measured depth metrics supplied.</li>
+            </ul>
+            <ul class="criterion-evidence">
+              <li>No concrete evidence supplied.</li>
+            </ul>
+          </article><article class="criterion">
+            <div class="criterion-top">
+              <div>
+                <div class="criterion-id">A5</div>
+                <h3>Claim-vs-reality reconciliation</h3>
+              </div>
+              <span class="status term-help" data-status="insufficient_data" tabindex="0" aria-describedby="tooltip-A5-status-labels">dimension band: insufficient_data<span class="term-tooltip" id="tooltip-A5-status-labels" role="tooltip">Three labels can appear on one line because they answer three different questions. Finding severity describes how serious one issue is. The dimension band summarizes the criterion evidence. The numeric band comes from the weighted score.</span></span>
+            </div>
+            <div class="criterion-score">No data</div>
+            <p class="status-explanation"><strong>Why no label comparison applies:</strong> this dimension has insufficient measurable data, so it has no weighted numeric score band to compare.</p>
+            
+            <ul class="criterion-metrics">
+              <li>No measured depth metrics supplied.</li>
+            </ul>
+            <ul class="criterion-evidence">
+              <li>No concrete evidence supplied.</li>
+            </ul>
+          </article>
+        </div>
+        <details class="na-group">
+          <summary><h3 class="na-heading">Not applicable to this repository</h3></summary>
+          <ul class="na-list">
+            <li><span class="na-id">A2</span> Data-layer isolation and secrets posture — <span class="na-reason">No data layer (DB/ORM/migrations) or ratable secrets surface detected — A2 not applicable to this repo archetype. A ratable surface requires .env* files, .gitignore .env rule, committed/history .env path, or detected signing/HMAC/secret-comparison code; bare env reads (process.env / os.environ / std::env::) do not qualify.</span><span class="na-reconciliation"><strong>Why no label comparison applies:</strong> this dimension is not applicable to this repository, so it has no weighted numeric score band to compare.</span></li><li><span class="na-id">A3</span> Production readiness — <span class="na-reason">No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). A Dockerfile without an explicit runtime start/service command is ambiguous and does not qualify.</span><span class="na-reconciliation"><strong>Why no label comparison applies:</strong> this dimension is not applicable to this repository, so it has no weighted numeric score band to compare.</span></li>
+          </ul>
+        </details>
+      </section>
+      <section class="criteria-column">
+        <h2>Process trust</h2>
+        <div class="criteria-list">
+          <article class="criterion">
+            <div class="criterion-top">
+              <div>
+                <div class="criterion-id">B2</div>
+                <h3>PR outcome traceability</h3>
+              </div>
+              <span class="status term-help" data-status="insufficient_data" tabindex="0" aria-describedby="tooltip-B2-status-labels">dimension band: insufficient_data<span class="term-tooltip" id="tooltip-B2-status-labels" role="tooltip">Three labels can appear on one line because they answer three different questions. Finding severity describes how serious one issue is. The dimension band summarizes the criterion evidence. The numeric band comes from the weighted score.</span></span>
+            </div>
+            <div class="criterion-score">No data</div>
+            <p class="status-explanation"><strong>Why no label comparison applies:</strong> this dimension has insufficient measurable data, so it has no weighted numeric score band to compare.</p>
+            
+            <ul class="criterion-metrics">
+              <li>No measured depth metrics supplied.</li>
+            </ul>
+            <ul class="criterion-evidence">
+              <li>No concrete evidence supplied.</li>
+            </ul>
+          </article><article class="criterion">
+            <div class="criterion-top">
+              <div>
+                <div class="criterion-id">B3</div>
+                <h3>CI and QA discipline</h3>
+              </div>
+              <span class="status term-help" data-status="insufficient_data" tabindex="0" aria-describedby="tooltip-B3-status-labels">dimension band: insufficient_data<span class="term-tooltip" id="tooltip-B3-status-labels" role="tooltip">Three labels can appear on one line because they answer three different questions. Finding severity describes how serious one issue is. The dimension band summarizes the criterion evidence. The numeric band comes from the weighted score.</span></span>
+            </div>
+            <div class="criterion-score">No data</div>
+            <p class="status-explanation"><strong>Why no label comparison applies:</strong> this dimension has insufficient measurable data, so it has no weighted numeric score band to compare.</p>
+            
+            <ul class="criterion-metrics">
+              <li>No measured depth metrics supplied.</li>
+            </ul>
+            <ul class="criterion-evidence">
+              <li>No concrete evidence supplied.</li>
+            </ul>
+          </article>
+        </div>
+        <details class="na-group">
+          <summary><h3 class="na-heading">Not applicable to this repository</h3></summary>
+          <ul class="na-list">
+            <li><span class="na-id">B1</span> Dispatch trace completeness — <span class="na-reason">Repository scans do not evaluate the dispatch-trace process dimension.</span><span class="na-reconciliation"><strong>Why no label comparison applies:</strong> this dimension is not applicable to this repository, so it has no weighted numeric score band to compare.</span></li><li><span class="na-id">B4</span> Audit trail and report-up completeness — <span class="na-reason">No audit-trail artifact detected (CHANGELOG/CHANGES/HISTORY/NEWS/SECURITY/AUDIT/STATUS/ release-notes/runbook/provenance file) — B4 not applicable to this repo.</span><span class="na-reconciliation"><strong>Why no label comparison applies:</strong> this dimension is not applicable to this repository, so it has no weighted numeric score band to compare.</span></li><li><span class="na-id">B5</span> Verified learning trace — <span class="na-reason">Repository scans do not evaluate the learning-trace process dimension.</span><span class="na-reconciliation"><strong>Why no label comparison applies:</strong> this dimension is not applicable to this repository, so it has no weighted numeric score band to compare.</span></li><li><span class="na-id">B6</span> Privileged-operation human gating — <span class="na-reason">No privileged-operation surface (prod DB admin GRANT/privilege DDL, role escalation, or documented human-gate governance) detected in this repo.</span><span class="na-reconciliation"><strong>Why no label comparison applies:</strong> this dimension is not applicable to this repository, so it has no weighted numeric score band to compare.</span></li>
+          </ul>
+        </details>
+      </section>
+    </section>
+
+    <section class="evidence-grid" aria-label="Evidence and gaps">
+      <article class="evidence-section">
+        <h2>Verified evidence</h2>
+        <ul><li>No verified evidence supplied.</li></ul>
+      </article>
+      <article class="evidence-section">
+        <h2>Open / unverified</h2>
+        <ul><li><strong>A1 - Test integrity and regression signal</strong><span>Insufficient data — no measurable signal; excluded from composite (unmeasured, not inapplicable).</span></li><li><strong>A4 - Dependency hygiene</strong><span>Insufficient data — no measurable signal; excluded from composite (unmeasured, not inapplicable).</span></li><li><strong>A5 - Claim-vs-reality reconciliation</strong><span>Insufficient data — no measurable signal; excluded from composite (unmeasured, not inapplicable).</span></li><li><strong>B2 - PR outcome traceability</strong><span>Insufficient data — no measurable signal; excluded from composite (unmeasured, not inapplicable).</span></li><li><strong>B3 - CI and QA discipline</strong><span>Insufficient data — no measurable signal; excluded from composite (unmeasured, not inapplicable).</span></li></ul>
+      </article>
+    </section>
+
+    
+
+    
+
+    <section class="glossary" aria-labelledby="glossary-heading">
+      <details>
+        <summary><h2 id="glossary-heading">Plain-language glossary</h2></summary>
+        <dl><div><dt id="glossary-labels">labels / why the labels differ</dt><dd>Three labels can appear on one line because they answer three different questions. Finding severity describes how serious one issue is. The dimension band summarizes the criterion evidence. The numeric band comes from the weighted score.</dd></div><div><dt id="glossary-capped">capped</dt><dd>Credit stops increasing after the maximum defined by the scoring rubric, even when the raw count is higher. Caps are fixed per rubric version because they are part of what was calibrated. Extra volume therefore cannot outweigh the rest of the rubric.</dd></div><div><dt id="glossary-test-to-source-file-ratio">Test-to-source file ratio</dt><dd>The number of detected test files compared with detected source files. A larger implementation surface needs a correspondingly visible test surface.</dd></div><div><dt id="glossary-static-coverage">Static coverage percentage</dt><dd>A percentage read from a coverage report or threshold that the repository itself publishes. Cejel does not run the repository&#39;s tests. The scoring rubric defines how much credit the published percentage receives. When no percentage above 0 is published, the rubric scores this metric as 0 of 100.</dd></div><div><dt id="glossary-verification-script">Verification script ratio</dt><dd>A capped scoring input that adds one for each detected test, coverage, lint, or type-check command and one for each detected test-runner configuration file. The raw count is capped at four for scoring. Build is not measured by this metric.</dd></div><div><dt id="glossary-non-hollow">Non-hollow test share</dt><dd>test files that actually assert something rather than being empty or skipped</dd></div><div><dt id="glossary-secrets">Secret cleanliness</dt><dd>A binary result. Clean means the static repository-tree and reachable-history scan produced no critical secret finding. It is not a count of files containing secrets.</dd></div><div><dt id="glossary-environment-handling-depth">Environment handling depth</dt><dd>A count of three named practices: an environment template file, a .gitignore rule for environment files, and environment reads in implementation code in a supported language.</dd></div><div><dt id="glossary-rls-policy-count">RLS policy count</dt><dd>A selected-rubric static count of row-level-security markers. The calibrated detector counts CREATE POLICY, ENABLE ROW LEVEL SECURITY, and FORCE ROW LEVEL SECURITY matches. Prospective native-RLS detection counts repository-native CREATE POLICY definitions.</dd></div><div><dt id="glossary-tenant-scoped-schema-ratio">Tenant-scoped schema ratio</dt><dd>The share of detected data-layer or migration files carrying the selected rubric&#39;s tenant-scope marker. Prospective native-RLS detection instead uses repository-native scoped storage files. It is a file-level static proxy, not a table-by-table proof.</dd></div><div><dt id="glossary-crypto-comparison-hygiene">Crypto comparison hygiene</dt><dd>A conditional binary result shown only when production code exposes a signing, HMAC, or secret-comparison surface. Clean means no detected plain-equality secret comparison or non-canonical JSON signing pattern. Detected constant-time comparison and canonical serialization are positive evidence, but the metric does not require both when only one relevant surface exists.</dd></div><div><dt id="glossary-production-readiness-basic-checks">Production-readiness basic checks</dt><dd>A count of six named checks: a build or type-check command, a CI workflow, deployment configuration, an environment template, a health or readiness signal, and an error boundary. In the calibrated rubric the health or readiness signal is credited only for a dedicated health or readiness file (such as health.ts or readiness.ts), a Dockerfile HEALTHCHECK, or Kubernetes liveness or readiness probes. A health route declared inline in an application file does not count there. The prospective witan-rubric-v25 and witan-rubric-v26 also credit such an inline route.</dd></div><div><dt id="glossary-pr-trace-basic-checks">PR trace basic checks</dt><dd>A capped scoring input that counts detected CI workflow files, a pull-request template, and a review-gate record such as CODEOWNERS or branch-protection documentation. The raw count is capped at two for scoring. Under the prospective witan-rubric-v27, a CI workflow file is not counted when Cejel reads every step as only checking out, printing text or doing nothing, or, for a workflow with no pull-request trigger, as only uploading an already-built artifact. Cejel makes either reading only when the runs-on value of every job names a documented GitHub-hosted Ubuntu or macOS runner label. Such a file was not shown to run a check, which is not a finding that it runs none.</dd></div><div><dt id="glossary-workflow-depth">Production workflow depth (automated build/test/release pipeline)</dt><dd>The number of detected CI workflow files plus deployment-configuration files, capped at six for scoring. It counts files, not team policies or distinct pipeline stages.</dd></div><div><dt id="glossary-observability-depth">Observability depth</dt><dd>The number of implementation files containing a recognized logging, metrics, tracing, or error-reporting marker, capped at four for scoring.</dd></div><div><dt id="glossary-rollback-and-migration-safety-depth">Rollback and migration-safety depth</dt><dd>The number of files under recognized documentation, migration, or script paths containing a rollback, reversal, undo, or migration-safety marker, capped at four for scoring.</dd></div><div><dt id="glossary-dependency-automation-ratio">Dependency automation ratio</dt><dd>The share of expected automated dependency-update and audit controls that are present. Stale or vulnerable packages otherwise depend on manual discovery.</dd></div><div><dt id="glossary-pinned-dependency-ratio">Pinned dependency ratio</dt><dd>The share of application dependencies fixed to exact versions. Exact inputs make deployed builds more reproducible.</dd></div><div><dt id="glossary-lockfile-coverage">Lockfile coverage</dt><dd>A binary check for at least one detected lockfile in the scanned package or its covering monorepo root. It does not compare each manifest with a separate lockfile.</dd></div><div><dt id="glossary-declared-version-range-ratio">Declared version range ratio</dt><dd>For a library or CLI, the share of detected dependency specifications carrying any explicit constraint, including an exact version or a compatible range. Bare names, *, latest, and x do not count.</dd></div><div><dt id="glossary-dependency-count-sanity">Dependency count sanity</dt><dd>A low-weight library/CLI metric with full credit through 120 detected dependency specifications across manifests, then linearly declining to zero over the next 240.</dd></div><div><dt id="glossary-claim-match-rate">Implementation-to-claim-source file ratio</dt><dd>A bounded file-count ratio: detected implementation-file count divided by that count plus detected headline claim-source document count. It does not verify whether individual prose claims are true.</dd></div><div><dt id="glossary-claim-source-depth">Claim source depth</dt><dd>The number of detected README or headline claim-source documents, capped at four for scoring. It measures visible document depth, not the truth or specificity of their prose.</dd></div><div><dt id="glossary-reconciliation-artifact-depth">Reconciliation artifact depth</dt><dd>The number of detected dedicated claim-reality reconciliation artifacts, capped at three for scoring.</dd></div><div><dt id="glossary-recent-pr-merge-ratio">Recent commits with recognizable PR references</dt><dd>Among up to 12 recent local commit subjects, the share containing “merge pull request”, “pull request”, or a #number reference. A zero means no recognizable reference was found, not that Cejel detected a merge without a PR. When history is empty or unavailable, scoring conservatively uses a denominator of one.</dd></div><div><dt id="glossary-ci-verification-depth">CI verification depth</dt><dd>A capped scoring input that adds package-script and CI-command detections separately for test, lint, type-check, and build. The same category can therefore contribute once as a package script and once in CI. The raw count is capped at four for scoring.</dd></div><div><dt id="glossary-pr-gate-ci-workflow-count">PR-gate CI workflow count (automated build/test pipeline)</dt><dd>The number of detected CI workflow files configured for pull requests or the main or master branch, including a covering monorepo-root workflow, capped at four for scoring. Under the prospective witan-rubric-v27, a workflow file is not counted when Cejel reads every step as only checking out, printing text or doing nothing, or, for a workflow with no pull-request trigger, as only uploading an already-built artifact. Cejel makes either reading only when the runs-on value of every job names a documented GitHub-hosted Ubuntu or macOS runner label. Such a file was not shown to run a check, which is not a finding that it runs none. Under the same rubric, a workflow file with no pull-request trigger is also not counted, by this metric or by CI verification depth, when a step publishes, releases or deploys (a registry publish or upload, a release, an image push or a deploy command or action) on every run its triggers start, whatever else it runs, including through a job that calls a reusable workflow in the same repository. An if condition is a gate only when it can be false under the workflow&#39;s own triggers in the repository itself (a check of the repository&#39;s own name or owner guards forks, not runs), and a continue-on-error setting keeps the file counted. Cejel reads a publishing action on any runner, and a publish command only on the same runner labels, with no shell setting other than bash.</dd></div><div><dt id="glossary-audit-artifact-depth">Audit artifact depth</dt><dd>The number of files whose paths match recognized changelog, audit, incident, status, runbook, provenance, release-note, or security-policy forms, capped at three for scoring.</dd></div><div><dt id="glossary-audit-freshness-depth">Audit freshness depth</dt><dd>The share of detected audit-artifact files containing recent, latest, or current, or the applicable reference year. The calibrated rubric uses the scan year. Prospective v19 uses the scanned HEAD committer year when available. This is a text-marker proxy, not a file-history age check.</dd></div><div><dt id="glossary-un-overridable-kill-switch">Un-overridable kill-switch present</dt><dd>A positive-only binary check for a named governance or safety toggle whose falsy state immediately returns or throws before lower-priority configuration can proceed. The metric is omitted when no such pattern is detected.</dd></div><div><dt id="glossary-human-gate-documented">Human gate documented</dt><dd>A binary check for documentation saying privileged or credentialed operations are human-executed or human-gated and never agent-run. It is scored only when a privileged-operation-shaped surface exists.</dd></div><div><dt id="glossary-fail-closed-privilege-check">Fail-closed privilege check present</dt><dd>A binary check for implementation code that checks role membership and fails closed before setting or elevating a role. It is scored only when a privileged-operation-shaped surface exists.</dd></div><div><dt id="glossary-privilege-escalation-cleanliness">Privilege-escalation cleanliness</dt><dd>A binary result. Clean means the selected rubric detected no ungated production privilege-escalation pattern. The calibrated detector checks executed role-membership grants and SUPERUSER escalation. Prospective v21 also checks authored administrative SQL and direct database-driver literals for administrative role grants and schema-wide table grants. Tests and fixtures are excluded from the metric.</dd></div><div><dt id="glossary-protected-path-review-gate">Protected-path review gate</dt><dd>A binary check for a CODEOWNERS file in a location GitHub reads (the repository root, .github/ or docs/), or a document stating a required-review or branch-protection policy. A changelog, an experiment or calibration record, a review note or a report does not count. This is the repository-visible proxy for human review of sensitive-path changes.</dd></div></dl>
+      </details>
+    </section>
+  </main>
+</body>
+</html>

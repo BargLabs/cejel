@@ -40,7 +40,11 @@ import { FALSE_ASSURANCE_FIXTURES, buildFalseAssuranceFixture } from './fixtures
 // that holds the change.
 //
 // Fixtures are scored with no ingested files, the same product name and a fixed generatedAt and
-// CLI version, so the bytes depend only on the fixture and the code.
+// CLI version, so the bytes depend only on the fixture and the code. One fixture is left out:
+// a false-assurance fixture with symlinksToHostDirectory commits a symlink whose target is a fresh
+// temporary directory, so its commit hash, which the certificate prints, differs on every build
+// (today only review4-a4-working-directory-through-tracked-symlink). Every other fixture of the
+// three corpora is in: 322 fixtures, 644 renders at capture.
 
 const PIN_DIR = new URL('./fixtures/certificate-below-first-page/', import.meta.url);
 const CAPTURE_DIR = process.env.CEJEL_CERTIFICATE_PIN_CAPTURE;
@@ -114,6 +118,7 @@ beforeAll(() => {
     scoreAndRender(`dg/${fixture.name}`, buildDisclosureGapFixture(fixture));
   }
   for (const fixture of FALSE_ASSURANCE_FIXTURES) {
+    if (fixture.symlinksToHostDirectory !== undefined) continue;
     const dir = buildFalseAssuranceFixture(fixture);
     builtDirectories.push(dir);
     scoreAndRender(`fa/${fixture.name}`, dir);
