@@ -1,6 +1,6 @@
 # ADR-0001: Coverage is disclosed, never discounted — and may later withhold a score
 
-**Status:** Accepted (four operator rulings recorded at the end: three of 2026-10-22, on v27 shallow-clone abstentions, #556's abstention, and its two further causes from #560's review; and one of 2026-10-23, on a `.git` that git cannot open; a 2026-10-28 note records where the v27 freeze change F1 departs from the first two, awaiting the operator's confirmation)
+**Status:** Accepted (four operator rulings recorded at the end: three of 2026-10-22, on v27 shallow-clone abstentions, #556's abstention, and its two further causes from #560's review; and one of 2026-10-23, on a `.git` that git cannot open; a 2026-10-28 note records where the v27 freeze change F1 departs from the first two, awaiting the operator's confirmation; and the 2026-11-02 ruling, under which history Cejel could not read gives no composite and no verdict under every rubric, with a note on what the Forces figures measure)
 **Date:** 2026-08-02
 **Deciders:** Houman Azimi
 **Supersedes:** nothing. First ADR in this repository.
@@ -415,3 +415,55 @@ the question the 2026-10-28 note left open: the first two rulings' "kept at 0 in
 longer arises, because there is no composite. A2's abstention after a failed history read on a
 clone that is not shallow is still a read failure kept at 0, as those rulings set.
 `leaderboard/RUBRIC_CHANGELOG.md` (2026-11-01 entry) has the measurement.
+
+## Operator ruling (2026-11-02): under every rubric, history Cejel could not read gives no composite and no verdict
+
+**The ruling, as the implementing agent received it** (the operator's ruling of 2 Nov, recorded in
+the goal card that carried it, `goal_cejel_v17_unread_history_no_verdict_2026-11-02`, not quoted
+from the operator directly): treat every input whose history Cejel could not read the way v27 has
+treated a shallow clone since the ruling of 1 Nov: no composite, no verdict, an `Unrated:` label,
+and the instruction to fetch the history. This does not touch the calibration: v17 was calibrated
+on full-history clones, so a complete clone stays byte-identical. #517-#520 (B3, A1, A4 and the LFS
+pointer abstention) stay v27-only, because they change scoring on complete clones.
+
+**Item A, v17 and every rubric that is not v27.** v17 takes v27's unread-history abstention, on the
+same code path: a shallow clone ("Unrated: shallow clone", reason `shallow_history`), and a
+checkout whose history depth neither git nor the `.git` files settle ("Unrated: history depth
+unknown", reason `history_depth_unknown`), including where a history read failed on such a clone.
+The report abstains (verdict `insufficient_source`, every headline score null) with a reason that
+names the rubric it ran under and ends with the instruction to fetch the history. Each criterion is
+still read and shown; A2 abstains as v27's A2 does unless a confirmed critical finding stands on
+what was read; B2 keeps its #604 handling. Under the 2026-10-22 rulings A2's abstention after a
+failed read is a read failure kept at 0; with no composite it enters no number.
+
+**Item B, every rubric, v27 included.** A scanned directory that is not a git repository (a
+directory with no `.git`, a tarball, an archive export, every HTTP and remote-MCP upload) gives no
+composite and no verdict: "Unrated: no git history", reason `no_git_history`, with the instruction
+to scan a git clone with full history. A2 abstains with that reason in its note, which says no
+history was read, unless a confirmed critical finding stands on the checked-out files; its note no
+longer claims history secret scanning covered all reachable history.
+
+**What it does not change.** A complete clone is scored exactly as before under every rubric,
+v17's weights, bands, criteria and calibration included. A complete clone whose history read failed
+(an output limit, the timeout, the history secret scan's file cap, a missing object on a partial
+clone, git missing from the scanning host where the `.git` files show a complete clone) keeps the
+treatment the 2026-10-22 rulings set: v27's A2 abstains at 0 in the composite, and every other
+rubric keeps its calibrated result with its disclosure. v27 on a shallow clone keeps the 1 Nov
+behaviour byte for byte. `leaderboard/RUBRIC_CHANGELOG.md` (2026-11-02 entry) has the measurement.
+
+## Note (2026-11-02): what the 96.43% in Forces measures
+
+This is not a ruling, and the Forces text above is unchanged: it is the record of what was known on
+2026-08-02. The 96.43% there is finding precision on the July free-core holdout, and the 95.64%
+beside it is that holdout's finding worst-case recall, a rubric-agreement measure: whether the rule
+set's findings agree with blinded reviewers over bounded static evidence. The holdout's public
+record describes itself as "finding-level calibration of the v17 free-core rule set on the
+preregistered, untouched holdout. It measures whether the rule set's findings are backed by
+bounded, inspectable static evidence under the frozen protocol"
+([`docs/calibration/free-core-v50/terminal-go.md`](../calibration/free-core-v50/terminal-go.md), as
+quoted in [`docs/calibration/cycle-13/README.md`](../calibration/cycle-13/README.md)). Neither is
+detection recall or detection precision. Cycle 13 measured those for v17, in the words of
+[`docs/calibration/cycle-13/README.md`](../calibration/cycle-13/README.md): "v17 in-scope detection
+recall: 41.1% (95% CI 20.6–67.8%)" and "Detection precision 64.3% (95% CI 38.4–87.6%)". That file
+explains how the two precision figures count different things, and says the gap between them is
+not yet explained.

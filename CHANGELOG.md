@@ -16,10 +16,42 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
-v17 remains the default rubric, and every change below applies only when the prospective v27 rubric
-is pinned. v27 carries no precision or recall claim.
+v17 remains the default rubric. The first entry below changes default-rubric output; every other
+change below applies only when the prospective v27 rubric is pinned. v27 carries no precision or
+recall claim.
 
 ### Changed
+
+- **Default rubric: a scan whose git history Cejel could not read gives no score and no verdict
+  (operator ruling of 2 Nov; ADR-0001).** Visible to every default user of the GitHub Action:
+  `actions/checkout` makes a shallow clone unless `fetch-depth: 0` is set, and that scan is now
+  "Unrated: shallow clone" instead of a score. Set `fetch-depth: 0` to get a score again.
+  - **A shallow clone, or a history depth Cejel cannot read, under v17 and every other rubric.**
+    The report abstains (verdict `insufficient_source`, every headline score null) as v27 has since
+    1 Nov: "Unrated: shallow clone" (reason `shallow_history`) or "Unrated: history depth unknown"
+    (reason `history_depth_unknown`), with the instruction to run `git fetch --unshallow` or check
+    out with `fetch-depth: 0`. Each criterion is still read and shown. A2 abstains, as v27's A2 does,
+    unless a confirmed critical secret finding stands on what was read; B2 keeps its #604 handling.
+    Until now v17 scored a depth-1 clone, on which A2 cannot see a secret committed and later
+    deleted, so a shallow clone could score higher than the full clone of the same commit and pass
+    a `--min-score` gate the full clone fails. The certificate's history limitation now says a
+    shallow clone gets no composite under every rubric.
+  - **A directory with no `.git`, under every rubric, v27 included.** "Unrated: no git history"
+    (reason `no_git_history`), with the instruction to scan a git clone with full history; an
+    uploaded snapshot or archive carries no history. That covers every snapshot uploaded to the HTTP
+    or remote-MCP server, every tarball and every archive export of a commit. A2 abstains, and its
+    note says no history was read, unless a confirmed critical finding stands on the files; until
+    now it was scored with a note saying history secret scanning covered all reachable history.
+  - **The GitHub Action.** `BargLabs/cejel/action@v1` (`action/action.yml`, the path the README
+    documents) now declares the `limited`, `limitation-count` and `limitations` outputs the root
+    `action.yml` declares; it lacked them. On an Unrated run `limited` is `true` and `limitations`
+    carries one message naming the cause, so a workflow gating on `limited` sees it. The
+    distribution metadata check now fails when the two manifests' outputs (names, descriptions or
+    values) differ.
+  - **Unchanged.** A complete clone is scored exactly as before, byte for byte, under v17 and v27.
+    v17's weights, bands, criteria and calibration are untouched; #517-#520 stay v27-only. A
+    complete clone whose history read failed (a read limit, the file cap, a partial clone's missing
+    object) is scored as before under every rubric.
 
 - **Prospective v27: A1 stops crediting a builtin copy that a tracked file may replace, reads nox
   posargs and the options a conftest.py declares, and pins #634's remaining shapes (part of #646;
