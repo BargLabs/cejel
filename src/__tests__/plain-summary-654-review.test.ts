@@ -171,3 +171,39 @@ describe('should-fix 3: the not-read sentence lists only the causes the report t
     expect(item?.text).not.toContain('over the size');
   });
 });
+
+describe('should-fix 4: the scan-limitation line follows the limitation\'s own cause', () => {
+  const limitationCheck = (report: WitanReport, index = 0) =>
+    buildPlainSummary(report).checkNext.find((entry) => entry.for === `not-known/scan-limitation/${index}`);
+
+  it('v27/dg/b2b3-workflow-lfs-pointer: a limitation caused by Git LFS pointers gets the git lfs pull line', () => {
+    const report = fixtureReport('v27/dg/b2b3-workflow-lfs-pointer');
+    expect(report.scanLimitations?.length).toBe(1);
+    const check = limitationCheck(report);
+    expect(check?.text).toBe(LFS_PULL_LINE);
+  });
+
+  it('the size-limit limitations, whose own text says they are not read failures, are never told to make files readable', () => {
+    for (const report of [
+      declinedReport(),
+      variant(fixtureReport('v17/fa/a4-uv-locked-lockfile-too-large'), (draft) => {
+        draft.scanLimitations = [LARGE_FILE_LIMITATION];
+      }),
+    ]) {
+      const check = limitationCheck(report);
+      expect(check?.text).not.toMatch(/readable/i);
+      expect(check?.text).not.toMatch(/^Fix /);
+    }
+  });
+
+  it('a limitation caused by unreadable files still says to make them readable', () => {
+    expect(limitationCheck(fixtureReport('v17/dg/b2b3-workflow-unreadable'))?.text).toMatch(/readable/);
+  });
+
+  it('a limitation no table entry knows gets no example that may point the wrong way', () => {
+    const report = variant(fixtureReport('v17/fa/a4-uv-locked-lockfile-too-large'), (draft) => {
+      draft.scanLimitations = ['The history scan stopped at its output limit.'];
+    });
+    expect(limitationCheck(report)?.text).not.toContain('making the files readable');
+  });
+});
