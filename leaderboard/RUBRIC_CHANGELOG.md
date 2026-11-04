@@ -62,7 +62,10 @@ rubric, v27 included, with the same note and no limitation.
   a note that names `no_git_history` and says no commit history was read. Where a confirmed
   critical finding stands there, under every rubric, or on a shallow clone or unknown depth under
   every rubric but v27, A2's note no longer claims history secret scanning covered all reachable
-  history. No report field or schema value is added.
+  history. No report field or schema value is added. As under v27 on a shallow clone since #442,
+  an A2 that abstains carries none of the evidence or findings it read from the checked-out tree
+  below critical (a timing-unsafe secret comparison, an env template); with no composite they
+  enter no number, but the certificate no longer lists them for these scans.
 - **B2** keeps its #604 handling.
 - **Disclosure.** Every rubric's `historyLimitations` sentence on a shallow clone is now the one
   v27 wrote (`SHALLOW_HISTORY_V27_ABSTENTION`); `SHALLOW_HISTORY_LIMITATION`, which said A2 was
@@ -114,7 +117,30 @@ without `.git`), and the curated cases of `src/witan/__tests__/v17-unread-histor
 Under v27 every shallow, failed-read and unknown-depth row was Unrated before and is byte-identical
 after. The four "v17 / v27" rows had the same values under both rubrics before.
 
-**Behaviour fingerprints.** FINGERPRINT_RESULT_PLACEHOLDER
+**Behaviour fingerprints.** No behaviour-fingerprint pin moved, v17's included:
+`src/witan/__tests__/rubric-behaviour-fingerprint.test.ts` and
+`src/witan/__tests__/v17-scoring-surface-golden.test.ts` pass unchanged, since every fixture they
+score is a complete clone. As the 2026-11-01 entry says, the fingerprint corpus holds no shallow
+clone and no directory without `.git`, so the fingerprint does not tell a report this build writes
+on one from one 0.6.9 wrote.
+
+**Pins re-captured** (each read off a full recomputation; every entry that moved is a shallow
+clone):
+
+- `src/witan/__tests__/fixtures/certificate-below-first-page/`: four v17 fixtures
+  (`dg/b3-master-target-depth-1-clone`, `dg/b3-master-target-ci-fetch`, `fa/history-shallow-clone`,
+  `fa/history-shallow-clone-with-committed-secret`): their certificate, report.json and
+  attestation.json digests, and the last one's full v17 pin. Every other v17 entry and every v27
+  entry of the 322 fixtures is unchanged.
+- `src/witan/__tests__/disclosure-gaps.test.ts`: the two depth-1 fixtures above, under v17-v26 (20
+  pins); their v27 pins are unchanged.
+- `src/witan/__tests__/fixtures/shallow-a2-surface-pins.json`: 42 pins, the depth-1 and depth-12
+  clones (v17 on all twelve A2 shapes, v18-v26 on #556's shape); no pin of a full, blobless,
+  treeless or missing-blob clone moved.
+
+Tests that wrote a few files to a directory with no `.git` to exercise one detector now commit those
+files first (`src/witan/__tests__/fixtures/commit-fixture.ts`), so they read the detector on a
+complete clone as they meant to; no assertion was loosened.
 
 No published score moved: the board is scored from complete clones.
 

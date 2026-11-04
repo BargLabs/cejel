@@ -41,7 +41,9 @@ recall claim.
     uploaded snapshot or archive carries no history. That covers every snapshot uploaded to the HTTP
     or remote-MCP server, every tarball and every archive export of a commit. A2 abstains, and its
     note says no history was read, unless a confirmed critical finding stands on the files; until
-    now it was scored with a note saying history secret scanning covered all reachable history.
+    now it was scored with a note saying history secret scanning covered all reachable history. An
+    A2 that abstains lists none of the tree findings below critical it read (as under v27 on a
+    shallow clone).
   - **The GitHub Action.** `BargLabs/cejel/action@v1` (`action/action.yml`, the path the README
     documents) now declares the `limited`, `limitation-count` and `limitations` outputs the root
     `action.yml` declares; it lacked them. On an Unrated run `limited` is `true` and `limitations`
