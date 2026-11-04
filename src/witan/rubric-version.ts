@@ -279,14 +279,25 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     compile, globals, vars or locals, __dict__, __import__ or importlib, an uncalled attribute
 //     named list or tuple, or any attribute named after the helper), from the #644 review at
 //     bca7ebfbf. Only that conftest.py is read for those names. From 2026-11-03
-//     (goal_cejel_v27_a1_gaps_2026-11-03, item A, cejel #646) a copy that calls a builtin
-//     (S = list(items) or tuple(items), or a strict helper restoring from list(src) or tuple(src))
-//     is credited only where no Python file in the repository names builtins or __builtins__ (in
-//     code, a string or a comment), since a module it imports, a second conftest.py or a plugin can
-//     patch the builtin at import time; otherwise the hook is not read, named with that statement and
-//     the file ("hook not read: `<statement>` in <path> calls a builtin, and <file> names
-//     builtins"). items[:], items.copy() and [*items] call no builtin and stay credited. A name
-//     spelled any other way (joined strings) and a helper patched from another file are not read.
+//     (goal_cejel_v27_a1_gaps_2026-11-03, item A, part of cejel #646; the #655 review) a copy that
+//     calls a builtin (S = list(items) or tuple(items), or a strict helper restoring from list(src)
+//     or tuple(src)) is credited only where no file the repository tracks, in any directory
+//     (vendor/, build/, dist/, venv/ and coverage/ included; outside Git, every file but .git), may
+//     replace the builtin: a Python source (.py, .pyw, .pyx, .pxd, .pxi) that, read under NFKC in
+//     code, strings and comments alike, names builtins anywhere (f_builtins too), modules,
+//     __dict__, __globals__, __getattr__, __getattribute__, __setattr__, __delattr__, __import__,
+//     importlib, setattr, delattr, getattr, attrgetter, _getframe, currentframe, f_globals,
+//     f_locals, f_back, tb_frame, gi_frame, cr_frame, ag_frame, gc, ctypes, __subclasses__, pickle,
+//     marshal, runpy, __loader__ or __spec__, or exec, eval, compile, globals, vars or locals not as
+//     an attribute, or an attribute named list or tuple that is not called; a .pyc, .pyo, .so, .pyd,
+//     .egg, .whl, .zip or .pth file; a source that is not a regular file, is past the content-read
+//     limit, is a Git LFS pointer or whose path git quotes; or files that cannot be listed.
+//     Otherwise the hook is not read, named with that statement and the file ("hook not read:
+//     `<statement>` in <path> calls a builtin, which <file> may replace", or "..., and the
+//     repository's files could not be listed"). items[:], items.copy() and [*items] call no builtin
+//     and stay credited. A module installed from outside the repository (an entry-point plugin, a
+//     sitecustomize, a .pth file in site-packages) and a route to builtins the list does not name
+//     are not read.
 //     The list reading must agree that the items are back; (3) not
 //     read, for anything else that empties or may empty the list (a lambda, a nested, decorated or
 //     async def, sorted, a slice that is not the whole list, another name bound to the list, an
@@ -354,16 +365,25 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     to a recipe (#626's first pass, 892a95a40, read it; an `export PYTEST_ADDOPTS` line, a bare
 //     `export` or .EXPORT_ALL_VARIABLES exports it). Each setting, command-line and not-read clause
 //     carries an evidence pointer at its line, sharing the eight with the hooks, the rest counted.
-//     From 2026-11-03 (goal_cejel_v27_a1_gaps_2026-11-03, items B and C, cejel #649) a noxfile's
-//     *session.posargs holds the words after `--` of each CI or recipe nox command (nox, python -m
-//     nox, uvx, uv run or pipx run nox), read as tox's posargs are (the empty set always, at most 16
-//     distinct literal sets; a word holding $, a backtick or braces, or a set past the 16th, is a
-//     run not read, named with that nox command); and a long option the reader does not know, before
-//     a word, is looked up in the repository's conftest.py files: declared by .addoption("--name",
-//     ...) with action store_true, store_false, count, store_const or append_const it takes no value
-//     and the word is a path; with any other literal action, or none, it takes the word; declared
-//     nowhere, through a name, with *args or **kwargs, a non-literal action or nargs=, or twice
-//     with different readings, the run stays not read;
+//     From 2026-11-03 (goal_cejel_v27_a1_gaps_2026-11-03, items B and C, cejel #649; the #655
+//     review) a noxfile's *session.posargs holds the words after `--` of each CI, recipe or tox nox
+//     command (nox, python -m nox, uvx, uv run or pipx run nox), read as tox's posargs are (the
+//     empty set always, at most 16 distinct literal sets); the noxfiles are read after tox's
+//     commands. A word holding $, a backtick or braces, a set past the 16th, a nox command another
+//     word runs (poetry run, env, hatch run, pdm run, uv run --with, uvx with options; not after
+//     install or add), and the first line of any other file in A1's file list that can run nox (a
+//     .sh, .bash, .zsh, .ksh, .fish, .ps1, .psm1, .bat, .cmd, .py, .pyw, .toml, .cfg, .ini, .yml,
+//     .yaml or .json file, a Dockerfile, a Containerfile or a file with no extension; not a
+//     noxfile, tox.ini, a CI file, a Makefile or justfile, or a read local action) naming nox as it
+//     would be run (not import nox or from nox in Python; elsewhere not a dependency, a key or a
+//     bare nox at the end of its line; not after install or add in the same command) is a run not
+//     read, named with that command, once per read and counted against the nox budget. A long option the reader does not
+//     know, before a word, is looked up in the repository's conftest.py files, CRLF read as LF and
+//     every call on a line: declared by .addoption("--name", ...) with action store_true,
+//     store_false, count, store_const or append_const it takes no value and the word is a path;
+//     with any other literal action, or none, it takes the word; declared nowhere, with **kwargs, a
+//     non-literal action or nargs=, or twice with different readings, the run stays not read, as
+//     does every such option where any conftest.py declares an option through a name or *args;
 //   - every criterion: a read of a Git LFS pointer is a content-read skip, so the criterion that
 //     read it abstains as a read failure instead of scoring the pointer text, unless its
 //     collector made a critical finding (it then scores as under v17);
