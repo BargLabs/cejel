@@ -940,7 +940,6 @@ interface WrongCandidate {
 }
 
 function buildWrong(report: WitanReport): WrongCandidate[] {
-  const abstained = report.verdict === 'insufficient_source';
   const candidates: WrongCandidate[] = [];
   for (const criterion of report.criteria) {
     const area = plainAreaName(criterion);
@@ -994,9 +993,9 @@ function buildWrong(report: WitanReport): WrongCandidate[] {
       const item: PlainWrongItem = {
         id: `wrong/criterion/${criterion.id}`,
         area,
-        text: abstained
-          ? 'Scored low, with no single finding of its own.'
-          : `Scored ${criterion.score.toFixed(1)} out of 4, with no single finding of its own.`,
+        // #654 review, should-fix 5: worded from the score with or without an overall result; each
+        // area's card in the certificate prints the same number either way.
+        text: `Scored ${criterion.score.toFixed(1)} out of 4, with no single finding of its own.`,
         level: criterion.status,
         source: { kind: 'criterion', criterionId: criterion.id },
         anchor: plainCriterionAnchor(criterion.id),
@@ -1389,6 +1388,11 @@ export function buildPlainSummary(report: WitanReport): PlainSummary {
   const notKnown = buildNotKnown(report);
   const findingItems = wrong.filter(({ item }) => item.source.kind === 'finding').length;
   const otherWrong = wrong.length - findingItems;
+  const otherLevels = [
+    ...new Set(wrong.filter(({ item }) => item.source.kind !== 'finding').map(({ item }) => item.level)),
+  ]
+    .sort((a, b) => SEVERITY_RANK[a] - SEVERITY_RANK[b])
+    .map((level) => (level === 'critical' ? 'Critical' : 'Warning'));
   return {
     ...(isProspectiveRubricVersion(report.rubricVersion) ? { prospectiveNotice: PLAIN_PROSPECTIVE_NOTICE } : {}),
     verdictLine: buildVerdictLine(report),
@@ -1401,7 +1405,7 @@ export function buildPlainSummary(report: WitanReport): PlainSummary {
     wrong: wrong.map(({ item }) => item),
     ...(otherWrong > 0
       ? {
-          wrongNote: `${findingItems} of these ${plural(findingItems, 'is a finding', 'are findings')} listed under Critical and warning findings below; the other ${otherWrong} ${plural(otherWrong, 'is an area', 'are areas')} that scored low with no single finding of ${plural(otherWrong, 'its', 'their')} own.`,
+          wrongNote: `${findingItems} of these ${plural(findingItems, 'is a finding', 'are findings')} listed under Critical and warning findings below; the other ${otherWrong} ${plural(otherWrong, 'is an area', 'are areas')} labelled ${joinOr(otherLevels)}, with no single finding of ${plural(otherWrong, 'its', 'their')} own.`,
         }
       : {}),
     notKnown: notKnown.map(({ item }) => item),

@@ -149,7 +149,7 @@ const NEXT_CHECKS: Readonly<Record<string, string>> = {
   'finding:B5': 'Check that lessons from past work are recorded, with their evidence, in the repository.',
   'finding:B6':
     "Check that privileged operations (database roles, credentials, production access) need a person's approval and stop when that check is missing.",
-  // An area whose measurements together scored low, with no single finding behind it.
+  // An area labelled Critical or Warning by its measurements together, with no single finding behind it.
   'finding-overall':
     "Look at this area's weakest measurements in the certificate below and add the evidence they look for.",
   'low-score':
