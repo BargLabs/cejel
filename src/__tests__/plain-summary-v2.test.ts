@@ -366,7 +366,7 @@ describe('blocker 3: an empty What holds prints exactly one sentence, true for i
     const plain = buildPlainSummary(report);
     expect(plain.holds).toEqual([]);
     expect(plain.holdsNote).toBe(
-      'Nothing is listed here because Cejel gave no overall result for this scan, although it rated some areas Verified; each area\'s own reading is in the certificate below.',
+      'Nothing is listed here because Cejel gave no overall result for this scan, although it rated 2 areas Verified; each area\'s own reading is in the certificate below.',
     );
     for (const text of [firstPageText(report), terminal(report)]) {
       expect(text).not.toContain('Nothing Cejel measured scored well enough');

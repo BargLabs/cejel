@@ -448,11 +448,13 @@ export function isProspectiveRubricVersion(rubricVersion: string): boolean {
 
 /**
  * Human-facing warning for a prospective-rubric certificate — terminal, HTML, and Markdown
- * renderers only. Deliberately never attached to report.json/attestation.json/summary.json/
- * badge.json: adding a field to those schemas would change their shape for every scan, including
- * the calibrated default, which is exactly the default-path behavior change `--rubric-pin` must
- * never cause. Those artifacts already name the exact rubric that ran via the existing
- * `rubricVersion` field; any downstream consumer can call `isProspectiveRubricVersion` on it.
+ * renderers. Deliberately never attached to report.json/attestation.json/badge.json: adding a
+ * field to those schemas would change their shape for every scan, including the calibrated
+ * default, which is exactly the default-path behavior change `--rubric-pin` must never cause.
+ * Those artifacts already name the exact rubric that ran via the existing `rubricVersion` field;
+ * any downstream consumer can call `isProspectiveRubricVersion` on it. summary.json carries a
+ * plain-words restatement of it, `plainSummary.prospectiveNotice` (src/plain-summary.ts), present
+ * only when the rubric is prospective; this exact text is not written to summary.json.
  */
 export const PROSPECTIVE_RUBRIC_NOTICE =
   'PROSPECTIVE / UNCALIBRATED RUBRIC — this rubric has not cleared a calibration gate. Scores, verdicts, and findings produced under it carry no precision/recall claim and are not comparable to a calibrated certificate.';

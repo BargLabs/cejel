@@ -531,14 +531,14 @@ const LIMITATION_TABLE: ReadonlyArray<{
     pattern:
       /^(\d+) (?:criterion|criteria) abstained because relevant repository content could not be read(?: and the affected signal could not be isolated)?\. Counts and errno classes are recorded in contentReadSummary; file paths are intentionally omitted\.$/,
     plain: (m) =>
-      `${areas(m[1] ?? '')} gave no score because files they read could not be read; the certificate below counts those files by cause and does not name them.`,
+      `${areas(m[1] ?? '')} gave no score because files ${m[1] === '1' ? 'it reads' : 'they read'} could not be read; the certificate below counts those files by cause and does not name them.`,
   },
   {
     key: 'content-declined',
     pattern:
       /^(\d+) (?:criterion|criteria) abstained because relevant repository content was declined under the repository content size limit or excluded from scanning by policy(?: — a disclosed coverage limit, not a read failure\. This does not affect the composite score\.|, and the affected signal could not be isolated\. This is a disclosed coverage limit, not a read failure, and does not affect the composite score\.)$/,
     plain: (m) =>
-      `${areas(m[1] ?? '')} gave no score because files they read were over Cejel's size limit or are left out of scanning by its rules; this is a stated limit, not a read failure, and it does not change the overall score.`,
+      `${areas(m[1] ?? '')} gave no score because files ${m[1] === '1' ? 'it reads' : 'they read'} were over Cejel's size limit or are left out of scanning by its rules; this is a stated limit, not a read failure, and it does not change the overall score.`,
   },
   {
     key: 'signal-unreadable',
@@ -894,7 +894,7 @@ function buildHolds(report: WitanReport): PlainItem[] {
       const lead =
         criterion.status === 'verified'
           ? `Rated Verified, ${score}.`
-          : `Rated Info, one label below Verified, ${score}.`;
+          : `Partly holds: rated Info, one label below Verified, ${score}.`;
       const strongest = strongestMeasurement(criterion);
       return {
         id: `holds/criterion/${criterion.id}`,
@@ -920,18 +920,21 @@ function scoreOf(report: WitanReport, item: PlainItem): number {
  * or Info, so each sentence is true of exactly that case.
  */
 function buildHoldsNote(report: WitanReport): string {
-  const listed = (status: WitanCriterionScore['status']): boolean =>
-    report.criteria.some((criterion) => criterion.status === status && hasExaminedEvidence(criterion));
-  const labels = [listed('verified') ? 'Verified' : undefined, listed('info') ? 'Info' : undefined].filter(
+  const listedCount = (status: WitanCriterionScore['status']): number =>
+    report.criteria.filter((criterion) => criterion.status === status && hasExaminedEvidence(criterion)).length;
+  const verified = listedCount('verified');
+  const info = listedCount('info');
+  const labels = [verified > 0 ? 'Verified' : undefined, info > 0 ? 'Info' : undefined].filter(
     (label): label is string => label !== undefined,
   );
+  const rated = verified + info;
   if (report.verdict !== 'insufficient_source') {
     return 'Nothing is listed here because Cejel rated no measured area Verified or Info.';
   }
   if (labels.length === 0) {
     return 'Nothing is listed here because Cejel gave no overall result for this scan, and it rated no measured area Verified or Info.';
   }
-  return `Nothing is listed here because Cejel gave no overall result for this scan, although it rated some areas ${joinOr(labels)}; each area's own reading is in the certificate below.`;
+  return `Nothing is listed here because Cejel gave no overall result for this scan, although it rated ${rated === 1 ? 'one area' : `${rated} areas`} ${joinOr(labels)}; each area's own reading is in the certificate below.`;
 }
 
 interface WrongCandidate {
