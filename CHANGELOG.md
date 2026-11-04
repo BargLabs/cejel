@@ -268,10 +268,21 @@ is pinned. v27 carries no precision or recall claim.
     an environment that installs the project, running its build code first (hatch is now credited
     only where the environment, or default, sets `skip-install = true`, and its other options are
     only a description and index-named dependencies).
+    Review of #657: a value flag's value is read only where it does not begin with `-` (so
+    `jest -w --listTests` and `npm test -- -w --listTests` no longer count); an `@` argument file
+    (pytest 8.2 and later) withholds the credit; a tox.ini with an indented line straight after a
+    section header, which configparser reads as a key, is unread; a pdm, Pipfile or hatch table
+    with a backslash in a key or table name is unread; `python -m X` also withholds beside a
+    repository module named `_X`, any `_`-name, a standard-library or site module, or a declared
+    dependency of X (`_pytest/`, `argparse.py`); ctest withholds, since it runs no test without a
+    CMake configuration that defines some; hatch.toml beside a pyproject.toml that configures hatch
+    leaves hatch unread; and an install at a workspace root, or with a dependency, override or
+    resolution that is not an index version range (such as a runner from `file:./stub`), is not a
+    setup step.
   - The v27 certificate's glossary sentence for the PR-gate CI count states these conditions as
     what Cejel reads (the sixth pass adds the path, Makefile-assignment and tsc-output conditions;
     the seventh, the justfile, tox and script-alias readings, the flag list and its values, the
-    project install under tox or hatch, and the module rule),
+    project install under tox or hatch, the module rule, ctest and argument files),
     and says that this is not a proof that the check can fail. #640's wording,
     which said no environment setting could change what the check runs, was not true.
 

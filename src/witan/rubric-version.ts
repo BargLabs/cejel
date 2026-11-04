@@ -258,7 +258,14 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     only with a positive count, and credits `hatch run` only in an environment whose
 //     `skip-install` (or default's, which it inherits) is true, with no hatch environment option
 //     but skip-install, description and index-named dependencies, since otherwise hatch installs
-//     the project, running its build code, first);
+//     the project, running its build code, first; and, from the review of #657, reads a value
+//     flag's value only where it does not begin with `-`, withholds on an `@` argument file, leaves
+//     a tox.ini with an indented line straight after a section header unread, leaves a pdm, Pipfile
+//     or hatch table with a backslash in a key unread, withholds `python -m X` beside a repository
+//     module named X, `_X`, any `_`-name, a standard-library or site module, or a dependency of X,
+//     withholds ctest (no CMake configuration is read), leaves hatch unread where hatch.toml sits
+//     beside a pyproject.toml configuring hatch, and reads no install at a workspace root or with a
+//     dependency, override or resolution that is not an index version range);
 //   - A1: conftest.py is not a concrete test file (not cited as one, and rated hollow where it
 //     asserts; from 2026-11-01 test_to_source_ratio counts it as test surface, as v17 does), and
 //     an unconditional run-wide pytest skip
