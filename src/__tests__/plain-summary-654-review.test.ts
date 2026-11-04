@@ -231,3 +231,62 @@ describe('should-fix 5: a Wrong area with no finding of its own is worded from i
     }
   });
 });
+
+describe('nits', () => {
+  const listedStatuses = (report: WitanReport) =>
+    report.criteria.filter(
+      (criterion) =>
+        (criterion.status === 'verified' || criterion.status === 'info') &&
+        (criterion.metrics.length > 0 || criterion.evidence.length > 0),
+    );
+
+  it('the empty-Holds sentence counts the areas it names: one area Verified is not "some areas"', () => {
+    const base = fixtureReport('v27/fa/history-shallow-clone-with-committed-secret');
+    const [keep, second] = listedStatuses(base);
+    expect(keep).toBeDefined();
+    expect(second).toBeDefined();
+    const one = variant(base, (draft) => {
+      for (const criterion of draft.criteria) {
+        if ((criterion.status === 'verified' || criterion.status === 'info') && criterion.id !== keep?.id) {
+          criterion.status = 'warning';
+        }
+        if (criterion.id === keep?.id) criterion.status = 'verified';
+      }
+    });
+    expect(buildPlainSummary(one).holdsNote).toBe(
+      "Nothing is listed here because Cejel gave no overall result for this scan, although it rated one area Verified; each area's own reading is in the certificate below.",
+    );
+    const two = variant(one, (draft) => {
+      const other = draft.criteria.find((criterion) => criterion.id === second?.id);
+      if (other) other.status = 'info';
+    });
+    expect(buildPlainSummary(two).holdsNote).toBe(
+      "Nothing is listed here because Cejel gave no overall result for this scan, although it rated 2 areas Verified or Info; each area's own reading is in the certificate below.",
+    );
+  });
+
+  it('"1 area gave no score because files it reads", not "files they read"', () => {
+    const plain = buildPlainSummary(fixtureReport('v27/fa/a1-js-suite-as-lfs-pointers'));
+    const limitation = plain.notKnown.find((item) => item.source.kind === 'scan-limitation');
+    expect(limitation?.text).toBe(
+      '1 area gave no score because files it reads could not be read; the certificate below counts those files by cause and does not name them.',
+    );
+    const declined = buildPlainSummary(
+      variant(declinedReport(), (draft) => {
+        draft.scanLimitations = [DECLINED_LIMITATION.replace('6 criteria', '1 criterion')];
+      }),
+    ).notKnown.find((item) => item.source.kind === 'scan-limitation');
+    expect(declined?.text).toMatch(/^1 area gave no score because files it reads were over/);
+  });
+
+  it('an Info area under What holds carries the "Partly holds" hedge', () => {
+    const base = fixtureReport('v17/fa/a4-uv-locked-lockfile-too-large');
+    const [target] = listedStatuses(base);
+    const report = variant(base, (draft) => {
+      const criterion = draft.criteria.find((entry) => entry.id === target?.id);
+      if (criterion) criterion.status = 'info';
+    });
+    const item = buildPlainSummary(report).holds.find((entry) => entry.id === `holds/criterion/${target?.id}`);
+    expect(item?.text).toMatch(/^Partly holds: rated Info, one label below Verified, at \d\.\d out of 4/);
+  });
+});
