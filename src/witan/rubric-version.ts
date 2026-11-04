@@ -254,7 +254,11 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     command; treats the root's install-script and package-manager readings as unread wherever a
 //     working-directory or a `cd` is set, as the other root readings were; and credits `python -m X`
 //     only where the root, and the directory it runs in, hold no path X, X/ or module file of stem X,
-//     compared case-insensitively);
+//     compared case-insensitively; and, from item F's mutation fixtures, admits `go test -count`
+//     only with a positive count, and credits `hatch run` only in an environment whose
+//     `skip-install` (or default's, which it inherits) is true, with no hatch environment option
+//     but skip-install, description and index-named dependencies, since otherwise hatch installs
+//     the project, running its build code, first);
 //   - A1: conftest.py is not a concrete test file (not cited as one, and rated hollow where it
 //     asserts; from 2026-11-01 test_to_source_ratio counts it as test surface, as v17 does), and
 //     an unconditional run-wide pytest skip

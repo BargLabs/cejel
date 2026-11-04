@@ -220,9 +220,16 @@ is pinned. v27 carries no precision or recall claim.
     package-manager readings are unread too, so an install there is no setup step. Python modules:
     `python -m X` counts only where the root, and the directory it runs in, hold no path `X`, `X/`
     or module file of stem `X` (compared case-insensitively), since Python imports from there first.
+    Mutation fixtures: for every credit path the pass keeps, a fixture with only the check changed
+    so that it cannot fail is excluded. Two were credited and are fixed: `go test -count=0` (a
+    flag value can now be refused, and `-count` admits a positive count only), and `hatch run` in
+    an environment that installs the project, running its build code first (hatch is now credited
+    only where the environment, or default, sets `skip-install = true`, and its other options are
+    only a description and index-named dependencies).
   - The v27 certificate's glossary sentence for the PR-gate CI count states these conditions as
     what Cejel reads (the sixth pass adds the path, Makefile-assignment and tsc-output conditions;
-    the seventh, the justfile, tox and script-alias readings, the flag list and the module rule),
+    the seventh, the justfile, tox and script-alias readings, the flag list and its values, the
+    project install under tox or hatch, and the module rule),
     and says that this is not a proof that the check can fail. #640's wording,
     which said no environment setting could change what the check runs, was not true.
 
