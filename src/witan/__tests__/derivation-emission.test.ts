@@ -286,9 +286,15 @@ describe('inventory-scan derivation contract', () => {
     mkdirSync(join(repoPath, 'src'), { recursive: true });
     writeFileSync(join(repoPath, 'src/index.ts'), 'export const answer = 42;\n', 'utf8');
 
-    const finding = nativeFindings(score(repoPath)).find((candidate) =>
-      candidate.summary.startsWith('Reviewable source is present'),
-    );
+    // A directory with no .git is a directory walk, and since the operator's ruling of 2 Nov it gets
+    // no composite and no verdict under every rubric (reason no_git_history). Each criterion is still
+    // read and shown, so the finding is read from the criteria themselves.
+    const report = score(repoPath);
+    expect(report.verdict).toBe('insufficient_source');
+    expect(report.insufficientSourceReason).toContain('(reason: no_git_history)');
+    const finding = report.criteria
+      .flatMap((criterion) => criterion.findings)
+      .find((candidate) => candidate.summary.startsWith('Reviewable source is present'));
 
     expect(finding?.summary).toContain('bounded directory walk');
     expect(finding?.summary).not.toContain('complete tracked inventory');

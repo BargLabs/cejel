@@ -13,6 +13,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { beforeAll, describe, expect, it } from 'vitest';
 
 import { CLI_FLAG_SPECS, CLI_FLAG_TOKENS, type CliFlagKind, type CliFlagToken } from '../index.js';
+import { commitFixture } from '../witan/__tests__/fixtures/commit-fixture.js';
 
 // Hermetic install-from-tarball regression test. The real 2026-07-06 `npm publish`
 // attempt failed with EUNSUPPORTEDPROTOCOL because internal workspace packages were
@@ -244,6 +245,9 @@ describe('cejel install-from-tarball (published artifact)', () => {
         runs: [{ tool: { driver: { name: 'smoke' } }, results: [] }],
       }),
     );
+    // A git clone, so the --min-score case below reaches the low-coverage refusal it exercises: a
+    // directory with no .git is Unrated: no git history under every rubric (operator ruling of 2 Nov).
+    commitFixture(targetRepo);
 
     const help = execFileSync(binPath, ['--help'], { cwd: targetRepo, encoding: 'utf8' });
     const shortHelp = execFileSync(binPath, ['-h'], { cwd: targetRepo, encoding: 'utf8' });

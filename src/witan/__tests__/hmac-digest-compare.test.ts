@@ -4,6 +4,7 @@ import { join, dirname } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { buildWitanInputFromRepo } from '../repo-signals.js';
 import { WITAN_RUBRIC_VERSION_V17, WITAN_SELECTABLE_RUBRIC_VERSIONS } from '../rubric-version.js';
+import { commitFixture } from './fixtures/commit-fixture.js';
 
 // A2 insecure-compare: a value named `digest` is secret when the same file computes it with a
 // keyed HMAC, not because of its name (goal_cejel_v26_hmac_digest_compare_2026-10-14). #430
@@ -20,7 +21,7 @@ function timingFinding(files: Record<string, string>, rubricVersion: string = WI
     writeFileSync(path, content);
   }
   const signals = buildWitanInputFromRepo({
-    repoPath: root,
+    repoPath: commitFixture(root),
     productSlug: 'hmac-digest',
     productDisplayName: 'hmac-digest',
     generatedAt: '2026-09-15T00:00:00.000Z',

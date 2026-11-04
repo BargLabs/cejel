@@ -27,6 +27,7 @@ import {
   WITAN_RUBRIC_VERSION_V22,
 } from '../witan/rubric-version.js';
 import { computeApplicableMeasuredCoverage } from '../witan/coverage.js';
+import { commitFixture } from '../witan/__tests__/fixtures/commit-fixture.js';
 
 // Committed fixture (not a machine-specific temp file) — lives in the vendored witan-core test
 // fixtures since the SARIF adapter tests there also read it. See
@@ -291,6 +292,7 @@ describe('runWitanFreeCli (zero-config end-to-end)', () => {
     const repoPath = mkdtempSync(join(tmpdir(), 'witan-free-cli-'));
     const outDir = join(repoPath, '.witan');
     writeFixtureFile(repoPath, 'package.json', JSON.stringify({ name: 'sample-app', scripts: {} }));
+    commitFixture(repoPath);
 
     const exitCode = await runWitanFreeCli([repoPath, '--out-dir', outDir, '--quiet']);
 
@@ -882,6 +884,7 @@ describe('runWitanFreeCli (zero-config end-to-end)', () => {
     const repoPath = mkdtempSync(join(tmpdir(), 'witan-free-cli-threshold-pass-'));
     const outDir = join(repoPath, '.witan');
     writeFixtureFile(repoPath, 'src/index.ts', 'export const value = 42;');
+    commitFixture(repoPath);
     const stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
 
     try {
@@ -1391,6 +1394,7 @@ describe('runWitanFreeCli (--ingest scanner aggregation)', () => {
     const repoPath = mkdtempSync(join(tmpdir(), 'witan-ingest-itemize-'));
     const outDir = join(repoPath, '.witan');
     writeFixtureFile(repoPath, 'package.json', JSON.stringify({ name: 'sample-app' }));
+    commitFixture(repoPath);
 
     const stdoutSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
     let exitCode: number;

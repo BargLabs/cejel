@@ -170,7 +170,12 @@ describe('tracked-file inventory fallback', () => {
 
       expect(report.scanLimitations).toBeUndefined();
       expect(report.criteria.length).toBeGreaterThan(0);
-      expect(report.overallScore).not.toBeNull();
+      // Operator ruling of 2 Nov: Cejel read no history here, so under every rubric the report
+      // gives no composite and no verdict (a history abstention), while each criterion is still read
+      // and shown from the directory walk.
+      expect(report.overallScore).toBeNull();
+      expect(report.verdict).toBe('insufficient_source');
+      expect(report.insufficientSourceReason).toMatch(/\(reason: (?:no_git_history|history_depth_unknown)\)/);
       expect(report.repo.headSha).toBeUndefined();
       expect(JSON.stringify(report)).not.toContain('complete tracked inventory');
       expect(JSON.stringify(report)).not.toContain('tracked-scan-eligible');

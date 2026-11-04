@@ -43,7 +43,7 @@ describe('README: clone in full, and what a shallow clone does', () => {
   // shallow clone gets no composite and no verdict, and Cejel says how to fetch the history.
   it('says that under every rubric, the default included, a shallow clone gets no composite and no verdict, and how to fetch the history', () => {
     const everyRubric = shallowParagraphs().filter((paragraph) =>
-      /under every rubric, the (?:calibrated )?default included/.test(paragraph.replace(/\s+/g, ' ')),
+      /under every rubric, the (?:calibrated )?default included, a shallow (?:clone|checkout) gets/i.test(paragraph.replace(/\s+/g, ' ')),
     );
     expect(everyRubric.length).toBeGreaterThanOrEqual(2);
     for (const paragraph of everyRubric) {

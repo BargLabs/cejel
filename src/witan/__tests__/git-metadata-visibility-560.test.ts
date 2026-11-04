@@ -108,7 +108,10 @@ describe('hasVisibleGitMetadata', () => {
 });
 
 describe('a stray empty .git directory in a parent is not an unopenable repository (#560 review, G2)', () => {
-  it('A2 stays not applicable with no disclosure under v17 and v27', () => {
+  // Not an unopenable repository, and not a repository at all: since the operator's ruling of 2 Nov
+  // a directory with no git history gives no composite and no verdict under every rubric, and A2
+  // abstains with no_git_history (until then it stayed not applicable). Still no disclosure.
+  it('A2 abstains with no_git_history, not as an unopenable repository, with no disclosure under v17 and v27', () => {
     mkdirSync(join(root, 'stray', '.git'), { recursive: true });
     mkdirSync(join(root, 'stray', 'proj', 'src'), { recursive: true });
     writeFileSync(join(root, 'stray', 'proj', 'package.json'), '{"name":"stray","version":"1.0.0"}\n');
@@ -124,7 +127,10 @@ describe('a stray empty .git directory in a parent is not an unopenable reposito
         autoDiscoverIngest: false,
       });
       const a2 = report.criteria.find(({ id }) => id === 'A2');
-      expect(a2?.status, rubricVersion).toBe('not_applicable');
+      expect(report.insufficientSourceReason ?? '', rubricVersion).toContain('(reason: no_git_history)');
+      expect(a2?.status, rubricVersion).toBe('insufficient_data');
+      expect(a2?.notes ?? '', rubricVersion).toContain('(reason: no_git_history)');
+      expect(a2?.notes ?? '', rubricVersion).not.toContain(UNOPENABLE);
       expect(a2?.disclosures, rubricVersion).toBeUndefined();
     }
   });
@@ -149,9 +155,11 @@ describe('an unreadable or dangling .git still counts as a repository Cejel coul
       expect(v27?.status).toBe('insufficient_data');
       expect(v27?.score).toBe(0);
       expect(v27?.notes ?? '').toContain(UNOPENABLE);
+      // Operator ruling of 2 Nov: the depth cannot be read, so v17 abstains as v27 does (until then
+      // it kept A2 not applicable and disclosed the unread history).
       const v17 = scanA2(clone, WITAN_RUBRIC_VERSION_V17);
-      expect(v17?.status).toBe('not_applicable');
-      expect((v17?.disclosures ?? []).some((text) => text.includes(UNOPENABLE))).toBe(true);
+      expect(v17?.status).toBe('insufficient_data');
+      expect(v17?.notes ?? '').toContain(UNOPENABLE);
     } finally {
       chmodSync(join(clone, '.git'), 0o755);
     }
@@ -166,8 +174,9 @@ describe('an unreadable or dangling .git still counts as a repository Cejel coul
     const v27 = scanA2(copy, WITAN_RUBRIC_VERSION_V27);
     expect(v27?.status).toBe('insufficient_data');
     expect(v27?.notes ?? '').toContain(UNOPENABLE);
+    // Operator ruling of 2 Nov, as above: v17 abstains as v27 does.
     const v17 = scanA2(copy, WITAN_RUBRIC_VERSION_V17);
-    expect(v17?.status).toBe('not_applicable');
-    expect((v17?.disclosures ?? []).some((text) => text.includes(UNOPENABLE))).toBe(true);
+    expect(v17?.status).toBe('insufficient_data');
+    expect(v17?.notes ?? '').toContain(UNOPENABLE);
   });
 });

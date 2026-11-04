@@ -7,7 +7,12 @@ import { beforeAll, describe, expect, it } from 'vitest';
 
 import { buildWitanCliSummary } from '../../summary.js';
 import { renderWitanBadgeSvg } from '../badge.js';
-import { HISTORY_READING_CRITERIA, SHALLOW_HISTORY_LIMITATION, detectHistoryLimitations } from '../history-depth.js';
+import {
+  HISTORY_READING_CRITERIA,
+  SHALLOW_HISTORY_LIMITATION,
+  SHALLOW_HISTORY_V27_ABSTENTION,
+  detectHistoryLimitations,
+} from '../history-depth.js';
 import { scoreRepoWithPublicCejel } from '../public-scan.js';
 import { a2HistoryApplicabilityDisclosure } from '../repo-signals.js';
 import type { WitanReport } from '../schemas.js';
@@ -74,13 +79,17 @@ describe('shallow history is disclosed, never scored', () => {
     expect(git(full, 'rev-parse', '--is-shallow-repository')).toBe('false');
   });
 
+  // Operator ruling of 2 Nov: the default rubric, like v27, gives a shallow clone no composite and
+  // no verdict, so its history limitation is the abstention sentence v27 writes. No scan writes
+  // SHALLOW_HISTORY_LIMITATION any more; it still names every criterion that reads history.
   it('declares the shallow history, naming every criterion that reads history', () => {
     const report = scan(shallow);
-    expect(report.historyLimitations).toEqual([SHALLOW_HISTORY_LIMITATION]);
+    expect(report.historyLimitations).toEqual([SHALLOW_HISTORY_V27_ABSTENTION]);
     for (const criterion of HISTORY_READING_CRITERIA) {
+      expect(SHALLOW_HISTORY_V27_ABSTENTION).toContain(`${criterion} (`);
       expect(SHALLOW_HISTORY_LIMITATION).toContain(`${criterion} (`);
     }
-    expect(buildWitanCliSummary(report).historyLimitations).toEqual([SHALLOW_HISTORY_LIMITATION]);
+    expect(buildWitanCliSummary(report).historyLimitations).toEqual([SHALLOW_HISTORY_V27_ABSTENTION]);
   });
 
   it('declares nothing for a full clone or a directory that is not a git repository', () => {
@@ -91,31 +100,29 @@ describe('shallow history is disclosed, never scored', () => {
     expect(detectHistoryLimitations(plain)).toBeUndefined();
   });
 
-  it('moves no score, status, scan limitation, badge or --min-score input', () => {
+  // Until the operator's ruling of 2 Nov this pinned that a v17 shallow clone was scored exactly as
+  // its full clone ("moves no score"), with A2 not applicable and a #556 disclosure. The ruling
+  // withholds the composite and the verdict instead; the history limitation itself is still not a
+  // scan limitation, and every criterion but A2 reads as on the full clone.
+  it('gives no composite and no verdict, adds no scan limitation, and reads every criterion but A2 as on the full clone', () => {
     const shallowReport = scan(shallow);
     const fullReport = scan(full);
-    // This fixture's history has no PR-merge subjects, so B2 reads 0 of N on both clones and the
-    // two scans must agree on everything but the disclosures. A2 is not applicable on both, and on
-    // the shallow clone that decision rested on history scans that read only the commits present,
-    // so A2 carries the #556 sentence saying so (presentation only, exactly that sentence).
-    const { historyLimitations: _disclosure, ...shallowRest } = shallowReport;
-    const shallowA2 = shallowRest.criteria.find(({ id }) => id === 'A2');
-    expect(shallowA2?.status).toBe('not_applicable');
-    expect(shallowA2?.disclosures).toEqual([
-      a2HistoryApplicabilityDisclosure({ shallow: true, limitHits: [], otherFailure: false }),
-    ]);
+    expect(shallowReport.verdict).toBe('insufficient_source');
+    expect(shallowReport.overallScore).toBeNull();
+    expect(shallowReport.insufficientSourceReason ?? '').toContain('(reason: shallow_history)');
+    // A2 was not applicable on a decision that rests on history scans that read only the commits
+    // present, so it abstains as v27's does, with no #556 disclosure.
+    const shallowA2 = shallowReport.criteria.find(({ id }) => id === 'A2');
+    expect(shallowA2?.status).toBe('insufficient_data');
+    expect(shallowA2?.notes ?? '').toMatch(/^A2 abstained: this repository is a shallow clone, and A2 would otherwise have been marked not applicable/);
+    expect(shallowA2?.disclosures).toBeUndefined();
+    expect(fullReport.criteria.find(({ id }) => id === 'A2')?.status).toBe('not_applicable');
     expect(fullReport.criteria.find(({ id }) => id === 'A2')?.disclosures).toBeUndefined();
-    expect({
-      ...shallowRest,
-      criteria: shallowRest.criteria.map((criterion) => {
-        if (criterion.id !== 'A2') return criterion;
-        const { disclosures: _a2, ...rest } = criterion;
-        return rest;
-      }),
-    }).toEqual(fullReport);
+    expect(shallowReport.criteria.filter(({ id }) => id !== 'A2')).toEqual(fullReport.criteria.filter(({ id }) => id !== 'A2'));
     expect(shallowReport.scanLimitations ?? []).toEqual([]);
     expect(buildWitanCliSummary(shallowReport).scanLimitations).toEqual([]);
-    expect(renderWitanBadgeSvg(shallowReport)).toBe(renderWitanBadgeSvg(fullReport));
-    expect(renderWitanBadgeSvg(shallowReport)).not.toContain('unrated');
+    expect(renderWitanBadgeSvg(shallowReport)).toContain('unrated: shallow clone');
+    expect(fullReport.verdict).not.toBe('insufficient_source');
+    expect(a2HistoryApplicabilityDisclosure({ shallow: true, limitHits: [], otherFailure: false })).toContain('this clone is shallow');
   });
 });
