@@ -255,6 +255,7 @@ const PLAIN_FIRST_PAGE_CSS = `
 .plain-title { font-size: 34px; margin-bottom: 14px; }
 .plain-title code { font-size: .8em; }
 .plain-verdict { font-size: 18px; color: var(--text); margin-bottom: 20px; }
+.plain-prospective { border: 1px solid var(--warn); border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; color: var(--text); }
 .plain-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .plain-list { border: 1px solid var(--line); border-radius: 8px; background: var(--surface-2); padding: 16px 18px; min-width: 0; }
 .plain-list h3 { font-size: 18px; margin-bottom: 8px; }
@@ -353,7 +354,7 @@ function renderPlainFirstPage(report: WitanReport, plain: PlainSummary): string 
       <style>${PLAIN_FIRST_PAGE_CSS}</style>
       <p class="eyebrow">Read this first</p>
       <h2 class="plain-title" id="plain-first-page-heading">What this result means for <code>${escapeHtml(report.productDisplayName)}</code></h2>
-      <p class="plain-verdict">${escapeHtml(plain.verdictLine)}</p>
+      ${plain.prospectiveNotice !== undefined ? `<p class="plain-prospective" role="note"><strong>Read this before the result:</strong> ${escapeHtml(plain.prospectiveNotice)}</p>\n      ` : ''}<p class="plain-verdict">${escapeHtml(plain.verdictLine)}</p>
       <div class="plain-grid">
         ${holds}
         ${wrong}

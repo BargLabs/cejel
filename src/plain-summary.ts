@@ -21,6 +21,7 @@ import {
   isCoveragePercentageUnpublished,
 } from './witan/certificate-presentation.js';
 import { computeMeasuredCoverage } from './witan/coverage.js';
+import { isProspectiveRubricVersion } from './witan/rubric-version.js';
 import { METRIC_DERIVED_FINDING_PATTERN } from './witan/finding-presentation.js';
 import {
   SHALLOW_HISTORY_LIMITATION,
@@ -103,6 +104,11 @@ export interface PlainCheckNextItem {
 }
 
 export interface PlainSummary {
+  /**
+   * Present when the report's rubric is prospective (v27): the certificate hero's uncalibrated
+   * notice in plain words, shown above the verdict line (v2 item E).
+   */
+  readonly prospectiveNotice?: string;
   /** The verdict and score in words, one sentence. */
   readonly verdictLine: string;
   /** What the result does not cover, one sentence. */
@@ -199,6 +205,13 @@ const SCORED_VERDICT_LABELS: Readonly<Record<WitanScoredVerdict, string>> = {
 };
 
 const VERDICT_SCALE = '(from best to worst, the results are Verified, Conditional, At risk and Unverified)';
+
+/**
+ * v2 item E: PROSPECTIVE_RUBRIC_NOTICE (rubric-version.ts), which the certificate's hero carries,
+ * in plain words: prospective, not calibrated, no precision or recall claim, not comparable.
+ */
+export const PLAIN_PROSPECTIVE_NOTICE =
+  'Prospective, not calibrated: this result uses a trial version of the scoring rules that has not been calibrated, so its score, verdict and findings carry no precision or recall claim (no claim about how often they are right or what they miss) and cannot be compared with a result under the default rules.';
 
 export const PLAIN_NOT_COVERED =
   "What this result does not cover: Cejel read the repository's files and history and did not run the code or its tests, so this result does not show that the code works as intended or that it has no vulnerabilities.";
@@ -414,6 +427,7 @@ export function plainSummaryFixedSentences(): string[] {
     ...Object.values(PLAIN_AREA_NAMES),
     PLAIN_INSUFFICIENT_SOURCE_FALLBACK,
     PLAIN_HOLDS_LEAD,
+    PLAIN_PROSPECTIVE_NOTICE,
     ...SETTLING_SENTENCES.map(({ plain }) => plain),
     ...Object.values(DISCLOSURE_SENTENCES),
     ...Object.values(PLAIN_ABSENCE_FINDINGS),
@@ -1207,6 +1221,7 @@ export function buildPlainSummary(report: WitanReport): PlainSummary {
   const findingItems = wrong.filter(({ item }) => item.source.kind === 'finding').length;
   const otherWrong = wrong.length - findingItems;
   return {
+    ...(isProspectiveRubricVersion(report.rubricVersion) ? { prospectiveNotice: PLAIN_PROSPECTIVE_NOTICE } : {}),
     verdictLine: buildVerdictLine(report),
     notCovered: PLAIN_NOT_COVERED,
     areas,
