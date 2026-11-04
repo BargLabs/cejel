@@ -631,6 +631,43 @@ export const RUN_FIXTURES: readonly RunFixture[] = [
     },
     [runNotRead('--runslow tests', CI_PATH)],
   ),
+  // The review of #655, blocker 4: each refusal of the declaration reader has a fixture that fails
+  // where the refusal is removed (each would then read the next word as a value or a path and rate
+  // the files hollow).
+  withheld(
+    'a1gap-option-declared-with-nargs',
+    'G',
+    'Control: --level is declared with nargs="?", so it may or may not take the next word: the run stays not read.',
+    {
+      'conftest.py': lines('def pytest_addoption(parser):', '    parser.addoption("--level", action="store", nargs="?", const="1")'),
+      'tests/conftest.py': CLEAR_HOOK,
+      [CI_PATH]: ciWorkflow(['pytest --level tests']),
+    },
+    [runNotRead('--level tests', CI_PATH)],
+  ),
+  withheld(
+    'a1gap-option-declared-twice-disagreeing',
+    'G',
+    'Control: the root conftest.py declares --runslow with action="store_true" and another conftest.py declares it with no action (a value): the run stays not read.',
+    {
+      'conftest.py': lines('def pytest_addoption(parser):', '    parser.addoption("--runslow", action="store_true")'),
+      'integration/conftest.py': lines('def pytest_addoption(parser):', '    parser.addoption("--runslow", default="no")'),
+      'tests/conftest.py': CLEAR_HOOK,
+      [CI_PATH]: ciWorkflow(['pytest --runslow tests']),
+    },
+    [runNotRead('--runslow tests', CI_PATH)],
+  ),
+  withheld(
+    'a1gap-option-declared-with-non-literal-action',
+    'G',
+    'Control: --runslow is declared with action=ACTION, a name, so Cejel cannot tell whether it takes a value: the run stays not read.',
+    {
+      'conftest.py': lines('ACTION = "store_true"', '', '', 'def pytest_addoption(parser):', '    parser.addoption("--runslow", action=ACTION)'),
+      'tests/conftest.py': CLEAR_HOOK,
+      [CI_PATH]: ciWorkflow(['pytest --runslow tests']),
+    },
+    [runNotRead('--runslow tests', CI_PATH)],
+  ),
 ];
 
 /** The sentence A1's note holds once where a run could read a configuration file above the repository's root (item C). */
