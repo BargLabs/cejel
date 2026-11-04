@@ -192,7 +192,7 @@ describe('item G — CRLF and LF conftest.py read alike', () => {
       '    parser.addoption("--sel", choices=["a", "b"])  # action="store_true"',
     );
     const crlf = lf.replace(/\n/g, '\r\n');
-    const read = (text: string) => [...readPytestDeclaredOptions(['conftest.py'], () => text)].sort();
+    const read = (text: string) => [...readPytestDeclaredOptions(['conftest.py'], () => text).options].sort();
     expect(read(lf)).toEqual([
       ['--chatty', 'flag'],
       ['--env', 'value'],

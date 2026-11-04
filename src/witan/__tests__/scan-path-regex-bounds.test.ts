@@ -606,22 +606,29 @@ describe('scaling: the v27 A1 gap readers grow no faster than linearly', () => {
     expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
   }, 120_000);
 
-  // Item C: the conftest option reader, on L/60 addoption calls and on one call left open to the
-  // end of a file of L bytes (read once, never again from each later line).
-  it('the conftest option reader, on L/60 declarations and on an unclosed call of L bytes', () => {
+  // Item C: the conftest option reader, on L/60 addoption calls, on one call left open to the end
+  // of a file of L bytes (read once, never again from each later line), and (the review of #655:
+  // every call on a line, CRLF text) on one CRLF line of L/50 calls and one line of L/16 quoted
+  // `.addoption(` strings, swept once beside its matches.
+  it('the conftest option reader, on L/60 declarations, an unclosed call of L bytes, and long lines of calls and quoted calls', () => {
     const textsFor = (length: number): Map<string, string> => {
-      const declarations = Array.from({ length: Math.floor(length / 60) }, (_, index) => `    parser.addoption("--opt-${index}", action="store_true")`).join('\n');
+      const declarations = Array.from({ length: Math.floor(length / 60) }, (_, index) => `    parser.addoption("--opt-${index}", action="store_true")`).join('\r\n');
       const open = `def pytest_addoption(parser):\n    parser.addoption(\n${'        "x", parser.addoption(\n'.repeat(Math.floor(length / 40))}`;
+      const oneLine = Array.from({ length: Math.floor(length / 50) }, (_, index) => `p.addoption("--l${index}", action="count"); `).join('');
+      const quoted = `x = ${'".addoption(" + '.repeat(Math.floor(length / 16))}""`;
       return new Map([
-        ['conftest.py', `def pytest_addoption(parser):\n${declarations}\n`],
+        ['conftest.py', `def pytest_addoption(parser):\r\n${declarations}\r\n`],
         ['tests/conftest.py', open],
+        ['a/conftest.py', `def pytest_addoption(p):\n    ${oneLine}\n`],
+        ['b/conftest.py', `${quoted}\n`],
       ]);
     };
-    const files = ['conftest.py', 'tests/conftest.py'];
+    const files = ['a/conftest.py', 'b/conftest.py', 'conftest.py', 'tests/conftest.py'];
     const texts = new Map([SCALING_LENGTH, 2 * SCALING_LENGTH].map((length) => [length, textsFor(length)]));
     const { ratio, timing, atL, at2L } = scalingRatio((length) => readPytestDeclaredOptions(files, (file) => texts.get(length)?.get(file)));
-    expect(atL.get('--opt-0')).toBe('flag');
-    expect(at2L.get('--opt-0')).toBe('flag');
+    expect(atL.options.get('--opt-0')).toBe('flag');
+    expect(at2L.options.get('--opt-0')).toBe('flag');
+    expect(atL.options.get(`--l${Math.floor(SCALING_LENGTH / 50) - 1}`)).toBe('flag');
     expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
   }, 60_000);
 });

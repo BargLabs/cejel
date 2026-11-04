@@ -13338,12 +13338,55 @@ function readPythonCallArguments(text: string, open: number): { readonly args: s
 }
 
 /**
- * item C: each long option the repository's conftest.py files declare with `.addoption(...)` or
- * `._addoption(...)` (on the parser or an option group), read from code, not comments or strings.
- * Linear in the files. Exported for the scaling check in scan-path-regex-bounds.test.ts.
+ * The positions in a code line (one that does not start inside a string) of the matches of the
+ * global `pattern` that fall outside its strings and comments: one sweep of the line beside the
+ * matches, which are in order. Linear in the line.
  */
-export function readPytestDeclaredOptions(repoFiles: readonly string[], readText: (file: string) => string | undefined): Map<string, PytestDeclaredOption> {
+function pythonCodeMatchesOnLine(raw: string, pattern: RegExp): number[] {
+  const found: number[] = [];
+  let quote = '';
+  let at = 0;
+  for (const match of raw.matchAll(pattern)) {
+    const position = match.index ?? 0;
+    for (; at < position; at += 1) {
+      const character = raw[at] ?? '';
+      if (quote !== '') {
+        if (character === '\\') at += 1;
+        else if (raw.startsWith(quote, at)) {
+          at += quote.length - 1;
+          quote = '';
+        }
+      } else if (character === '#') return found;
+      else if (character === '"' || character === "'") {
+        quote = raw.startsWith(character.repeat(3), at) ? character.repeat(3) : character;
+        at += quote.length - 1;
+      }
+    }
+    if (quote === '') found.push(position);
+  }
+  return found;
+}
+
+/** item C: what the repository's conftest.py files declare. */
+export interface PytestDeclaredOptions {
+  /** Each long option declared with string literals, and how it is read. */
+  readonly options: ReadonlyMap<string, PytestDeclaredOption>;
+  /**
+   * The review of #655, should-fix 6: true where some declaration names its option through
+   * something other than a string literal (a name, `*args`), which may be any option.
+   */
+  readonly unreadName: boolean;
+}
+
+/**
+ * item C: each long option the repository's conftest.py files declare with `.addoption(...)` or
+ * `._addoption(...)` (on the parser or an option group), read from code, not comments or strings,
+ * every call on a line (the review of #655, nit), with CRLF text read as LF (should-fix 5). Linear
+ * in the files. Exported for the scaling check in scan-path-regex-bounds.test.ts.
+ */
+export function readPytestDeclaredOptions(repoFiles: readonly string[], readText: (file: string) => string | undefined): PytestDeclaredOptions {
   const declared = new Map<string, PytestDeclaredOption>();
+  let unreadName = false;
   const record = (name: string, kind: PytestDeclaredOption) => {
     const known = declared.get(name);
     declared.set(name, known === undefined || known === kind ? kind : 'unknown');
@@ -13353,46 +13396,57 @@ export function readPytestDeclaredOptions(repoFiles: readonly string[], readText
     const text = readText(file);
     if (text === undefined || !text.includes('addoption')) continue;
     const source = pythonSourceLines(text);
-    // The offset of each line in the text, so a call found in a code line is read from there on.
-    let offset = 0;
+    // The offset of each line in the text, from the text itself (a CRLF line is one longer than its
+    // raw line), so a call found in a code line is read from there on.
+    let lineStart = 0;
     let readTo = 0;
-    for (let line = 0; line < source.raw.length; line += 1) {
+    for (let line = 0; line < source.raw.length; line += 1, lineStart = nextLineStart(text, lineStart)) {
       const raw = source.raw[line] ?? '';
-      const lineStart = offset;
-      offset += raw.length + 1;
-      if (lineStart < readTo || source.inString[line] === true) continue;
+      if (source.inString[line] === true) continue;
       const code = source.masked[line] ?? '';
       if (!code.includes('addoption')) continue;
-      PYTHON_ADDOPTION_CALL_PATTERN.lastIndex = 0;
-      const match = PYTHON_ADDOPTION_CALL_PATTERN.exec(raw);
-      if (match === null) continue;
-      const call = readPythonCallArguments(text, lineStart + match.index + match[0].length - 1);
-      readTo = call.end;
-      const names: string[] = [];
-      let readable = true;
-      let action: string | undefined;
-      for (const arg of call.args) {
-        // `*args` and `**kwargs` are neither a keyword nor a string literal, so they fall to the
-        // last line below and leave the declaration unreadable.
-        const keyword = /^([A-Za-z_]\w*)[ \t]*=(?!=)[ \t]*([\s\S]*)$/.exec(arg);
-        if (keyword) {
-          if (keyword[1] === 'nargs') readable = false;
-          if (keyword[1] === 'action') {
-            const literal = PYTHON_PLAIN_STRING_PATTERN.exec((keyword[2] ?? '').trim());
-            if (literal) action = literal[1] ?? literal[2] ?? '';
-            else readable = false;
+      for (const position of pythonCodeMatchesOnLine(raw, PYTHON_ADDOPTION_CALL_PATTERN)) {
+        const at = lineStart + position;
+        if (at < readTo) continue;
+        const open = text.indexOf('(', at);
+        const call = readPythonCallArguments(text, open);
+        readTo = call.end;
+        const names: string[] = [];
+        let readable = true;
+        let action: string | undefined;
+        for (const arg of call.args) {
+          // `*args` and `**kwargs` are neither a keyword nor a string literal, so they fall to the
+          // last lines below and leave the declaration unreadable.
+          const keyword = /^([A-Za-z_]\w*)[ \t]*=(?!=)[ \t]*([\s\S]*)$/.exec(arg);
+          if (keyword) {
+            if (keyword[1] === 'nargs') readable = false;
+            if (keyword[1] === 'action') {
+              const literal = PYTHON_PLAIN_STRING_PATTERN.exec((keyword[2] ?? '').trim());
+              if (literal) action = literal[1] ?? literal[2] ?? '';
+              else readable = false;
+            }
+            continue;
           }
-          continue;
+          const literal = PYTHON_PLAIN_STRING_PATTERN.exec(arg);
+          if (literal) names.push(literal[1] ?? literal[2] ?? '');
+          else {
+            readable = false;
+            // A positional argument is an option name; one that is not a literal may name any option.
+            if (!arg.startsWith('**')) unreadName = true;
+          }
         }
-        const literal = PYTHON_PLAIN_STRING_PATTERN.exec(arg);
-        if (literal) names.push(literal[1] ?? literal[2] ?? '');
-        else readable = false;
+        const kind: PytestDeclaredOption = !readable ? 'unknown' : action !== undefined && ARGPARSE_ACTIONS_WITHOUT_VALUE.has(action) ? 'flag' : 'value';
+        for (const name of names) if (name.startsWith('--')) record(name, kind);
       }
-      const kind: PytestDeclaredOption = !readable ? 'unknown' : action !== undefined && ARGPARSE_ACTIONS_WITHOUT_VALUE.has(action) ? 'flag' : 'value';
-      for (const name of names) if (name.startsWith('--')) record(name, kind);
     }
   }
-  return declared;
+  return { options: declared, unreadName };
+}
+
+/** The offset just after the line feed that ends the line starting at `from`, or past the text. */
+function nextLineStart(text: string, from: number): number {
+  const feed = text.indexOf('\n', from);
+  return feed === -1 ? text.length + 1 : feed + 1;
 }
 
 /** pytest's words read as Cejel needs them. */
@@ -13520,9 +13574,12 @@ function readPytestCollectionSettings(repoPath: string, repoFiles: readonly stri
   };
   const invocations = readPytestInvocations(repoFiles, readText);
   // item C of goal_cejel_v27_a1_gaps_2026-11-03: read once, where a run names an option pytest's tables do not hold.
-  let declaredOptions: Map<string, PytestDeclaredOption> | undefined;
-  const declaredOption = (name: string): PytestDeclaredOption | undefined =>
-    (declaredOptions ??= readPytestDeclaredOptions(repoFiles, readText)).get(name);
+  let declaredOptions: PytestDeclaredOptions | undefined;
+  const declaredOption = (name: string): PytestDeclaredOption | undefined => {
+    declaredOptions ??= readPytestDeclaredOptions(repoFiles, readText);
+    // The review of #655, should-fix 6: a declaration through a name may be this option's.
+    return declaredOptions.unreadName ? 'unknown' : declaredOptions.options.get(name);
+  };
   const view: PytestRepositoryView = { fileSet, directories, configAt, lineOf, declaredOption };
   const runs = invocations.map((invocation) => resolvePytestRun(invocation, view));
   const cache = new Map<string, PytestFileSettings>();
