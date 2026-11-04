@@ -13340,9 +13340,9 @@ function readPythonCallArguments(text: string, open: number): { readonly args: s
 /**
  * item C: each long option the repository's conftest.py files declare with `.addoption(...)` or
  * `._addoption(...)` (on the parser or an option group), read from code, not comments or strings.
- * Linear in the files.
+ * Linear in the files. Exported for the scaling check in scan-path-regex-bounds.test.ts.
  */
-function readPytestDeclaredOptions(repoFiles: readonly string[], readText: (file: string) => string | undefined): Map<string, PytestDeclaredOption> {
+export function readPytestDeclaredOptions(repoFiles: readonly string[], readText: (file: string) => string | undefined): Map<string, PytestDeclaredOption> {
   const declared = new Map<string, PytestDeclaredOption>();
   const record = (name: string, kind: PytestDeclaredOption) => {
     const known = declared.get(name);
@@ -14968,6 +14968,10 @@ export function readPytestInvocations(
     const { literal, unread: unreadPosargs } = partitionPosargs(noxPosargs);
     // A nox command with no `--` passes none, as does nox run by hand; the empty set is always read.
     const passedSets: readonly (readonly string[])[] = [[], ...literal.map((entry) => entry.words)];
+    // Each call taking posargs is read once per set, so the work is the noxfile's calls times the
+    // sets' words: a product of two inputs. A shared budget bounds it; past it the call is not read.
+    const callCost = passedSets.reduce((sum, words) => sum + 1 + words.length, 0);
+    let noxLeft = NOX_POSARGS_BUDGET;
     for (const file of usable.filter((candidate) => basename(candidate) === 'noxfile.py')) {
       const text = readText(file);
       if (text === undefined) continue;
@@ -14982,6 +14986,13 @@ export function readPytestInvocations(
           continue;
         }
         const takesPosargs = call.words.includes(NOX_POSARGS_WORD);
+        if (takesPosargs) {
+          noxLeft -= callCost;
+          if (noxLeft < 0) {
+            unread(call.text);
+            continue;
+          }
+        }
         // Each posargs set read in place of `*session.posargs`; the posargs may name pytest themselves.
         const runs = (takesPosargs ? passedSets : [[]]).flatMap((passed) => {
           const words = call.words.flatMap((word) => (word === NOX_POSARGS_WORD ? passed : [word]));
@@ -15602,6 +15613,12 @@ function substituteHatchArguments(command: string, args: readonly string[]): str
 
 /** goal_cejel_v27_a1_gaps_2026-11-03, item B: where a nox call's words hold `*session.posargs`. */
 const NOX_POSARGS_WORD = '\u0000session.posargs';
+/**
+ * item B: the posargs substitutions per read, counted as one per run read plus the words put in;
+ * past it a call taking posargs is not read. The input that maximises the work without it: a
+ * noxfile of N calls taking posargs and a CI file passing 16 distinct sets of W words, N x 16 x W.
+ */
+const NOX_POSARGS_BUDGET = 4096;
 
 /**
  * item A: a noxfile's `session.run(...)` calls: the literal string arguments before the first
