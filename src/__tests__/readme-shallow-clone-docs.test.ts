@@ -57,6 +57,8 @@ describe('README: clone in full, and what a shallow clone does', () => {
     // The superseded v27-only wording: under the default a shallow clone is no longer scored.
     const text = README.replace(/\s+/g, ' ');
     expect(text).not.toMatch(/Under the opt-in (?:prospective )?(?:v27 rubric|`witan-rubric-v27-prospective-2026-10-19` rubric)[^.]*, a shallow (?:clone|checkout) gets no composite/);
+    // v27 is still named, as the rubric that withheld first, never as the default.
+    expect(text).toContain(V27);
   });
 
   it('shows fetch-depth: 0 next to the quick start, and says why', () => {

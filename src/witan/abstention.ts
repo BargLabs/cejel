@@ -58,7 +58,10 @@ export const WITAN_B3_UNSHOWN_CHECK_PREFIX = 'B3 counted workflows Cejel did not
 // (a2HistoryApplicabilityDisclosure in repo-signals.ts names the causes Cejel detected), listed
 // under "What was not established" while A2 is not applicable. It moves no score. Under
 // witan-rubric-v27-prospective-2026-10-19 A2 abstains there instead (a read failure kept in the
-// composite at 0), so it is never written there.
+// composite at 0), so it is never written there. Since the operator's ruling of 2 Nov every other
+// rubric abstains there too where the report withholds its verdict for the history (a shallow
+// clone, or a history depth that could not be read), so under those rubrics it is written only on
+// a complete clone whose history read failed.
 export const WITAN_A2_HISTORY_APPLICABILITY_PREFIX =
   "A2's applicability was decided from an incomplete read of the commit history";
 // v27 (#556): A2's abstention after an incomplete read of the history, other than the shallow-only
