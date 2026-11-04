@@ -10307,6 +10307,8 @@ function seventhPassReason(input: readonly string[], reading: CheckReading): str
     if (alias.kind === 'unread') {
       const spec = words[0] ?? '';
       const named = read.alias === 'hatch' ? [spec.slice(spec.indexOf(':') + 1), ...words.slice(1)] : words;
+      // Item F: a script or command read, before which hatch installs the project.
+      if (alias.reason !== undefined) return alias.command === undefined || namesCheckAtStart(alias.command) ? alias.reason : undefined;
       return namesCheckAtStart(named) ? SCRIPT_ALIAS_UNREAD_REASON(read.alias) : undefined;
     }
     words = alias.words;
@@ -10518,11 +10520,16 @@ function rootToxReading(root: string, inventory: PublishOnlyInventory, tscAdmitt
 
 /**
  * Seventh pass (#641, item A): what `just test` and bare `tox` read a checkout's root justfile and
- * tox.ini to run, exported only for the scaling check in scan-path-regex-bounds.test.ts.
+ * tox.ini to run, and (item F) what `hatch run test` reads hatch.toml to run, exported only for the
+ * scaling check in scan-path-regex-bounds.test.ts.
  */
-export function b3TaskRunnerReadingsForScaling(root: string, repoFiles: readonly string[]): { readonly just: string; readonly tox: string } {
+export function b3TaskRunnerReadingsForScaling(
+  root: string,
+  repoFiles: readonly string[],
+): { readonly just: string; readonly tox: string; readonly hatch: string } {
   const reading = checkReading(root, ownPublishOnlyInventory(repoFiles));
-  return { just: reading.justRecipe('test'), tox: reading.toxReading };
+  const hatch = reading.scriptAlias('hatch', ['test']);
+  return { just: reading.justRecipe('test'), tox: reading.toxReading, hatch: hatch.kind === 'script' ? `script ${hatch.reading}` : hatch.kind };
 }
 
 // ---- Item B (#641, 2): script aliases, resolved through the root's script tables ---------------
@@ -10543,10 +10550,85 @@ type ScriptAliasTool = 'pdm' | 'hatch' | 'pipenv';
 type ScriptAliasReading =
   | { readonly kind: 'command'; readonly words: string[] }
   | { readonly kind: 'script'; readonly name: string; readonly reading: 'runner' | 'unrecognised' }
-  | { readonly kind: 'unread' };
+  // Item F: `reason`, where the reader read what runs but something runs before it; `command`, where
+  // that is the command itself, so the reason is given only when the command is a check.
+  | { readonly kind: 'unread'; readonly reason?: string; readonly command?: readonly string[] };
 
 const PDM_RUN_HOOKS: readonly string[] = ['pre_run', 'post_run', 'pre_script', 'post_script', '_'];
 const HATCH_UNREAD_SETTING_PATTERN = /env-vars|pre-install-commands|post-install-commands/;
+
+// Item F (finishing pass): hatch builds and installs the project into an environment that does not
+// set `skip-install = true`, running the project's build code before any script or command, as
+// tox does (item A). The options of a hatch environment the alias reader admits; `dependencies` and
+// `extra-dependencies` only as index project names. Any other option (`features`, `dev-mode`,
+// `template`, `env-vars`, `pre-install-commands`, `matrix`, `overrides`, ...) and an environment
+// plugin (`[env]`) leave hatch not read.
+const HATCH_ENV_ADMITTED_OPTIONS: ReadonlySet<string> = new Set(['skip-install', 'description', 'dependencies', 'extra-dependencies']);
+const HATCH_INSTALLS_PROJECT_REASON =
+  'the check runs hatch run in an environment that does not set skip-install, so hatch first installs the project, running its build code';
+
+/**
+ * Item F: for each hatch environment of the root hatch.toml (`[envs.<env>]`) and pyproject.toml
+ * (`[tool.hatch.envs.<env>]`), whether it sets `skip-install` true or false (an environment that
+ * sets neither is absent); null when a file is present but not scanned, or holds an environment
+ * option HATCH_ENV_ADMITTED_OPTIONS does not admit, a value it cannot read, or a table it cannot
+ * place. Each line is read once (TomlValueScanner), so the work is linear in the files.
+ */
+function readHatchSkipInstall(
+  fileSet: ReadonlySet<string>,
+  readText: (file: string) => string | undefined,
+  isIndexName: (requirement: string) => boolean,
+): Map<string, boolean> | null {
+  const skip = new Map<string, boolean>();
+  for (const [file, prefix] of [['hatch.toml', [] as string[]], ['pyproject.toml', ['tool', 'hatch']]] as const) {
+    if (!fileSet.has(file)) continue;
+    const text = readText(file);
+    if (text === undefined) return null;
+    const under = (path: readonly string[]) => prefix.every((part, at) => path[at] === part);
+    const lines = text.split(/\r?\n/);
+    let table: string[] = [];
+    for (let index = 0; index < lines.length; index += 1) {
+      const trimmed = (lines[index] ?? '').trim();
+      if (trimmed === '' || trimmed.startsWith('#')) continue;
+      const header = /^\[\[?([^\]]*)\]\]?/.exec(trimmed);
+      if (header) {
+        table = tomlKeyPath(header[1] ?? '');
+        const rest = table.slice(prefix.length);
+        if (!under(table) || (rest[0] !== 'envs' && rest[0] !== 'env')) continue;
+        // An array of tables, an environment plugin table, or a table below an environment other
+        // than its scripts (`overrides`, `env-vars`, a matrix) is not placed.
+        if (trimmed.startsWith('[[') || rest[0] === 'env' || (rest.length >= 3 && rest[2] !== 'scripts')) return null;
+        continue;
+      }
+      const equals = tomlKeyEnd(trimmed);
+      if (equals === -1) continue;
+      const scanner = new TomlValueScanner();
+      scanner.feed(trimmed.slice(equals + 1));
+      while (!scanner.complete() && index + 1 < lines.length) {
+        index += 1;
+        scanner.feed(`\n${lines[index] ?? ''}`);
+      }
+      const path = [...table, ...tomlKeyPath(trimmed.slice(0, equals))];
+      const rest = path.slice(prefix.length);
+      if (!under(path) || (rest[0] !== 'envs' && rest[0] !== 'env')) continue;
+      if (rest[0] === 'env' || rest.length < 3) return null;
+      if (rest[2] === 'scripts') continue;
+      const option = rest[2] ?? '';
+      if (rest.length !== 3 || !HATCH_ENV_ADMITTED_OPTIONS.has(option)) return null;
+      const environment = rest[1] ?? '';
+      if (option === 'skip-install') {
+        const code = scanner.code().trim();
+        if (code !== 'true' && code !== 'false') return null;
+        // Set in both files: true only where both say true.
+        skip.set(environment, (skip.get(environment) ?? true) && code === 'true');
+      } else if (option !== 'description') {
+        const value = scanner.value();
+        if (value.kind !== 'list' || !value.items.every((item) => isIndexName(item.replace(/[ \t]/g, '')))) return null;
+      }
+    }
+  }
+  return skip;
+}
 
 /**
  * Item B: the plain-string entries of the TOML table at `prefix` (`tool.pdm.scripts`, `scripts`),
@@ -10623,6 +10705,7 @@ function rootScriptAliasReader(
   let pdm: Map<string, string | null> | null | undefined;
   let pipenv: Map<string, string | null> | null | undefined;
   let hatch: HatchScripts | null | undefined;
+  let hatchSkip: Map<string, boolean> | null | undefined;
   const hatchScripts = (): HatchScripts | null => {
     for (const file of ['hatch.toml', 'pyproject.toml']) {
       if (!inventory.known.has(file)) continue;
@@ -10638,9 +10721,19 @@ function rootScriptAliasReader(
     if (tool === 'hatch') {
       hatch = hatch === undefined ? hatchScripts() : hatch;
       if (hatch === null) return { kind: 'unread' };
+      hatchSkip =
+        hatchSkip === undefined
+          ? readHatchSkipInstall(inventory.known, readText, (requirement) =>
+              pipRequirementNamesIndexProject(requirement, (path) => inventory.entriesLower.has(path.toLowerCase())),
+            )
+          : hatchSkip;
+      if (hatchSkip === null) return { kind: 'unread' };
       const colon = spec.indexOf(':');
       const environment = colon > 0 ? spec.slice(0, colon) : 'default';
       const name = colon > 0 ? spec.slice(colon + 1) : spec;
+      // Item F: an environment inherits `default`'s options (no `template` is admitted), so its
+      // own skip-install, else default's, must be true, or hatch installs the project first.
+      const skipsInstall = (hatchSkip.get(environment) ?? (environment === 'default' ? undefined : hatchSkip.get('default'))) === true;
       const scripts = hatch;
       const find = (script: string) => {
         const own = scripts.get(environment)?.get(script);
@@ -10650,7 +10743,9 @@ function rootScriptAliasReader(
         return inherited !== undefined && hatchNamesTemplate(inventory.scanned, readText) ? null : inherited;
       };
       const found = find(name);
-      if (found === undefined) return { kind: 'command', words: [name, ...args] };
+      if (found === undefined) {
+        return skipsInstall ? { kind: 'command', words: [name, ...args] } : { kind: 'unread', reason: HATCH_INSTALLS_PROJECT_REASON, command: [name, ...args] };
+      }
       if (found === null || args.length > 0) return { kind: 'unread' };
       const kinds: ('runner' | 'check' | 'other')[] = [];
       let budget = HATCH_EXPANSION_BUDGET;
@@ -10676,7 +10771,8 @@ function rootScriptAliasReader(
         return true;
       };
       if (!expand(found.commands, 0)) return { kind: 'unread' };
-      return { kind: 'script', name, reading: kindsRunKnownRunner(kinds) ? 'runner' : 'unrecognised' };
+      if (!kindsRunKnownRunner(kinds)) return { kind: 'script', name, reading: 'unrecognised' };
+      return skipsInstall ? { kind: 'script', name, reading: 'runner' } : { kind: 'unread', reason: HATCH_INSTALLS_PROJECT_REASON };
     }
     let scripts: Map<string, string | null> | null;
     if (tool === 'pdm') {
@@ -10716,6 +10812,11 @@ interface CheckForm {
   readonly firstPositional?: ReadonlySet<string>;
   /** When set, `--` is admitted, then only these words (`cargo clippy -- -D warnings`). */
   readonly afterSeparator?: ReadonlySet<string>;
+  /**
+   * Item F (finishing pass): for a value flag whose value can stop every test running, the values
+   * admitted (`go test -count` only a positive count: `-count=0` runs no test and exits 0).
+   */
+  readonly values?: ReadonlyMap<string, RegExp>;
 }
 
 const checkForm = (
@@ -10723,7 +10824,7 @@ const checkForm = (
   flags: readonly string[],
   valueFlags: readonly string[] = [],
   positional = true,
-  extra: { readonly firstPositional?: readonly string[]; readonly afterSeparator?: readonly string[] } = {},
+  extra: { readonly firstPositional?: readonly string[]; readonly afterSeparator?: readonly string[]; readonly values?: Readonly<Record<string, RegExp>> } = {},
 ): CheckForm => ({
   sub,
   flags: new Set(flags),
@@ -10731,7 +10832,11 @@ const checkForm = (
   positional,
   ...(extra.firstPositional === undefined ? {} : { firstPositional: new Set(extra.firstPositional) }),
   ...(extra.afterSeparator === undefined ? {} : { afterSeparator: new Set(extra.afterSeparator) }),
+  ...(extra.values === undefined ? {} : { values: new Map(Object.entries(extra.values)) }),
 });
+
+// Item F: a positive count, written in decimal digits (anchored, one class: linear).
+const POSITIVE_COUNT_PATTERN = /^[1-9][0-9]*$/;
 
 const PYTEST_FORM = checkForm(
   [],
@@ -10756,7 +10861,14 @@ const CHECK_FORMS: ReadonlyMap<string, readonly CheckForm[]> = new Map<string, r
   ['playwright', [checkForm(['test'], ['--forbid-only'], ['--workers', '-j', '--retries', '--project'])]],
   ['cypress', [checkForm(['run'], ['--headless'], ['--browser', '--spec'], false)]],
   ['karma', [checkForm(['start'], ['--single-run'])]],
-  ['go', [checkForm(['test'], ['-v', '-race', '-cover', '-short', '-failfast'], ['-count', '-timeout', '-p', '-parallel', '-covermode', '-coverprofile', '-tags', '-cpu'])]],
+  [
+    'go',
+    [
+      checkForm(['test'], ['-v', '-race', '-cover', '-short', '-failfast'], ['-count', '-timeout', '-p', '-parallel', '-covermode', '-coverprofile', '-tags', '-cpu'], true, {
+        values: { '-count': POSITIVE_COUNT_PATTERN },
+      }),
+    ],
+  ],
   [
     'cargo',
     [
@@ -10792,12 +10904,19 @@ function checkFormAdmits(words: readonly string[]): boolean | undefined {
     if (arg === '--') return form.afterSeparator !== undefined && args.slice(index + 1).every((word) => form.afterSeparator?.has(word));
     if (arg.startsWith('-') && arg.length > 1) {
       const equals = arg.indexOf('=');
+      const flag = equals === -1 ? arg : arg.slice(0, equals);
+      let value: string | undefined;
       if (equals !== -1) {
-        if (!form.valueFlags.has(arg.slice(0, equals))) return false;
+        if (!form.valueFlags.has(flag)) return false;
+        value = arg.slice(equals + 1);
       } else if (form.valueFlags.has(arg)) {
         index += 1;
         if (index >= args.length) return false;
+        value = args[index];
       } else if (!form.flags.has(arg)) return false;
+      // Item F: a value flag whose value can stop every test running admits only the values listed.
+      const admitted = form.values?.get(flag);
+      if (admitted !== undefined && !admitted.test(value ?? '')) return false;
       continue;
     }
     if (form.firstPositional !== undefined && positionals === 0) {

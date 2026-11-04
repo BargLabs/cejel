@@ -434,7 +434,7 @@ describe('scaling: the ratio check itself (cejel #642)', () => {
 // is visited, and each dependency list read, once). For tox.ini: L/60 environments, each with a
 // section of its own that falls back to a `[testenv]` deps list of L/26 lines (each value is read
 // once, by its text, not once per environment). Both must answer 'runner' at L and 2L.
-describe('scaling: the v27 B3 justfile and tox.ini readers grow no faster than linearly', () => {
+describe('scaling: the v27 B3 justfile, tox.ini and hatch environment readers grow no faster than linearly', () => {
   const repoCache = new Map<string, { repo: string; files: string[] }>();
   const repoFor = (key: string, files: Record<string, string>) => {
     const existing = repoCache.get(key);
@@ -473,6 +473,22 @@ describe('scaling: the v27 B3 justfile and tox.ini readers grow no faster than l
     expect(toxIni(2 * SCALING_LENGTH).length).toBeLessThan(512_000);
     const { ratio, timing, atL, at2L } = scalingRatio(read);
     expect(atL).toBe('runner');
+    expect(at2L).toBe(atL);
+    expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
+  }, 120_000);
+  // Item F (finishing pass): the hatch environment reader reads every line once; the input that
+  // maximises its work is one `dependencies` list of L/12 and 2L/12 lines, each fed to the TOML
+  // value scanner and read as an index project name, beside the script it resolves.
+  it('the hatch environment reader, on a dependencies list of L/12 and 2L/12 lines', () => {
+    const hatchToml = (length: number): string =>
+      `[envs.default]\nskip-install = true\ndependencies = [\n${'  "pytest",\n'.repeat(Math.floor(length / 12))}]\n\n[envs.default.scripts]\ntest = "pytest"\n`;
+    const read = (length: number) => {
+      const { repo, files } = repoFor(`hatch-${length}`, { 'hatch.toml': hatchToml(length) });
+      return b3TaskRunnerReadingsForScaling(repo, files).hatch;
+    };
+    expect(hatchToml(2 * SCALING_LENGTH).length).toBeLessThan(512_000);
+    const { ratio, timing, atL, at2L } = scalingRatio(read);
+    expect(atL).toBe('script runner');
     expect(at2L).toBe(atL);
     expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
   }, 120_000);
