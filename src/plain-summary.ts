@@ -745,6 +745,24 @@ function buildAreasLine(areas: PlainSummary['areas']): string {
   return `Cejel measured ${areas.measured} of the ${areas.total} areas it looks at${notApplicable}.`;
 }
 
+function hasWrongFinding(criterion: WitanCriterionScore): boolean {
+  return criterion.findings.some((finding) => finding.severity === 'critical' || finding.severity === 'warning');
+}
+
+const PLAIN_STATUS_LABELS: Readonly<Record<string, string>> = {
+  verified: 'Verified',
+  info: 'Info',
+  warning: 'Warning',
+  critical: 'Critical',
+  unverified: 'Unverified',
+  insufficient_data: 'no score',
+  not_applicable: 'does not apply',
+};
+
+function plainStatusLabel(status: string): string {
+  return PLAIN_STATUS_LABELS[status] ?? 'a label this page does not describe';
+}
+
 function hasExaminedEvidence(criterion: WitanCriterionScore): boolean {
   return criterion.metrics.length > 0 || criterion.evidence.length > 0;
 }
@@ -818,11 +836,22 @@ function buildWrong(report: WitanReport): WrongCandidate[] {
     criterion.findings.forEach((finding, findingIndex) => {
       if (finding.severity !== 'critical' && finding.severity !== 'warning') return;
       hasOwnFinding = true;
-      const metricDerived = METRIC_DERIVED_FINDING_PATTERN.test(finding.summary);
+      const metricMatch = METRIC_DERIVED_FINDING_PATTERN.exec(finding.summary);
+      const metricDerived = metricMatch !== null;
       let text: string;
-      if (metricDerived) {
+      if (metricMatch) {
+        // v2 item F: worded from the finding's own score and level, not "scored low", which
+        // overstated a warning at 3.1 of 4; "no single finding" is dropped where this area lists
+        // another finding of its own on this page.
         const weakest = weakestMeasurementLabels(criterion);
-        text = `Its measurements taken together scored low; no single problem caused this.${weakest.length > 0 ? ` Weakest: ${joinAnd(weakest)}.` : ''}`;
+        const level = metricMatch[2] === 'critical' ? 'critical' : 'a warning';
+        const otherListed = criterion.findings.some(
+          (other, otherIndex) =>
+            otherIndex !== findingIndex &&
+            (other.severity === 'critical' || other.severity === 'warning') &&
+            !METRIC_DERIVED_FINDING_PATTERN.test(other.summary),
+        );
+        text = `Its measurements together give ${metricMatch[1]} out of 4, which Cejel counts as ${level}${otherListed ? '' : '; no single finding of its own caused this'}.${weakest.length > 0 ? ` Weakest: ${joinAnd(weakest)}.` : ''}`;
       } else {
         const known = finding.derivation ? PLAIN_ABSENCE_FINDINGS[finding.derivation.patternSetId] : undefined;
         text =
@@ -950,7 +979,22 @@ function buildNotKnown(report: WitanReport): PendingCheck[] {
         );
         break;
       case 'insufficient_data':
-        if (notRead) {
+        // v2 item F: an area with no score that still lists a problem under What is wrong says
+        // only that its score was not given, so the two lists do not contradict each other.
+        if (hasWrongFinding(criterion)) {
+          const listed = 'the problem it found is listed under What is wrong';
+          add(
+            {
+              ...base,
+              text: notRead
+                ? `Not read: Cejel gave this area no score because ${joinAnd(clauses)}; ${listed}.`
+                : `Score not given: Cejel gave this area no score; ${listed}.`,
+            },
+            notRead ? 'not-read' : 'score-not-given',
+            SECTION_AREA,
+            notRead ? readGapQualifier(causes) : undefined,
+          );
+        } else if (notRead) {
           add(
             { ...base, text: `Not read: Cejel gave this area no score because ${joinAnd(clauses)}.` },
             'not-read',
@@ -984,6 +1028,18 @@ function buildNotKnown(report: WitanReport): PendingCheck[] {
           'unrecognised-status',
           SECTION_AREA,
         );
+    }
+    // v2 item F: a label moved by imported evidence (nativeStatus differs from status) is explained.
+    if (criterion.nativeStatus !== undefined && criterion.nativeStatus !== criterion.status) {
+      add(
+        {
+          ...base,
+          id: `not-known/imported-status/${criterion.id}`,
+          text: `Imported evidence moved this area's label from ${plainStatusLabel(criterion.nativeStatus)} to ${plainStatusLabel(criterion.status)}: findings from another tool, given to Cejel, set it, not Cejel's own reading.`,
+        },
+        'imported-status',
+        SECTION_AREA,
+      );
     }
     // An area that was rated although part of what it reads was not read says so.
     if (notRead && criterion.status !== 'not_applicable' && criterion.status !== 'insufficient_data') {

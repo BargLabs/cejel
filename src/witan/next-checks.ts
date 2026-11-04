@@ -19,6 +19,8 @@ export type NextCheckKind =
   | 'not-applicable'
   | 'not-measured'
   | 'not-read'
+  | 'score-not-given'
+  | 'imported-status'
   | 'no-evidence'
   | 'no-measurement'
   | 'unrecognised-status'
@@ -132,6 +134,10 @@ const NEXT_CHECKS: Readonly<Record<string, string>> = {
     'Make the skipped files readable (the certificate below counts them by cause), then scan again.',
   'not-read:history': `${FULL_CLONE.charAt(0).toUpperCase()}${FULL_CLONE.slice(1)}, then scan again.`,
   'not-read:files-and-history': `Make the skipped files readable and ${FULL_CLONE}, then scan again.`,
+  'score-not-given':
+    "Fix the problem listed under What is wrong, and read this area's notes in the certificate below for why it has no score.",
+  'imported-status':
+    "Look at the imported findings in this area's card in the certificate below; they, not Cejel's own reading, set its label.",
   'no-evidence': 'Supply the evidence this area asks for, then scan again; until then it counts as zero.',
   'no-measurement':
     'Treat this area as unchecked; the certificate below shows what was recorded for it.',
@@ -246,6 +252,8 @@ export function nextCheckKeySpace(): ReadonlyArray<{ kind: NextCheckKind; qualif
     ...(
       [
         'unrecognised-status',
+        'score-not-given',
+        'imported-status',
         'verdict-capped',
         'scan-limitation',
         'history-limitation',
