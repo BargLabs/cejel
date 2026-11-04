@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   analyzeCoverageConfiguration,
+  b3TaskRunnerReadingsForScaling,
   findPytestRunWideSkips,
   isShellWhitespaceCode,
   readPytestInvocations,
@@ -426,6 +427,55 @@ describe('scaling: the ratio check itself (cejel #642)', () => {
     const { ratio, timing } = scalingRatio((length) => work(length * 4), SCALING_LENGTH);
     expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
   }, 60_000);
+});
+
+// v27 B3 seventh pass (#641, item A): the justfile and tox.ini readers, each on the input that
+// maximises its work. For the justfile: `test` depending on L/14 empty recipes (each reached recipe
+// is visited, and each dependency list read, once). For tox.ini: L/60 environments, each with a
+// section of its own that falls back to a `[testenv]` deps list of L/26 lines (each value is read
+// once, by its text, not once per environment). Both must answer 'runner' at L and 2L.
+describe('scaling: the v27 B3 justfile and tox.ini readers grow no faster than linearly', () => {
+  const repoCache = new Map<string, { repo: string; files: string[] }>();
+  const repoFor = (key: string, files: Record<string, string>) => {
+    const existing = repoCache.get(key);
+    if (existing) return existing;
+    const made = { repo: makeRepo(files), files: Object.keys(files) };
+    repoCache.set(key, made);
+    return made;
+  };
+  it('the justfile reader, on `test` depending on L/14 and 2L/14 empty recipes', () => {
+    const justfile = (length: number): string => {
+      const count = Math.floor(length / 14);
+      const names = Array.from({ length: count }, (_, index) => `r${index}`);
+      return `test: ${names.join(' ')}\n    pytest\n\n${names.map((name) => `${name}:\n`).join('')}`;
+    };
+    const read = (length: number) => {
+      const { repo, files } = repoFor(`just-${length}`, { justfile: justfile(length) });
+      return b3TaskRunnerReadingsForScaling(repo, files).just;
+    };
+    expect(justfile(2 * SCALING_LENGTH).length).toBeLessThan(512_000);
+    const { ratio, timing, atL, at2L } = scalingRatio(read);
+    expect(atL).toBe('runner');
+    expect(at2L).toBe(atL);
+    expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
+  }, 120_000);
+
+  it('the tox.ini reader, on L/60 and 2L/60 environments falling back to a deps list of L/26 and 2L/26 lines', () => {
+    const toxIni = (length: number): string => {
+      const environments = Array.from({ length: Math.floor(length / 60) }, (_, index) => `e${index}`);
+      const deps = '    pytest\n'.repeat(Math.floor(length / 26));
+      return `[tox]\nenv_list = ${environments.join(',')}\nskipsdist = true\n\n[testenv]\ndeps =\n${deps}commands = pytest\n\n${environments.map((name) => `[testenv:${name}]\ndescription = x\n`).join('')}`;
+    };
+    const read = (length: number) => {
+      const { repo, files } = repoFor(`tox-${length}`, { 'tox.ini': toxIni(length) });
+      return b3TaskRunnerReadingsForScaling(repo, files).tox;
+    };
+    expect(toxIni(2 * SCALING_LENGTH).length).toBeLessThan(512_000);
+    const { ratio, timing, atL, at2L } = scalingRatio(read);
+    expect(atL).toBe('runner');
+    expect(at2L).toBe(atL);
+    expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
+  }, 120_000);
 });
 
 describe('scaling: each v27 A1 reader the CI-line guard exercises grows no faster than linearly', () => {

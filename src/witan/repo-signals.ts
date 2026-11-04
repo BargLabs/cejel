@@ -8609,10 +8609,10 @@ interface CheckReading {
    */
   readonly packageManagerConfigPlain: boolean;
   /**
-   * Seventh pass (#641, item A): for each recipe of the root justfile, whether it runs a known test
-   * runner (rootJustRecipeReadings). Empty when the justfile is not read.
+   * Seventh pass (#641, item A): for a recipe of the root justfile, whether it runs a known test
+   * runner (rootJustRecipeReader); 'unread' when the justfile is not read or has no such recipe.
    */
-  readonly justRecipes: ReadonlyMap<string, ScriptReading>;
+  readonly justRecipe: (name: string) => ScriptReading;
   /** Seventh pass (#641, item A): whether bare `tox` runs a known test runner (rootToxReading). */
   readonly toxReading: ScriptReading;
   /**
@@ -8637,7 +8637,7 @@ interface CheckReading {
 const ROOT_FILES_UNREAD = {
   testScriptRuns: false,
   testScriptUnrecognised: false,
-  justRecipes: new Map<string, ScriptReading>(),
+  justRecipe: (): ScriptReading => 'unread',
   toxReading: 'unread',
   scriptAlias: (): ScriptAliasReading => ({ kind: 'unread' }),
   testScriptLastRunner: undefined,
@@ -8674,7 +8674,7 @@ function checkReading(root: string, inventory: PublishOnlyInventory): CheckReadi
     testScriptRuns: testScript === 'runner',
     testScriptUnrecognised: testScript === 'unrecognised',
     makeTargets: rootMakeTargetReadings(root, inventory, tscAdmitted),
-    justRecipes: rootJustRecipeReadings(root, inventory, tscAdmitted),
+    justRecipe: rootJustRecipeReader(root, inventory, tscAdmitted),
     toxReading: rootToxReading(root, inventory, tscAdmitted),
     scriptAlias: rootScriptAliasReader(root, inventory, tscAdmitted),
     testScriptLastRunner: testScript === 'runner' ? rootTestScriptLastRunner(root, inventory, tscAdmitted) : undefined,
@@ -10281,7 +10281,7 @@ function taskRunnerReading(words: readonly string[], reading: CheckReading): { r
   const first = (words[0] ?? '').toLowerCase();
   const unread = UNREAD_TASK_RUNNERS.get(first);
   if (unread !== undefined) return { runner: unread, reading: 'unread' };
-  if (first === 'just') return { runner: 'just', reading: words.length === 2 ? (reading.justRecipes.get(words[1] ?? '') ?? 'unread') : 'unread' };
+  if (first === 'just') return { runner: 'just', reading: words.length === 2 ? reading.justRecipe(words[1] ?? '') : 'unread' };
   if (first === 'tox') return { runner: 'tox', reading: words.length === 1 ? reading.toxReading : 'unread' };
   return undefined;
 }
@@ -10370,28 +10370,31 @@ function readJustfileStrictly(text: string): Map<string, { readonly dependencies
 }
 
 /**
- * Item A, CheckReading.justRecipes: for every recipe of the root justfile, 'runner' when what `just
+ * Item A, CheckReading.justRecipe: for a recipe of the root justfile, 'runner' when what `just
  * <recipe>` runs (its dependencies first, once each, then its lines) runs a known test runner with
- * only admitted checks before it (kindsRunKnownRunner), 'unrecognised' otherwise. Empty when there
- * is not exactly one root `justfile` or `.justfile` (in any case, as just finds it), or it is not
- * scanned, or readJustfileStrictly cannot place it.
+ * only admitted checks before it (kindsRunKnownRunner), 'unrecognised' otherwise. 'unread' when
+ * there is not exactly one root `justfile` or `.justfile` (in any case, as just finds it), it is
+ * not scanned, readJustfileStrictly cannot place it, or it has no such recipe. The file is read
+ * once, when first asked, and each recipe asked is followed alone: each recipe it reaches is visited
+ * once and each dependency list read once, so the work is linear in the file.
  */
-function rootJustRecipeReadings(
-  root: string,
-  inventory: PublishOnlyInventory,
-  tscAdmitted: ScriptAdmission,
-): ReadonlyMap<string, ScriptReading> {
-  const readings = new Map<string, ScriptReading>();
-  const spellings = [...(inventory.rootPathsLower.get('justfile') ?? []), ...(inventory.rootPathsLower.get('.justfile') ?? [])];
-  const file = spellings[0];
-  if (spellings.length !== 1 || file === undefined || !inventory.scanned.has(file)) return readings;
-  const recipes = readJustfileStrictly(readRepoText(join(root, file), 'utf8'));
-  if (recipes === null) return readings;
-  for (const name of recipes.keys()) {
+function rootJustRecipeReader(root: string, inventory: PublishOnlyInventory, tscAdmitted: ScriptAdmission): (name: string) => ScriptReading {
+  let recipes: Map<string, { readonly dependencies: readonly string[]; readonly lines: string[] }> | null | undefined;
+  const asked = new Map<string, ScriptReading>();
+  return (name) => {
+    if (recipes === undefined) {
+      const spellings = [...(inventory.rootPathsLower.get('justfile') ?? []), ...(inventory.rootPathsLower.get('.justfile') ?? [])];
+      const file = spellings[0];
+      recipes = spellings.length !== 1 || file === undefined || !inventory.scanned.has(file) ? null : readJustfileStrictly(readRepoText(join(root, file), 'utf8'));
+    }
+    const read = recipes;
+    if (read === null || !read.has(name)) return 'unread';
+    const known = asked.get(name);
+    if (known !== undefined) return known;
     const kinds: ('runner' | 'check' | 'other')[] = [];
     const made = new Set<string>();
     const run = (recipe: string, depth: number, stack: ReadonlySet<string>): boolean => {
-      const found = recipes.get(recipe);
+      const found = read.get(recipe);
       if (found === undefined || depth > SCRIPT_EXPANSION_MAX_DEPTH || stack.has(recipe)) return false;
       if (made.has(recipe)) return true;
       made.add(recipe);
@@ -10413,9 +10416,10 @@ function rootJustRecipeReadings(
       }
       return true;
     };
-    readings.set(name, run(name, 0, new Set()) && kindsRunKnownRunner(kinds) ? 'runner' : 'unrecognised');
-  }
-  return readings;
+    const reading: ScriptReading = run(name, 0, new Set()) && kindsRunKnownRunner(kinds) ? 'runner' : 'unrecognised';
+    asked.set(name, reading);
+    return reading;
+  };
 }
 
 // ---- Item A: the root tox.ini, read strictly --------------------------------------------------
@@ -10472,29 +10476,53 @@ function rootToxReading(root: string, inventory: PublishOnlyInventory, tscAdmitt
   if (listed.some((name) => !TOX_ENV_NAME_PATTERN.test(name))) return 'unread';
   const base = sections.get('testenv');
   const noPackage = truthy(tox?.get('skipsdist')) || truthy(tox?.get('no_package'));
+  // Many environments may fall back to the same `[testenv]` value, so each deps or commands value
+  // is read once, by its text: the work is linear in the file, not environments times lines.
+  const depsPlain = new Map<string, boolean>();
+  const commandsRun = new Map<string, boolean>();
+  const readDeps = (deps: string): boolean => {
+    for (const dependency of deps.split('\n').map((line) => line.trim()).filter((line) => line !== '')) {
+      if (!pipRequirementNamesIndexProject(dependency.replace(/[ \t]/g, ''), (path) => inventory.entriesLower.has(path.toLowerCase()))) return false;
+    }
+    return true;
+  };
+  const readCommands = (commands: string): boolean => {
+    const kinds: ('runner' | 'check' | 'other')[] = [];
+    for (const line of commands.split('\n').map((entry) => entry.trim()).filter((entry) => entry !== '')) {
+      // tox runs a line without a shell; one prefixed `-` (failure ignored) or `!` (inverted), or
+      // holding a shell character, is not read.
+      if (line.startsWith('-') || line.startsWith('!') || /[|&;<>$`()]/.test(line)) kinds.push('other');
+      else {
+        const peeled = peelCommandLaunchers(shellWords(line));
+        kinds.push(peeled === null ? 'other' : scriptCommandKind(peeled, tscAdmitted));
+      }
+      if (kinds.length > SCRIPT_EXPANSION_MAX_COMMANDS) return false;
+    }
+    return kindsRunKnownRunner(kinds);
+  };
   let allRun = true;
   for (const name of listed.length === 0 ? ['py'] : listed) {
     const own = sections.get(`testenv:${name}`);
     const key = (key: string) => own?.get(key) ?? base?.get(key);
     // A project install builds the package, running its build code before the commands.
     if (!noPackage && !truthy(key('skip_install')) && (key('package') ?? '').toLowerCase() !== 'skip') return 'unread';
-    for (const dependency of (key('deps') ?? '').split('\n').map((line) => line.trim()).filter((line) => line !== '')) {
-      if (!pipRequirementNamesIndexProject(dependency.replace(/[ \t]/g, ''), (path) => inventory.entriesLower.has(path.toLowerCase()))) return 'unread';
-    }
-    const kinds: ('runner' | 'check' | 'other')[] = [];
-    for (const line of (key('commands') ?? '').split('\n').map((entry) => entry.trim()).filter((entry) => entry !== '')) {
-      // tox runs a line without a shell; one prefixed `-` (failure ignored) or `!` (inverted), or
-      // holding a shell character, is not read.
-      if (line.startsWith('-') || line.startsWith('!') || /[|&;<>$`()]/.test(line)) {
-        kinds.push('other');
-        continue;
-      }
-      const peeled = peelCommandLaunchers(shellWords(line));
-      kinds.push(peeled === null ? 'other' : scriptCommandKind(peeled, tscAdmitted));
-    }
-    if (kinds.length > SCRIPT_EXPANSION_MAX_COMMANDS || !kindsRunKnownRunner(kinds)) allRun = false;
+    const deps = key('deps') ?? '';
+    if (!depsPlain.has(deps)) depsPlain.set(deps, readDeps(deps));
+    if (depsPlain.get(deps) !== true) return 'unread';
+    const commands = key('commands') ?? '';
+    if (!commandsRun.has(commands)) commandsRun.set(commands, readCommands(commands));
+    if (commandsRun.get(commands) !== true) allRun = false;
   }
   return allRun ? 'runner' : 'unrecognised';
+}
+
+/**
+ * Seventh pass (#641, item A): what `just test` and bare `tox` read a checkout's root justfile and
+ * tox.ini to run, exported only for the scaling check in scan-path-regex-bounds.test.ts.
+ */
+export function b3TaskRunnerReadingsForScaling(root: string, repoFiles: readonly string[]): { readonly just: string; readonly tox: string } {
+  const reading = checkReading(root, ownPublishOnlyInventory(repoFiles));
+  return { just: reading.justRecipe('test'), tox: reading.toxReading };
 }
 
 // ---- Item B (#641, 2): script aliases, resolved through the root's script tables ---------------
