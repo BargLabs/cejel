@@ -8626,6 +8626,11 @@ interface CheckReading {
    * are appended to it (packageTestArgumentsProblem).
    */
   readonly testScriptLastRunner: readonly string[] | undefined;
+  /**
+   * Seventh pass (#647, item E): whether `python -m <name>` may run a repository module of that
+   * name (pythonModuleReader), from the root (`fromRoot`) or from a directory the reader does not know.
+   */
+  readonly pythonModuleMayExist: (name: string, fromRoot: boolean) => boolean;
 }
 
 // The readings that rest on the root's own files, as when none of them is read.
@@ -8651,13 +8656,18 @@ const ROOT_FILES_UNREAD = {
 const UNREAD_CHECK_READING: CheckReading = {
   ...ROOT_FILES_UNREAD,
   pathMayExist: () => true,
+  pythonModuleMayExist: () => true,
 };
 
 /** The CheckReading of a checkout's root, read from its inventory. */
 function checkReading(root: string, inventory: PublishOnlyInventory): CheckReading {
   // Sixth pass (blocker 4): read once, for every tsc run a build, test script or recipe makes.
   const tsconfig = rootTsconfigReading(root, inventory);
-  const tscAdmitted = (words: readonly string[]) => tscRunWritesNothingRead(words, tsconfig, inventory);
+  // Seventh pass (#647, item E): a script or recipe runs from the root, so its `python -m` is read there.
+  const pythonModuleMayExist = pythonModuleReader(inventory);
+  const tscAdmitted: ScriptAdmission = Object.assign((words: readonly string[]) => tscRunWritesNothingRead(words, tsconfig, inventory), {
+    moduleMayExist: (name: string) => pythonModuleMayExist(name, true),
+  });
   const testScript = rootTestScriptReading(root, inventory, tscAdmitted);
   const build = rootBuildScriptReading(root, inventory, tscAdmitted);
   return {
@@ -8678,8 +8688,52 @@ function checkReading(root: string, inventory: PublishOnlyInventory): CheckReadi
       fromRoot ? inventory.entriesLower.has(name.toLowerCase()) : inventory.pathPartsLower.has(name.toLowerCase()),
     installRunsNoProjectScript: rootInstallRunsNoProjectScript(root, inventory),
     packageManagerConfigPlain: packageManagerConfigIsPlain(root, inventory),
+    pythonModuleMayExist,
   };
 }
+
+/**
+ * Seventh pass (#647, item E): whether a script or recipe command (launcher-free words) may run a
+ * known runner or check; `tsc` is admitted only where it writes nothing the check reads (the
+ * function itself), and `python -m <name>` only where `moduleMayExist(name)` is false.
+ */
+interface ScriptAdmission {
+  (words: readonly string[]): boolean;
+  readonly moduleMayExist: (name: string) => boolean;
+}
+
+// Item E: the suffixes of a file Python imports as a module of its stem.
+const PYTHON_MODULE_FILE_PATTERN = /\.(?:py|pyc|pyw|so|pyd)$/;
+
+/**
+ * Item E, CheckReading.pythonModuleMayExist: true when `python -m <name>` may import a module of
+ * the repository in place of the tool, since Python puts the directory the command runs in first
+ * on its path. From the root, when a root path is `<name>`, `<name>/` or a module file of that stem
+ * (`<name>.py`, `.pyc`, `.pyw`, an extension module `<name>.*.so` or `.pyd`); from a directory the
+ * reader does not know, when any part of any path is. Compared case-insensitively, on the name's
+ * first dotted part. So `pytest.ini` is no module, and `pytest.py`, `PyTest.py` and `pytest/` are.
+ */
+function pythonModuleReader(inventory: PublishOnlyInventory): (name: string, fromRoot: boolean) => boolean {
+  const names = (parts: Iterable<string>) => {
+    const found = new Set<string>();
+    for (const part of parts) {
+      const lower = part.toLowerCase();
+      found.add(lower);
+      const dot = lower.indexOf('.');
+      if (dot > 0 && PYTHON_MODULE_FILE_PATTERN.test(lower)) found.add(lower.slice(0, dot));
+    }
+    return found;
+  };
+  let root: Set<string> | undefined;
+  let anywhere: Set<string> | undefined;
+  return (name, fromRoot) => {
+    const module = (name.split('.')[0] ?? '').toLowerCase();
+    if (fromRoot) return (root ??= names([...inventory.entries].filter((path) => !path.includes('/')))).has(module);
+    return (anywhere ??= names(inventory.pathParts)).has(module);
+  };
+}
+
+const REPOSITORY_MODULE_REASON = 'the check runs a Python module by name, and the repository holds a path of that name, which Python imports first';
 
 // Third pass on #625 (F6): the root package.json scripts an npm, pnpm, yarn or bun install runs.
 const INSTALL_LIFECYCLE_SCRIPTS: readonly string[] = [
@@ -9515,13 +9569,15 @@ function peelCommandLaunchers(input: readonly string[]): string[] | null {
  * before one (PRE_RUNNER_CHECK_WORDS), or anything else. A command given `--if-present`, a
  * report-only flag or a NO_FAIL_FLAGS flag is neither.
  */
-function scriptCommandKind(words: readonly string[], tscAdmitted: (words: readonly string[]) => boolean): 'runner' | 'check' | 'other' {
+function scriptCommandKind(words: readonly string[], tscAdmitted: ScriptAdmission): 'runner' | 'check' | 'other' {
   if (words.length === 0 || words.includes('--if-present')) return 'other';
   // Sixth pass (blocker 1): a command written as a path runs that file, whatever it is named.
   if (isPathCommandWord(words[0] ?? '')) return 'other';
   if (words.some((word) => REPORT_ONLY_FLAGS.has(word))) return 'other';
   const [first = '', second = '', third = ''] = words;
   const python = (first === 'python' || first === 'python3') && second === '-m';
+  // Seventh pass (#647, item E): `python -m <name>` beside a repository module of that name runs it.
+  if (python && tscAdmitted.moduleMayExist(third)) return 'other';
   // Seventh pass (#641, item C): a runner only with the words its CHECK_FORMS entry admits.
   if (KNOWN_TEST_RUNNER_WORDS.has(first) || KNOWN_TEST_RUNNER_SUBCOMMANDS.get(first)?.includes(second)) {
     return checkFormAdmits(words) === true ? 'runner' : 'other';
@@ -9604,7 +9660,7 @@ function rootPackageScripts(root: string, inventory: PublishOnlyInventory): Read
 function rootTestScriptReading(
   root: string,
   inventory: PublishOnlyInventory,
-  tscAdmitted: (words: readonly string[]) => boolean,
+  tscAdmitted: ScriptAdmission,
 ): ScriptReading {
   const scripts = rootPackageScripts(root, inventory);
   if (scripts === undefined || typeof scripts.test !== 'string') return 'unread';
@@ -9716,7 +9772,7 @@ function makeTargetCommandKinds(
   rules: ReadonlyMap<string, MakefileRule>,
   target: string,
   mayBeUpToDate: (name: string) => boolean,
-  tscAdmitted: (words: readonly string[]) => boolean,
+  tscAdmitted: ScriptAdmission,
 ): ('runner' | 'check' | 'other')[] | 'not-run' | undefined {
   const kinds: ('runner' | 'check' | 'other')[] = [];
   const made = new Set<string>();
@@ -9776,7 +9832,7 @@ function makeTargetCommandKinds(
 function rootMakeTargetReadings(
   root: string,
   inventory: PublishOnlyInventory,
-  tscAdmitted: (words: readonly string[]) => boolean,
+  tscAdmitted: ScriptAdmission,
 ): ReadonlyMap<string, ScriptReading> {
   const readings = new Map<string, ScriptReading>();
   if (!inventory.scanned.has('Makefile') || inventory.otherMakefile) return readings;
@@ -9811,7 +9867,7 @@ function rootMakeTargetReadings(
 function rootBuildScriptReading(
   root: string,
   inventory: PublishOnlyInventory,
-  tscAdmitted: (words: readonly string[]) => boolean,
+  tscAdmitted: ScriptAdmission,
 ): 'admitted' | 'output-unread' | 'other' {
   const scripts = rootPackageScripts(root, inventory);
   if (scripts === undefined || !inventory.scanned.has('tsconfig.json')) return 'other';
@@ -9955,6 +10011,9 @@ function isCheckCommand(input: readonly string[], reading: CheckReading, assignm
     if (alias.kind !== 'command') return alias.kind === 'script' && alias.reading === 'runner';
     own = alias.words;
   }
+  // Seventh pass (#647, item E): `python -m <name>` imports from the directory it runs in first, so
+  // it is a check only where neither that directory nor the root holds a module of that name.
+  if (read.module !== undefined && reading.pythonModuleMayExist(read.module, reading.pipNamesFromRoot)) return false;
   // Sixth pass (blocker 1, review of #645): a command word holding a `/` (`./ruff`, `bin/pytest`,
   // `/abs/x`, `../x`) runs that file, not the tool of its name, so it is never a check. The words
   // are matched as written: no leading `./` is stripped. `pathsRead` false asks what the command
@@ -10089,6 +10148,8 @@ function checkCommandWords(input: readonly string[]):
       readonly assignments: readonly string[];
       /** Seventh pass (#641, item B): the launcher was `pdm run`, `hatch run` or `pipenv run`. */
       readonly alias?: ScriptAliasTool;
+      /** Seventh pass (#647, item E): the launcher was `python -m` or `python3 -m`, naming this module. */
+      readonly module?: string;
     }
   | undefined {
   const head = commandHead(input);
@@ -10103,8 +10164,10 @@ function checkCommandWords(input: readonly string[]):
   const packageManager = PACKAGE_MANAGER_COMMANDS.has(words[start] ?? '');
   const launcher = words[start] ?? '';
   if (PUBLISHING_COMMAND_LAUNCHERS.has(launcher)) start += 1;
-  else if ((launcher === 'python' || launcher === 'python3') && words[start + 1] === '-m') start += 2;
-  else if (CHECK_COMMAND_RUN_LAUNCHERS.has(launcher) && words[start + 1] === 'run') {
+  else if ((launcher === 'python' || launcher === 'python3') && words[start + 1] === '-m') {
+    start += 2;
+    return { words: words.slice(start), packageManager, assignments, module: words[start] ?? '' };
+  } else if (CHECK_COMMAND_RUN_LAUNCHERS.has(launcher) && words[start + 1] === 'run') {
     start += 2;
     if (SCRIPT_ALIAS_TOOLS.has(launcher)) return { words: words.slice(start), packageManager, assignments, alias: launcher as ScriptAliasTool };
   }
@@ -10249,6 +10312,8 @@ function seventhPassReason(input: readonly string[], reading: CheckReading): str
     words = alias.words;
   }
   if (words.length === 0 || isPathCommandWord(words[0] ?? '') || !namesCheckAtStart(words)) return undefined;
+  // Item E: a check run as a Python module beside a repository module of its name.
+  if (read.module !== undefined && reading.pythonModuleMayExist(read.module, reading.pipNamesFromRoot)) return REPOSITORY_MODULE_REASON;
   const task = taskRunnerReading(words, reading);
   if (task !== undefined) {
     if (task.reading === 'runner') return undefined;
@@ -10314,7 +10379,7 @@ function readJustfileStrictly(text: string): Map<string, { readonly dependencies
 function rootJustRecipeReadings(
   root: string,
   inventory: PublishOnlyInventory,
-  tscAdmitted: (words: readonly string[]) => boolean,
+  tscAdmitted: ScriptAdmission,
 ): ReadonlyMap<string, ScriptReading> {
   const readings = new Map<string, ScriptReading>();
   const spellings = [...(inventory.rootPathsLower.get('justfile') ?? []), ...(inventory.rootPathsLower.get('.justfile') ?? [])];
@@ -10374,7 +10439,7 @@ const TOX_ENV_NAME_PATTERN = /^[A-Za-z0-9_.-]+$/;
  * or a setup.cfg or pyproject.toml that holds tox configuration or is not scanned, a line the ini
  * reader does not place, a brace or backslash anywhere, or a section or key not admitted.
  */
-function rootToxReading(root: string, inventory: PublishOnlyInventory, tscAdmitted: (words: readonly string[]) => boolean): ScriptReading {
+function rootToxReading(root: string, inventory: PublishOnlyInventory, tscAdmitted: ScriptAdmission): ScriptReading {
   const spellings = inventory.rootPathsLower.get('tox.ini') ?? [];
   if (spellings.length !== 1 || spellings[0] !== 'tox.ini' || !inventory.scanned.has('tox.ini') || inventory.rootPathsLower.has('tox.toml')) return 'unread';
   for (const [other, marker] of [['setup.cfg', /^\[tox:/m], ['pyproject.toml', /tool\.tox|legacy_tox_ini/]] as const) {
@@ -10500,7 +10565,7 @@ function readTomlStringTable(text: string, prefix: readonly string[]): Map<strin
  * before it, 'unrecognised' otherwise. A pdm or pipenv script runs without a shell, so it must be
  * one command with no shell character; a hatch script runs in a shell, so it may be an `&&` chain.
  */
-function scriptAliasBodyKinds(text: string, shell: boolean, tscAdmitted: (words: readonly string[]) => boolean): ('runner' | 'check' | 'other')[] {
+function scriptAliasBodyKinds(text: string, shell: boolean, tscAdmitted: ScriptAdmission): ('runner' | 'check' | 'other')[] {
   if (shell ? !commandsAreAndChain(text) : /[|&;<>$`(){}\\\r\n]/.test(text)) return ['other'];
   const commands = shell ? shellCommands(text) : [shellWords(text)];
   return commands.map((words) => {
@@ -10518,7 +10583,7 @@ function scriptNameForNote(name: string): string {
 function rootScriptAliasReader(
   root: string,
   inventory: PublishOnlyInventory,
-  tscAdmitted: (words: readonly string[]) => boolean,
+  tscAdmitted: ScriptAdmission,
 ): (tool: ScriptAliasTool, words: readonly string[]) => ScriptAliasReading {
   const readText = (file: string) => (inventory.scanned.has(file) ? readRepoText(join(root, file), 'utf8') : undefined);
   // A table of a file that is absent is empty; of a file present but not scanned, not read (null).
@@ -10725,7 +10790,7 @@ const RUNNER_ARGUMENT_REASON = 'the check carries a flag or argument that Cejel 
 function rootTestScriptLastRunner(
   root: string,
   inventory: PublishOnlyInventory,
-  tscAdmitted: (words: readonly string[]) => boolean,
+  tscAdmitted: ScriptAdmission,
 ): readonly string[] | undefined {
   const scripts = rootPackageScripts(root, inventory);
   const body = scripts?.test;
