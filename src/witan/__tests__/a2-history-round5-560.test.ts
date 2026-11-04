@@ -31,12 +31,6 @@ import {
 const V17 = WITAN_RUBRIC_VERSION_V17;
 const V27 = WITAN_RUBRIC_VERSION_V27;
 const base = { 'package.json': '{"name":"corner","version":"1.0.0"}\n', 'src/a.js': 'export const a = 1;\n' };
-const UNOPENABLE_DISCLOSURE =
-  "A2's applicability was decided from an incomplete read of the commit history: a .git entry is " +
-  'present but git could not open it as a repository, so Cejel read none of the commit history. ' +
-  "Marking A2 not applicable rests in part on Cejel's scans of earlier commits for .env files and " +
-  'credential-shaped values, so a complete read of the history may make A2 applicable and give it a ' +
-  'score. Re-scan a checkout that git can open (a full clone, not a copied worktree or submodule).';
 const FAILED_BLOB_READ =
   'Cejel: local git historical blob read failed. Cejel continued with reduced Git history evidence.';
 
@@ -130,12 +124,18 @@ describe('#560 R5-1: a .git file pointing at a missing gitdir is still "no repos
         expect(report.repo.headSha, rubricVersion).toBeUndefined();
         expect(report.scanLimitations ?? [], rubricVersion).toEqual([]);
       }
-      // The `.git` entry is visible but git cannot open it, so A2's history went unread: v17 stays
-      // not applicable and says so; v27 abstains at 0.
-      expect(a2(scoreAt(dir, V17)).disclosures).toEqual([UNOPENABLE_DISCLOSURE]);
-      const v27 = a2(scoreAt(dir, V27));
-      expect(v27.status).toBe('insufficient_data');
-      expect(v27.notes ?? '').toContain('a .git entry is present but git could not open it as a repository');
+      // The `.git` entry is visible but git cannot open it, so A2's history went unread and the
+      // depth cannot be read. Since the operator's ruling of 2 Nov v17 abstains as v27 does: no
+      // composite or verdict (history_depth_unknown), and A2 abstains with v27's note. Until then v17
+      // kept A2 not applicable with UNOPENABLE_DISCLOSURE.
+      for (const rubricVersion of [V17, V27]) {
+        const report = scoreAt(dir, rubricVersion);
+        expect(report.insufficientSourceReason ?? '', rubricVersion).toContain('(reason: history_depth_unknown)');
+        const entry = a2(report);
+        expect(entry.status, rubricVersion).toBe('insufficient_data');
+        expect(entry.notes ?? '', rubricVersion).toContain('a .git entry is present but git could not open it as a repository');
+        expect(entry.disclosures, rubricVersion).toBeUndefined();
+      }
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -182,8 +182,11 @@ describe('#560 F5: a copied worktree whose gitdir is gone', () => {
     const v17 = scoreAt(copy, V17);
     expect(v17.repo.headSha).toBeUndefined();
     expect(v17.scanLimitations ?? []).toEqual([]);
-    expect(a2(v17).status).toBe('not_applicable');
-    expect(a2(v17).disclosures).toEqual([UNOPENABLE_DISCLOSURE]);
+    // Operator ruling of 2 Nov: v17 abstains here as v27 does (history_depth_unknown); until then it
+    // kept A2 not applicable with UNOPENABLE_DISCLOSURE.
+    expect(v17.insufficientSourceReason ?? '').toContain('(reason: history_depth_unknown)');
+    expect(a2(v17).status).toBe('insufficient_data');
+    expect(a2(v17).notes ?? '').toContain('a .git entry is present but git could not open it as a repository');
     const v27 = a2(scoreAt(copy, V27));
     expect(v27.status).toBe('insufficient_data');
     expect(v27.score).toBe(0);

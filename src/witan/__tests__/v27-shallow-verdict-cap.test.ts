@@ -16,6 +16,7 @@ import {
   SHALLOW_HISTORY_V27_ABSTENTION,
   WITAN_V27_SHALLOW_HISTORY_REASON,
   isWitanV27ShallowHistoryAbstention,
+  shallowHistoryAbstentionReason,
 } from '../history-depth.js';
 import { renderWitanHtmlReport } from '../html.js';
 import { renderWitanMarkdownReport } from '../markdown.js';
@@ -172,23 +173,35 @@ describe('v27 on a shallow clone: no composite, no verdict, and how to fetch the
         await runWitanFreeCli(['scan', shallow, '--out', out('gated'), '--quiet', '--rubric-pin', V27, '--min-score', '0']),
       ).toBe(1);
       expect(stderr.mock.calls.map(([chunk]) => String(chunk)).join('')).toContain(SHALLOW_HISTORY_FETCH_INSTRUCTION);
-      // v17 on the same clone keeps its verdict and passes a zero threshold.
-      expect(await runWitanFreeCli(['scan', shallow, '--out', out('v17'), '--quiet', '--min-score', '0'])).toBe(0);
+      // Operator ruling of 2 Nov: v17 on the same clone abstains too, so a zero threshold refuses it
+      // (until then v17 kept its verdict and passed).
+      expect(await runWitanFreeCli(['scan', shallow, '--out', out('v17'), '--quiet', '--min-score', '0'])).toBe(1);
     } finally {
       stderr.mockRestore();
     }
   }, 120_000);
 });
 
-describe('unchanged by the ruling: v17 on a shallow clone, and v27 on a full clone', () => {
-  it('every v17 scan, shallow or full, is scored as before: the verdict is its composite\'s band, with no cap', () => {
+describe('unchanged by the 1 Nov ruling: v17 on a full clone, and v27 on a full clone', () => {
+  // Until the operator's ruling of 2 Nov this also pinned that every v17 shallow scan was scored.
+  // Under that ruling every v17 shallow scan abstains as v27's does, with v17's own reason; every
+  // v17 full clone is still scored as before.
+  it('every v17 full clone is scored as before, and every v17 shallow scan abstains with v17\'s shallow-history reason', () => {
     for (const scan of scans.filter((entry) => entry.rubric === V17)) {
       const report = scan.report;
-      if (report.verdict === 'insufficient_source') throw new Error(`${scan.label}: v17 abstained`);
+      expect((report as { verdictCap?: unknown }).verdictCap, scan.label).toBeUndefined();
+      if (scan.shallow) {
+        expect(report.verdict, scan.label).toBe('insufficient_source');
+        expect(report.overallScore, scan.label).toBeNull();
+        expect(report.insufficientSourceReason, scan.label).toBe(shallowHistoryAbstentionReason(V17, false));
+        expect(report.historyLimitations, scan.label).toEqual([SHALLOW_HISTORY_V27_ABSTENTION]);
+        continue;
+      }
+      if (report.verdict === 'insufficient_source') throw new Error(`${scan.label}: v17 abstained on a full clone`);
       expect(report.verdict, scan.label).toBe(witanVerdictForScore(report.overallScore));
-      expect(report.verdictCap, scan.label).toBeUndefined();
-      expect(report.historyLimitations, scan.label).toEqual(scan.shallow ? [SHALLOW_HISTORY_LIMITATION] : undefined);
+      expect(report.historyLimitations, scan.label).toBeUndefined();
     }
+    expect(SHALLOW_HISTORY_LIMITATION).toContain('A2 (');
   });
 
   it('every v27 full clone is scored as before: the verdict is its composite\'s band, with no cap and no history limitation', () => {

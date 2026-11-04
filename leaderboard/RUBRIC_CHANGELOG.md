@@ -22,6 +22,128 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
+## 2026-11-02 (unread history, every rubric) — under v17 and every rubric, a shallow clone or an unreadable history depth gives no composite and no verdict, as under v27 since 1 Nov; a directory with no .git gives none under every rubric, v27 included; complete clones byte-identical under v17 and v27; no published score moved
+
+**Status.** A scoring change under the calibrated default `witan-rubric-v17-2026-07-24` and every
+other selectable rubric, with no identifier change. It reaches only scans whose commit history
+Cejel could not read: a shallow clone, a checkout whose history depth neither git nor the `.git`
+files settle, and a directory that is not a git repository. v17's weights, bands, criteria and
+calibration are untouched: v17 was calibrated on full-history clones, and every complete clone
+below is byte-identical. No holdout or calibration ran, and this entry makes no precision or recall
+claim. The default stays v17.
+
+**Why.** The operator's ruling of 2 Nov (ADR-0001, "Operator ruling (2026-11-02)"), after a
+read-only audit on synthetic fixtures. Under v17 a depth-1 clone, the `actions/checkout` default,
+scored A2 on the one commit it holds, and A2's note said history secret scanning covered all
+reachable history; the history limitation went only to `historyLimitations`, which the Action's
+step summary, its `limited` output and the badge do not read. On this entry's C1 fixture (a secret
+committed and later deleted, beside a data layer), the full clone scored overall 2.4, At risk, A2
+critical 1.4, and the depth-1 clone of the same commit 2.5, Conditional, A2 warning 2.8: a
+`--min-score 2.45` gate passed the shallow clone and failed the full one. A directory with no
+`.git` (every HTTP and remote-MCP upload, every tarball, every archive export) was scored under every
+rubric, v27 included, with the same note and no limitation.
+
+**Change.**
+
+- **Every rubric takes v27's history abstention.** `buildWitanInputFromRepo` reads the history
+  depth once (`readHistoryDepth`) under every rubric, and where it is not `complete` sets the
+  report's `insufficientSourceReason` (after any structural reason) to the reason for that depth
+  under the rubric that ran: `shallowHistoryAbstentionReason`, `historyDepthUnknownAbstentionReason`
+  or the new `noGitHistoryAbstentionReason` (`src/witan/history-depth.ts`). Each reason starts
+  "Under <rubric id> Cejel gives no composite score and no verdict", names its reason
+  (`shallow_history`, `history_depth_unknown`, `no_git_history`) and ends with its instruction. For
+  v27 the first two reproduce the 1 Nov constants byte for byte; under every other rubric they say a
+  composite over a truncated history "could be higher or lower than" the full clone's, where v27's
+  say "could fall below". The labels are "Unrated: shallow clone", "Unrated: history depth unknown"
+  and the new "Unrated: no git history". The machine verdict is `insufficient_source`.
+- **A2.** Under every rubric but v27, A2 now takes v27's abstention path (`v27A2HistoryAbstention`)
+  where the report withholds its verdict for the history, unless a confirmed critical finding
+  stands on what was read. On a directory with no git history, A2 abstains under every rubric with
+  a note that names `no_git_history` and says no commit history was read. Where a confirmed
+  critical finding stands there, under every rubric, or on a shallow clone or unknown depth under
+  every rubric but v27, A2's note no longer claims history secret scanning covered all reachable
+  history. No report field or schema value is added. As under v27 on a shallow clone since #442,
+  an A2 that abstains carries none of the evidence or findings it read from the checked-out tree
+  below critical (a timing-unsafe secret comparison, an env template); with no composite they
+  enter no number, but the certificate no longer lists them for these scans.
+- **B2** keeps its #604 handling.
+- **Disclosure.** Every rubric's `historyLimitations` sentence on a shallow clone is now the one
+  v27 wrote (`SHALLOW_HISTORY_V27_ABSTENTION`); `SHALLOW_HISTORY_LIMITATION`, which said A2 was
+  scored, is no longer written.
+- **The Action.** On an Unrated run `limited` is `true` and `limitations` carries one more message,
+  "<label>: <reason>". `action/action.yml` declares the three outputs the root `action.yml` does.
+
+**Not changed.** A complete clone under every rubric. A complete clone whose history read failed (a
+read limit, the timeout, the file cap, a partial clone's missing object, git missing where the
+`.git` files show a complete clone): v27's A2 still abstains at 0 in the composite, and every other
+rubric keeps its calibrated result. v27 on a shallow clone or an unknown depth, byte for byte.
+#517-#520 stay v27-only.
+
+**Measured.** `origin/main` `7ce3d4fa2` and this change scanned the same 220 synthetic checkouts
+under v17 and v27 (`src/witan/__tests__/v17-unread-history.measure.test.ts`, run with
+`--mode measure`; report.json's sha256 compared): #604's matrix (twelve repositories, full, at
+depths 1, 5, 11 and 12, and without `.git`), #556's twelve A2 shapes (full, at depths 1 and 12, and
+without `.git`), and the curated cases of `src/witan/__tests__/v17-unread-history-no-verdict.test.ts`.
+
+- Complete clones: v17 29 of 29 and v27 29 of 29 byte-identical; the complete partial clone with
+  missing history blobs, 1 of 1 under each.
+- v27 on a shallow clone (78), a shallow clone whose history read also failed (2) and an unknown
+  depth (2): 82 of 82 byte-identical.
+- v17 on a shallow clone: 78 of 78 now abstain, as do the 2 shallow clones whose history read also
+  failed and the 2 unknown depths.
+- No `.git`: 29 of 29 abstain under v17 and 29 of 29 under v27.
+
+| Fixture | Cause | Rubric | Before: overall, verdict | A2 | B2 | After |
+|---|---|---|---|---|---|---|
+| C1 secret deleted, full clone | complete | v17 | 2.4 At risk | critical 1.4 | verified 4.0 | unchanged, byte for byte |
+| C1 secret deleted, depth 1 | shallow | v17 | 2.5 Conditional | warning 2.8 | verified 4.0 | Unrated: shallow clone; A2 abstains; B2 verified 4.0 |
+| C1 secret deleted, depth 1, git missing | shallow + failed read | v17 | 2.3 At risk | warning 2.8 | warning 3.2 | Unrated: shallow clone; A2 abstains; B2 warning 3.2 |
+| C1 secret deleted, no `.git` | no git | v17 | 2.3 At risk | warning 2.8 | warning 3.2 | Unrated: no git history; A2 abstains |
+| C1 secret deleted, no `.git` | no git | v27 | 2.3 At risk | warning 2.8 | warning 3.2 | Unrated: no git history; A2 abstains |
+| data layer clean, depth 1 | shallow | v17 | 2.5 Conditional | warning 2.8 | verified 4.0 | Unrated: shallow clone; A2 abstains |
+| data layer clean, no `.git` | no git | v17 / v27 | 2.3 At risk | warning 2.8 | warning 3.2 | Unrated: no git history; A2 abstains |
+| mixed history, depth 1 | shallow | v17 | 2.3 At risk | verified 4.0 | verified 4.0 | Unrated: shallow clone; A2 abstains |
+| mixed history, depth 12 | shallow | v17 | 2.2 At risk | verified 4.0 | verified 3.6 | Unrated: shallow clone; A2 abstains |
+| mixed history, depth 1, corrupt HEAD | shallow + failed read | v17 | 2.1 At risk | verified 4.0 | warning 3.2 | Unrated: shallow clone; A2 abstains |
+| mixed history, dangling `.git` symlink | depth unknown | v17 | 2.1 At risk | verified 4.0 | warning 3.2 | Unrated: history depth unknown; A2 abstains |
+| mixed history, `.git` file naming a missing gitdir | depth unknown | v17 | 2.1 At risk | verified 4.0 | warning 3.2 | Unrated: history depth unknown; A2 abstains |
+| mixed history, no `.git` | no git | v17 / v27 | 2.1 At risk | verified 4.0 | warning 3.2 | Unrated: no git history; A2 abstains |
+| #556 deleted `.env`, depth 1 | shallow | v17 | 2.0 At risk | not applicable | abstains | Unrated: shallow clone; A2 abstains |
+| #556 deleted `.env`, no `.git` | no git | v17 / v27 | 2.0 At risk | not applicable | abstains | Unrated: no git history; A2 abstains |
+| #556 deleted `.env`, missing blobs | complete + failed read | v17 | 2.0 At risk | warning 2.8 | abstains | unchanged, byte for byte |
+| secret in tree, depth 1 | shallow | v17 | 1.8 At risk | critical 1.4 | abstains | Unrated: shallow clone; A2 critical 1.4 |
+| secret in tree, no `.git` | no git | v17 / v27 | 1.8 At risk | critical 1.4 | abstains | Unrated: no git history; A2 critical 1.4 |
+
+Under v27 every shallow, failed-read and unknown-depth row was Unrated before and is byte-identical
+after. The four "v17 / v27" rows had the same values under both rubrics before.
+
+**Behaviour fingerprints.** No behaviour-fingerprint pin moved, v17's included:
+`src/witan/__tests__/rubric-behaviour-fingerprint.test.ts` and
+`src/witan/__tests__/v17-scoring-surface-golden.test.ts` pass unchanged, since every fixture they
+score is a complete clone. As the 2026-11-01 entry says, the fingerprint corpus holds no shallow
+clone and no directory without `.git`, so the fingerprint does not tell a report this build writes
+on one from one 0.6.9 wrote.
+
+**Pins re-captured** (each read off a full recomputation; every entry that moved is a shallow
+clone):
+
+- `src/witan/__tests__/fixtures/certificate-below-first-page/`: four v17 fixtures
+  (`dg/b3-master-target-depth-1-clone`, `dg/b3-master-target-ci-fetch`, `fa/history-shallow-clone`,
+  `fa/history-shallow-clone-with-committed-secret`): their certificate, report.json and
+  attestation.json digests, and the last one's full v17 pin. Every other v17 entry and every v27
+  entry of the 322 fixtures is unchanged.
+- `src/witan/__tests__/disclosure-gaps.test.ts`: the two depth-1 fixtures above, under v17-v26 (20
+  pins); their v27 pins are unchanged.
+- `src/witan/__tests__/fixtures/shallow-a2-surface-pins.json`: 42 pins, the depth-1 and depth-12
+  clones (v17 on all twelve A2 shapes, v18-v26 on #556's shape); no pin of a full, blobless,
+  treeless or missing-blob clone moved.
+
+Tests that wrote a few files to a directory with no `.git` to exercise one detector now commit those
+files first (`src/witan/__tests__/fixtures/commit-fixture.ts`), so they read the detector on a
+complete clone as they meant to; no assertion was loosened.
+
+No published score moved: the board is scored from complete clones.
+
 ## 2026-11-03 (B3 seventh pass) — under v27 a check before a publish counts only where the reader follows it to a runner that can fail: justfile recipes, tox environments and pdm, hatch and pipenv scripts are read, other task runners withhold, flags are admitted from a list, and `python -m X` only where no repository module shadows it or what it imports (#647, part of #641); review round of #657; v17-v26 byte-identical; no published score moved
 
 **Status.** A scoring change under `witan-rubric-v27-prospective-2026-10-19` only, with no

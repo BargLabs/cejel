@@ -127,34 +127,31 @@ function everyCombination(): A2HistoryIncompleteness[] {
 }
 
 describe('the #606 review: A2\'s history-applicability disclosure never stops a scan from writing its report', () => {
-  it('the reproduction: a shallow clone where three reads fail and a credential-shaped path has a tab writes a report under v17; v27 is unchanged', () => {
+  it('the reproduction: a shallow clone where three reads fail and a credential-shaped path has a tab writes a report under v17 and v27', () => {
     injected.fail = OVERFLOWING_READS;
-    const v17 = a2(scan(V17));
-    expect(v17.status).toBe('not_applicable');
-    const disclosure = (v17.disclosures ?? []).find((text) => text.startsWith(WITAN_A2_HISTORY_APPLICABILITY_PREFIX)) ?? '';
-    expect(disclosure.length).toBeGreaterThan(0);
-    expect(disclosure.length).toBeLessThanOrEqual(LIMIT);
-    // The prefix and the first cause stay whole; the rest are named while they fit, then counted.
-    expect(disclosure.startsWith(`${WITAN_A2_HISTORY_APPLICABILITY_PREFIX}: ${SHALLOW_CAUSE}, and `)).toBe(true);
-    expect(disclosure).toContain(', and 1 more cause that the scan limitations name. Marking A2 not applicable');
-    expect(disclosure).toContain(MIDDLE);
-    expect(disclosure).toContain('Re-scan a full, unfiltered clone (for actions/checkout, set fetch-depth: 0 and no filter).');
-
-    // v27 abstains with its own note, which v27 freeze change F1 already fits to the limit.
-    const v27 = a2(scan(V27));
-    expect(v27.status).toBe('insufficient_data');
-    expect((v27.notes ?? '').length).toBeLessThanOrEqual(LIMIT);
-    expect(v27.notes).toBe(
-      v27A2FailedHistoryNote(
-        {
-          shallow: true,
-          limitHits: ['30-second timeout', '8 MiB output limit'],
-          otherFailure: true,
-          controlCharacterSkip: true,
-        },
-        true,
-      ),
+    // Operator ruling of 2 Nov: v17 on a shallow clone takes v27's abstention, so A2 abstains with
+    // v27's failed-history note (fitted to the limit by v27 freeze change F1) and writes no
+    // applicability disclosure; the report is written, with no composite. Until then v17 marked A2
+    // not applicable with the shortened disclosure, whose fit the next test still checks for every
+    // combination of causes.
+    const expectedNote = v27A2FailedHistoryNote(
+      {
+        shallow: true,
+        limitHits: ['30-second timeout', '8 MiB output limit'],
+        otherFailure: true,
+        controlCharacterSkip: true,
+      },
+      true,
     );
+    for (const rubric of [V17, V27]) {
+      const report = scan(rubric);
+      expect(report.verdict, rubric).toBe('insufficient_source');
+      const entry = a2(report);
+      expect(entry.status, rubric).toBe('insufficient_data');
+      expect((entry.notes ?? '').length, rubric).toBeLessThanOrEqual(LIMIT);
+      expect(entry.notes, rubric).toBe(expectedNote);
+      expect(entry.disclosures ?? [], rubric).not.toContainEqual(expect.stringMatching(new RegExp(`^${WITAN_A2_HISTORY_APPLICABILITY_PREFIX}`)));
+    }
   });
 
   it('every combination of causes fits; the prefix and the first cause stay whole; a disclosure that fits today is unchanged', () => {

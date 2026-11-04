@@ -23,6 +23,9 @@ import { WITAN_NO_MEASUREMENT_REASON } from '../witan/abstention.js';
 import {
   WITAN_V27_HISTORY_DEPTH_UNKNOWN_REASON,
   WITAN_V27_SHALLOW_HISTORY_REASON,
+  historyDepthUnknownAbstentionReason,
+  noGitHistoryAbstentionReason,
+  shallowHistoryAbstentionReason,
 } from '../witan/history-depth.js';
 import { renderWitanHtmlReport } from '../witan/html.js';
 import { scoreRepoWithPublicCejel } from '../witan/public-scan.js';
@@ -306,6 +309,7 @@ describe('blocker 2: every insufficient-source reason the engine emits gets its 
         'independent-catalog',
         'no-measurement',
         'no-measurement-source-coverage',
+        'no-git-history',
         'readable-representation',
         'semantic-auxiliary-dominant',
         'semantic-auxiliary-only',
@@ -321,6 +325,11 @@ describe('blocker 2: every insufficient-source reason the engine emits gets its 
       ['no-measurement', WITAN_NO_MEASUREMENT_REASON],
       ['shallow-history', WITAN_V27_SHALLOW_HISTORY_REASON],
       ['history-depth-unknown', WITAN_V27_HISTORY_DEPTH_UNKNOWN_REASON],
+      // Operator ruling of 2 Nov: every rubric gives these reasons, naming the rubric it ran under.
+      ['shallow-history', shallowHistoryAbstentionReason(WITAN_RUBRIC_VERSION_V17, false)],
+      ['history-depth-unknown', historyDepthUnknownAbstentionReason(WITAN_RUBRIC_VERSION_V17, false)],
+      ['no-git-history', noGitHistoryAbstentionReason(WITAN_RUBRIC_VERSION_V17)],
+      ['no-git-history', noGitHistoryAbstentionReason(WITAN_RUBRIC_VERSION_V27)],
     ];
     const base = fixtureReport('v17/fa/a4-uv-locked-lockfile-too-large');
     for (const [kind, reason] of [...emitted, ...constants]) {
@@ -430,11 +439,15 @@ describe('blocker 4: a Holds item states its score and never says "top level" be
   });
 
   it('only the maximum score is called the top score', () => {
-    const report = fixtureReport('v17/fa/history-shallow-clone');
-    const a2 = buildPlainSummary(report).holds.find(
-      (entry) => entry.source.kind === 'criterion' && entry.source.criterionId === 'A2',
+    // This read A2 at 4.0 on v17/fa/history-shallow-clone until the operator's ruling of 2 Nov, under
+    // which A2 abstains on a v17 shallow clone, and no other fixture here scores a criterion 4.0. The
+    // same check is made on the B3 item of the fixture above with its score set to the maximum.
+    const base = fixtureReport('v17/fa/a4-uv-locked-lockfile-too-large');
+    const report = { ...base, criteria: base.criteria.map((criterion) => (criterion.id === 'B3' ? { ...criterion, score: 4 } : criterion)) };
+    const b3 = buildPlainSummary(report).holds.find(
+      (entry) => entry.source.kind === 'criterion' && entry.source.criterionId === 'B3',
     );
-    expect(a2?.text).toMatch(/^Rated Verified, at 4\.0 out of 4, the top score\./);
+    expect(b3?.text).toMatch(/^Rated Verified, at 4\.0 out of 4, the top score\./);
   });
 });
 

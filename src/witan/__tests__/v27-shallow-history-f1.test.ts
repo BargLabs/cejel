@@ -220,9 +220,17 @@ describe('F1 B: on a shallow clone v27\'s A2 abstention keeps its note; the repo
     expect(a2Signal(cacheLibrary.shallow, V27)?.insufficientDataReason).toBeUndefined();
   });
 
-  it('v17 and full clones are untouched: v17 scores A2 on a shallow clone as on its full clone, and no full-clone A2 signal carries a reason', () => {
+  // Until the operator's ruling of 2 Nov v17 scored A2 on a shallow clone as on its full clone. The
+  // ruling gives v17 v27's A2 abstention: A2 abstains with the same note as v27's on the same clone,
+  // unless a confirmed critical finding stands. Full clones are still untouched.
+  it('v17 takes v27\'s A2 abstention on a shallow clone, and no full-clone A2 signal carries a reason', () => {
     for (const row of rows.filter((entry) => entry.rubric === V17)) {
-      expect(criterionOf(row.shallow, 'A2'), label(row)).toEqual(criterionOf(row.full, 'A2'));
+      const v27 = rows.find((entry) => entry.rubric === V27 && label(entry) === label(row));
+      const a2 = criterionOf(row.shallow, 'A2');
+      expect(v27, label(row)).toBeDefined();
+      if (a2.status === 'critical') continue;
+      expect(a2.status, label(row)).toBe('insufficient_data');
+      expect(a2.notes, label(row)).toBe(criterionOf(v27!.shallow, 'A2').notes);
     }
     const full = cloneRepository(buildMatrixOrigin('mixed', 'ci-only'));
     for (const rubric of [V17, V27]) {

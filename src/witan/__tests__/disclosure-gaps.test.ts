@@ -1027,26 +1027,30 @@ const SCORING_SURFACE_PINS: Readonly<Record<string, string>> = {
   // process_trust 2.2, overall 2.3). The full clone reads its one commit as 0 of 1, worse than the
   // file evidence, so B2 is 2 here against the full clone's 1.6. #603's pins were ec5cf4f4…
   // (v17-v25) and ec395351… (v26).
+  // Re-pinned for the operator's ruling of 2 Nov (goal_cejel_v17_unread_history_no_verdict): every
+  // rubric gives a shallow clone no composite and no verdict, so v17-v26 abstain here as v27 has
+  // since 1 Nov. Each pin differs by rubric because the reason names the rubric. The previous pins
+  // were d9e30352… (v17-v25) and 34348086… (v26); v27's pin is unchanged.
   'b3-master-target-depth-1-clone@witan-rubric-v17-2026-07-24':
-    'd9e30352eb86b7530dbe9cee5cf9cd0ef92970f79b9791982e63d5cea78c45ea',
+    '74a056ce1ebb7b8574291046bc3514d73f3b3214e6026dfe83fc99ecef3d9c03',
   'b3-master-target-depth-1-clone@witan-rubric-v18-prospective-2026-07-25':
-    'd9e30352eb86b7530dbe9cee5cf9cd0ef92970f79b9791982e63d5cea78c45ea',
+    '6a76906233b7905434e9e788ac2335e9132088fcbdfbe181ba26988b70aad4c6',
   'b3-master-target-depth-1-clone@witan-rubric-v19-prospective-2026-08-09':
-    'd9e30352eb86b7530dbe9cee5cf9cd0ef92970f79b9791982e63d5cea78c45ea',
+    'd97846087653ecfc7d013d05afeb10ec9f49f7244597157c4142bb3afa441bb6',
   'b3-master-target-depth-1-clone@witan-rubric-v20-prospective-2026-08-10':
-    'd9e30352eb86b7530dbe9cee5cf9cd0ef92970f79b9791982e63d5cea78c45ea',
+    '456d70b1b575dd9320aae3f11fb29f68605d404a8de6bc0b3307fe0242b17771',
   'b3-master-target-depth-1-clone@witan-rubric-v21-prospective-2026-08-10':
-    'd9e30352eb86b7530dbe9cee5cf9cd0ef92970f79b9791982e63d5cea78c45ea',
+    '596303b41913ece5f5c558df368ec17b7d8e686dd26383b1452c1cdbaccd8252',
   'b3-master-target-depth-1-clone@witan-rubric-v22-prospective-2026-08-10':
-    'd9e30352eb86b7530dbe9cee5cf9cd0ef92970f79b9791982e63d5cea78c45ea',
+    '361a54c09bb9d2df69a1e27dbd4dd75fe846ab92fe1e65aae4cf3180c03c29ef',
   'b3-master-target-depth-1-clone@witan-rubric-v23-prospective-2026-09-06':
-    'd9e30352eb86b7530dbe9cee5cf9cd0ef92970f79b9791982e63d5cea78c45ea',
+    '38e7970f98712c783fbd2a434a0db1a73aeb3adec5620b7708a32c5c44109f66',
   'b3-master-target-depth-1-clone@witan-rubric-v24-prospective-2026-09-15':
-    'd9e30352eb86b7530dbe9cee5cf9cd0ef92970f79b9791982e63d5cea78c45ea',
+    '1d148e5c32c079d136de992b0a0eeff3978f5893cdb1d097a7f606fa0e3a43a5',
   'b3-master-target-depth-1-clone@witan-rubric-v25-prospective-2026-10-12':
-    'd9e30352eb86b7530dbe9cee5cf9cd0ef92970f79b9791982e63d5cea78c45ea',
+    '89ba7bc759f5c6db0639d38f6734a15aa03e8cc50b5cc7a185e6135f84c8ab5f',
   'b3-master-target-depth-1-clone@witan-rubric-v26-prospective-2026-10-14':
-    '343480865083eec235845ae465522796fafe6f1119d394eddc5098e001806b75',
+    'c45893e1fd34da81da5814ffd46e8b8efd4a44fef4cb2117fbc10870311c419a',
   // Re-captured 2026-10-22 for #556, v27 only: this checkout is shallow and A2 was not applicable
   // on a decision that rests on history scans, so under v27 A2 abstains as a read failure kept in
   // the composite at 0 (overall 1.8 to 1.5, code_trust 2.3 to 1.7). Every other rubric's pin is
@@ -1083,27 +1087,28 @@ const SCORING_SURFACE_PINS: Readonly<Record<string, string>> = {
   'b3-master-target-single-branch-clone@witan-rubric-v27-prospective-2026-10-19':
     '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
   // Re-captured 2026-10-27 for #442, every rubric but v27, exactly as for
-  // b3-master-target-depth-1-clone above (also a depth-1 checkout).
+  // b3-master-target-depth-1-clone above (also a depth-1 checkout). Re-pinned for the ruling of
+  // 2 Nov exactly as for b3-master-target-depth-1-clone; the same previous pins.
   'b3-master-target-ci-fetch@witan-rubric-v17-2026-07-24':
-    'd9e30352eb86b7530dbe9cee5cf9cd0ef92970f79b9791982e63d5cea78c45ea',
+    '74a056ce1ebb7b8574291046bc3514d73f3b3214e6026dfe83fc99ecef3d9c03',
   'b3-master-target-ci-fetch@witan-rubric-v18-prospective-2026-07-25':
-    'd9e30352eb86b7530dbe9cee5cf9cd0ef92970f79b9791982e63d5cea78c45ea',
+    '6a76906233b7905434e9e788ac2335e9132088fcbdfbe181ba26988b70aad4c6',
   'b3-master-target-ci-fetch@witan-rubric-v19-prospective-2026-08-09':
-    'd9e30352eb86b7530dbe9cee5cf9cd0ef92970f79b9791982e63d5cea78c45ea',
+    'd97846087653ecfc7d013d05afeb10ec9f49f7244597157c4142bb3afa441bb6',
   'b3-master-target-ci-fetch@witan-rubric-v20-prospective-2026-08-10':
-    'd9e30352eb86b7530dbe9cee5cf9cd0ef92970f79b9791982e63d5cea78c45ea',
+    '456d70b1b575dd9320aae3f11fb29f68605d404a8de6bc0b3307fe0242b17771',
   'b3-master-target-ci-fetch@witan-rubric-v21-prospective-2026-08-10':
-    'd9e30352eb86b7530dbe9cee5cf9cd0ef92970f79b9791982e63d5cea78c45ea',
+    '596303b41913ece5f5c558df368ec17b7d8e686dd26383b1452c1cdbaccd8252',
   'b3-master-target-ci-fetch@witan-rubric-v22-prospective-2026-08-10':
-    'd9e30352eb86b7530dbe9cee5cf9cd0ef92970f79b9791982e63d5cea78c45ea',
+    '361a54c09bb9d2df69a1e27dbd4dd75fe846ab92fe1e65aae4cf3180c03c29ef',
   'b3-master-target-ci-fetch@witan-rubric-v23-prospective-2026-09-06':
-    'd9e30352eb86b7530dbe9cee5cf9cd0ef92970f79b9791982e63d5cea78c45ea',
+    '38e7970f98712c783fbd2a434a0db1a73aeb3adec5620b7708a32c5c44109f66',
   'b3-master-target-ci-fetch@witan-rubric-v24-prospective-2026-09-15':
-    'd9e30352eb86b7530dbe9cee5cf9cd0ef92970f79b9791982e63d5cea78c45ea',
+    '1d148e5c32c079d136de992b0a0eeff3978f5893cdb1d097a7f606fa0e3a43a5',
   'b3-master-target-ci-fetch@witan-rubric-v25-prospective-2026-10-12':
-    'd9e30352eb86b7530dbe9cee5cf9cd0ef92970f79b9791982e63d5cea78c45ea',
+    '89ba7bc759f5c6db0639d38f6734a15aa03e8cc50b5cc7a185e6135f84c8ab5f',
   'b3-master-target-ci-fetch@witan-rubric-v26-prospective-2026-10-14':
-    '343480865083eec235845ae465522796fafe6f1119d394eddc5098e001806b75',
+    'c45893e1fd34da81da5814ffd46e8b8efd4a44fef4cb2117fbc10870311c419a',
   // Re-captured 2026-10-22 for #556, v27 only: this checkout is shallow and A2 was not applicable
   // on a decision that rests on history scans, so under v27 A2 abstains as a read failure kept in
   // the composite at 0 (overall 1.8 to 1.5, code_trust 2.3 to 1.7). Every other rubric's pin is

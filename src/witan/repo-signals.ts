@@ -72,7 +72,14 @@ import {
   isExpectedGitAbsence,
   type GitExecResult,
 } from './git-exec.js';
-import { isShallowRepository, v27HistoryDepthAbstentionReason } from './history-depth.js';
+import {
+  NO_GIT_HISTORY_INSTRUCTION,
+  type UnreadHistoryDepth,
+  historyDepthAbstentionReason,
+  isShallowRepository,
+  readHistoryDepth,
+  unreadHistoryDepth,
+} from './history-depth.js';
 import { stripBom } from './json-safe.js';
 import {
   WITAN_RUBRIC_VERSION_V9,
@@ -716,6 +723,12 @@ function buildWitanInputFromRepoUntracked(
   // never inherited: v17 (the public default) and v18-v25 stay byte-stable.
   const usesV26BuildStepEvidence = rubricVersion === WITAN_RUBRIC_VERSION_V26;
   const usesV27Closure = usesV27FalseAssuranceClosure(rubricVersion);
+  // Operator rulings of 1 Nov (v27) and 2 Nov (every rubric): history Cejel could not read (a
+  // shallow clone, a depth git and the files cannot settle, or a directory with no git history)
+  // gives no composite and no verdict, and A2 abstains on it as v27's A2 does. Read once, here, so
+  // the A2 collector and the report-level reason below agree. Undefined for a complete clone, which
+  // every rubric scores exactly as before.
+  const unreadHistory = unreadHistoryDepth(readHistoryDepth(options.repoPath));
   const structuralArchetype = classifyRepoArchetype(inventoryFiles, rubricVersion);
   const readableArchetype =
     rubricVersion === WITAN_RUBRIC_VERSION_V13 ||
@@ -814,6 +827,7 @@ function buildWitanInputFromRepoUntracked(
     reviewableSourceProof,
     inventoryAbsenceContext,
     scanLimitations,
+    unreadHistory,
   );
   const archetype =
     usesV17Detectors &&
@@ -826,16 +840,19 @@ function buildWitanInputFromRepoUntracked(
           totalFileCount: gatedArchetype.totalFileCount,
         }
       : gatedArchetype;
-  // Operator ruling of 1 Nov (v27 only): a shallow clone gets no composite and no verdict. The
-  // signals above are still collected, so each criterion's reading is computed and shown; only the
-  // headline abstains. A structural reason the repository cannot be rated at all comes first, since
-  // fetching the history would not change it. Every other rubric is untouched. Where git cannot
-  // report the depth, the repository's files decide it, and where they cannot either, v27 withholds
-  // too (WITAN_V27_HISTORY_DEPTH_UNKNOWN_REASON): an unanswered question is never read as "complete".
+  // Operator ruling of 1 Nov (v27), extended to every rubric by the ruling of 2 Nov: a shallow clone
+  // gets no composite and no verdict. The signals above are still collected, so each criterion's
+  // reading is computed and shown; only the headline abstains. A structural reason the repository
+  // cannot be rated at all comes first, since fetching the history would not change it. Where git
+  // cannot report the depth, the repository's files decide it, and where they cannot either, the
+  // scan withholds too (historyDepthUnknownAbstentionReason): an unanswered question is never read
+  // as "complete". A directory that is not a git repository withholds too, under every rubric
+  // (noGitHistoryAbstentionReason). A complete clone carries no history reason, so its report is
+  // byte-identical to before under every rubric.
   const insufficientSourceReason =
     ignoredTargetReason ??
     archetype.insufficientSourceReason ??
-    (usesV27Closure ? v27HistoryDepthAbstentionReason(options.repoPath) : undefined);
+    (unreadHistory ? historyDepthAbstentionReason(unreadHistory, rubricVersion, usesV27Closure) : undefined);
 
   return {
     productSlug: options.productSlug,
@@ -1914,6 +1931,7 @@ function collectRepoSignals(
   reviewableSourceProof?: ReviewableSourceProof,
   inventoryAbsenceContext: InventoryAbsenceContext = LEGACY_INVENTORY_ABSENCE_CONTEXT,
   scanLimitations: Set<string> = new Set(),
+  unreadHistory?: UnreadHistoryDepth,
 ): WitanCriterionSignalPayload[] {
   const signals: WitanCriterionSignalPayload[] = [];
   // Monorepo root shared-config (lockfile/CI/dep-update) that governs a sub-package
@@ -1950,6 +1968,7 @@ function collectRepoSignals(
       scanLimitations,
       useV26SettlingEvidence,
       useV27FalseAssuranceClosure,
+      unreadHistory,
     ),
   );
   const a3Signal = collectCriterion('A3', () =>
@@ -2852,7 +2871,17 @@ function collectA2IsolationEvidence(
   scanLimitations: Set<string>,
   useV26SettlingEvidence = false,
   useV27FalseAssuranceClosure = false,
+  unreadHistory?: UnreadHistoryDepth,
 ): WitanCriterionSignalPayload | null {
+  // v27 abstains on any incomplete history read (#442, #556). Every other rubric does so where the
+  // report withholds its verdict for the history (operator ruling of 2 Nov): a shallow clone, or a
+  // depth that could not be read. A complete clone whose history read failed keeps its calibrated
+  // result under every rubric but v27, as before.
+  const abstainsOnIncompleteHistory = useV27FalseAssuranceClosure || unreadHistory !== undefined;
+  // Every rubric (operator ruling of 2 Nov): a directory that is not a git repository has no
+  // history to read, so A2 abstains with reason no_git_history unless a confirmed critical finding
+  // stands on the checked-out files.
+  const noGitHistory = unreadHistory === 'not_a_repository';
   const evidence: WitanEvidencePointer[] = [];
   const findings: WitanCriterionSignalPayload['findings'] = [];
   const gitignore = repoFiles.find((file) => basename(file) === '.gitignore');
@@ -3066,8 +3095,13 @@ function collectA2IsolationEvidence(
     // exactly what it cannot see. On a complete clone whose history reads all completed, or a
     // directory that is not a git repository, the decision stands unchanged.
     // v27: abstain (v27A2HistoryAbstention says how each cause counts in the composite). Every
-    // other rubric keeps its calibrated not-applicable result and says what it did not read.
-    if (historyIncompleteness && useV27FalseAssuranceClosure) {
+    // other rubric abstains the same way where the report withholds its verdict for the history
+    // (operator ruling of 2 Nov), and otherwise keeps its calibrated not-applicable result and says
+    // what it did not read. A directory that is not a git repository abstains under every rubric.
+    if (noGitHistory) {
+      return { ...noGitHistoryA2Abstention(true), ...placeholderSetAsideDisclosures(placeholderSetAside) };
+    }
+    if (historyIncompleteness && abstainsOnIncompleteHistory) {
       return {
         ...v27A2HistoryAbstention(historyIncompleteness, true),
         ...placeholderSetAsideDisclosures(placeholderSetAside),
@@ -3435,7 +3469,12 @@ function collectA2IsolationEvidence(
   // secret_cleanliness is not done: the calibrated A2 state needs that metric, and its score-band
   // fallback can land on a less severe status.
   // #556: the same holds when one of A2's history reads failed, on a shallow clone or not.
-  if (useV27FalseAssuranceClosure && !hasCriticalFinding && historyIncompleteness) {
+  // Operator ruling of 2 Nov: every other rubric takes this path where the report withholds its
+  // verdict for the history, and every rubric abstains on a directory with no git history.
+  if (!hasCriticalFinding && noGitHistory) {
+    return { ...noGitHistoryA2Abstention(false), ...placeholderSetAsideDisclosures(placeholderSetAside) };
+  }
+  if (abstainsOnIncompleteHistory && !hasCriticalFinding && historyIncompleteness) {
     return v27A2HistoryAbstention(historyIncompleteness, false);
   }
   const secretCleanliness = hasCriticalFinding ? 0 : 1;
@@ -3544,9 +3583,16 @@ function collectA2IsolationEvidence(
     findings,
     metrics: [...baseMetrics, ...isolationMetrics, ...cryptoMetrics],
     notes: [
-      useV18NativeRls
-        ? 'History secret scanning covers all reachable git history for credential-pattern paths unless the explicit credential-blob safety valve is reported. Positive multi-tenancy credit is derived only from this repository’s own CREATE POLICY USING/WITH CHECK clauses; no fixed tenant-token vocabulary can create isolation credit. A conservative schema premise is retained only to fail closed when a tenant-shaped schema has zero RLS policies.'
-        : 'History secret scanning covers all reachable git history for credential-pattern paths unless the explicit credential-blob safety valve is reported.',
+      // Operator ruling of 2 Nov: where Cejel did not read the history, A2 reaches here only on a
+      // confirmed critical finding, and its note must not claim it read all reachable history. v27
+      // on a shallow clone or an unknown depth keeps its 1 Nov note, byte for byte.
+      (noGitHistory || (unreadHistory !== undefined && !useV27FalseAssuranceClosure)
+        ? `${unreadHistoryA2Sentence(unreadHistory!)}${useV18NativeRls ? ' ' : ''}`
+        : 'History secret scanning covers all reachable git history for credential-pattern paths unless the explicit credential-blob safety valve is reported.' +
+          (useV18NativeRls ? ' ' : '')) +
+        (useV18NativeRls
+          ? 'Positive multi-tenancy credit is derived only from this repository’s own CREATE POLICY USING/WITH CHECK clauses; no fixed tenant-token vocabulary can create isolation credit. A conservative schema premise is retained only to fail closed when a tenant-shaped schema has zero RLS policies.'
+          : ''),
       ...(abstainsSecretCleanliness
         ? [
             'Cejel abstained on secret cleanliness: the current-tree scan matched a secret-shaped value it could not classify from content as either a credential or an example. The metric is withheld rather than scored; every other A2 signal is unaffected.',
@@ -6163,6 +6209,39 @@ const V27_A2_SHALLOW_APPLICABILITY_NOTE =
   'applicable on a decision that rests in part on its scans of earlier commits for .env files and ' +
   'credential-shaped values, which read only the commits present. Re-scan a full clone (for ' +
   'actions/checkout, set fetch-depth: 0).';
+// Every rubric (operator ruling of 2 Nov): A2's abstention on a directory that is not a git
+// repository. It names the reason the report's own abstention names (no_git_history), in the note,
+// as v27's history abstentions do: with no composite, an insufficientDataReason would decide
+// nothing, and the report schema gains no value.
+const A2_NO_GIT_HISTORY_NOTE =
+  'A2 abstained (reason: no_git_history): this directory is not a git repository, so Cejel read no ' +
+  'commit history, and its scan for credentials and .env files committed in earlier commits read ' +
+  'nothing; no confirmed critical finding stands on the checked-out files. ' +
+  NO_GIT_HISTORY_INSTRUCTION;
+const A2_NO_GIT_HISTORY_APPLICABILITY_NOTE =
+  'A2 abstained (reason: no_git_history): this directory is not a git repository, so Cejel read no ' +
+  'commit history, and A2 would otherwise have been marked not applicable on a decision that rests ' +
+  'in part on scans of earlier commits for .env files and credential-shaped values. ' +
+  NO_GIT_HISTORY_INSTRUCTION;
+
+function noGitHistoryA2Abstention(wouldBeNotApplicable: boolean): WitanCriterionSignalPayload {
+  return shallowHistoryAbstention('A2', wouldBeNotApplicable ? A2_NO_GIT_HISTORY_APPLICABILITY_NOTE : A2_NO_GIT_HISTORY_NOTE);
+}
+
+/**
+ * The first sentence of a scored A2's note where Cejel did not read the whole history (operator
+ * ruling of 2 Nov): A2 is scored there only on a confirmed critical finding in what was read, so it
+ * says what was read instead of claiming all reachable history.
+ */
+function unreadHistoryA2Sentence(depth: UnreadHistoryDepth): string {
+  if (depth === 'not_a_repository') {
+    return 'This directory is not a git repository, so Cejel read no commit history (reason: no_git_history); the critical finding stands on the checked-out files.';
+  }
+  return depth === 'shallow'
+    ? 'This repository is a shallow clone, so history secret scanning read only the commits present (reason: shallow_history); the critical finding stands on what was read.'
+    : 'Cejel could not read the history depth of this checkout, so history secret scanning may have read only part of it (reason: history_depth_unknown); the critical finding stands on what was read.';
+}
+
 /**
  * Why A2's read of the commit history was incomplete, as far as Cejel detected it (#556). Any
  * combination may hold:

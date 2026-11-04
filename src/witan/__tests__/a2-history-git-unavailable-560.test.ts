@@ -112,11 +112,18 @@ describe('#560, #568: git itself unavailable', () => {
     expect(criterion.notes ?? '').toContain('Re-scan on a host where git is installed.');
   });
 
-  it('in a directory with no .git anywhere above it: unchanged, not applicable with no disclosure', () => {
+  // Until the operator's ruling of 2 Nov this was "unchanged, not applicable with no disclosure".
+  // A directory with no .git has no history to read, so under every rubric A2 now abstains with
+  // reason no_git_history and the report gives no composite and no verdict; still no disclosure.
+  it('in a directory with no .git anywhere above it: A2 abstains with no_git_history and no disclosure', () => {
     mode.current = 'git-absent';
     for (const rubricVersion of [V17, V27]) {
-      const criterion = a2(scoreAt(repos.plain, rubricVersion));
-      expect(criterion.status, rubricVersion).toBe('not_applicable');
+      const report = scoreAt(repos.plain, rubricVersion);
+      expect(report.verdict, rubricVersion).toBe('insufficient_source');
+      expect(report.insufficientSourceReason ?? '', rubricVersion).toContain('(reason: no_git_history)');
+      const criterion = a2(report);
+      expect(criterion.status, rubricVersion).toBe('insufficient_data');
+      expect(criterion.notes ?? '', rubricVersion).toContain('(reason: no_git_history)');
       expect(criterion.disclosures, rubricVersion).toBeUndefined();
     }
   });

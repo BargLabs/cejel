@@ -180,12 +180,12 @@
     "attestationSha256": "6bb5de725d70133e251ad6a406eb42422b61ed143d744e5db6c010faa01b948f"
   },
   "v17/dg/b3-master-target-ci-fetch": {
-    "reportSha256": "988fd421187d2280161be31dcfa6aa0a2dd792656015798f38dbdde18cfbe8d2",
-    "attestationSha256": "bfd53982230af347126f2fa4f341fd70a8b6b819c69439f2d4802dccc0808856"
+    "reportSha256": "84605ab86af3ca1fcf999d1536d1f8a811276df3fd4203fa989fbd2ffcdd7a93",
+    "attestationSha256": "251c77cb2548fc36e6f83332c01ccc3beda8ddf62fbd23a2da17b598d52cc12b"
   },
   "v17/dg/b3-master-target-depth-1-clone": {
-    "reportSha256": "988fd421187d2280161be31dcfa6aa0a2dd792656015798f38dbdde18cfbe8d2",
-    "attestationSha256": "bfd53982230af347126f2fa4f341fd70a8b6b819c69439f2d4802dccc0808856"
+    "reportSha256": "84605ab86af3ca1fcf999d1536d1f8a811276df3fd4203fa989fbd2ffcdd7a93",
+    "attestationSha256": "251c77cb2548fc36e6f83332c01ccc3beda8ddf62fbd23a2da17b598d52cc12b"
   },
   "v17/dg/b3-master-target-detached": {
     "reportSha256": "387fd27d5996c1d68c2bbc7dc2771e51a21a4d4e4ea838274fba30b1c1134116",
@@ -624,12 +624,12 @@
     "attestationSha256": "03f6144bbaee0be54f113b0c4ed9346546ec3a4744ec50156fafcc6c5f4feac4"
   },
   "v17/fa/history-shallow-clone": {
-    "reportSha256": "616c0bd5405226eb8b601a68b54fc6999a2f258ae057da6342ab31f22b06b282",
-    "attestationSha256": "bc18cdbcc2f6b6769fa5f3203e99c78a87a0aebfb0a82f13973445f804c917b9"
+    "reportSha256": "c98b15c716423f993f6628103c83627b6d0a369b3323a01ad8b29cb853fcd062",
+    "attestationSha256": "28361ff1216d5f5ae3367ee698f04896f7a12d4cbc80cc94236f560431d610bf"
   },
   "v17/fa/history-shallow-clone-with-committed-secret": {
-    "reportSha256": "7b4e5ebe5db7ac64e4d7566572c4257062901b8fe03a134278dcde8de52724d4",
-    "attestationSha256": "306c15e374ea7108cb23c1307d4233cc37794fddae46467f6087da575394119e"
+    "reportSha256": "eed853b33d26533b6c1e016463e13d6e831701823bc35a04e8b601d8801670ef",
+    "attestationSha256": "b32d198233f6bda7e46c362e1b4f4dbf2a954337fd545456ae3a7d4707139eff"
   },
   "v17/fa/review-a1-conditional-pytestmark": {
     "reportSha256": "243b2e6fc5fa053ba69363f7d199de4b71abc3645fbd44108320fa11610a1f35",

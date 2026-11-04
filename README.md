@@ -24,6 +24,11 @@ jobs:
       - uses: BargLabs/cejel/action@v1
 ```
 
+Keep `fetch-depth: 0`. `actions/checkout` makes a shallow clone by default, and a shallow clone is
+"Unrated: shallow clone", with no score and no verdict, under every rubric, the default included,
+until the full history is checked out. A directory with no `.git` (an uploaded snapshot or an
+archive) is "Unrated: no git history" under every rubric.
+
 Or run it once from a shell: `npx @cejel/cejel@latest .` More on the Action under
 [GitHub Action](#github-action). To read what comes out, see [Reading the result](#reading-the-result).
 
@@ -223,22 +228,32 @@ The npm package is scoped as `@cejel/cejel`; its executable remains the short co
     min-score: "2.5"   # optional: fail the build below this
 ```
 
-`actions/checkout` fetches one commit by default, so clone in full with `fetch-depth: 0`. On a
-shallow clone the criteria that read commit history see only the commits it holds: A2's scans of
-earlier commits for `.env` files and credentials read only those, and B2 withholds its
-pull-request merge ratio, or abstains where nothing else is left to score it on, saying why in its
-note. The certificate says so under "History limitations".
-Under the opt-in prospective v27 rubric (`--rubric-pin witan-rubric-v27-prospective-2026-10-19`;
-v17 remains the default), a shallow clone gets no composite score and no verdict. The scan abstains
-(`insufficient_source`), still reads and shows each criterion, and says what to do: run
-`git fetch --unshallow` (or check out with full history, for example `fetch-depth: 0` in
-`actions/checkout`), then scan again. The certificate and the badge read "Unrated: shallow clone".
-With `--min-score` an abstained scan fails the check, as any abstention does, and the message says
-how to fetch the history. If git cannot report the depth (git is not installed, or cannot open the
-repository), Cejel reads it from the repository's `.git` files; if those do not settle it either,
-the scan abstains the same way as "Unrated: history depth unknown". Among the criteria shown, A2 abstains on a shallow clone unless a confirmed
-critical secret finding stands, including where it would otherwise be marked not applicable, since
-that decision also rests on earlier commits.
+`actions/checkout` fetches one commit by default, so clone in full with `fetch-depth: 0`. Under
+every rubric, the calibrated default included, a shallow clone gets no composite score and no
+verdict until the full history is checked out. The scan abstains (`insufficient_source`), still
+reads and shows each criterion, and says what to do: run `git fetch --unshallow` (or check out with
+full history, for example `fetch-depth: 0` in `actions/checkout`), then scan again. The
+certificate, the badge and the Action's `verdict` output read "Unrated: shallow clone", and the
+Action's `limited` output is `true`. With `--min-score` an abstained scan fails the check, as any
+abstention does, and the message says how to fetch the history. If git cannot report the depth (git
+is not installed, or cannot open the repository), Cejel reads it from the repository's `.git`
+files; if those do not settle it either, the scan abstains the same way as "Unrated: history depth
+unknown". Among the criteria shown on a shallow clone, A2's scans of earlier commits for `.env`
+files and credentials read only the commits it holds, so A2 abstains unless a confirmed critical
+secret finding stands, including where it would otherwise be marked not applicable, since that
+decision also rests on earlier commits; B2 withholds its pull-request merge ratio, or abstains
+where nothing else is left to score it on, saying why in its note. The certificate says so under
+"History limitations". Until 2 November 2026 this held only under the opt-in prospective v27
+rubric (`--rubric-pin witan-rubric-v27-prospective-2026-10-19`; v17 remains the default), and the
+default rubric scored a shallow clone, on which A2 could not see a secret committed and later
+deleted. A complete clone is scored exactly as before.
+
+A directory that is not a git repository gets no composite score and no verdict under every
+rubric, v27 included: "Unrated: no git history". That covers a directory with no `.git`, a
+tarball, an archive export of a commit, and every snapshot uploaded to the HTTP or remote-MCP
+server. A2 abstains, since no commit history was read, unless a confirmed critical secret finding
+stands on the files. Scan a git clone with full history; an uploaded snapshot or archive carries no
+history.
 
 On a clone that is not shallow, A2 abstains under v27 where one of its reads of earlier commits failed:
 for example on a partial clone made with `--filter`, which `fetch-depth: 0` and no `filter` avoid,
@@ -552,13 +567,24 @@ secrets.
     min-score: '2.5' # optional; omit to never fail the check
 ```
 
-Check out with `fetch-depth: 0`: the default depth of 1 truncates the history A2 and B2 read, and
-the certificate then lists a history limitation. On a shallow clone A2's scans of earlier commits
-read only the commits present and B2 withholds its pull-request merge ratio, each with its reason.
-The Action does not pin a rubric, so it scores under the default. Under the opt-in
-`witan-rubric-v27-prospective-2026-10-19` rubric a shallow checkout gets no composite score and no
-verdict: the scan abstains and says to run `git fetch --unshallow` (or check out with full history,
-for example `fetch-depth: 0` in `actions/checkout`), then scan again.
+Check out with `fetch-depth: 0`. The default depth of 1 is a shallow clone, and under every
+rubric, the default included, a shallow checkout gets no composite score and no verdict: the step
+summary, the badge and the `verdict` output read "Unrated: shallow clone", the `limited` output is
+`true` and `limitations` names the cause, and the scan says to run `git fetch --unshallow` (or check
+out with full history, for example `fetch-depth: 0` in `actions/checkout`), then scan again. On a
+shallow clone A2's scans of earlier commits read only the commits present and B2 withholds its
+pull-request merge ratio, each with its reason. A `repo-path` that is not a git repository is
+"Unrated: no git history" under every rubric. The Action does not pin a rubric, so it scores under
+the default.
+
+| Output | What it holds |
+|---|---|
+| `score` | The overall score (0.0–4.0), or empty when Cejel abstains. |
+| `verdict` | The verdict label, or the abstention label (`Insufficient source`, `Insufficient evidence`, `Unrated: shallow clone`, `Unrated: history depth unknown`, `Unrated: no git history`). |
+| `limited` | `true` when scan limitations qualify the result, or when the verdict is Unrated; otherwise `false`. |
+| `limitation-count` | How many limitations qualify the certificate, counting an Unrated verdict as one. |
+| `limitations` | A JSON array of the limitation messages; an Unrated verdict adds one naming its cause. |
+| `artifact-dir` | Where this run's report artifacts were exported. |
 
 | Input | Default | What it does |
 |---|---|---|
@@ -569,7 +595,8 @@ for example `fetch-depth: 0` in `actions/checkout`), then scan again.
 
 The scoring step is offline whatever the inputs; it never fetches history. To opt in to the
 prospective v27 rubric, pin it and check out in full with `fetch-depth: 0`: v27 reads the commit
-history, so a shallow checkout gets no full v27 result. v17 remains the calibrated default.
+history, so a shallow checkout gets no full v27 result, as under the default. v17 remains the
+calibrated default.
 
 ```yaml
 - uses: actions/checkout@v4

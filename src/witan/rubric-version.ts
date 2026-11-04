@@ -36,6 +36,16 @@ export const WITAN_RUBRIC_VERSION_V16 = 'witan-rubric-v16-2026-07-24';
 // the failure-derived reviewable-source proof, authenticated A1 absence measurement, and
 // narrowly bounded post-signal structural rescue. It is the public default after the v50
 // untouched holdout cleared every preregistered gate.
+// Operator ruling of 2 Nov 2026 (ADR-0001; goal_cejel_v17_unread_history_no_verdict_2026-11-02):
+// v17 now withholds the composite and the verdict when Cejel could not read the commit history,
+// as v27 has since the ruling of 1 Nov. A shallow clone, a checkout whose history depth neither git
+// nor the .git files settle, and a directory that is not a git repository each abstain (verdict
+// insufficient_source, labelled "Unrated: shallow clone", "Unrated: history depth unknown" or
+// "Unrated: no git history"), with the instruction to fetch the history; each criterion is still
+// read and shown, and A2 abstains there unless a confirmed critical finding stands on what was
+// read. v17's weights, bands, criteria and calibration are untouched, and a complete clone is
+// scored exactly as before, byte for byte: v17 was calibrated on full-history clones. #517-#520
+// stay v27-only.
 export const WITAN_RUBRIC_VERSION_V17 = 'witan-rubric-v17-2026-07-24';
 
 // Prospective free-core v51 rubric. V18 inherits the complete, holdout-calibrated v17
@@ -442,8 +452,10 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     with A2's and B2's shallow notes. The exit status is an abstained verdict's. No report
 //     carries verdictCap any more. A full clone is unaffected. Where git cannot report the depth,
 //     readHistoryDepth reads it from the repository's .git files, and where those cannot settle it
-//     the report abstains the same way with WITAN_V27_HISTORY_DEPTH_UNKNOWN_REASON; a directory
-//     with no .git entry is scored as before.
+//     the report abstains the same way with WITAN_V27_HISTORY_DEPTH_UNKNOWN_REASON. Until the
+//     operator's ruling of 2 Nov a directory with no .git entry was scored as before; it now
+//     abstains with noGitHistoryAbstentionReason, as under every rubric, and the ruling gives every
+//     other rubric this whole shallow-clone and unknown-depth abstention too.
 // Every other abstention is a read failure, kept in the composite at 0, and each other change only
 // lowers a metric, adds a zero-valued one or adds a finding, which can only cap a score (A1's
 // test_to_source_ratio and non-hollow share are both measured over v17's test list, so excluding

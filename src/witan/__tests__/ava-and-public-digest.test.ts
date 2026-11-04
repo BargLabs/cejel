@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { buildWitanInputFromRepo } from '../repo-signals.js';
+import { commitFixture } from './fixtures/commit-fixture.js';
 
 const roots: string[] = [];
 function scan(files: Record<string, string>) {
@@ -13,7 +14,7 @@ function scan(files: Record<string, string>) {
     mkdirSync(dirname(path), { recursive: true });
     writeFileSync(path, content);
   }
-  return buildWitanInputFromRepo({ repoPath: root, productSlug: 'assertion-context', productDisplayName: 'assertion-context', generatedAt: '2026-09-15T00:00:00.000Z' }).signals ?? [];
+  return buildWitanInputFromRepo({ repoPath: commitFixture(root), productSlug: 'assertion-context', productDisplayName: 'assertion-context', generatedAt: '2026-09-15T00:00:00.000Z' }).signals ?? [];
 }
 afterEach(() => { for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true }); });
 function avaShare(body: string) {

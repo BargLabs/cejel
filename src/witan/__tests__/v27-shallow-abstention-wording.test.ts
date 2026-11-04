@@ -100,10 +100,15 @@ describe('v27 on a shallow clone is labelled "unrated: shallow clone" everywhere
     }
   }, 120_000);
 
-  it('v17 on the same shallow clone is still scored, with its usual history-limitation heading', () => {
+  // Until the operator's ruling of 2 Nov v17 still scored this clone, under the heading "scored as
+  // usual". The ruling gives v17 the same abstention and label, so the heading never says it was
+  // scored.
+  it('v17 on the same shallow clone is labelled the same way since the ruling of 2 Nov, and never "scored as usual"', () => {
     const v17 = scanRepository(shallowPath, V17);
-    expect(v17.verdict).not.toBe('insufficient_source');
+    expect(v17.verdict).toBe('insufficient_source');
+    expect(buildWitanCliSummary(v17).verdict).toBe(LABEL);
     const terminal = renderTerminalCertificate(buildWitanCliSummary(v17), v17);
-    expect(terminal).toContain('HISTORY LIMITATION — scored as usual, but some criteria read truncated history:');
+    expect(terminal).toContain('HISTORY LIMITATION — some criteria read truncated history:');
+    expect(terminal).not.toContain('scored as usual');
   });
 });

@@ -41,8 +41,20 @@ outputs:
   verdict:
     description: >-
       Verdict label (Verified / Conditional / At risk / Unverified / Insufficient source /
-      Insufficient evidence / Unrated: shallow clone / Unrated: history depth unknown).
+      Insufficient evidence / Unrated: shallow clone / Unrated: history depth unknown /
+      Unrated: no git history).
     value: ${{ steps.witan-run.outputs.verdict }}
+  limited:
+    description: >-
+      true when scan limitations qualify the score and verdict, or when the verdict is Unrated
+      because Cejel could not read the commit history; otherwise false.
+    value: ${{ steps.witan-run.outputs.limited }}
+  limitation-count:
+    description: 'Number of scan limitations that qualify the certificate, counting an Unrated verdict as one.'
+    value: ${{ steps.witan-run.outputs['limitation-count'] }}
+  limitations:
+    description: 'JSON array of scan limitation messages; an Unrated verdict adds one naming its cause.'
+    value: ${{ steps.witan-run.outputs.limitations }}
   artifact-dir:
     description: 'Write-only export destination containing this invocation’s report artifacts.'
     value: ${{ steps.witan-run.outputs.artifact-dir }}
