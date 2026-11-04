@@ -12,6 +12,9 @@ if (!repoPath || !rubricVersion) {
 }
 
 // Timed around the scan alone, so start-up cost never counts against the scan's budget.
+// Test-only stand-in, used only by the guard's own check that it can fail: an environment variable
+// CEJEL_SCAN_CHILD_DELAY_MS blocks this thread for that many milliseconds inside the timed span.
+const delayMs = Number(process.env.CEJEL_SCAN_CHILD_DELAY_MS ?? 0);
 const started = performance.now();
 const input = buildWitanInputFromRepo({
   productSlug: 'scan-path-bounds-fixture',
@@ -20,6 +23,7 @@ const input = buildWitanInputFromRepo({
   generatedAt: '2026-10-15T00:00:00.000Z',
   rubricVersion,
 });
+if (delayMs > 0) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, delayMs);
 const elapsedMs = performance.now() - started;
 const signal = (id: string) => (input.signals ?? []).find((s) => s.criterionId === id);
 process.stdout.write(
