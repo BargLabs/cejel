@@ -8705,40 +8705,127 @@ interface ScriptAdmission {
 // Item E: the suffixes of a file Python imports as a module of its stem.
 const PYTHON_MODULE_FILE_PATTERN = /\.(?:py|pyc|pyw|so|pyd)$/;
 
+// Review of #657 (blocker 5): the modules a `python -m` run imports by name, which a module of the
+// same name in the directory it runs in replaces, since Python puts that directory first on its
+// path. The standard library's public top-level modules (Python 3.14's sys.stdlib_module_names, and
+// those removed in 3.12 and 3.13), the modules `site` imports (sitecustomize, usercustomize) and
+// setuptools's, lower-cased. Every name beginning with `_` (the standard library's private modules,
+// `_pytest`) is treated as one too.
+const PYTHON_SHADOWABLE_MODULES: ReadonlySet<string> = new Set([
+  '__future__', 'abc', 'aifc', 'annotationlib', 'antigravity', 'argparse', 'array', 'ast',
+  'asynchat', 'asyncio', 'asyncore', 'atexit', 'audioop', 'base64', 'bdb', 'binascii', 'bisect',
+  'builtins', 'bz2', 'calendar', 'cgi', 'cgitb', 'chunk', 'cmath', 'cmd', 'code', 'codecs',
+  'codeop', 'collections', 'colorsys', 'compileall', 'compression', 'concurrent', 'configparser',
+  'contextlib', 'contextvars', 'copy', 'copyreg', 'cprofile', 'crypt', 'csv', 'ctypes', 'curses',
+  'dataclasses', 'datetime', 'dbm', 'decimal', 'difflib', 'dis', 'distutils', 'doctest', 'email',
+  'encodings', 'ensurepip', 'enum', 'errno', 'faulthandler', 'fcntl', 'filecmp', 'fileinput',
+  'fnmatch', 'fractions', 'ftplib', 'functools', 'gc', 'genericpath', 'getopt', 'getpass',
+  'gettext', 'glob', 'graphlib', 'grp', 'gzip', 'hashlib', 'heapq', 'hmac', 'html', 'http',
+  'idlelib', 'imaplib', 'imghdr', 'imp', 'importlib', 'inspect', 'io', 'ipaddress', 'itertools',
+  'json', 'keyword', 'lib2to3', 'linecache', 'locale', 'logging', 'lzma', 'mailbox', 'mailcap',
+  'marshal', 'math', 'mimetypes', 'mmap', 'modulefinder', 'msilib', 'msvcrt', 'multiprocessing',
+  'netrc', 'nis', 'nntplib', 'nt', 'ntpath', 'nturl2path', 'numbers', 'opcode', 'operator',
+  'optparse', 'os', 'ossaudiodev', 'pathlib', 'pdb', 'pickle', 'pickletools', 'pipes',
+  'pkg_resources', 'pkgutil', 'platform', 'plistlib', 'poplib', 'posix', 'posixpath', 'pprint',
+  'profile', 'pstats', 'pty', 'pwd', 'py_compile', 'pyclbr', 'pydoc', 'pydoc_data', 'pyexpat',
+  'queue', 'quopri', 'random', 're', 'readline', 'reprlib', 'resource', 'rlcompleter', 'runpy',
+  'sched', 'secrets', 'select', 'selectors', 'setuptools', 'shelve', 'shlex', 'shutil', 'signal',
+  'site', 'sitecustomize', 'smtpd', 'smtplib', 'sndhdr', 'socket', 'socketserver', 'spwd',
+  'sqlite3', 'sre_compile', 'sre_constants', 'sre_parse', 'ssl', 'stat', 'statistics', 'string',
+  'stringprep', 'struct', 'subprocess', 'sunau', 'symtable', 'sys', 'sysconfig', 'syslog',
+  'tabnanny', 'tarfile', 'telnetlib', 'tempfile', 'termios', 'textwrap', 'this', 'threading',
+  'time', 'timeit', 'tkinter', 'token', 'tokenize', 'tomllib', 'trace', 'traceback', 'tracemalloc',
+  'tty', 'turtle', 'turtledemo', 'types', 'typing', 'unicodedata', 'unittest', 'urllib',
+  'usercustomize', 'uu', 'uuid', 'venv', 'warnings', 'wave', 'weakref', 'webbrowser', 'winreg',
+  'winsound', 'wsgiref', 'xdrlib', 'xml', 'xmlrpc', 'zipapp', 'zipfile', 'zipimport', 'zlib',
+  'zoneinfo',
+]);
+// Review of #657 (blocker 5): the top-level modules each module B3 credits under `python -m` imports
+// from its own dependencies, as its distribution declares them. A dependency of a plugin or of
+// another installed package is not enumerated, so this is a lower bound.
+const PYTHON_MODULE_DEPENDENCIES: ReadonlyMap<string, readonly string[]> = new Map([
+  ['pytest', ['iniconfig', 'pluggy', 'packaging', 'exceptiongroup', 'tomli', 'colorama', 'pygments', 'py']],
+  ['mypy', ['mypy_extensions', 'typing_extensions', 'pathspec', 'tomli', 'librt', 'mypyc']],
+  ['black', ['click', 'mypy_extensions', 'packaging', 'pathspec', 'platformdirs', 'tomli', 'typing_extensions', 'pytokens']],
+  ['flake8', ['mccabe', 'pycodestyle', 'pyflakes']],
+  ['pyright', ['nodeenv', 'typing_extensions']],
+]);
+
 /**
  * Item E, CheckReading.pythonModuleMayExist: true when `python -m <name>` may import a module of
- * the repository in place of the tool, since Python puts the directory the command runs in first
- * on its path. From the root, when a root path is `<name>`, `<name>/` or a module file of that stem
- * (`<name>.py`, `.pyc`, `.pyw`, an extension module `<name>.*.so` or `.pyd`); from a directory the
- * reader does not know, when any part of any path is. Compared case-insensitively, on the name's
- * first dotted part. So `pytest.ini` is no module, and `pytest.py`, `PyTest.py` and `pytest/` are.
+ * the repository in place of the tool or of a module it imports, since Python puts the directory
+ * the command runs in first on its path. Compared case-insensitively, on the name's first dotted
+ * part. A repository module is a module file (`.py`, `.pyc`, `.pyw`, an extension module `.so` or
+ * `.pyd`) of that stem or a directory holding `__init__.py`; for `<name>` itself, as item E reads it,
+ * any directory of that name too. It may shadow the run when it is `<name>`, `_<name>`, any name
+ * beginning with `_` (but `__init__` and `__main__`), a standard-library or site module
+ * (PYTHON_SHADOWABLE_MODULES), or a dependency of `<name>` (PYTHON_MODULE_DEPENDENCIES). From the root,
+ * the root's own modules are read; from a directory the reader does not know, every directory's.
+ * Each path is read once per reading, so the work is linear in the inventory.
  */
 function pythonModuleReader(inventory: PublishOnlyInventory): (name: string, fromRoot: boolean) => boolean {
-  const names = (parts: Iterable<string>) => {
-    const found = new Set<string>();
-    for (const part of parts) {
-      const lower = part.toLowerCase();
-      found.add(lower);
-      const dot = lower.indexOf('.');
-      if (dot > 0 && PYTHON_MODULE_FILE_PATTERN.test(lower)) found.add(lower.slice(0, dot));
+  // Per scope: the module names (files and regular packages) and every directory name, lower-cased.
+  const collect = (fromRoot: boolean) => {
+    const modules = new Set<string>();
+    const directories = new Set<string>();
+    const moduleFile = (part: string) => {
+      const dot = part.indexOf('.');
+      if (dot > 0 && PYTHON_MODULE_FILE_PATTERN.test(part)) modules.add(part.slice(0, dot));
+    };
+    for (const path of inventory.knownLower) {
+      const parts = path.split('/');
+      // From the root, only the root's own files and directories; from anywhere, every directory's.
+      const directoryCount = fromRoot ? Math.min(1, parts.length - 1) : parts.length - 1;
+      for (let index = 0; index < directoryCount; index += 1) {
+        const part = parts[index] ?? '';
+        directories.add(part);
+        if (parts[index + 1] === '__init__.py') modules.add(part);
+      }
+      if (!fromRoot || parts.length === 1) moduleFile(parts[parts.length - 1] ?? '');
     }
-    return found;
+    return { modules, directories };
   };
-  let root: Set<string> | undefined;
-  let anywhere: Set<string> | undefined;
+  const scopes = new Map<boolean, { modules: Set<string>; directories: Set<string> }>();
+  const asked = new Map<string, boolean>();
   return (name, fromRoot) => {
     const module = (name.split('.')[0] ?? '').toLowerCase();
-    if (fromRoot) return (root ??= names([...inventory.entries].filter((path) => !path.includes('/')))).has(module);
-    return (anywhere ??= names(inventory.pathParts)).has(module);
+    const key = `${fromRoot ? 'root' : 'any'}:${module}`;
+    const known = asked.get(key);
+    if (known !== undefined) return known;
+    let scope = scopes.get(fromRoot);
+    if (scope === undefined) {
+      scope = collect(fromRoot);
+      scopes.set(fromRoot, scope);
+    }
+    const dependencies = new Set(PYTHON_MODULE_DEPENDENCIES.get(module) ?? []);
+    let shadows = scope.directories.has(module);
+    for (const found of scope.modules) {
+      if (shadows) break;
+      shadows =
+        found === module ||
+        (found.startsWith('_') && found !== '__init__' && found !== '__main__') ||
+        PYTHON_SHADOWABLE_MODULES.has(found) ||
+        dependencies.has(found);
+    }
+    asked.set(key, shadows);
+    return shadows;
   };
 }
 
-const REPOSITORY_MODULE_REASON = 'the check runs a Python module by name, and the repository holds a path of that name, which Python imports first';
+const REPOSITORY_MODULE_REASON =
+  'the check runs a Python module by name, and the repository holds a module of that name, or one it or the standard library imports, which Python imports first';
 
 // Third pass on #625 (F6): the root package.json scripts an npm, pnpm, yarn or bun install runs.
 const INSTALL_LIFECYCLE_SCRIPTS: readonly string[] = [
   'preinstall', 'install', 'postinstall', 'prepublish', 'preprepare', 'prepare', 'postprepare', 'dependencies',
 ];
+// Review of #657: the package.json keys whose entries an install resolves (`pnpm` stands for
+// `pnpm.overrides`), and an index version range: digits, letters, dots, `^ ~ < > = | * + -`, white
+// space; no `:`, `/`, `#` or `@` (anchored, one class: linear).
+const INSTALL_DEPENDENCY_KEYS: readonly string[] = [
+  'dependencies', 'devDependencies', 'optionalDependencies', 'peerDependencies', 'overrides', 'resolutions', 'pnpm',
+];
+const NPM_INDEX_RANGE_PATTERN = /^[0-9A-Za-z.^~<>=|*+ \t-]*$/;
 // Fourth pass (#629): `prepare` scripts an install may run, each exactly as written. husky only
 // points git at the repository's hook directory; it runs no hook and no repository script.
 const INERT_PREPARE_SCRIPTS: ReadonlySet<string> = new Set(['husky', 'husky install']);
@@ -8749,8 +8836,20 @@ const INERT_PREPARE_SCRIPTS: ReadonlySet<string> = new Set(['husky', 'husky inst
  */
 function rootInstallRunsNoProjectScript(root: string, inventory: PublishOnlyInventory): boolean {
   if (inventory.known.has('binding.gyp') || !inventory.scanned.has('package.json')) return false;
+  // Review of #657 (should-fix): an install of a workspace root installs each workspace package and
+  // runs its lifecycle scripts, which the reader does not read.
+  if (inventory.known.has('pnpm-workspace.yaml')) return false;
   const manifest = parseJsonObject(readRepoText(join(root, 'package.json'), 'utf8'));
-  if (!manifest) return false;
+  if (!manifest || Object.hasOwn(manifest, 'workspaces')) return false;
+  // Review of #657 (#641's comment): a dependency, override or resolution that is not an index
+  // version range (`file:./stub`, `link:`, a path, a git or URL source, an `npm:` alias) installs
+  // code from somewhere the reader does not read, which may be the runner itself, and may run its
+  // own lifecycle scripts.
+  for (const key of INSTALL_DEPENDENCY_KEYS) {
+    const value = key === 'pnpm' ? (isRecord(manifest.pnpm) ? manifest.pnpm.overrides : undefined) : manifest[key];
+    if (value === undefined) continue;
+    if (!isRecord(value) || !Object.values(value).every((spec) => typeof spec === 'string' && NPM_INDEX_RANGE_PATTERN.test(spec))) return false;
+  }
   const scripts = manifest.scripts;
   if (scripts === undefined) return true;
   return (
@@ -9484,7 +9583,8 @@ const NPM_FAMILY_TEST_SCRIPT_PATTERN = /^(?:npm|pnpm|yarn)[ \t]+(?:run[ \t]+)?te
 // Test runners named by their own command word.
 const KNOWN_TEST_RUNNER_WORDS: ReadonlySet<string> = new Set([
   'jest', 'vitest', 'mocha', 'ava', 'uvu', 'tap', 'tape', 'jasmine', 'qunit', 'lab', 'ts-mocha', 'pytest', 'rspec',
-  'phpunit', 'ctest',
+  // Review of #657 (blocker 6): not ctest, which with no CMake tests defined exits 0.
+  'phpunit',
 ]);
 // Test runners named by a command word and the subcommand that runs the tests.
 const KNOWN_TEST_RUNNER_SUBCOMMANDS: ReadonlyMap<string, readonly string[]> = new Map([
@@ -10269,6 +10369,9 @@ function namesCheckAtStart(words: readonly string[]): boolean {
 const UNREAD_TASK_RUNNERS: ReadonlyMap<string, string> = new Map([
   ['nox', 'nox'], ['pre-commit', 'pre-commit'], ['turbo', 'turbo'], ['gradle', 'gradle'], ['gradlew', 'gradle'],
   ['mvn', 'mvn'], ['mvnw', 'mvn'], ['bazel', 'bazel'], ['bazelisk', 'bazel'],
+  // Review of #657 (blocker 6): ctest runs the tests a CMake build directory defines, and with none
+  // it exits 0; the reader reads no CMake configuration.
+  ['ctest', 'ctest'],
 ]);
 
 /**
@@ -10455,17 +10558,26 @@ function rootToxReading(root: string, inventory: PublishOnlyInventory, tscAdmitt
   const text = readRepoText(join(root, 'tox.ini'), 'utf8');
   if (/[{}\\]/.test(text)) return 'unread';
   // Every line is a blank, a comment, a section header, `key = value` or an indented continuation.
+  // Review of #657 (blocker 3): configparser, which tox reads the file with, reads an indented line
+  // as a continuation only after a key of its section; straight after a header it is a key (or a
+  // header), so such a line leaves the file unread.
   let inSection = false;
+  let keyInSection = false;
   for (const raw of text.split(/\r?\n/)) {
     const trimmed = raw.trim();
     if (trimmed === '' || trimmed.startsWith('#') || trimmed.startsWith(';')) continue;
     if (/^\[[^\]]+\][ \t]*$/.test(raw)) {
       inSection = true;
+      keyInSection = false;
       continue;
     }
     if (!inSection) return 'unread';
-    if (/^[ \t]/.test(raw)) continue;
+    if (/^[ \t]/.test(raw)) {
+      if (!keyInSection) return 'unread';
+      continue;
+    }
     if (!/^[A-Za-z_][A-Za-z0-9_]*[ \t]*=/.test(raw)) return 'unread';
+    keyInSection = true;
   }
   const sections = readIniSections(text);
   for (const [name, section] of sections) {
@@ -10520,16 +10632,22 @@ function rootToxReading(root: string, inventory: PublishOnlyInventory, tscAdmitt
 
 /**
  * Seventh pass (#641, item A): what `just test` and bare `tox` read a checkout's root justfile and
- * tox.ini to run, and (item F) what `hatch run test` reads hatch.toml to run, exported only for the
- * scaling check in scan-path-regex-bounds.test.ts.
+ * tox.ini to run, (item F) what `hatch run test` reads hatch.toml to run, and (review of #657) whether
+ * `python -m pytest` may be shadowed, exported only for the scaling checks in scan-path-regex-bounds.test.ts.
  */
 export function b3TaskRunnerReadingsForScaling(
   root: string,
   repoFiles: readonly string[],
-): { readonly just: string; readonly tox: string; readonly hatch: string } {
+): { readonly just: string; readonly tox: string; readonly hatch: string; readonly module: boolean } {
   const reading = checkReading(root, ownPublishOnlyInventory(repoFiles));
   const hatch = reading.scriptAlias('hatch', ['test']);
-  return { just: reading.justRecipe('test'), tox: reading.toxReading, hatch: hatch.kind === 'script' ? `script ${hatch.reading}` : hatch.kind };
+  return {
+    just: reading.justRecipe('test'),
+    tox: reading.toxReading,
+    hatch: hatch.kind === 'script' ? `script ${hatch.reading}` : hatch.kind,
+    // Review of #657 (blocker 5): whether `python -m pytest`, from a directory the reader does not know, may be shadowed.
+    module: reading.pythonModuleMayExist('pytest', false),
+  };
 }
 
 // ---- Item B (#641, 2): script aliases, resolved through the root's script tables ---------------
@@ -10584,6 +10702,9 @@ function readHatchSkipInstall(
     if (!fileSet.has(file)) continue;
     const text = readText(file);
     if (text === undefined) return null;
+    // Review of #657 (should-fix): where hatch.toml is present, how hatch combines it with
+    // pyproject.toml's [tool.hatch] is not read, so both configuring hatch leave it unread.
+    if (file === 'pyproject.toml' && fileSet.has('hatch.toml') && text.includes('tool.hatch')) return null;
     const under = (path: readonly string[]) => prefix.every((part, at) => path[at] === part);
     const lines = text.split(/\r?\n/);
     let table: string[] = [];
@@ -10591,6 +10712,9 @@ function readHatchSkipInstall(
       const trimmed = (lines[index] ?? '').trim();
       if (trimmed === '' || trimmed.startsWith('#')) continue;
       const header = /^\[\[?([^\]]*)\]\]?/.exec(trimmed);
+      // Review of #657 (blocker 4): a key or table name holding a backslash may decode to another
+      // name (tomlKeyPath does not decode escapes), so it leaves hatch unread, wherever it is.
+      if (header && (header[1] ?? '').includes('\\')) return null;
       if (header) {
         table = tomlKeyPath(header[1] ?? '');
         const rest = table.slice(prefix.length);
@@ -10608,6 +10732,7 @@ function readHatchSkipInstall(
         index += 1;
         scanner.feed(`\n${lines[index] ?? ''}`);
       }
+      if (trimmed.slice(0, equals).includes('\\')) return null;
       const path = [...table, ...tomlKeyPath(trimmed.slice(0, equals))];
       const rest = path.slice(prefix.length);
       if (!under(path) || (rest[0] !== 'envs' && rest[0] !== 'env')) continue;
@@ -10646,6 +10771,9 @@ function readTomlStringTable(text: string, prefix: readonly string[]): Map<strin
     const trimmed = (lines[index] ?? '').trim();
     if (trimmed === '' || trimmed.startsWith('#')) continue;
     const header = /^\[\[?([^\]]*)\]\]?/.exec(trimmed);
+    // Review of #657 (blocker 4): tomlKeyPath does not decode a basic string's escapes, so a key or
+    // table name holding a backslash (`"py\u0074est"`) leaves the table unread.
+    if (header && (header[1] ?? '').includes('\\')) return null;
     if (header) {
       table = tomlKeyPath(header[1] ?? '');
       if (trimmed.startsWith('[[') && (under(table) || above(table))) return null;
@@ -10660,6 +10788,7 @@ function readTomlStringTable(text: string, prefix: readonly string[]): Map<strin
       index += 1;
       scanner.feed(`\n${lines[index] ?? ''}`);
     }
+    if (trimmed.slice(0, equals).includes('\\')) return null;
     const path = [...table, ...tomlKeyPath(trimmed.slice(0, equals))];
     if (above(path) || (under(path) && path.length === prefix.length)) return null;
     if (!under(path)) continue;
@@ -10879,7 +11008,6 @@ const CHECK_FORMS: ReadonlyMap<string, readonly CheckForm[]> = new Map<string, r
     ],
   ],
   ['dotnet', [checkForm(['test'], ['--no-build', '--no-restore'], ['-c', '--configuration', '-f', '--framework', '--verbosity'])]],
-  ['ctest', [checkForm([], ['--output-on-failure'], ['-j', '--parallel', '--test-dir', '-C', '--build-config'], false)]],
   ['rspec', [checkForm([], ['--fail-fast'])]],
   ['phpunit', [checkForm([], ['--testdox'])]],
   ['tsc', [checkForm([], ['--noEmit', '--pretty', '--strict'], ['-p', '--project'], false)]],
@@ -10911,7 +11039,9 @@ function checkFormAdmits(words: readonly string[]): boolean | undefined {
         value = arg.slice(equals + 1);
       } else if (form.valueFlags.has(arg)) {
         index += 1;
-        if (index >= args.length) return false;
+        // Review of #657 (blocker 1): the runners' parsers take no word beginning with `-` as a
+        // value, so `jest -w --listTests` passes `--listTests` on; such a word withholds the credit.
+        if (index >= args.length || (args[index] ?? '').startsWith('-')) return false;
         value = args[index];
       } else if (!form.flags.has(arg)) return false;
       // Item F: a value flag whose value can stop every test running admits only the values listed.
@@ -10919,6 +11049,9 @@ function checkFormAdmits(words: readonly string[]): boolean | undefined {
       if (admitted !== undefined && !admitted.test(value ?? '')) return false;
       continue;
     }
+    // Review of #657 (blocker 2): pytest (from 8.2), dotnet and others read arguments from an
+    // `@file`, which the reader does not read.
+    if (arg.startsWith('@')) return false;
     if (form.firstPositional !== undefined && positionals === 0) {
       if (!form.firstPositional.has(arg)) return false;
     } else if (!form.positional) return false;

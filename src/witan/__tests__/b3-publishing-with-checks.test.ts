@@ -345,7 +345,6 @@ const NOT_CREDITED_REASONS: Readonly<Record<string, string>> = {
   'python-m-pytest-repo-underscore-pytest': REPOSITORY_MODULE_REASON,
   'python-m-pytest-repo-stdlib-module': REPOSITORY_MODULE_REASON,
   'ctest-output-on-failure': CONFIGURATION_UNREAD('ctest'),
-  'hatch-toml-beside-pyproject-skip-install': 'the check runs hatch run, whose scripts Cejel does not read',
 };
 
 describe('fourth pass — B3 names why a check was not credited', () => {

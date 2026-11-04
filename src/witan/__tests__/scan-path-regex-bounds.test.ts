@@ -493,6 +493,27 @@ describe('scaling: the v27 B3 justfile, tox.ini and hatch environment readers gr
     expect(at2L).toBe(atL);
     expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
   }, 120_000);
+
+  // Review of #657 (blocker 5): the module-shadow reader reads every known path once, from a
+  // directory it does not know; the input that maximises its work is many deep paths, none a module
+  // that shadows pytest, so every path is read and every module name compared: L/24 and 2L/24 paths.
+  it('the python -m module-shadow reader, on L/24 and 2L/24 known paths of three parts', () => {
+    const { repo } = repoFor('module-shadow', {});
+    const files = (length: number): string[] => Array.from({ length: Math.floor(length / 24) }, (_, index) => `d${index}/pkg/mod${index}.py`);
+    const listed = new Map<number, string[]>();
+    const read = (length: number) => {
+      let paths = listed.get(length);
+      if (paths === undefined) {
+        paths = files(length);
+        listed.set(length, paths);
+      }
+      return b3TaskRunnerReadingsForScaling(repo, paths).module;
+    };
+    const { ratio, timing, atL, at2L } = scalingRatio(read);
+    expect(atL).toBe(false);
+    expect(at2L).toBe(atL);
+    expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
+  }, 120_000);
 });
 
 describe('scaling: each v27 A1 reader the CI-line guard exercises grows no faster than linearly', () => {
