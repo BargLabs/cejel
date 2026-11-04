@@ -569,6 +569,41 @@ describe('scaling: the v27 A1 gap readers grow no faster than linearly', () => {
     expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
   }, 60_000);
 
+  // The review of #655, blocker 2: the unread posargs entries were said once per noxfile, so M
+  // noxfiles and U unread CI entries gave M x U runs, and spreading them into one call overflowed
+  // the stack (400 and 400 threw RangeError). They are said once per read and count against the
+  // budget. The input that maximises the work: M noxfiles each taking posargs, and U CI steps each
+  // passing a variable after --; here M = U = L/2,000.
+  const unreadNoxTexts = (noxfiles: number, steps: number): { files: string[]; texts: Map<string, string> } => {
+    const texts = new Map<string, string>();
+    for (let index = 0; index < noxfiles; index += 1) {
+      texts.set(`d${index}/noxfile.py`, 'import nox\n\n\n@nox.session\ndef tests(session):\n    session.run("pytest", *session.posargs)\n');
+    }
+    const stepLines = Array.from({ length: steps }, (_, index) => `      - run: nox -- $X${index}`).join('\n');
+    texts.set('.github/workflows/ci.yml', `name: ci\non: push\njobs:\n  t:\n    runs-on: ubuntu-latest\n    steps:\n${stepLines}\n`);
+    return { files: [...texts.keys()].sort(), texts };
+  };
+
+  it('the nox reader, on 400 noxfiles taking posargs and 400 CI steps passing a variable: no crash, output linear', () => {
+    const { files, texts } = unreadNoxTexts(400, 400);
+    const read = readPytestInvocations(files, (file) => texts.get(file));
+    // One root run, one run per noxfile call read with the empty set or named past the budget, and
+    // each unread CI step named once.
+    expect(read.length).toBeLessThanOrEqual(1 + 400 + 400);
+    expect(read.filter(({ unread }) => unread === 'nox -- $X0').length).toBe(1);
+  }, 60_000);
+
+  it('the nox reader, on L/2,000 noxfiles taking posargs and L/2,000 CI steps passing a variable', () => {
+    const inputs = new Map([SCALING_LENGTH, 2 * SCALING_LENGTH].map((length) => [length, unreadNoxTexts(length / 2000, length / 2000)]));
+    const { ratio, timing, atL, at2L } = scalingRatio((length) => {
+      const { files, texts } = inputs.get(length) ?? { files: [], texts: new Map<string, string>() };
+      return readPytestInvocations(files, (file) => texts.get(file));
+    });
+    expect(atL.filter(({ unread }) => unread === 'nox -- $X0').length).toBe(1);
+    expect(at2L.filter(({ unread }) => unread === 'nox -- $X0').length).toBe(1);
+    expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
+  }, 120_000);
+
   // Item C: the conftest option reader, on L/60 addoption calls and on one call left open to the
   // end of a file of L bytes (read once, never again from each later line).
   it('the conftest option reader, on L/60 declarations and on an unclosed call of L bytes', () => {
