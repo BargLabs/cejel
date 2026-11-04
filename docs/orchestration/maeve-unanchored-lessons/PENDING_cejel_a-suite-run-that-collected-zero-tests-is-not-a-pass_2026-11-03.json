@@ -1,0 +1,23 @@
+[
+  {
+    "statement": "Zero collected tests is a failed run, and the wrong runner can also change the tree it ran in. Incident: on 2026-11-03 the reviewing session checked cejel's prep/635-v2-base (fd3ce26e9) with `npx jest 2>&1 | tail -6`; cejel runs vitest. Jest ran 0 tests and the pipe returned exit 0. It had also run fixture unresolved-relative-loader.fixture.cjs as a script, which wrote an untracked generated.cjs, so the next vitest run failed 2 offline-guarantee tests that pass on a clean tree. Fix: run the repository's own test script, set pipefail, compare the count with the last known one, and check `git status --untracked-files=all` before reading a failure as the code's. Rule: state the expected count first; after a stray run, clean the tree before trusting any result.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "review",
+      "testing"
+    ],
+    "tags": [
+      "reviewer-error",
+      "pass-by-absence",
+      "test-runner",
+      "pipefail"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-11-03T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "anchorless-by-nature",
+      "reason": "A review-method error by the reviewing session: no code change fixes it; the rule is to check the collected test count against the expected count and keep the exit code through any pipe."
+    }
+  }
+]
