@@ -31,6 +31,10 @@ export interface UnreadHistoryCase {
   readonly cause: UnreadHistoryCause;
   /** The label of the complete clone of the same commit, where there is one. */
   readonly fullClone?: string;
+  /** The checkout scanned. */
+  readonly path: string;
+  /** True when the scan runs with git removed from PATH. */
+  readonly noGitOnPath: boolean;
   readonly scan: (rubricVersion: string) => WitanReport;
 }
 
@@ -73,6 +77,8 @@ export function buildUnreadHistoryCases(): UnreadHistoryCase[] {
       label,
       cause,
       ...(fullClone ? { fullClone } : {}),
+      path,
+      noGitOnPath,
       scan: (rubric) => (noGitOnPath ? withoutGitOnPath(() => scanRepository(path, rubric)) : scanRepository(path, rubric)),
     });
   };
