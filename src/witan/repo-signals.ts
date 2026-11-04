@@ -8620,6 +8620,12 @@ interface CheckReading {
    * (scriptAliasReading).
    */
   readonly scriptAlias: (tool: ScriptAliasTool, words: readonly string[]) => ScriptAliasReading;
+  /**
+   * Seventh pass (#641, item C): the launcher-free words of the root test script's last command,
+   * when the script runs a known runner and that command is the runner; words passed to the script
+   * are appended to it (packageTestArgumentsProblem).
+   */
+  readonly testScriptLastRunner: readonly string[] | undefined;
 }
 
 // The readings that rest on the root's own files, as when none of them is read.
@@ -8629,6 +8635,7 @@ const ROOT_FILES_UNREAD = {
   justRecipes: new Map<string, ScriptReading>(),
   toxReading: 'unread',
   scriptAlias: (): ScriptAliasReading => ({ kind: 'unread' }),
+  testScriptLastRunner: undefined,
   makeTargets: new Map<string, ScriptReading>(),
   buildScriptRunsOnlyTsc: false,
   buildScriptTscOutputUnread: false,
@@ -8658,6 +8665,7 @@ function checkReading(root: string, inventory: PublishOnlyInventory): CheckReadi
     justRecipes: rootJustRecipeReadings(root, inventory, tscAdmitted),
     toxReading: rootToxReading(root, inventory, tscAdmitted),
     scriptAlias: rootScriptAliasReader(root, inventory, tscAdmitted),
+    testScriptLastRunner: testScript === 'runner' ? rootTestScriptLastRunner(root, inventory, tscAdmitted) : undefined,
     buildScriptRunsOnlyTsc: build === 'admitted',
     buildScriptTscOutputUnread: build === 'output-unread',
     requirementsFileIsPlain: (path) => requirementsFileIsPlain(root, inventory, path),
@@ -9400,13 +9408,10 @@ function verificationCommandPatterns(): readonly RegExp[] {
 const CHECK_COMMAND_RUN_LAUNCHERS: ReadonlySet<string> = new Set(['uv', 'poetry', 'pdm', 'pipenv', 'hatch']);
 // Item E: flags with which a command only prints its version or usage.
 const REPORT_ONLY_FLAGS: ReadonlySet<string> = new Set(['--version', '-V', '--help', '-h']);
-// Third pass on #625 (F6): flags with which a check cannot fail: it lists tests without running them
-// (`--collect-only`, `--co`), passes when it finds none (`--passWithNoTests`), prints its configuration
-// (`--showConfig`), lints no file without an error (`--no-error-on-unmatched-pattern`), or exits 0
-// whatever it finds (`--exit-zero`). Matched as a word or before `=`.
-const NO_FAIL_FLAGS: ReadonlySet<string> = new Set([
-  '--collect-only', '--co', '--passWithNoTests', '--showConfig', '--no-error-on-unmatched-pattern', '--exit-zero',
-]);
+// Third pass on #625 (F6) refused a list of flags with which a check cannot fail (NO_FAIL_FLAGS:
+// `--collect-only`, `--passWithNoTests` and others); flags of the same effect it did not list
+// (`jest --listTests`) passed. Seventh pass (#641, item C): that list no longer decides. A known
+// runner or check is admitted only with flags from CHECK_FORMS, known to keep it failing.
 // Third pass on #625 (F6): commands that run through the package manager's script shell or its own
 // configuration, which CheckReading.packageManagerConfigPlain must say is plain.
 const PACKAGE_MANAGER_COMMANDS: ReadonlySet<string> = new Set(['npm', 'pnpm', 'yarn', 'bun', 'npx', 'pnpx', 'bunx']);
@@ -9512,11 +9517,14 @@ function scriptCommandKind(words: readonly string[], tscAdmitted: (words: readon
   if (words.length === 0 || words.includes('--if-present')) return 'other';
   // Sixth pass (blocker 1): a command written as a path runs that file, whatever it is named.
   if (isPathCommandWord(words[0] ?? '')) return 'other';
-  if (words.some((word) => REPORT_ONLY_FLAGS.has(word) || NO_FAIL_FLAGS.has(word.split('=')[0] ?? word))) return 'other';
+  if (words.some((word) => REPORT_ONLY_FLAGS.has(word))) return 'other';
   const [first = '', second = '', third = ''] = words;
   const python = (first === 'python' || first === 'python3') && second === '-m';
-  if (KNOWN_TEST_RUNNER_WORDS.has(first) || KNOWN_TEST_RUNNER_SUBCOMMANDS.get(first)?.includes(second)) return 'runner';
-  if (python && KNOWN_TEST_RUNNER_MODULES.has(third)) return 'runner';
+  // Seventh pass (#641, item C): a runner only with the words its CHECK_FORMS entry admits.
+  if (KNOWN_TEST_RUNNER_WORDS.has(first) || KNOWN_TEST_RUNNER_SUBCOMMANDS.get(first)?.includes(second)) {
+    return checkFormAdmits(words) === true ? 'runner' : 'other';
+  }
+  if (python && KNOWN_TEST_RUNNER_MODULES.has(third)) return checkFormAdmits(words.slice(2)) === true ? 'runner' : 'other';
   // Sixth pass (blocker 4): tsc before the runner only where it writes nothing the runner reads.
   if (first === 'tsc') return tscAdmitted(words) ? 'check' : 'other';
   if (PRE_RUNNER_CHECK_WORDS.has(first) || (python && PRE_RUNNER_CHECK_WORDS.has(third))) return 'check';
@@ -9961,7 +9969,6 @@ function isCheckCommand(input: readonly string[], reading: CheckReading, assignm
   const task = taskRunnerReading(words, reading);
   if (task !== undefined) return task.reading === 'runner';
   if (words.some((word) => REPORT_ONLY_FLAGS.has(word))) return false;
-  if (words.some((word) => NO_FAIL_FLAGS.has(word.split('=')[0] ?? word))) return false;
   // Fifth pass (item B, review of #640): a lint or format command is a check only in a form that
   // fails on a finding (lintCommandFailsOnFinding).
   if (LINT_OR_FORMAT_COMMANDS.has((words[0] ?? '').toLowerCase())) return lintCommandFailsOnFinding(words);
@@ -9969,8 +9976,12 @@ function isCheckCommand(input: readonly string[], reading: CheckReading, assignm
   if (NPM_FAMILY_TEST_SCRIPT_PATTERN.test(text)) {
     if (!reading.testScriptRuns) return false;
     // Fifth pass (items C and D): only words known not to change what runs or which package's
-    // script runs may follow the script's name.
-    if (packageTestArgumentsProblem(words) !== undefined) return false;
+    // script runs may follow the script's name. Seventh pass (#641, item C): words passed to the
+    // script are read against the runner of its last command.
+    if (packageTestArgumentsProblem(words, reading) !== undefined) return false;
+  } else if (checkFormAdmits(words) !== true) {
+    // Seventh pass (#641, item C): every other check only with the words its CHECK_FORMS entry admits.
+    return false;
   }
   return verificationCommandPatterns().some((pattern) => {
     const match = pattern.exec(text);
@@ -10119,12 +10130,29 @@ const UNREAD_TEST_ARGUMENT_REASON = 'the test command carries a flag or argument
  * (NPM_FAMILY_TEST_SCRIPT_PATTERN), the reason the words after the script's name withhold credit,
  * or undefined when there are none or only NPM_TEST_KEPT_WORDS on npm.
  */
-function packageTestArgumentsProblem(words: readonly string[]): string | undefined {
+function packageTestArgumentsProblem(words: readonly string[], reading: CheckReading): string | undefined {
   const tool = (words[0] ?? '').toLowerCase();
   const rest = words.slice((words[1] ?? '').toLowerCase() === 'run' ? 3 : 2);
-  if (rest.some((word) => PACKAGE_SELECTING_FLAGS.has(word.split('=')[0] ?? word))) return OTHER_PACKAGE_TEST_REASON;
-  const kept = tool === 'npm' ? NPM_TEST_KEPT_WORDS : new Set<string>();
-  return rest.every((word) => kept.has(word)) ? undefined : UNREAD_TEST_ARGUMENT_REASON;
+  // Seventh pass (#641, item C): npm passes the words after its `--` separator to the script, and
+  // yarn and pnpm every word after the script's name; npm reads the words before it itself.
+  const separator = tool === 'npm' ? rest.indexOf('--') : -1;
+  const own = tool === 'npm' ? (separator === -1 ? rest : rest.slice(0, separator)) : rest;
+  if (own.some((word) => PACKAGE_SELECTING_FLAGS.has(word.split('=')[0] ?? word))) return OTHER_PACKAGE_TEST_REASON;
+  let passed: readonly string[];
+  if (tool === 'npm') {
+    if (!own.every((word) => NPM_TEST_KEPT_WORDS.has(word))) return UNREAD_TEST_ARGUMENT_REASON;
+    passed = separator === -1 ? [] : rest.slice(separator + 1);
+  } else {
+    if (rest.includes('--')) return UNREAD_TEST_ARGUMENT_REASON;
+    passed = rest;
+  }
+  if (passed.length === 0) return undefined;
+  // The words are appended to the script's text, so reach its last command, which must be the runner.
+  const last = reading.testScriptLastRunner;
+  if (last === undefined) return UNREAD_TEST_ARGUMENT_REASON;
+  const runner = [...last, ...passed];
+  const python = (runner[0] === 'python' || runner[0] === 'python3') && runner[1] === '-m';
+  return checkFormAdmits(python ? runner.slice(2) : runner) === true ? undefined : RUNNER_ARGUMENT_REASON;
 }
 
 /**
@@ -10152,7 +10180,7 @@ function checkLineReason(input: readonly string[], reading: CheckReading): strin
   }
   const text = read.words.join(' ');
   if (!NPM_FAMILY_TEST_SCRIPT_PATTERN.test(text) || !reading.testScriptRuns) return undefined;
-  return packageTestArgumentsProblem(read.words);
+  return packageTestArgumentsProblem(read.words, reading);
 }
 
 // ---- Seventh pass (#641, #647): a check counts only where the reader follows it to a runner -----
@@ -10220,10 +10248,16 @@ function seventhPassReason(input: readonly string[], reading: CheckReading): str
   }
   if (words.length === 0 || isPathCommandWord(words[0] ?? '') || !namesCheckAtStart(words)) return undefined;
   const task = taskRunnerReading(words, reading);
-  if (task !== undefined && task.reading !== 'runner') {
+  if (task !== undefined) {
+    if (task.reading === 'runner') return undefined;
     return task.reading === 'unread' ? CONFIGURATION_UNREAD_REASON(task.runner) : RUNS_NO_KNOWN_RUNNER_REASON(task.runner);
   }
-  return undefined;
+  // Item C: a known runner or check with a word its form does not admit. The make, lint and
+  // npm-family readings, and a report-only flag, give their own reasons or none, as before.
+  const first = (words[0] ?? '').toLowerCase();
+  if (first === 'make' || LINT_OR_FORMAT_COMMANDS.has(first) || NPM_FAMILY_TEST_SCRIPT_PATTERN.test(words.join(' '))) return undefined;
+  if (words.some((word) => REPORT_ONLY_FLAGS.has(word))) return undefined;
+  return checkFormAdmits(words) === false ? RUNNER_ARGUMENT_REASON : undefined;
 }
 
 // ---- Item A: the root justfile, read strictly -------------------------------------------------
@@ -10564,6 +10598,140 @@ function rootScriptAliasReader(
     if (body === null || body === undefined || args.length > 0) return { kind: 'unread' };
     return { kind: 'script', name: spec, reading: kindsRunKnownRunner(scriptAliasBodyKinds(body, false, tscAdmitted)) ? 'runner' : 'unrecognised' };
   };
+}
+
+// ---- Item C (#641, 3): the words a known runner or check is admitted with ----------------------
+//
+// For each runner and check B3 credits outside the lint forms, the subcommand it must carry and the
+// flags known to keep its exit code failing when a test (or the check) fails; any other flag, and
+// a positional word where the runner reads one as a filter, withholds the credit. So `jest
+// --listTests`, `pytest --fixtures`, `mocha --dry-run`, `go test -run X`, `cargo nextest list` and
+// `vitest list` are not checks, whether or not a list of no-fail flags names them.
+
+interface CheckForm {
+  /** The words that must follow the command word (`test` for `go test`), if any. */
+  readonly sub: readonly string[];
+  /** Flags that keep the exit code. */
+  readonly flags: ReadonlySet<string>;
+  /** Flags that keep the exit code and take a value, as the next word or after `=`. */
+  readonly valueFlags: ReadonlySet<string>;
+  /** Whether positional words (paths, packages, files) are admitted. */
+  readonly positional: boolean;
+  /** When set, the only positional word admitted, and only first (`vitest run`). */
+  readonly firstPositional?: ReadonlySet<string>;
+  /** When set, `--` is admitted, then only these words (`cargo clippy -- -D warnings`). */
+  readonly afterSeparator?: ReadonlySet<string>;
+}
+
+const checkForm = (
+  sub: readonly string[],
+  flags: readonly string[],
+  valueFlags: readonly string[] = [],
+  positional = true,
+  extra: { readonly firstPositional?: readonly string[]; readonly afterSeparator?: readonly string[] } = {},
+): CheckForm => ({
+  sub,
+  flags: new Set(flags),
+  valueFlags: new Set(valueFlags),
+  positional,
+  ...(extra.firstPositional === undefined ? {} : { firstPositional: new Set(extra.firstPositional) }),
+  ...(extra.afterSeparator === undefined ? {} : { afterSeparator: new Set(extra.afterSeparator) }),
+});
+
+const PYTEST_FORM = checkForm(
+  [],
+  ['-q', '--quiet', '-v', '--verbose', '-vv', '-x', '--exitfirst', '-s', '-l', '--showlocals', '--strict-markers', '--strict-config', '--no-header', '-ra', '-rA'],
+  ['--tb', '--maxfail', '--durations', '--color', '--capture', '-n', '--numprocesses'],
+);
+const NODE_TEST_FORM = checkForm(['--test'], ['--experimental-test-coverage'], ['--test-concurrency', '--test-timeout']);
+const CARGO_FLAGS = ['--workspace', '--all', '--all-features', '--all-targets', '--locked', '--frozen', '--release', '--verbose', '-v', '-q', '--quiet', '--no-fail-fast'];
+const CARGO_VALUE_FLAGS = ['--features', '-F', '--package', '-p'];
+const PLAIN_RUNNER_FORM = checkForm([], []);
+
+const CHECK_FORMS: ReadonlyMap<string, readonly CheckForm[]> = new Map<string, readonly CheckForm[]>([
+  ['pytest', [PYTEST_FORM]],
+  ['unittest', [checkForm([], ['-v', '--verbose', '-q', '--quiet', '-f', '--failfast', '-b', '--buffer', '-c', '--catch', '--locals'], ['-s', '--start-directory', '-t', '--top-level-directory'])]],
+  ['jest', [checkForm([], ['--ci', '--runInBand', '-i', '--coverage', '--silent', '--verbose', '--colors', '--detectOpenHandles', '--forceExit', '--bail', '-b', '--no-cache', '--errorOnDeprecated', '--logHeapUsage'], ['--maxWorkers', '-w', '--testTimeout'])]],
+  ['vitest', [checkForm([], ['--run', '--coverage', '--silent'], ['--bail', '--maxWorkers', '--pool', '--testTimeout'], false, { firstPositional: ['run'] })]],
+  ['mocha', [checkForm([], ['--recursive', '--exit', '--bail', '-b', '--check-leaks', '--forbid-only', '--forbid-pending', '--full-trace', '--parallel', '-p'], ['--timeout', '-t', '--slow', '-s', '--jobs', '-j', '--retries'])]],
+  ['node', [NODE_TEST_FORM]],
+  ['tsx', [NODE_TEST_FORM]],
+  ['bun', [checkForm(['test'], ['--coverage', '--bail'], ['--timeout'])]],
+  ['deno', [checkForm(['test'], ['-A', '--allow-all', '--parallel', '--fail-fast'])]],
+  ['playwright', [checkForm(['test'], ['--forbid-only'], ['--workers', '-j', '--retries', '--project'])]],
+  ['cypress', [checkForm(['run'], ['--headless'], ['--browser', '--spec'], false)]],
+  ['karma', [checkForm(['start'], ['--single-run'])]],
+  ['go', [checkForm(['test'], ['-v', '-race', '-cover', '-short', '-failfast'], ['-count', '-timeout', '-p', '-parallel', '-covermode', '-coverprofile', '-tags', '-cpu'])]],
+  [
+    'cargo',
+    [
+      checkForm(['test'], CARGO_FLAGS, CARGO_VALUE_FLAGS, false),
+      checkForm(['nextest', 'run'], CARGO_FLAGS, CARGO_VALUE_FLAGS, false),
+      checkForm(['clippy'], CARGO_FLAGS, CARGO_VALUE_FLAGS, false, { afterSeparator: ['-D', 'warnings', '-Dwarnings'] }),
+      checkForm(['check'], CARGO_FLAGS, CARGO_VALUE_FLAGS, false),
+    ],
+  ],
+  ['dotnet', [checkForm(['test'], ['--no-build', '--no-restore'], ['-c', '--configuration', '-f', '--framework', '--verbosity'])]],
+  ['ctest', [checkForm([], ['--output-on-failure'], ['-j', '--parallel', '--test-dir', '-C', '--build-config'], false)]],
+  ['rspec', [checkForm([], ['--fail-fast'])]],
+  ['phpunit', [checkForm([], ['--testdox'])]],
+  ['tsc', [checkForm([], ['--noEmit', '--pretty', '--strict'], ['-p', '--project'], false)]],
+  ['pyright', [checkForm([], ['--warnings'], ['-p', '--project', '--pythonversion'])]],
+  ...['ava', 'uvu', 'tap', 'tape', 'jasmine', 'qunit', 'lab', 'ts-mocha'].map((runner): [string, readonly CheckForm[]] => [runner, [PLAIN_RUNNER_FORM]]),
+]);
+
+/**
+ * Item C: for launcher-free words (a Python module's words start at its name), true when a
+ * CHECK_FORMS form of the command word admits every word after it; false when the command has forms
+ * and none admits them; undefined when it has none.
+ */
+function checkFormAdmits(words: readonly string[]): boolean | undefined {
+  const forms = CHECK_FORMS.get(words[0] ?? '');
+  if (forms === undefined) return undefined;
+  const form = forms.find(({ sub }) => sub.every((word, at) => words[1 + at] === word));
+  if (form === undefined) return false;
+  const args = words.slice(1 + form.sub.length);
+  let positionals = 0;
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index] ?? '';
+    if (arg === '--') return form.afterSeparator !== undefined && args.slice(index + 1).every((word) => form.afterSeparator?.has(word));
+    if (arg.startsWith('-') && arg.length > 1) {
+      const equals = arg.indexOf('=');
+      if (equals !== -1) {
+        if (!form.valueFlags.has(arg.slice(0, equals))) return false;
+      } else if (form.valueFlags.has(arg)) {
+        index += 1;
+        if (index >= args.length) return false;
+      } else if (!form.flags.has(arg)) return false;
+      continue;
+    }
+    if (form.firstPositional !== undefined && positionals === 0) {
+      if (!form.firstPositional.has(arg)) return false;
+    } else if (!form.positional) return false;
+    positionals += 1;
+  }
+  return true;
+}
+
+const RUNNER_ARGUMENT_REASON = 'the check carries a flag or argument that Cejel does not know to keep it failing when a test fails';
+
+/**
+ * Item C, CheckReading.testScriptLastRunner: the launcher-free words of the last command of the
+ * root `test` script's own body, when the body is an `&&` chain and that command is a known runner
+ * (scriptCommandKind) rather than a run of another script.
+ */
+function rootTestScriptLastRunner(
+  root: string,
+  inventory: PublishOnlyInventory,
+  tscAdmitted: (words: readonly string[]) => boolean,
+): readonly string[] | undefined {
+  const scripts = rootPackageScripts(root, inventory);
+  const body = scripts?.test;
+  if (scripts === undefined || typeof body !== 'string' || !commandsAreAndChain(body)) return undefined;
+  const commands = shellCommands(body);
+  const peeled = peelCommandLaunchers(commands[commands.length - 1] ?? []);
+  if (peeled === null || packageScriptRun(peeled, scripts) !== undefined) return undefined;
+  return scriptCommandKind(peeled, tscAdmitted) === 'runner' ? peeled : undefined;
 }
 
 const SCRIPT_ALIAS_UNREAD_REASON = (tool: string) => `the check runs ${tool} run, whose scripts Cejel does not read`;
