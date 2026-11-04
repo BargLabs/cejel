@@ -606,6 +606,29 @@ describe('scaling: the v27 A1 gap readers grow no faster than linearly', () => {
     expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
   }, 120_000);
 
+  // The review of #655, blocker 1: a noxfile call taking posargs searches every other file that can
+  // run nox for a nox command the reader does not read. The input that maximises the work: one
+  // script of L bytes whose every line names nox only as an install or a dependency (each line swept
+  // once, `nox` after `install`, `nox  ,` after spaces), with the one command it reports on its last
+  // line, and one long line of L/8 bytes of the same.
+  it('the nox command search, on a script of L bytes of nox near misses ending in a nox command', () => {
+    const textsFor = (length: number): Map<string, string> => {
+      const line = 'pip install nox nox nox ; dep = nox      , nox>=1 ; "nox"';
+      const count = Math.floor(length / (line.length + 1));
+      return new Map([
+        ['noxfile.py', 'import nox\n\n\n@nox.session\ndef tests(session):\n    session.run("pytest", *session.posargs)\n'],
+        ['scripts/ci.sh', `${Array.from({ length: count }, () => line).join('\n')}\nnox -s tests -- -x\n`],
+        ['scripts/long.sh', `${'pip install nox '.repeat(Math.floor(length / 128))}\n`],
+      ]);
+    };
+    const files = ['noxfile.py', 'scripts/ci.sh', 'scripts/long.sh'];
+    const texts = new Map([SCALING_LENGTH, 2 * SCALING_LENGTH].map((length) => [length, textsFor(length)]));
+    const { ratio, timing, atL, at2L } = scalingRatio((length) => readPytestInvocations(files, (file) => texts.get(length)?.get(file)));
+    expect(atL.filter(({ unread }) => unread === 'nox -s tests -- -x').length).toBe(1);
+    expect(at2L.filter(({ unread }) => unread === 'nox -s tests -- -x').length).toBe(1);
+    expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
+  }, 60_000);
+
   // Item C: the conftest option reader, on L/60 addoption calls, on one call left open to the end
   // of a file of L bytes (read once, never again from each later line), and (the review of #655:
   // every call on a line, CRLF text) on one CRLF line of L/50 calls and one line of L/16 quoted
