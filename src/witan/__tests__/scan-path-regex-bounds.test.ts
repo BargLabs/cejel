@@ -523,15 +523,17 @@ describe('scaling: each v27 A1 reader the CI-line guard exercises grows no faste
 
 // goal_cejel_v27_a1_gaps_2026-11-03. Each new reader, on the input that maximises its work.
 describe('scaling: the v27 A1 gap readers grow no faster than linearly', () => {
-  // Item A: a hook credited on a list(items) copy reads every Python file of the repository for
-  // `builtins`; here one helper module of L bytes names it only at its end.
+  // Item A: a hook credited on a list(items) copy reads every Python file the repository tracks for
+  // a way to reach builtins (the review of #655, blocker 3); here one helper module of L bytes holds
+  // only near misses of each alternative (`builtin_s`, `getattrs`, `re.compile`, an uncalled-looking
+  // `.list_`, `. ` before a call) and names builtins only at its end.
   it('the builtins search, on a helper module of L and 2L bytes naming builtins at its end', () => {
     const repos = new Map<number, string>();
     const repoFor = (length: number): string => {
       const existing = repos.get(length);
       if (existing) return existing;
-      const count = Math.floor(length / 40);
-      const helper = `${Array.from({ length: count }, (_, index) => `v${index} = "builtin_s ${index}"`).join('\n')}\nimport builtins\n`;
+      const count = Math.floor(length / 80);
+      const helper = `${Array.from({ length: count }, (_, index) => `v${index} = re.compile(x.list_, getattrs, "builtin_s") . list()`).join('\n')}\nimport builtins\n`;
       const repo = makeRepo({
         'tests/test_lines.py': 'def test_value():\n    assert 1 == 1\n',
         'tests/helpers.py': helper,
@@ -542,7 +544,7 @@ describe('scaling: the v27 A1 gap readers grow no faster than linearly', () => {
     };
     const files = ['tests/conftest.py', 'tests/helpers.py', 'tests/test_lines.py'];
     const { ratio, timing, atL, at2L } = scalingRatio((length) => findPytestRunWideSkips(repoFor(length), files));
-    expect(atL.map((skip) => skip.withheld)).toEqual(['hook not read: `saved = list(items)` in tests/conftest.py calls a builtin, and tests/helpers.py names builtins']);
+    expect(atL.map((skip) => skip.withheld)).toEqual(['hook not read: `saved = list(items)` in tests/conftest.py calls a builtin, which tests/helpers.py may replace']);
     expect(at2L).toEqual(atL);
     expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
   }, 60_000);

@@ -17606,20 +17606,85 @@ interface PythonStrictHelper {
 // `tuple(items)`) is the builtin's result, and any module pytest imports (one the conftest.py
 // imports, another conftest.py, a plugin) can replace `builtins.list` at import time. The copy forms
 // that call no builtin (`items[:]`, `items.copy()`, `[*items]`) are read from the list's own type,
-// which cannot be patched. So a builtin copy is credited only where no Python file in the repository
-// names `builtins` or `__builtins__` (in code, a string or a comment: a name spelled any other way,
-// such as by joining strings, is not read).
+// which cannot be patched. The review of #655, blocker 3: a module can reach builtins, or the
+// conftest module's own `list`, without spelling `builtins` as a word (`f_builtins`, a fullwidth
+// letter Python folds under NFKC, `sys.modules` with a joined name, `getattr`, a frame's globals,
+// `conftest.list = ...`), and the file list A1 walks leaves out vendor/, build/, dist/, venv/,
+// coverage/ and the like. So a builtin copy is credited only where no file the repository tracks,
+// in any directory, is a Python source (read under NFKC, code, strings and comments alike) naming
+// one of PYTHON_BUILTINS_REACH_PATTERN, or a compiled or archived module Cejel cannot read; and
+// where those files can be listed and read. A module installed from outside the repository (an
+// entry-point plugin, a sitecustomize, a .pth file in site-packages) is not read, nor is a way of
+// reaching builtins the pattern does not list.
 const PYTHON_BUILTIN_COPY_CALL_PATTERN = /^(?:list|tuple)[ \t]*\(/;
-const PYTHON_BUILTINS_NAME_PATTERN = /(?<![A-Za-z0-9_])(?:__builtins__|builtins)(?![A-Za-z0-9_])/;
+// One sweep for: `builtins` anywhere (builtins, __builtins__, f_builtins); a module, frame or
+// namespace reached by a computed name; Python's own exec, eval, compile, globals, vars and locals,
+// not an attribute (`re.compile`); an attribute named list or tuple that is not called.
+const PYTHON_BUILTINS_REACH_PATTERN =
+  /builtins|(?<![A-Za-z0-9_])(?:modules|__dict__|__globals__|__getattr__|__getattribute__|__setattr__|__delattr__|__import__|importlib|setattr|delattr|getattr|attrgetter|_getframe|currentframe|f_globals|f_locals|f_back|tb_frame|gi_frame|cr_frame|ag_frame|gc|ctypes|__subclasses__|pickle|marshal|runpy|__loader__|__spec__)(?![A-Za-z0-9_])|(?<![A-Za-z0-9_.])(?:exec|eval|compile|globals|vars|locals)(?![A-Za-z0-9_])|\.[ \t]*(?:list|tuple)(?![A-Za-z0-9_])(?![ \t]*\()/;
+const PYTHON_SOURCE_FILE_PATTERN = /\.(?:py|pyw|pyx|pxd|pxi)$/i;
+// A module Python can import whose code Cejel cannot read: bytecode, an extension, an archive, a .pth.
+const PYTHON_UNREAD_MODULE_FILE_PATTERN = /\.(?:pyc|pyo|so|pyd|egg|whl|zip|pth)$/i;
 
-/** The first Python file of the repository whose text names `builtins` or `__builtins__`, or undefined. Linear. */
-function firstPythonFileNamingBuiltins(repoPath: string, repoFiles: readonly string[]): string | undefined {
-  for (const file of repoFiles) {
-    if (!file.endsWith('.py')) continue;
+/**
+ * The review of #655, blocker 3: every file the repository tracks, in any directory (A1's file list
+ * leaves out vendor/, build/, dist/, venv/, coverage/ and the like), or undefined where they cannot
+ * be listed. Outside Git, every file under the root but .git. Linear in the files.
+ */
+function filesIncludingExcluded(repoPath: string): readonly string[] | undefined {
+  const tracked = readGitTrackedFileOutput(repoPath);
+  if (tracked.ok) return tracked.stdout.split('\n').filter((line) => line !== '');
+  if (!isExpectedGitAbsence(tracked)) return undefined;
+  const files: string[] = [];
+  const pending = [''];
+  for (let next = pending.pop(); next !== undefined; next = pending.pop()) {
+    let entries: Dirent[];
+    try {
+      entries = readdirSync(join(repoPath, next), { withFileTypes: true });
+    } catch {
+      return undefined;
+    }
+    for (const entry of entries) {
+      const path = next === '' ? entry.name : `${next}/${entry.name}`;
+      if (entry.isDirectory()) {
+        if (entry.name !== '.git') pending.push(path);
+      } else files.push(path);
+    }
+  }
+  return files;
+}
+
+/**
+ * The review of #655, blocker 3: why a builtin copy is not credited, as the words after "calls a
+ * builtin": the first tracked file that may replace the builtin, or that the files could not be
+ * listed; undefined where no file may. Linear in the files.
+ */
+function builtinCopyReplacedBy(repoPath: string): string | undefined {
+  const files = filesIncludingExcluded(repoPath);
+  if (files === undefined) return "and the repository's files could not be listed";
+  for (const listed of files) {
+    // git quotes a path holding unusual characters; such a file is named, not read.
+    const quoted = listed.startsWith('"') && listed.endsWith('"') && listed.length > 1;
+    const file = quoted ? listed.slice(1, -1) : listed;
+    const unread = PYTHON_UNREAD_MODULE_FILE_PATTERN.test(file);
+    if (!unread && !PYTHON_SOURCE_FILE_PATTERN.test(file)) continue;
+    const replaces = `which ${a1NotePath(file)} may replace`;
+    if (unread || quoted) return replaces;
     const fullPath = join(repoPath, file);
-    if (!isRegularFile(fullPath)) continue;
+    let size: number;
+    try {
+      const stat = lstatSync(fullPath);
+      if (!stat.isFile()) return replaces;
+      size = stat.size;
+    } catch {
+      return replaces;
+    }
+    if (size > MAX_REPOSITORY_CONTENT_BYTES) return replaces;
     const text = readRepoText(fullPath, 'utf8');
-    if (text.includes('builtins') && PYTHON_BUILTINS_NAME_PATTERN.test(text)) return file;
+    if (isGitLfsPointerText(text)) return replaces;
+    // Python folds identifiers under NFKC (`ｂuiltins` is builtins); ASCII text is already folded.
+    const folded = /[^\x00-\x7f]/.test(text) ? text.normalize('NFKC') : text;
+    if (PYTHON_BUILTINS_REACH_PATTERN.test(folded)) return replaces;
   }
   return undefined;
 }
@@ -17931,14 +17996,14 @@ function pytestMentionsItems(code: string): boolean {
 
 type PytestHookReading =
   | { readonly kind: 'skip' | 'clear' | 'restores' | 'rebinds' }
-  /** `builtins`: the file naming builtins, where the reason is a statement copying through a builtin (item A). */
+  /** `builtins`: why a copy through a builtin is not credited, the words after "calls a builtin" (item A; #655 review, blocker 3). */
   | { readonly kind: 'not read'; readonly reason: string; readonly builtins?: string };
 
 /**
  * Reads the last top-level `pytest_collection_modifyitems` of a conftest.py, at line `index`: what
  * the run-wide skip rule may say about it, or undefined where it has nothing to say (the hook takes
- * no `items`, never names it, or never empties or skips it). `builtinsNamedIn` gives the first
- * Python file of the repository naming builtins, read only where a credit rests on a builtin copy.
+ * no `items`, never names it, or never empties or skips it). `builtinsNamedIn` says why a builtin
+ * copy may not be the items (builtinCopyReplacedBy), read only where a credit rests on one.
  */
 function readPytestCollectionHook(
   source: PythonSourceLines,
@@ -18101,7 +18166,7 @@ export function findPytestRunWideSkips(
   const builtinsNamedIn = (): string | undefined => {
     if (!builtinsRead) {
       builtinsRead = true;
-      builtinsFile = firstPythonFileNamingBuiltins(repoPath, repoFiles);
+      builtinsFile = builtinCopyReplacedBy(repoPath);
     }
     return builtinsFile;
   };
@@ -18150,7 +18215,7 @@ export function findPytestRunWideSkips(
     const scope = dirname(file);
     const where = { path: file, line: last + 1, scope: scope === '.' ? '' : scope };
     if (reading.kind === 'not read') {
-      const because = reading.builtins === undefined ? '' : ` calls a builtin, and ${a1NotePath(reading.builtins)} names builtins`;
+      const because = reading.builtins === undefined ? '' : ` calls a builtin, ${reading.builtins}`;
       found.push({
         ...where,
         kind: 'unread',

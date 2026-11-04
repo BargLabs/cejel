@@ -44,10 +44,7 @@ const fixture = (
 const deselects = { outcome: 'deselects', removed: HOOK_REMOVED } as const;
 const restores = { outcome: 'restores', clause: RESTORED } as const;
 const unread = (reason: string | RegExp) => ({ outcome: 'not read', clause: typeof reason === 'string' ? notRead(reason) : reason }) as const;
-/** Item G: the statement that calls a builtin, and the file that names builtins. */
-const builtinUnread = (statement: string, file: string) =>
-  ({ outcome: 'not read', clause: `${notRead(statement)} calls a builtin, and ${file} names builtins` }) as const;
-/** The review of #655, blocker 3: the statement that calls a builtin, and the file that may replace it. */
+/** Item G: the statement that calls a builtin, and the file that may replace it (wording from the review of #655, blocker 3). */
 const builtinReplaced = (statement: string, file: string) =>
   ({ outcome: 'not read', clause: `${notRead(statement)} calls a builtin, which ${file} may replace` }) as const;
 
@@ -662,7 +659,7 @@ export const ALLOWLIST_FIXTURES: readonly AllowlistFixture[] = [
         'builtins.list = _narrow',
       ),
     },
-    builtinUnread('saved = list(items)', 'tests/helpers.py'),
+    builtinReplaced('saved = list(items)', 'tests/helpers.py'),
   ),
   fixture(
     'a1al-g-second-conftest-dunder-builtins-tuple',
@@ -672,7 +669,7 @@ export const ALLOWLIST_FIXTURES: readonly AllowlistFixture[] = [
       ...hook(['    saved = tuple(items)', '    items.clear()', '    items.extend(saved)']),
       'conftest.py': lines('_t = tuple', '__builtins__["tuple"] = lambda xs=(): () if xs is not None else _t()'),
     },
-    builtinUnread('saved = tuple(items)', 'conftest.py'),
+    builtinReplaced('saved = tuple(items)', 'conftest.py'),
   ),
   fixture(
     'a1al-g-plugin-names-builtins-helper-list-copy',
@@ -684,7 +681,7 @@ export const ALLOWLIST_FIXTURES: readonly AllowlistFixture[] = [
       'plugins/__init__.py': '',
       'plugins/patch.py': lines('import builtins', '', 'builtins.list = lambda xs=(): []'),
     },
-    builtinUnread('refill(items, saved)', 'plugins/patch.py'),
+    builtinReplaced('refill(items, saved)', 'plugins/patch.py'),
   ),
   fixture(
     'a1al-g-control-slice-copy-beside-builtins',
