@@ -3,6 +3,7 @@ import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'nod
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { createWitanAttestation, serializeWitanReport } from '../attestation.js';
 import { renderWitanHtmlReport } from '../html.js';
 import { scoreRepoWithPublicCejel } from '../public-scan.js';
 import { WITAN_RUBRIC_VERSION_V17, WITAN_RUBRIC_VERSION_V27 } from '../rubric-version.js';
@@ -29,6 +30,12 @@ import { FALSE_ASSURANCE_FIXTURES, buildFalseAssuranceFixture } from './fixtures
 //     as text so a failure shows the diff.
 //   - certificate-below-first-page/certificate-sha256.json: the sha256 of the same bytes for every
 //     fixture of the three corpora under both rubrics.
+//   - certificate-below-first-page/report-attestation-sha256.json (#654 review, should-fix 6): the
+//     sha256 of report.json (serializeWitanReport) and of attestation.json for the same renders, so
+//     the card's "report.json and attestation.json byte-identical to main" holds on these three
+//     corpora, not only on the behaviour corpus that plain-summary-corpus.test.ts pins. Other test
+//     fixture families (the v27 A1 run, withhold, removal and hook fixtures, the B3 publishing,
+//     CI-claims, settling, build-step, calibration and shallow-history fixtures) are not pinned here.
 //
 // How the pins were captured. Not by running this branch's renderer: a detached worktree of
 // origin/main at 733a464d3 (the main this branch has merged, before any first-page code) was made
@@ -91,6 +98,7 @@ const sha256 = (text: string): string => createHash('sha256').update(text, 'utf8
 const pinFileName = (key: string): string => `${key.replaceAll('/', '__')}.html`;
 
 const renders = new Map<string, string>();
+const reportDigests = new Map<string, { readonly reportSha256: string; readonly attestationSha256: string }>();
 const builtDirectories: string[] = [];
 
 function scoreAndRender(key: string, repoPath: string): void {
@@ -105,6 +113,11 @@ function scoreAndRender(key: string, repoPath: string): void {
       autoDiscoverIngest: false,
     });
     renders.set(`${short}/${key}`, renderWitanHtmlReport(report, { cliVersion: CLI_VERSION, generatedAt: GENERATED_AT }));
+    const attestation = createWitanAttestation(report, { toolVersion: CLI_VERSION, generatedAt: GENERATED_AT });
+    reportDigests.set(`${short}/${key}`, {
+      reportSha256: sha256(serializeWitanReport(report)),
+      attestationSha256: sha256(JSON.stringify(attestation, null, 2)),
+    });
   }
 }
 
@@ -149,6 +162,8 @@ describe.runIf(CAPTURE_DIR !== undefined)('capture (run against main, never agai
       }
     }
     writeFileSync(join(dir, 'certificate-sha256.json'), `${JSON.stringify(digests, null, 2)}\n`);
+    const reportPins = Object.fromEntries([...reportDigests].sort(([a], [b]) => a.localeCompare(b)));
+    writeFileSync(join(dir, 'report-attestation-sha256.json'), `${JSON.stringify(reportPins, null, 2)}\n`);
   });
 });
 
@@ -180,6 +195,19 @@ describe.skipIf(CAPTURE_DIR !== undefined)('the certificate below the first page
     const moved = [...renders]
       .filter(([key, html]) => sha256(certificateBelowFirstPage(html)) !== digests[key])
       .map(([key]) => key);
+    expect(moved).toEqual([]);
+  });
+
+  it('report.json and attestation.json are byte-identical to main for every fixture of the three corpora', () => {
+    const pins = JSON.parse(readFileSync(new URL('report-attestation-sha256.json', PIN_DIR), 'utf8')) as Record<
+      string,
+      { reportSha256: string; attestationSha256: string }
+    >;
+    expect(Object.keys(pins).sort()).toEqual([...reportDigests.keys()].sort());
+    const moved = [...reportDigests].flatMap(([key, digest]) => [
+      ...(digest.reportSha256 !== pins[key]?.reportSha256 ? [`${key} report.json`] : []),
+      ...(digest.attestationSha256 !== pins[key]?.attestationSha256 ? [`${key} attestation.json`] : []),
+    ]);
     expect(moved).toEqual([]);
   });
 });
