@@ -8378,7 +8378,11 @@ function firstCheckLineByJob(
     // Fourth pass (#627): a test script or make target the reader read and found to run no known
     // runner is named in B3's note.
     for (const { words } of commands) {
-      const reason = unrecognisedCheckReason(words, stepReading) ?? checkLineReason(words, stepReading) ?? buildLineReason(words, stepReading);
+      const reason =
+        unrecognisedCheckReason(words, stepReading) ??
+        checkLineReason(words, stepReading) ??
+        buildLineReason(words, stepReading) ??
+        seventhPassReason(words, stepReading);
       if (reason !== undefined) notCredited.push(reason);
     }
     const check = step.lines.find(({ text }) => shellCommands(text).some(isCheck));
@@ -8604,12 +8608,21 @@ interface CheckReading {
    * npx, pnpx or bunx, may not run what it names, so none is a check or a setup step.
    */
   readonly packageManagerConfigPlain: boolean;
+  /**
+   * Seventh pass (#641, item A): for each recipe of the root justfile, whether it runs a known test
+   * runner (rootJustRecipeReadings). Empty when the justfile is not read.
+   */
+  readonly justRecipes: ReadonlyMap<string, ScriptReading>;
+  /** Seventh pass (#641, item A): whether bare `tox` runs a known test runner (rootToxReading). */
+  readonly toxReading: ScriptReading;
 }
 
 // The readings that rest on the root's own files, as when none of them is read.
 const ROOT_FILES_UNREAD = {
   testScriptRuns: false,
   testScriptUnrecognised: false,
+  justRecipes: new Map<string, ScriptReading>(),
+  toxReading: 'unread',
   makeTargets: new Map<string, ScriptReading>(),
   buildScriptRunsOnlyTsc: false,
   buildScriptTscOutputUnread: false,
@@ -8636,6 +8649,8 @@ function checkReading(root: string, inventory: PublishOnlyInventory): CheckReadi
     testScriptRuns: testScript === 'runner',
     testScriptUnrecognised: testScript === 'unrecognised',
     makeTargets: rootMakeTargetReadings(root, inventory, tscAdmitted),
+    justRecipes: rootJustRecipeReadings(root, inventory, tscAdmitted),
+    toxReading: rootToxReading(root, inventory, tscAdmitted),
     buildScriptRunsOnlyTsc: build === 'admitted',
     buildScriptTscOutputUnread: build === 'output-unread',
     requirementsFileIsPlain: (path) => requirementsFileIsPlain(root, inventory, path),
@@ -9407,7 +9422,8 @@ const KNOWN_TEST_RUNNER_WORDS: ReadonlySet<string> = new Set([
 const KNOWN_TEST_RUNNER_SUBCOMMANDS: ReadonlyMap<string, readonly string[]> = new Map([
   ['node', ['--test']], ['tsx', ['--test']], ['bun', ['test']], ['deno', ['test']], ['playwright', ['test']],
   ['cypress', ['run']], ['karma', ['start']], ['go', ['test']], ['cargo', ['test', 'nextest']], ['dotnet', ['test']],
-  ['mvn', ['test', 'verify']], ['gradle', ['test', 'check']],
+  // Seventh pass (#641, item A): mvn and gradle run what pom.xml and the build script say, which the
+  // reader does not read, so neither is a known runner in a script or recipe either.
 ]);
 // Python modules `python -m` runs as a test runner.
 const KNOWN_TEST_RUNNER_MODULES: ReadonlySet<string> = new Set(['pytest', 'unittest']);
@@ -9921,6 +9937,10 @@ function isCheckCommand(input: readonly string[], reading: CheckReading, assignm
   // runs a known test runner (rootMakeTargetReadings), and only written exactly so: another word
   // names another target or overrides a variable the recipe reads.
   if (words[0] === 'make') return words.length === 2 && reading.makeTargets.get(words[1] ?? '') === 'runner';
+  // Seventh pass (#641, item A): a task runner is a check only where the reader follows what it
+  // runs to a known test runner (just, tox); every other task runner withholds the credit.
+  const task = taskRunnerReading(words, reading);
+  if (task !== undefined) return task.reading === 'runner';
   if (words.some((word) => REPORT_ONLY_FLAGS.has(word))) return false;
   if (words.some((word) => NO_FAIL_FLAGS.has(word.split('=')[0] ?? word))) return false;
   // Fifth pass (item B, review of #640): a lint or format command is a check only in a form that
@@ -10104,6 +10124,236 @@ function checkLineReason(input: readonly string[], reading: CheckReading): strin
   const text = read.words.join(' ');
   if (!NPM_FAMILY_TEST_SCRIPT_PATTERN.test(text) || !reading.testScriptRuns) return undefined;
   return packageTestArgumentsProblem(read.words);
+}
+
+// ---- Seventh pass (#641, #647): a check counts only where the reader follows it to a runner -----
+//
+// Until this pass B3 credited a task runner, a script alias and a known runner's flags by name. A
+// check is now credited only where the reader follows it to a known test runner that can fail.
+
+/** True when `words` begin with a command the shared verification vocabulary names, ending at a word's end. */
+function namesCheckAtStart(words: readonly string[]): boolean {
+  const text = words.join(' ');
+  return verificationCommandPatterns().some((pattern) => {
+    const match = pattern.exec(text);
+    if (!match || match.index !== 0) return false;
+    const after = text[match[0].length];
+    return after === undefined || after === ' ';
+  });
+}
+
+// Item A (#641, 1): task runners whose configuration decides what they run, which the reader does
+// not read, by command word; the value is the name B3's note gives.
+const UNREAD_TASK_RUNNERS: ReadonlyMap<string, string> = new Map([
+  ['nox', 'nox'], ['pre-commit', 'pre-commit'], ['turbo', 'turbo'], ['gradle', 'gradle'], ['gradlew', 'gradle'],
+  ['mvn', 'mvn'], ['mvnw', 'mvn'], ['bazel', 'bazel'], ['bazelisk', 'bazel'],
+]);
+
+/**
+ * Item A: for a command (launcher-free words) that a task runner runs, the runner's name and what
+ * the reader read it to run; undefined for any other command. `just <recipe>` is read through the
+ * root justfile and bare `tox` through the root tox.ini; any other word after them, and every
+ * UNREAD_TASK_RUNNERS runner, is 'unread'.
+ */
+function taskRunnerReading(words: readonly string[], reading: CheckReading): { readonly runner: string; readonly reading: ScriptReading } | undefined {
+  const first = (words[0] ?? '').toLowerCase();
+  const unread = UNREAD_TASK_RUNNERS.get(first);
+  if (unread !== undefined) return { runner: unread, reading: 'unread' };
+  if (first === 'just') return { runner: 'just', reading: words.length === 2 ? (reading.justRecipes.get(words[1] ?? '') ?? 'unread') : 'unread' };
+  if (first === 'tox') return { runner: 'tox', reading: words.length === 1 ? reading.toxReading : 'unread' };
+  return undefined;
+}
+
+const CONFIGURATION_UNREAD_REASON = (runner: string) => `the check runs ${runner}, whose configuration Cejel does not read`;
+const RUNS_NO_KNOWN_RUNNER_REASON = (runner: string) => `the check runs ${runner}, and what its configuration runs is not a test runner Cejel recognises`;
+
+/**
+ * The reason B3's note gives when one command would be a check by the shared vocabulary but the
+ * seventh pass withholds it; undefined otherwise. Item A: a task runner not read, or read and found
+ * to run no known test runner.
+ */
+function seventhPassReason(input: readonly string[], reading: CheckReading): string | undefined {
+  if (commandIsBackgrounded(input)) return undefined;
+  const read = checkCommandWords(input);
+  if (read === undefined || (read.packageManager && !reading.packageManagerConfigPlain)) return undefined;
+  if (read.assignments.some((key) => !isInertEnvironmentKey(key))) return undefined;
+  const words = read.words;
+  if (words.length === 0 || isPathCommandWord(words[0] ?? '') || !namesCheckAtStart(words)) return undefined;
+  const task = taskRunnerReading(words, reading);
+  if (task !== undefined && task.reading !== 'runner') {
+    return task.reading === 'unread' ? CONFIGURATION_UNREAD_REASON(task.runner) : RUNS_NO_KNOWN_RUNNER_REASON(task.runner);
+  }
+  return undefined;
+}
+
+// ---- Item A: the root justfile, read strictly -------------------------------------------------
+//
+// just runs each recipe line in its own `sh -cu`, stopping at the first that fails, after the
+// recipes it depends on. The reader admits only a justfile of plain recipes: a header `name:` or
+// `name: dep dep`, then indented lines. Anything else refuses the whole file: a setting (`set
+// dotenv-load` loads `.env`; `set shell` changes the shell), an assignment or `export`, an alias,
+// `import` or `mod`, an attribute, a parameter, an interpolation `{{ }}` or backtick, a shebang
+// recipe, a comment after a dependency. A line prefixed `-`, whose failure just ignores, is no check.
+
+const JUST_RECIPE_HEADER_PATTERN = /^@?([A-Za-z_][A-Za-z0-9_-]*)[ \t]*:(?!=)(.*)$/;
+const JUST_NAME_PATTERN = /^[A-Za-z_][A-Za-z0-9_-]*$/;
+
+/** A justfile's recipes, by name: dependencies and body lines (trimmed). Null when the file holds anything else. Linear. */
+function readJustfileStrictly(text: string): Map<string, { readonly dependencies: readonly string[]; readonly lines: string[] }> | null {
+  if (text.includes('{{') || text.includes('`') || text.includes('\\')) return null;
+  const recipes = new Map<string, { dependencies: readonly string[]; lines: string[] }>();
+  let active: { dependencies: readonly string[]; lines: string[] } | null = null;
+  for (const raw of text.split(/\r?\n/)) {
+    if (raw.trim() === '') continue;
+    if (/^[ \t]/.test(raw)) {
+      if (active === null) return null;
+      const line = raw.trim();
+      if (active.lines.length === 0 && line.startsWith('#!')) return null;
+      active.lines.push(line);
+      continue;
+    }
+    active = null;
+    if (raw.startsWith('#')) {
+      if (raw.startsWith('#!')) return null;
+      continue;
+    }
+    const header = JUST_RECIPE_HEADER_PATTERN.exec(raw);
+    if (!header) return null;
+    const name = header[1] ?? '';
+    const dependencies = (header[2] ?? '').trim().split(/[ \t]+/).filter((word) => word !== '');
+    if (recipes.has(name) || !dependencies.every((word) => JUST_NAME_PATTERN.test(word))) return null;
+    active = { dependencies, lines: [] };
+    recipes.set(name, active);
+  }
+  return recipes;
+}
+
+/**
+ * Item A, CheckReading.justRecipes: for every recipe of the root justfile, 'runner' when what `just
+ * <recipe>` runs (its dependencies first, once each, then its lines) runs a known test runner with
+ * only admitted checks before it (kindsRunKnownRunner), 'unrecognised' otherwise. Empty when there
+ * is not exactly one root `justfile` or `.justfile` (in any case, as just finds it), or it is not
+ * scanned, or readJustfileStrictly cannot place it.
+ */
+function rootJustRecipeReadings(
+  root: string,
+  inventory: PublishOnlyInventory,
+  tscAdmitted: (words: readonly string[]) => boolean,
+): ReadonlyMap<string, ScriptReading> {
+  const readings = new Map<string, ScriptReading>();
+  const spellings = [...(inventory.rootPathsLower.get('justfile') ?? []), ...(inventory.rootPathsLower.get('.justfile') ?? [])];
+  const file = spellings[0];
+  if (spellings.length !== 1 || file === undefined || !inventory.scanned.has(file)) return readings;
+  const recipes = readJustfileStrictly(readRepoText(join(root, file), 'utf8'));
+  if (recipes === null) return readings;
+  for (const name of recipes.keys()) {
+    const kinds: ('runner' | 'check' | 'other')[] = [];
+    const made = new Set<string>();
+    const run = (recipe: string, depth: number, stack: ReadonlySet<string>): boolean => {
+      const found = recipes.get(recipe);
+      if (found === undefined || depth > SCRIPT_EXPANSION_MAX_DEPTH || stack.has(recipe)) return false;
+      if (made.has(recipe)) return true;
+      made.add(recipe);
+      const inner = new Set(stack).add(recipe);
+      for (const dependency of found.dependencies) if (!run(dependency, depth + 1, inner)) return false;
+      for (const line of found.lines) {
+        let text = line;
+        let ignored = false;
+        while (text.startsWith('@') || text.startsWith('-')) {
+          if (text.startsWith('-')) ignored = true;
+          text = text.slice(1).trimStart();
+        }
+        if (ignored || !commandsAreAndChain(text)) kinds.push('other');
+        else for (const words of shellCommands(text)) {
+          const peeled = peelCommandLaunchers(words);
+          kinds.push(peeled === null ? 'other' : scriptCommandKind(peeled, tscAdmitted));
+        }
+        if (kinds.length > SCRIPT_EXPANSION_MAX_COMMANDS) return false;
+      }
+      return true;
+    };
+    readings.set(name, run(name, 0, new Set()) && kindsRunKnownRunner(kinds) ? 'runner' : 'unrecognised');
+  }
+  return readings;
+}
+
+// ---- Item A: the root tox.ini, read strictly --------------------------------------------------
+//
+// Bare `tox` runs each environment of `env_list` (`py` when there is none): it installs `deps`,
+// then, unless told not to, builds and installs the project (running its build code), then runs
+// `commands` one line at a time, without a shell, stopping at the first that fails. The reader
+// admits only the keys named here; any other (`ignore_outcome`, `ignore_errors`, `setenv`,
+// `passenv`, `changedir`, `commands_pre`, `requires`, `install_command`, `allowlist_externals`, a
+// factor, a substitution) refuses the file, as does a second tox configuration it may read instead.
+
+const TOX_ADMITTED_KEYS: ReadonlySet<string> = new Set(['envlist', 'env_list', 'skipsdist', 'no_package', 'minversion', 'min_version']);
+const TOX_ENV_ADMITTED_KEYS: ReadonlySet<string> = new Set(['commands', 'deps', 'skip_install', 'package', 'description']);
+const TOX_ENV_NAME_PATTERN = /^[A-Za-z0-9_.-]+$/;
+
+/**
+ * Item A, CheckReading.toxReading: 'runner' when every environment bare `tox` runs from the root
+ * tox.ini installs only index packages by name, does not install the project, and runs a known test
+ * runner with only admitted checks before it; 'unrecognised' when the file is read and one does
+ * not; 'unread' when it is not read: absent or spelled in another case, not scanned, a tox.toml,
+ * or a setup.cfg or pyproject.toml that holds tox configuration or is not scanned, a line the ini
+ * reader does not place, a brace or backslash anywhere, or a section or key not admitted.
+ */
+function rootToxReading(root: string, inventory: PublishOnlyInventory, tscAdmitted: (words: readonly string[]) => boolean): ScriptReading {
+  const spellings = inventory.rootPathsLower.get('tox.ini') ?? [];
+  if (spellings.length !== 1 || spellings[0] !== 'tox.ini' || !inventory.scanned.has('tox.ini') || inventory.rootPathsLower.has('tox.toml')) return 'unread';
+  for (const [other, marker] of [['setup.cfg', /^\[tox:/m], ['pyproject.toml', /tool\.tox|legacy_tox_ini/]] as const) {
+    if (!inventory.known.has(other)) continue;
+    if (!inventory.scanned.has(other) || marker.test(readRepoText(join(root, other), 'utf8'))) return 'unread';
+  }
+  const text = readRepoText(join(root, 'tox.ini'), 'utf8');
+  if (/[{}\\]/.test(text)) return 'unread';
+  // Every line is a blank, a comment, a section header, `key = value` or an indented continuation.
+  let inSection = false;
+  for (const raw of text.split(/\r?\n/)) {
+    const trimmed = raw.trim();
+    if (trimmed === '' || trimmed.startsWith('#') || trimmed.startsWith(';')) continue;
+    if (/^\[[^\]]+\][ \t]*$/.test(raw)) {
+      inSection = true;
+      continue;
+    }
+    if (!inSection) return 'unread';
+    if (/^[ \t]/.test(raw)) continue;
+    if (!/^[A-Za-z_][A-Za-z0-9_]*[ \t]*=/.test(raw)) return 'unread';
+  }
+  const sections = readIniSections(text);
+  for (const [name, section] of sections) {
+    const admitted = name === 'tox' ? TOX_ADMITTED_KEYS : name === 'testenv' || name.startsWith('testenv:') ? TOX_ENV_ADMITTED_KEYS : undefined;
+    if (admitted === undefined || [...section.keys()].some((key) => !admitted.has(key))) return 'unread';
+  }
+  const tox = sections.get('tox');
+  const truthy = (value: string | undefined) => value !== undefined && value.toLowerCase() === 'true';
+  const listed = (tox?.get('env_list') ?? tox?.get('envlist') ?? '').split(/[,\n]/).map((name) => name.trim()).filter((name) => name !== '');
+  if (listed.some((name) => !TOX_ENV_NAME_PATTERN.test(name))) return 'unread';
+  const base = sections.get('testenv');
+  const noPackage = truthy(tox?.get('skipsdist')) || truthy(tox?.get('no_package'));
+  let allRun = true;
+  for (const name of listed.length === 0 ? ['py'] : listed) {
+    const own = sections.get(`testenv:${name}`);
+    const key = (key: string) => own?.get(key) ?? base?.get(key);
+    // A project install builds the package, running its build code before the commands.
+    if (!noPackage && !truthy(key('skip_install')) && (key('package') ?? '').toLowerCase() !== 'skip') return 'unread';
+    for (const dependency of (key('deps') ?? '').split('\n').map((line) => line.trim()).filter((line) => line !== '')) {
+      if (!pipRequirementNamesIndexProject(dependency.replace(/[ \t]/g, ''), (path) => inventory.entriesLower.has(path.toLowerCase()))) return 'unread';
+    }
+    const kinds: ('runner' | 'check' | 'other')[] = [];
+    for (const line of (key('commands') ?? '').split('\n').map((entry) => entry.trim()).filter((entry) => entry !== '')) {
+      // tox runs a line without a shell; one prefixed `-` (failure ignored) or `!` (inverted), or
+      // holding a shell character, is not read.
+      if (line.startsWith('-') || line.startsWith('!') || /[|&;<>$`()]/.test(line)) {
+        kinds.push('other');
+        continue;
+      }
+      const peeled = peelCommandLaunchers(shellWords(line));
+      kinds.push(peeled === null ? 'other' : scriptCommandKind(peeled, tscAdmitted));
+    }
+    if (kinds.length > SCRIPT_EXPANSION_MAX_COMMANDS || !kindsRunKnownRunner(kinds)) allRun = false;
+  }
+  return allRun ? 'runner' : 'unrecognised';
 }
 
 // A pull-request (or merge-queue) trigger makes a workflow a pull-request gate whatever its steps.
