@@ -1,0 +1,25 @@
+[
+  {
+    "statement": "Cejel's first plain first page (#635) printed false sentences on 656 reviewed reports because its word guard chose replacement over rewording: any engine text holding a banned word was swapped for one generic sentence, so areas that failed to read became \"found nothing here it could measure\" and every insufficient-source reason became \"found no source code here that it can rate\". Its test passed because it fed a reason the engine never emits. The v2 fix (goal_cejel_four_question_summary_v2_2026-11-03) keys each sentence on the producer's kind and rewords through a fixed table. Rules: when a renderer restates engine output in other words, list every producer of that field in a test and feed the test text the engine actually emitted; reword through a table instead of replacing; and give a guard that blocks a word a fallback that says less, never one that says something different.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "evidence-discipline",
+      "presentation"
+    ],
+    "tags": [
+      "false-assertion",
+      "fixture-not-emitted",
+      "producer-inventory",
+      "plain-language"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-11-03T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 653
+    }
+  }
+]
