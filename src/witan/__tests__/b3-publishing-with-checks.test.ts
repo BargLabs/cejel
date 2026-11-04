@@ -191,6 +191,8 @@ const CONFIGURATION_UNREAD = (runner: string) => `the check runs ${runner}, whos
 const RUNS_NO_KNOWN_RUNNER = (runner: string) => `the check runs ${runner}, and what its configuration runs is not a test runner Cejel recognises`;
 const RUNNER_ARGUMENT_REASON = 'the check carries a flag or argument that Cejel does not know to keep it failing when a test fails';
 const REPOSITORY_MODULE_REASON = 'the check runs a Python module by name, and the repository holds a path of that name, which Python imports first';
+// Item F, completed: hatch run in an environment that installs the project.
+const HATCH_INSTALLS_PROJECT_REASON = 'the check runs hatch run in an environment that does not set skip-install, so hatch first installs the project, running its build code';
 
 // Fourth pass (#627 item A, #628 item B): where a check is not credited because its test script or
 // make target runs no test runner Cejel recognises, or because an environment key on its path may
@@ -293,6 +295,39 @@ const NOT_CREDITED_REASONS: Readonly<Record<string, string>> = {
   'pytest-listed-flags-fixtures': RUNNER_ARGUMENT_REASON,
   'npm-test-separator-list-tests': RUNNER_ARGUMENT_REASON,
   'python-m-pytest-beside-pytest-ini-fixtures': RUNNER_ARGUMENT_REASON,
+  // Item F, completed (finishing pass on #657).
+  'go-test-count-zero': RUNNER_ARGUMENT_REASON,
+  'go-test-count-zero-spaced': RUNNER_ARGUMENT_REASON,
+  'cargo-test-no-run': RUNNER_ARGUMENT_REASON,
+  'cargo-nextest-run-no-tests-pass': RUNNER_ARGUMENT_REASON,
+  'cargo-clippy-cap-lints-warn': RUNNER_ARGUMENT_REASON,
+  'dotnet-test-list-tests': RUNNER_ARGUMENT_REASON,
+  'ctest-show-only': RUNNER_ARGUMENT_REASON,
+  'rspec-dry-run': RUNNER_ARGUMENT_REASON,
+  'phpunit-list-tests': RUNNER_ARGUMENT_REASON,
+  'jest-test-name-pattern-none': RUNNER_ARGUMENT_REASON,
+  'vitest-list-line': RUNNER_ARGUMENT_REASON,
+  'mocha-grep-none': RUNNER_ARGUMENT_REASON,
+  'node-test-name-pattern-none': RUNNER_ARGUMENT_REASON,
+  'tsc-list-files-only': RUNNER_ARGUMENT_REASON,
+  'pyright-createstub': RUNNER_ARGUMENT_REASON,
+  'yarn-test-list-tests': RUNNER_ARGUMENT_REASON,
+  'pnpm-test-list-tests': RUNNER_ARGUMENT_REASON,
+  'pipenv-no-script-pytest-co': RUNNER_ARGUMENT_REASON,
+  'test-script-go-test-count-zero': 'the test script in package.json does not run a test runner Cejel recognises',
+  'test-script-deno-no-run': 'the test script in package.json does not run a test runner Cejel recognises',
+  'test-script-bun-pass-with-no-tests': 'the test script in package.json does not run a test runner Cejel recognises',
+  'test-script-playwright-list': 'the test script in package.json does not run a test runner Cejel recognises',
+  'test-script-karma-no-fail-on-failing': 'the test script in package.json does not run a test runner Cejel recognises',
+  'test-script-tsx-name-pattern-none': 'the test script in package.json does not run a test runner Cejel recognises',
+  'test-script-lab-dry': 'the test script in package.json does not run a test runner Cejel recognises',
+  'test-script-ts-mocha-dry-run': 'the test script in package.json does not run a test runner Cejel recognises',
+  'test-script-uvu-ignore-all': 'the test script in package.json does not run a test runner Cejel recognises',
+  'make-test-python-m-unittest-k-none': "the Makefile's test target does not run a test runner Cejel recognises",
+  'hatch-inherited-script-pytest-co': 'the check runs the hatch script test, which does not run a test runner Cejel recognises',
+  'hatch-script-list-pytest-co': 'the check runs the hatch script test, which does not run a test runner Cejel recognises',
+  'hatch-script-installs-project': HATCH_INSTALLS_PROJECT_REASON,
+  'hatch-no-script-installs-project': HATCH_INSTALLS_PROJECT_REASON,
 };
 
 describe('fourth pass — B3 names why a check was not credited', () => {
