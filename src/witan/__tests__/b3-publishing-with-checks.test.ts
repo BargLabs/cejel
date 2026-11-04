@@ -190,7 +190,8 @@ const TSC_OUTPUT_REASON = 'the build script in package.json runs tsc, whose outp
 const CONFIGURATION_UNREAD = (runner: string) => `the check runs ${runner}, whose configuration Cejel does not read`;
 const RUNS_NO_KNOWN_RUNNER = (runner: string) => `the check runs ${runner}, and what its configuration runs is not a test runner Cejel recognises`;
 const RUNNER_ARGUMENT_REASON = 'the check carries a flag or argument that Cejel does not know to keep it failing when a test fails';
-const REPOSITORY_MODULE_REASON = 'the check runs a Python module by name, and the repository holds a path of that name, which Python imports first';
+const REPOSITORY_MODULE_REASON =
+  'the check runs a Python module by name, and the repository holds a module of that name, or one it or the standard library imports, which Python imports first';
 // Item F, completed: hatch run in an environment that installs the project.
 const HATCH_INSTALLS_PROJECT_REASON = 'the check runs hatch run in an environment that does not set skip-install, so hatch first installs the project, running its build code';
 
@@ -302,7 +303,7 @@ const NOT_CREDITED_REASONS: Readonly<Record<string, string>> = {
   'cargo-nextest-run-no-tests-pass': RUNNER_ARGUMENT_REASON,
   'cargo-clippy-cap-lints-warn': RUNNER_ARGUMENT_REASON,
   'dotnet-test-list-tests': RUNNER_ARGUMENT_REASON,
-  'ctest-show-only': RUNNER_ARGUMENT_REASON,
+  'ctest-show-only': CONFIGURATION_UNREAD('ctest'),
   'rspec-dry-run': RUNNER_ARGUMENT_REASON,
   'phpunit-list-tests': RUNNER_ARGUMENT_REASON,
   'jest-test-name-pattern-none': RUNNER_ARGUMENT_REASON,
@@ -328,6 +329,23 @@ const NOT_CREDITED_REASONS: Readonly<Record<string, string>> = {
   'hatch-script-list-pytest-co': 'the check runs the hatch script test, which does not run a test runner Cejel recognises',
   'hatch-script-installs-project': HATCH_INSTALLS_PROJECT_REASON,
   'hatch-no-script-installs-project': HATCH_INSTALLS_PROJECT_REASON,
+  // Review of #657 at 26ad2484f.
+  'jest-short-workers-swallows-list-tests': RUNNER_ARGUMENT_REASON,
+  'jest-max-workers-swallows-list-tests': RUNNER_ARGUMENT_REASON,
+  'jest-test-timeout-swallows-list-tests': RUNNER_ARGUMENT_REASON,
+  'npm-test-separator-workers-list-tests': RUNNER_ARGUMENT_REASON,
+  'pytest-argument-file': RUNNER_ARGUMENT_REASON,
+  'just-recipe-pytest-argument-file': RUNS_NO_KNOWN_RUNNER('just'),
+  'tox-indented-ignore-outcome-after-header': CONFIGURATION_UNREAD('tox'),
+  'tox-indented-commands-pre-after-header': CONFIGURATION_UNREAD('tox'),
+  'pdm-escaped-key-shadows-pytest': 'the check runs pdm run, whose scripts Cejel does not read',
+  'pipenv-escaped-key-shadows-pytest': 'the check runs pipenv run, whose scripts Cejel does not read',
+  'hatch-escaped-key-shadows-pytest': 'the check runs hatch run, whose scripts Cejel does not read',
+  'pdm-escaped-shared-options-env-file': 'the check runs pdm run, whose scripts Cejel does not read',
+  'python-m-pytest-repo-underscore-pytest': REPOSITORY_MODULE_REASON,
+  'python-m-pytest-repo-stdlib-module': REPOSITORY_MODULE_REASON,
+  'ctest-output-on-failure': CONFIGURATION_UNREAD('ctest'),
+  'hatch-toml-beside-pyproject-skip-install': 'the check runs hatch run, whose scripts Cejel does not read',
 };
 
 describe('fourth pass — B3 names why a check was not credited', () => {

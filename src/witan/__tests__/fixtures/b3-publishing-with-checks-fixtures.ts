@@ -1835,7 +1835,6 @@ export const MUTATION_CONTROLS_COUNTED: readonly Shape[] = [
   ['cargo-nextest-run', 'Counted: `cargo nextest run`.', pyLine('cargo nextest run')],
   ['cargo-clippy-deny-warnings', 'Counted: `cargo clippy -- -D warnings`.', pyLine('cargo clippy -- -D warnings')],
   ['dotnet-test', 'Counted: `dotnet test`.', pyLine('dotnet test')],
-  ['ctest-output-on-failure', 'Counted: `ctest --output-on-failure`.', pyLine('ctest --output-on-failure')],
   ['rspec-plain', 'Counted: `rspec`.', pyLine('rspec')],
   ['phpunit-plain', 'Counted: `phpunit`.', pyLine('phpunit')],
   ['jest-ci-line', 'Counted: `jest --ci` on the check line.', jsLine(JS_JEST('jest'), 'jest --ci')],
@@ -1899,6 +1898,60 @@ export const MUTATION_REST_EXCLUDED: readonly Shape[] = [
   ['hatch-no-script-installs-project', 'Excluded (red): `hatch run pytest` with no hatch configuration, so hatch installs the project before pytest.', { ...PY_BASE, [PUBLISH]: pythonToolRelease('hatch pytest', 'hatch run pytest') }],
 ];
 
+// ---- Review of #657 at 26ad2484f: six false-credit blockers and two should-fix items -------------
+//
+// Each was credited at b22a5f0f2 (marked red); each counted control named is still counted.
+
+const TOX_HEADER = '[tox]\nenv_list = py\nskipsdist = true\n\n[testenv]\n';
+
+/** The review of #657: checks credited that cannot fail, and install shapes that run repository code. */
+export const REVIEW_657_EXCLUDED: readonly Shape[] = [
+  // Blocker 1: a value flag takes the next word only where it does not start with `-`.
+  ['jest-short-workers-swallows-list-tests', 'Excluded (red): as jest-ci-line, with `jest -w --listTests`; jest takes no `-`-word as a value, so it lists the tests and exits 0.', jsLine(JS_JEST('jest'), 'jest -w --listTests')],
+  ['jest-max-workers-swallows-list-tests', 'Excluded (red): as jest-ci-line, with `jest --maxWorkers --listTests`.', jsLine(JS_JEST('jest'), 'jest --maxWorkers --listTests')],
+  ['jest-test-timeout-swallows-list-tests', 'Excluded (red): as jest-ci-line, with `jest --testTimeout --listTests`.', jsLine(JS_JEST('jest'), 'jest --testTimeout --listTests')],
+  ['npm-test-separator-workers-list-tests', 'Excluded (red): as npm-test-separator-run-in-band, with `npm test -- -w --listTests`.', jsLine(JS_JEST('jest'), 'npm test -- -w --listTests')],
+  // Blocker 2: pytest reads arguments from an `@` file.
+  ['pytest-argument-file', 'Excluded (red): as pytest-listed-flags, with `pytest @ci.args`, where ci.args holds `--co`.', { ...PY_BASE, 'ci.args': '--co\n', [PUBLISH]: pythonPlainRelease('pytest @ci.args') }],
+  ['just-recipe-pytest-argument-file', 'Excluded (red): as just-test-recipe-pytest, with the recipe `pytest @ci.args`.', { ...PY_BASE, 'ci.args': '--co\n', justfile: 'test:\n    pytest @ci.args\n', [PUBLISH]: pythonToolRelease('rust-just pytest', 'just test') }],
+  // Blocker 3: configparser reads an indented line straight after a section header as a key.
+  ['tox-indented-ignore-outcome-after-header', 'Excluded (red): as tox-skipsdist-pytest, with `  ignore_outcome = true` indented straight after `[testenv]`.', { ...PY_BASE, 'tox.ini': `${TOX_HEADER}  ignore_outcome = true\ndeps = pytest\ncommands = pytest\n`, [PUBLISH]: pythonToolRelease('tox', 'tox') }],
+  ['tox-indented-commands-pre-after-header', 'Excluded (red): as tox-skipsdist-pytest, with `  commands_pre = python scripts/stub.py` indented straight after `[testenv]`.', { ...PY_BASE, 'scripts/stub.py': 'open("stub.txt", "w").write("x")\n', 'tox.ini': `${TOX_HEADER}  commands_pre = python scripts/stub.py\ndeps = pytest\ncommands = pytest\n`, [PUBLISH]: pythonToolRelease('tox', 'tox') }],
+  // Blocker 4: a TOML key written with an escape names the script it decodes to.
+  ['pdm-escaped-key-shadows-pytest', 'Excluded (red): as pdm-script-shadows-pytest, with the key written `"py\\u0074est"`.', { ...PY_BASE, 'pyproject.toml': PDM_SCRIPTS('"py\\u0074est" = "python -c pass"\n'), [PUBLISH]: pythonToolRelease('pdm', 'pdm run pytest') }],
+  ['pipenv-escaped-key-shadows-pytest', 'Excluded (red): as pipenv-script-shadows-pytest, with the key written `"py\\u0074est"`.', { ...PY_BASE, Pipfile: PIPFILE_WITH_SCRIPTS('"py\\u0074est" = "true"\n'), [PUBLISH]: pythonToolRelease('pipenv pytest', 'pipenv run pytest') }],
+  ['hatch-escaped-key-shadows-pytest', 'Excluded (red): as hatch-script-shadows-pytest, with the key written `"py\\u0074est"`.', { ...PY_BASE, 'hatch.toml': HATCH_SCRIPTS('"py\\u0074est" = "python -c pass"\n'), [PUBLISH]: pythonToolRelease('hatch', 'hatch run pytest') }],
+  ['pdm-escaped-shared-options-env-file', 'Excluded (red): `pdm run pytest`, with shared options written `"\\u005f".env_file = ".env"` and a `.env` setting PYTEST_ADDOPTS.', { ...PY_BASE, '.env': 'PYTEST_ADDOPTS=--co\n', 'pyproject.toml': PDM_SCRIPTS('"\\u005f".env_file = ".env"\n'), [PUBLISH]: pythonToolRelease('pdm', 'pdm run pytest') }],
+  // Blocker 5: `python -m pytest` imports pytest's own modules and the standard library from the directory first.
+  ['python-m-pytest-repo-underscore-pytest', 'Excluded (red): `python -m pytest` with a committed `_pytest/__init__.py`, which pytest imports.', { ...PY_BASE, '_pytest/__init__.py': 'raise SystemExit(0)\n', [PUBLISH]: pythonPlainRelease('python -m pytest') }],
+  ['python-m-pytest-repo-stdlib-module', 'Excluded (red): `python -m pytest` with a committed `argparse.py`, which pytest imports from the standard library.', { ...PY_BASE, 'argparse.py': 'raise SystemExit(0)\n', [PUBLISH]: pythonPlainRelease('python -m pytest') }],
+  // Blocker 6: ctest with no CMake configuration that defines tests runs none and exits 0.
+  ['ctest-output-on-failure', 'Excluded (red; was a counted control): `ctest --output-on-failure` in a repository with no CMake configuration, so it runs no test and exits 0.', pyLine('ctest --output-on-failure')],
+  // Should-fix: hatch.toml beside a pyproject.toml that configures hatch.
+  ['hatch-toml-beside-pyproject-skip-install', 'Excluded (red): `hatch run test`, with the script in hatch.toml and `skip-install` only in pyproject.toml.', { ...PY_BASE, 'pyproject.toml': `${PY_PROJECT}\n[tool.hatch.envs.default]\nskip-install = true\n`, 'hatch.toml': '[envs.default.scripts]\ntest = "pytest"\n', [PUBLISH]: pythonToolRelease('hatch', 'hatch run test') }],
+  // Should-fix: an npm workspace package's lifecycle script runs at the root install.
+  [
+    'npm-workspace-package-postinstall',
+    'Excluded (red): `npm ci` at a root whose `workspaces` lists `pkg`, whose package.json has a `postinstall` script.',
+    {
+      ...jsLine(jsWithScriptsAndDev({ test: 'uvu test' }, { uvu: '0.5.6' }), 'npm test'),
+      'package.json': `${JSON.stringify({ name: 'tint', version: '1.0.0', main: 'index.js', workspaces: ['pkg'], scripts: { test: 'uvu test' }, devDependencies: { uvu: '0.5.6' } }, null, 2)}\n`,
+      'pkg/package.json': `${JSON.stringify({ name: 'pkg', version: '1.0.0', scripts: { postinstall: 'node ../scripts/stub.js' } }, null, 2)}\n`,
+      'scripts/stub.js': "import { writeFileSync } from 'node:fs';\nwriteFileSync('stub.txt', 'x');\n",
+    },
+  ],
+  // #641's comment: a runner installed from the repository.
+  [
+    'uvu-file-dependency',
+    'Excluded (red): the test script `uvu test`, where package.json installs uvu from `file:./stub`.',
+    {
+      ...jsLine(jsWithScriptsAndDev({ test: 'uvu test' }, { uvu: 'file:./stub' }), 'npm test'),
+      'stub/package.json': `${JSON.stringify({ name: 'uvu', version: '0.0.0', bin: { uvu: 'bin.js' } }, null, 2)}\n`,
+      'stub/bin.js': '#!/usr/bin/env node\n',
+    },
+  ],
+];
+
 /** This pass's counted and excluded shapes, in the order the tests read them. */
 export const V7_COUNTED: readonly Shape[] = [
   ...TASK_RUNNER_COUNTED,
@@ -1915,6 +1968,7 @@ export const V7_EXCLUDED: readonly Shape[] = [
   ...REPOSITORY_MODULE_EXCLUDED,
   ...SEVENTH_PASS_MUTATION_EXCLUDED,
   ...MUTATION_REST_EXCLUDED,
+  ...REVIEW_657_EXCLUDED,
 ];
 
 function fixture(name: string, purpose: string, files: Record<string, string>): FalseAssuranceFixture {
