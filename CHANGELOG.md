@@ -252,7 +252,22 @@ measured effect is in `leaderboard/RUBRIC_CHANGELOG.md`.
   The lists come from `report.json` alone, through a new pure function (`src/plain-summary.ts`);
   each check-next line comes from a fixed table of reviewed sentences (`src/witan/next-checks.ts`),
   and an item with no table entry points to the certificate section that holds it. An area that
-  was not examined is listed as not known, never as holding. The terminal prints the four headings
+  was not examined is listed as not known, never as holding. A held area states its label and its
+  score out of 4 ("Rated Verified, at 1.0 out of 4"); only 4.0 is called the top score. An area
+  the report says it could not fully read (`contentReadSummary.affectedCriteria`, or named by a
+  scan or history limitation) is listed as not read, with what could not be read, never as having
+  nothing to measure, and a shallow clone that leaves an area unread points to fetching the full
+  history. Each insufficient-source reason the engine produces (16 kinds, from `repo-signals.ts`,
+  `scoring.ts` and `history-depth.ts`) has its own plain sentence, built from the reason's own
+  counts; a reason of no known kind reads "Cejel could not rate the source here; see the
+  certificate below". Scan and history limitations are reworded through a fixed table, or word by
+  word, never replaced by a generic sentence. An empty What holds prints one sentence, chosen by
+  whether there is an overall result and whether any area is labelled Verified or Info. Under a
+  prospective rubric (v27), the first page carries the certificate header's uncalibrated, no
+  precision or recall notice above the verdict line, in the HTML, the terminal and `plainSummary`.
+  An area with no score that lists a finding is in What is wrong for the finding, and Not known
+  says only that its score was not given. A score made up of several measurements is given with its
+  number and level. A label moved by imported evidence is explained. The terminal prints the four headings
   after the verdict, up to three items each, and `summary.json` gains one key, `plainSummary`,
   holding the four lists. The certificate below the first page is unchanged apart from the anchor
   ids the links point to. `report.json`, `attestation.json`, scores, verdicts and every detector

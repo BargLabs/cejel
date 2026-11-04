@@ -80,21 +80,35 @@ boundary—which defect classes any shipped rule targets—and is explicitly not
 The first page of `certificate.html` (and the block printed after the verdict in the terminal)
 answers four questions in plain words, built only from `report.json`:
 
-- **What holds:** the areas Cejel examined and rated at its top level, or one level below it
-  ("partly holds"), each with the strongest measurement it saw. An area Cejel did not examine is
-  never listed here.
+- **What holds:** the measured areas the report labels Verified, or Info (one label below), each
+  with its score out of 4 and the strongest measurement it saw, for example "Rated Verified, at 1.0
+  out of 4". Only a score of 4.0 is called the top score. A label and a score are set separately,
+  so a Verified area can have a low score; each area's card in the certificate compares the two.
+  An area Cejel did not examine, or examined with no measurement, is never listed here. When the
+  list is empty, one sentence says why: no overall result, no area labelled Verified or Info, or
+  both.
 - **What is wrong:** every critical and warning-level finding, most serious first, naming the file
-  or area and what is wrong.
-- **What is not known:** everything the report says it could not establish: an overall result it
-  withheld and why, areas that do not apply or could not be measured, scan and history limitations,
-  files it did not read, and each limit a check recorded on what it examined.
+  or area and what is wrong. A score made up of several measurements is given with its number and
+  level, for example "give 3.1 out of 4, which Cejel counts as a warning".
+- **What is not known:** what the report records it could not establish, from these fields: an
+  overall result it withheld, with its reason restated from a fixed table (a reason the table does
+  not know reads "Cejel could not rate the source here; see the certificate below"); areas that do
+  not apply, have no measurement, or have no score while a finding stands; areas Cejel could not
+  fully read (named in the report's skipped-content summary or by a scan or history limitation),
+  listed as "not read" with what could not be read; each scan and history limitation, reworded into
+  plain words; files it did not read; a label moved by imported evidence; and each limit a check
+  recorded on what it examined. Anything the report does not record is not listed, so an empty
+  list does not mean nothing is unknown.
 - **What to check next:** one line for each wrong or not-known item, taken from a fixed table of
   reviewed sentences. An item with no table entry points to the section of the certificate that
   holds it.
 
 The first page also says what the result does not cover: Cejel reads files and history and does
-not run the code or its tests. Every line links to its source further down; the certificate below
-the first page holds the evidence, unchanged. `summary.json` carries the same four lists under
+not run the code or its tests. Under a prospective rubric such as
+`witan-rubric-v27-prospective-2026-10-19`, the first page opens, above the verdict line, with the
+same notice the certificate's header carries: the rubric is not calibrated, and its results carry
+no precision or recall claim. Every line links to its source further down; the certificate below
+the first page holds the evidence, unchanged. `summary.json` carries the same lists under
 `plainSummary`.
 
 ## Install
