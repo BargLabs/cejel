@@ -137,6 +137,29 @@ describe('should-fix 2: an area not read follows its own cause in What to check 
     expect(check?.text).not.toMatch(/readable/i);
   });
 
+  it('an area rated with one measurement left out for the size limit (v23 per-measurement) is not called unreadable, even when another file could not be read', () => {
+    const report = variant(fixtureReport('v17/fa/a4-uv-locked-lockfile-too-large'), (draft) => {
+      if (draft.contentReadSummary) {
+        draft.contentReadSummary.byReason.unreadable = 1;
+        draft.contentReadSummary.unreadableByErrno = { EACCES: 1 };
+        draft.contentReadSummary.skipped += 1;
+        draft.contentReadSummary.affectedCriteria = ['A1'];
+      }
+      const a1 = draft.criteria.find((criterion) => criterion.id === 'A1');
+      if (a1) {
+        a1.notes =
+          'Cejel declined coverage_percent in this criterion under the repository content size limit; other signals in this criterion were computed from readable files and are unaffected. This is a disclosed coverage limit, not a read failure.';
+      }
+      draft.scanLimitations = [LARGE_FILE_LIMITATION];
+    });
+    const plain = buildPlainSummary(report);
+    const item = areaItem(plain, 'A1');
+    expect(item?.text).toMatch(/^Partly not read: /);
+    expect(item?.text).toContain('size limit');
+    expect(item?.text).not.toContain('could not be read');
+    expect(checkFor(plain, item?.id)?.text).not.toMatch(/readable/i);
+  });
+
   it('an area that really could not be read is still told to make the files readable', () => {
     const plain = buildPlainSummary(fixtureReport('v17/dg/b2b3-workflow-unreadable'));
     const item = areaItem(plain, 'B3');
