@@ -44,18 +44,36 @@ function renderMarkdownInline(value) {
 
 // Every verdict label an abstained summary.json carries. This file ships without the CLI's
 // source, so it keeps its own copy of WITAN_ABSTENTION_LABELS (src/witan/abstention.ts); a test
-// fails when the two differ. The two 'Unrated' labels (v27) withhold a score the source could
-// have earned; the other two say there was nothing to rate.
+// fails when the two differ. The three 'Unrated' labels (every rubric since the operator's ruling
+// of 2 Nov) withhold a score because Cejel could not read the commit history; the other two say
+// there was nothing to rate.
 export const ACTION_ABSTENTION_VERDICTS = Object.freeze([
   'Insufficient source',
   'Insufficient evidence',
   'Unrated: shallow clone',
   'Unrated: history depth unknown',
+  'Unrated: no git history',
 ]);
+
+function isUnratedVerdict(verdict) {
+  return ACTION_ABSTENTION_VERDICTS.includes(verdict) && String(verdict).startsWith('Unrated: ');
+}
+
+/**
+ * The limitations the Action's `limited`, `limitation-count` and `limitations` outputs report: the
+ * scan limitations, and for an Unrated run one more naming the cause (the label) and what to do
+ * (the abstention reason), so a workflow gating on `limited` sees an Unrated run.
+ */
+export function actionLimitations(summary) {
+  const limitations = Array.isArray(summary.scanLimitations) ? summary.scanLimitations : [];
+  if (!isUnratedVerdict(summary.verdict)) return limitations;
+  const reason = typeof summary.insufficientSourceReason === 'string' ? ` ${summary.insufficientSourceReason}` : '';
+  return [...limitations, `${summary.verdict}:${reason}`];
+}
 
 export function renderStepSummary(s) {
   const abstained = ACTION_ABSTENTION_VERDICTS.includes(s.verdict);
-  const unrated = abstained && String(s.verdict).startsWith('Unrated: ');
+  const unrated = isUnratedVerdict(s.verdict);
   const limitationLines =
     Array.isArray(s.scanLimitations) && s.scanLimitations.length > 0
       ? [
@@ -185,7 +203,7 @@ function renderMultilineOutput(name, value) {
 }
 
 export function renderActionOutputs(summary, artifactDir = '') {
-  const limitations = Array.isArray(summary.scanLimitations) ? summary.scanLimitations : [];
+  const limitations = actionLimitations(summary);
   return [
     ['score', typeof summary.overallScore === 'number' ? summary.overallScore.toFixed(1) : ''],
     ['verdict', summary.verdict],

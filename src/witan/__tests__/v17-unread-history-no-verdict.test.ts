@@ -147,11 +147,19 @@ describe('v17 on a shallow clone: no composite, no verdict, and how to fetch the
   );
 
   it('names the rubric it ran under, never v27, and keeps v27\'s own reason byte for byte', () => {
-    const v17 = reportOf('mixed history, depth 1', V17);
-    expect(v17.insufficientSourceReason.startsWith(`Under ${V17} Cejel gives no composite score and no verdict`)).toBe(true);
-    expect(v17.insufficientSourceReason).not.toContain('v27');
-    expect(v17.insufficientSourceReason.endsWith(SHALLOW_HISTORY_FETCH_INSTRUCTION)).toBe(true);
+    const v17 = reportOf('mixed history, depth 1', V17).insufficientSourceReason ?? '';
+    expect(v17.startsWith(`Under ${V17} Cejel gives no composite score and no verdict`)).toBe(true);
+    expect(v17).not.toContain('v27');
+    expect(v17.endsWith(SHALLOW_HISTORY_FETCH_INSTRUCTION)).toBe(true);
     expect(reportOf('mixed history, depth 1', V27).insufficientSourceReason).toBe(WITAN_V27_SHALLOW_HISTORY_REASON);
+    // v27's 1 Nov reason, as committed before the reasons took the rubric id.
+    expect(WITAN_V27_SHALLOW_HISTORY_REASON).toBe(
+      'Under witan-rubric-v27-prospective-2026-10-19 Cejel gives no composite score and no verdict for a ' +
+        'shallow clone (reason: shallow_history). A2 and B2 read commit history, and a composite over a ' +
+        "truncated history could fall below the same commit's composite over its full history. Each " +
+        "criterion's reading is still shown. " +
+        SHALLOW_HISTORY_FETCH_INSTRUCTION,
+    );
   });
 
   it('the CLI output, the Markdown, the certificate and the badge carry the label and the instruction', () => {

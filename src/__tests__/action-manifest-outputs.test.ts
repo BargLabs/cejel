@@ -75,7 +75,7 @@ describe('both Action manifests declare the limitation outputs run.mjs writes', 
 
   it('the comparison fails when an output description differs', () => {
     const changed = nested.replace(
-      "description: 'Number of scan limitations that qualify the certificate.'",
+      "description: 'Number of scan limitations that qualify the certificate, counting an Unrated verdict as one.'",
       "description: 'Something else.'",
     );
     expect(changed).not.toBe(nested);

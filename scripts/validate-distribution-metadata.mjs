@@ -2,6 +2,7 @@
 
 import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { compareActionManifestOutputs, readActionManifestOutputs } from './action-manifest-outputs.mjs';
 import { assertSiteOnly } from './verify-board-surfaces.mjs';
 import {
   disagreeingFields,
@@ -732,7 +733,7 @@ requireIncludes(
 );
 requireIncludes(
   rootAction,
-  'Insufficient evidence / Unrated: shallow clone / Unrated: history depth unknown).',
+  'Insufficient evidence / Unrated: shallow clone / Unrated: history depth unknown /\n      Unrated: no git history).',
   'root Action abstention verdicts',
 );
 requireIncludes(
@@ -757,9 +758,21 @@ requireIncludes(
 );
 requireIncludes(
   nestedAction,
-  'Insufficient evidence / Unrated: shallow clone / Unrated: history depth unknown).',
+  'Insufficient evidence / Unrated: shallow clone / Unrated: history depth unknown /\n      Unrated: no git history).',
   'nested Action abstention verdicts',
 );
+// Both manifests run action/run.mjs, so both declare every output it writes, with the same
+// description and value (goal_cejel_v17_unread_history_no_verdict_2026-11-02, item C: the README's
+// action/action.yml lacked limited, limitation-count and limitations).
+const actionOutputDifferences = compareActionManifestOutputs(rootAction, nestedAction);
+if (actionOutputDifferences.length > 0) {
+  throw new Error(`Root and nested Action manifests declare different outputs:\n- ${actionOutputDifferences.join('\n- ')}`);
+}
+for (const output of ['limited', 'limitation-count', 'limitations']) {
+  if (!Object.hasOwn(readActionManifestOutputs(nestedAction), output)) {
+    throw new Error(`nested Action manifest must declare the ${output} output.`);
+  }
+}
 // The optional rubric-pin input: both manifests declare it empty by default and pass it to
 // run.mjs through WITAN_RUBRIC_PIN, which forwards --rubric-pin only when it is non-empty
 // (exercised end to end in src/__tests__/action-runner.test.ts).

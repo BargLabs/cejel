@@ -21,13 +21,14 @@ import {
   isCoveragePercentageUnpublished,
 } from './witan/certificate-presentation.js';
 import { computeMeasuredCoverage } from './witan/coverage.js';
-import { isProspectiveRubricVersion } from './witan/rubric-version.js';
+import { WITAN_RUBRIC_VERSION_V27, isProspectiveRubricVersion } from './witan/rubric-version.js';
 import { METRIC_DERIVED_FINDING_PATTERN } from './witan/finding-presentation.js';
 import {
   SHALLOW_HISTORY_LIMITATION,
   SHALLOW_HISTORY_V27_ABSTENTION,
-  WITAN_V27_HISTORY_DEPTH_UNKNOWN_REASON,
-  WITAN_V27_SHALLOW_HISTORY_REASON,
+  historyDepthUnknownAbstentionReason,
+  noGitHistoryAbstentionReason,
+  shallowHistoryAbstentionReason,
 } from './witan/history-depth.js';
 import {
   type NextCheckKind,
@@ -233,6 +234,17 @@ const NO_MEASUREMENT_COVERAGE_PATTERN = new RegExp(
   `^${escapeRegExp(WITAN_NO_MEASUREMENT_REASON)} Source coverage: (\\d+) of (\\d+) source-shaped files \\(([\\d.]+)%\\) are criterion-ratable, below the (\\d+)% reviewable-source threshold \\((\\d+) tracked files in total\\)\\.$`,
 );
 
+// A history abstention's reason names the rubric it ran under (operator ruling of 2 Nov), so its
+// pattern matches the reason for any rubric id: v27's 1 Nov wording exactly, and every other
+// rubric's wording with its id.
+function rubricReasonPattern(reasonFor: (rubricVersion: string) => string): RegExp {
+  const placeholder = '\u0000rubric\u0000';
+  const alternatives = [WITAN_RUBRIC_VERSION_V27, placeholder].map((rubricVersion) =>
+    escapeRegExp(reasonFor(rubricVersion)).replace(placeholder, 'witan-rubric-[a-z0-9.-]+'),
+  );
+  return new RegExp(`^(?:${alternatives.join('|')})$`);
+}
+
 const INSUFFICIENT_SOURCE_TABLE: ReadonlyArray<{
   readonly kind: Exclude<PlainInsufficientSourceKind, 'other'>;
   readonly pattern: RegExp;
@@ -240,15 +252,21 @@ const INSUFFICIENT_SOURCE_TABLE: ReadonlyArray<{
 }> = [
   {
     kind: 'shallow-history',
-    pattern: new RegExp(`^${escapeRegExp(WITAN_V27_SHALLOW_HISTORY_REASON)}$`),
+    pattern: rubricReasonPattern(shallowHistoryAbstentionReason),
     plain: () =>
       "Cejel read a shallow clone (only part of the commit history), and under these scoring rules a shallow clone gets no score and no verdict; each area's own reading is still shown in the certificate below.",
   },
   {
     kind: 'history-depth-unknown',
-    pattern: new RegExp(`^${escapeRegExp(WITAN_V27_HISTORY_DEPTH_UNKNOWN_REASON)}$`),
+    pattern: rubricReasonPattern(historyDepthUnknownAbstentionReason),
     plain: () =>
       "Cejel could not tell how much of the commit history it read, and under these scoring rules that gives no score and no verdict; each area's own reading is still shown in the certificate below.",
+  },
+  {
+    kind: 'no-git-history',
+    pattern: rubricReasonPattern(noGitHistoryAbstentionReason),
+    plain: () =>
+      "Cejel read a directory with no git history (an upload, an archive or a copy, not a clone), and under these scoring rules that gives no score and no verdict; each area's own reading is still shown in the certificate below.",
   },
   {
     kind: 'no-measurement',

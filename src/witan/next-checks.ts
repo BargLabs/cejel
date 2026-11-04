@@ -109,6 +109,7 @@ export const PLAIN_INSUFFICIENT_SOURCE_KINDS = [
   'no-measurement-source-coverage',
   'shallow-history',
   'history-depth-unknown',
+  'no-git-history',
 ] as const;
 export type PlainInsufficientSourceKind = (typeof PLAIN_INSUFFICIENT_SOURCE_KINDS)[number] | 'other';
 
@@ -214,6 +215,8 @@ const NEXT_CHECKS: Readonly<Record<string, string>> = {
     'Run git fetch --unshallow (or check out with fetch-depth: 0 in actions/checkout), then scan again.',
   'abstention:history-depth-unknown':
     'Make sure git is installed and can open this repository (git rev-parse --is-shallow-repository prints true or false), then scan again.',
+  'abstention:no-git-history':
+    'Scan a git clone with full history (for example fetch-depth: 0 in actions/checkout); an uploaded snapshot or archive carries no history.',
   'verdict-capped': `To get a result that is not lowered, ${FULL_CLONE}.`,
   // #654 review, should-fix 4: keyed by the limitation's own cause; the general line gives no example.
   'scan-limitation':

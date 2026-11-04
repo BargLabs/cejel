@@ -15,7 +15,7 @@ import { buildUnreadHistoryCases, removeUnreadHistoryFixtures } from './fixtures
 // score, and the sha256 of report.json's bytes) to a file in the temporary directory and prints its
 // path. Run it on the base commit and on the change, and compare the two files: every complete
 // clone's sha256 must match; the table in the PR is the shallow and no-git rows.
-const measuring = import.meta.env.MODE === 'measure';
+const measuring = (import.meta as { env?: { MODE?: string } }).env?.MODE === 'measure';
 const out = join(tmpdir(), `cejel-v17-unread-measure-${Date.now()}.json`);
 
 afterAll(() => removeUnreadHistoryFixtures());
