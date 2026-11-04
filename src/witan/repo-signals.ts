@@ -14985,12 +14985,14 @@ export function readPytestInvocations(
     // sets' words: a product of two inputs. A shared budget bounds it; past it the call is not read.
     const callCost = passedSets.reduce((sum, words) => sum + 1 + words.length, 0);
     let noxLeft = NOX_POSARGS_BUDGET;
+    // The review of #655, blocker 2: the posargs Cejel cannot read are said once per read, not once
+    // per noxfile (M noxfiles and U such entries made M x U runs), and each counts against the budget.
+    let unreadSaid = false;
     for (const file of usable.filter((candidate) => basename(candidate) === 'noxfile.py')) {
       const text = readText(file);
       if (text === undefined) continue;
       const source = a1NotePath(file);
       const chdir = /\bsession\.(?:chdir|cd)[ \t]*\(/.exec(text);
-      let unreadSaid = false;
       for (const call of readNoxRunCalls(text)) {
         const unread = (reason: string) => noxRuns.push({ source, file, anchor: call.line, directory: '', args: [], text: call.text, unread: reason });
         if (call.unknown) {
@@ -15018,12 +15020,13 @@ export function readPytestInvocations(
         }
         for (const run of runs) noxRuns.push({ source, file, anchor: call.line, text: call.text, directory: repoDirectory(file), args: run.args });
         // Posargs Cejel cannot read, or past the 16th set, leave the run not read, named once per
-        // noxfile, where the call runs pytest or its command comes from the posargs.
+        // read, where the call runs pytest or its command comes from the posargs.
         if (takesPosargs && !unreadSaid && (runs.length > 0 || call.words[0] === NOX_POSARGS_WORD)) {
+          unreadSaid = true;
           for (const entry of unreadPosargs()) {
+            noxLeft -= 1;
             noxRuns.push({ source: entry.source, file: entry.file, anchor: entry.anchor, directory: '', args: [], text: entry.text, unread: entry.text });
           }
-          unreadSaid = true;
         }
       }
     }
@@ -15113,8 +15116,11 @@ export function readPytestInvocations(
     readToxCommands(file, text, namedToxEnvironments, (anchor) => visitor(a1NotePath(file), file, anchor), toxPosargs, notRead, toxenv.unknown);
   }
   // The review of #655, blocker 1: the noxfiles are read last, once tox's commands have named
-  // their nox commands too; their runs still go where the recipes' runs began.
-  invocations.splice(noxAt, 0, ...readNoxfiles());
+  // their nox commands too; their runs still go where the recipes' runs began. The review of #655,
+  // blocker 2: never spread an input-sized list into one call (400 noxfiles overflowed the stack).
+  const after = invocations.splice(noxAt);
+  for (const run of readNoxfiles()) invocations.push(run);
+  for (const run of after) invocations.push(run);
   return invocations;
 }
 
