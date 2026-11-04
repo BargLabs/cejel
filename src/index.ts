@@ -38,6 +38,7 @@ import { serveCejelMcpOverStdio } from './mcp/stdio.js';
 import { npxVersionMismatchWarning } from './npx-version-guard.js';
 import { refuseSymlinkedOutputs, writeOutputFile, writeOutputFiles } from './output-files.js';
 import { runCejelScan } from './scan.js';
+import { buildPlainSummary } from './plain-summary.js';
 import { stripTerminalControls } from './presentation-safety.js';
 import { resolveIngestFilePath } from './witan/ingest-files.js';
 import { verifyRecordedInputDigests } from './witan/input-binding.js';
@@ -469,7 +470,13 @@ async function runWitanCli(
       },
       { name: 'badge.json', contents: JSON.stringify(renderWitanBadgeEndpoint(report), null, 2) },
       { name: 'badge.svg', contents: renderWitanBadgeSvg(report) },
-      { name: 'summary.json', contents: JSON.stringify(summary, null, 2) },
+      // plainSummary (goal_cejel_four_question_summary_2026-11-02) is added here, at the one place
+      // summary.json is written, so buildWitanCliSummary's shape (the MCP and HTTP responses) and
+      // every key before it are unchanged.
+      {
+        name: 'summary.json',
+        contents: JSON.stringify({ ...summary, plainSummary: buildPlainSummary(report) }, null, 2),
+      },
     ],
     'scan output',
   );
