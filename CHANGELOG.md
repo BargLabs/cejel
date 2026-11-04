@@ -197,8 +197,32 @@ is pinned. v27 carries no precision or recall claim.
     longer inert environment keys (with `CI=false`, jest writes missing snapshots instead of
     failing). Where the credit rests on a lint or format check, B3's note says Cejel does not read
     the tool's configuration.
+  - *Seventh pass: a check counts only where the reader follows it to a runner that can fail*
+    (#641, #647). Task runners: `just test` counts only where a strict reader of the root justfile
+    follows the recipe and its dependencies to a known runner (no settings, assignments,
+    interpolation, parameters or shebang recipes; a `-` line is no check), and bare `tox` only where
+    a strict reader of the root tox.ini follows every environment's commands to one (listed keys
+    only, deps named as index packages, and the project not installed). nox, pre-commit, turbo,
+    gradle, mvn and bazel withhold the credit, and B3's note names the runner and that its
+    configuration is not read; mvn and gradle are no longer known runners inside a script or
+    recipe either. Script aliases: `pdm run`, `hatch run [env:]` and `pipenv run` resolve the name
+    through `[tool.pdm.scripts]`, the hatch scripts (with their inheritance and budget) and the
+    Pipfile's `[scripts]`; a name that resolves to a script counts only where the script runs a
+    known runner, one that resolves to none is the command itself, and anything not resolved (a
+    hook, shared options, hatch env-vars or install commands, a committed `.env` under pipenv,
+    words after a script's name) withholds the credit. Flags: each known runner and check is
+    admitted only with flags from a list known to keep it failing, so `jest --listTests`,
+    `pytest --fixtures`, `mocha --dry-run`, `go test -run`, `cargo nextest list`, `vitest list` and
+    `jest --onlyChanged` no longer count; the old list of no-fail flags no longer decides. Words
+    after npm's `--` (and after a yarn or pnpm test script's name) are read against the runner of
+    the test script's last command, so the test script `jest` run with `-- --runInBand` now counts.
+    Directories: where a working-directory or a `cd` is set, the root's install-script and
+    package-manager readings are unread too, so an install there is no setup step. Python modules:
+    `python -m X` counts only where the root, and the directory it runs in, hold no path `X`, `X/`
+    or module file of stem `X` (compared case-insensitively), since Python imports from there first.
   - The v27 certificate's glossary sentence for the PR-gate CI count states these conditions as
-    what Cejel reads (the sixth pass adds the path, Makefile-assignment and tsc-output conditions),
+    what Cejel reads (the sixth pass adds the path, Makefile-assignment and tsc-output conditions;
+    the seventh, the justfile, tox and script-alias readings, the flag list and the module rule),
     and says that this is not a proof that the check can fail. #640's wording,
     which said no environment setting could change what the check runs, was not true.
 
