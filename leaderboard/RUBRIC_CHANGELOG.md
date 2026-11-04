@@ -22,7 +22,7 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
-## 2026-11-03 (B3 seventh pass) — under v27 a check before a publish counts only where the reader follows it to a runner that can fail: justfile recipes, tox environments and pdm, hatch and pipenv scripts are read, other task runners withhold, flags are admitted from a list, and `python -m X` only where no repository module X is imported first (#641, #647); v17-v26 byte-identical; no published score moved
+## 2026-11-03 (B3 seventh pass) — under v27 a check before a publish counts only where the reader follows it to a runner that can fail: justfile recipes, tox environments and pdm, hatch and pipenv scripts are read, other task runners withhold, flags are admitted from a list, and `python -m X` only where no repository module shadows it or what it imports (#647, part of #641); review round of #657; v17-v26 byte-identical; no published score moved
 
 **Status.** A scoring change under `witan-rubric-v27-prospective-2026-10-19` only, with no
 identifier change. It reaches only the check-before-publish reading of the B3 fourth and fifth
@@ -78,7 +78,9 @@ imports a committed `pytest/` or `pytest.py` from the directory it runs in first
 - **C — flags (#641, 3).** Each known runner and non-lint check is admitted only with the
   subcommand and flags a per-runner list (`CHECK_FORMS`) knows to keep its exit code failing on a
   failed test or finding; any other flag, and a positional word where the list admits none
-  (vitest beyond `run`, cypress, cargo, ctest, tsc), withholds the credit. `NO_FAIL_FLAGS` no
+  (vitest beyond `run`, cypress, cargo, tsc), withholds the credit; a value flag takes the next word
+  as its value only where it does not begin with `-`, and an `@` argument file withholds (review
+  of #657). `NO_FAIL_FLAGS` no
   longer decides. Item F adds flag values: `go test -count` admits a positive count only. Words
   after npm's `--`, and every word after a yarn or pnpm test script's name, are read against the
   runner of the root test script's last command, with the same list, so `npm test -- --runInBand`
@@ -102,15 +104,18 @@ imports a committed `pytest/` or `pytest.py` from the directory it runs in first
 **The no-rise property.** A counted workflow is counted as v17 counts it, so B3 can only return to
 v17's value, never rise past it; `checkNoRise` and `lostFindings` pass on every fixture.
 
-**Fixtures** (`b3-publishing-with-checks-fixtures.ts`): this pass's `V7_COUNTED` 36 and
-`V7_EXCLUDED` 73; 330 in all. Items A to E's fixtures were committed red at `fb3a74832` against
+**Fixtures** (`b3-publishing-with-checks-fixtures.ts`): this pass's `V7_COUNTED` 35 and
+`V7_EXCLUDED` 91; 347 in all. Items A to E's fixtures were committed red at `fb3a74832` against
 main `4cf09b263` (that commit does not record its failing count). Item F's 59 (27 counted
 controls, 32 mutations) were committed red at `b900d879e`: 11 of 539 tests of
 `b3-publishing-with-checks.test.ts` failed, exactly the five credited mutations, their five note
 assertions and the v17 pin. `b3-publishing-with-checks-v17.json` was re-pinned at main
 `733a464d3` in a separate worktree at that commit, with this branch's test and fixture files: all
-271 earlier entries and the HTML pin came out byte-identical. Only the v17 pin moved; no v27 pin
-and no behaviour fingerprint moved.
+271 earlier entries and the HTML pin came out byte-identical. The review round's 18 were committed
+red at `783bd856e` (40 of 571 tests failed: the 18 exclusions, 17 note assertions, 4 assertions of
+the reworded repository-module reason and the v17 pin) and the pin re-taken at main `3fd17ea56`
+the same way (`29194e2f6`): all 330 earlier entries and the HTML pin came out byte-identical. Only
+the v17 pin moved; no v27 pin and no behaviour fingerprint moved.
 
 **Mutation fixtures (item F).** For every credit path items A to E keep, a fixture with only the
 check changed so that it cannot fail, without `|| true`, is excluded: a justfile recipe, a tox
@@ -119,59 +124,98 @@ list), a pipenv script and a pipenv command, `python -m pytest` and `python -m u
 `--`, yarn's and pnpm's appended words, and each runner and check of `CHECK_FORMS` (pytest,
 unittest, jest, vitest, mocha, `node --test`, `tsx --test`, `bun test`, `deno test`,
 `playwright test`, `karma start`, go, `cargo test`, `cargo nextest run`, `cargo clippy`,
-`dotnet test`, ctest, rspec, phpunit, uvu, lab, ts-mocha, tsc, pyright), each with a list, dry-run,
+`dotnet test`, rspec, phpunit, uvu, lab, ts-mocha, tsc, pyright), each with a list, dry-run,
 no-run, name-filter or failure-off flag. Two were credited and are fixed (`ecc9e22b9`):
 `go test -count=0` (and `-count 0`, directly and as a test script) and `hatch run` in an
 environment that installs the project. Item D keeps no credit path of its own (it only withholds),
 so it has none. No mutation fixture was written for cypress, ava, tap, tape, jasmine or qunit, for
 which no flag was found that makes a failed test pass; every flag outside their lists withholds.
+ctest's control was itself a check that cannot fail (review of #657, blocker 6), so ctest is no
+longer credited at all.
 
-**Measured** (at `7d114e110`, after the last code commit). Main `733a464d3` and this head scored
-the same 670 synthetic checkouts, the set #645's entry names: the 330 fixtures of
+**Review round** (the independent review of #657 at `26ad2484f`: six false-credit blockers, two
+should-fix items, and #641's comment). Red fixtures `783bd856e`; fix `40d14e5e0`. (1) A value flag
+swallowed the next word whatever it was: `jest -w --listTests`, `jest --maxWorkers --listTests`,
+`jest --testTimeout --listTests` and, through the `--` forwarding, `npm test -- -w --listTests`
+were credited; a value is now read only where it does not begin with `-`, as the runners' parsers
+read it. (2) `pytest @ci.args` (pytest 8.2 and later read arguments from the file) was credited,
+on the line and in a just recipe; any `@` word now withholds. (3) An indented `ignore_outcome` or
+`commands_pre` line straight after `[testenv]`, which configparser reads as a key, was skipped as a
+continuation; such a line now leaves tox.ini unread. (4) An escaped TOML key (`"py\u0074est"`) was
+read undecoded, so a pdm, Pipfile or hatch script named `pytest` was missed, and `"\u005f"` hid
+pdm's shared options; a backslash in a key or table name now leaves the table unread. (5)
+`python -m pytest` beside a committed `_pytest/` or `argparse.py` was credited; `python -m X` now
+withholds beside a repository module (a module file, a directory holding `__init__.py`, or for X
+any directory) named X, `_X`, any name beginning with `_` but `__init__` and `__main__`, a
+standard-library or site module (Python 3.14's `sys.stdlib_module_names`, those removed in 3.12 and
+3.13, `sitecustomize`, `usercustomize`, `setuptools`, `pkg_resources`), or a declared dependency of
+X (listed for pytest, mypy, black, flake8 and pyright). The imports of a plugin or of another
+installed package are not enumerated, so this rule is a lower bound on what may shadow a run. (6)
+`ctest --output-on-failure`, a counted control, runs no test and exits 0 in a repository with no
+CMake configuration; ctest now withholds, as a runner whose configuration is not read, and is no
+known runner in a script or recipe. Should-fix: hatch.toml beside a pyproject.toml that mentions
+`tool.hatch` leaves hatch unread (how hatch combines the two was not verified, so neither is
+trusted); an install at a root with `workspaces` or a `pnpm-workspace.yaml` is no setup step. From
+#641's comment: an install whose package.json has a dependency, override or resolution that is not
+an index version range (`"uvu": "file:./stub"`, a path, a git or URL source, an `npm:` alias) is no
+setup step, so a runner installed from the repository is not credited. The module-shadow reader
+reads each known path once per scope; on its maximising input (L/24 and 2L/24 three-part paths,
+none shadowing, L = 240,000) it took 91.2 ms of CPU at L and 216.0 ms at 2L, ratio 2.37 (limit 3).
+
+**Measured** (at `412403388`, after the review round's last code commit). Main `3fd17ea56` and this
+head scored the same 687 synthetic checkouts, the set #645's entry names: the 347 fixtures of
 `b3-publishing-with-checks-fixtures.ts`, every fixture of `false-assurance-fixtures.ts` and
-`ci-claims-followups-fixtures.ts`. Main's side ran in a separate worktree at `733a464d3` with
+`ci-claims-followups-fixtures.ts`. Main's side ran in a separate worktree at `3fd17ea56` with
 main's source and this branch's fixture files; no file of main's was put into this branch's
 worktree. Each checkout was built once on each side and scored under all eleven selectable
 rubrics; report JSON, HTML and Markdown were compared by hash, with the checkout path replaced.
-Errors: 0 on both sides.
+Errors: 0 on both sides. (The first measurement, at `7d114e110` against main `733a464d3` on 670
+checkouts, gave 8 rises, 62 falls and 20 note-only moves; every one of them recurs below.)
 
-- v17-v26: 6,690 of 6,700 reports byte-identical to main, and their HTML and Markdown too. The
+- v17-v26: 6,860 of 6,870 reports byte-identical to main, and their HTML and Markdown too. The
   other 10 are `review4-a4-working-directory-through-tracked-symlink` under each of the ten
   rubrics, which #625's entry describes: its commit holds a symlink to a freshly made temporary
   directory, so its head SHA differs between builds; no criterion differs.
-- v27: 579 of 670 reports byte-identical to main. Leaving out that same fixture, 90 move, in B3
+- v27: 579 of 687 reports byte-identical to main. Leaving out that same fixture, 107 move, in B3
   only:
   - 8 rise to v17's B3 value, the new credit paths: `npm-test-separator-run-in-band`,
     `yarn-test-run-in-band`, `pnpm-test-run-in-band` (words appended to the test script `jest`,
     read against it), `pdm-script-runs-pytest`, `hatch-script-runs-pytest`,
     `hatch-inherited-script-runs-pytest`, `hatch-script-list-ruff-then-pytest` and
     `pipenv-script-runs-pytest` (a script resolved to pytest);
-  - 62 fall from v17's value, the false credit main gave, every one a fixture of this pass: task
-    runners (a justfile recipe `@true`, `-pytest`, under `set dotenv-load`, or `pytest --fixtures`;
-    a tox environment running `python -c pass`, `ignore_outcome`, the project installed, or
-    `pytest --fixtures`; nox, pre-commit, turbo, gradle, mvn, bazel; `make test` running
-    `mvn test`), script aliases (a pdm, hatch or pipenv script named `pytest` that runs no runner, a
-    pdm `pre_run` hook, `pdm run pytest --fixtures`, hatch installing the project with and without
-    a script), flags (`jest --listTests`, `jest -t zzz`, `pytest --fixtures`, `mocha --dry-run`,
-    `mocha --grep zzz`, `go test -run NoSuchTest`, `go test -count=0` and `-count 0` and as a test
-    script, `cargo test --no-run`, `cargo nextest list`, `cargo nextest run --no-tests=pass
-    --run-ignored only`, `cargo clippy -- --cap-lints warn`, `dotnet test --list-tests`,
-    `ctest -N`, `rspec --dry-run`, `phpunit --list-tests`, `vitest list` on the line and as the
-    test script, `jest --onlyChanged`, `node --test` and `tsx --test` with a name pattern no test
-    matches, `deno test --no-run`, `bun test --pass-with-no-tests -t zzz`, `playwright test --list`,
+  - 78 fall from v17's value, the false credit main gave, every one a fixture of this pass: task
+    runners (a justfile recipe `@true`, `-pytest`, under `set dotenv-load`, `pytest --fixtures` or
+    `pytest @ci.args`; a tox environment running `python -c pass`, `ignore_outcome` written plainly
+    or indented after the header, `commands_pre` indented after the header, the project installed,
+    or `pytest --fixtures`; nox, pre-commit, turbo, gradle, mvn, bazel, ctest; `make test` running
+    `mvn test`), script aliases (a pdm, hatch or pipenv script named `pytest`, plainly or with an
+    escaped key, that runs no runner, pdm shared options with an escaped key, a pdm `pre_run`
+    hook, `pdm run pytest --fixtures`, hatch installing the project with and without a script),
+    flags (`jest --listTests`, `jest -w`, `--maxWorkers` or `--testTimeout` before `--listTests`,
+    `jest -t zzz`, `pytest --fixtures`, `pytest @ci.args`, `mocha --dry-run`, `mocha --grep zzz`,
+    `go test -run NoSuchTest`, `go test -count=0` and `-count 0` and as a test script,
+    `cargo test --no-run`, `cargo nextest list`, `cargo nextest run --no-tests=pass --run-ignored
+    only`, `cargo clippy -- --cap-lints warn`, `dotnet test --list-tests`, `ctest -N`,
+    `rspec --dry-run`, `phpunit --list-tests`, `vitest list` on the line and as the test script,
+    `jest --onlyChanged`, `node --test` and `tsx --test` with a name pattern no test matches,
+    `deno test --no-run`, `bun test --pass-with-no-tests -t zzz`, `playwright test --list`,
     `karma start --no-fail-on-failing-test-suite`, `lab --dry`, `ts-mocha --dry-run`,
     `uvu test -i .`, `tsc --listFilesOnly`, `pyright --createstub`, `python -m unittest -k zzz`,
-    and `--fixtures` added to the listed-flags control and to `python -m pytest`), an install under
-    `working-directory: pkg` running that package's `postinstall`, and `python -m` beside a
-    repository module (`pytest/`, `pytest.py`, `PyTest.py`, `unittest/`, `mypy.py`, and the same
-    from a make recipe);
-  - 20 change in B3's note only, excluded on both sides: it now gives this pass's reason (for
+    and `--fixtures` added to the listed-flags control and to `python -m pytest`), installs (under
+    `working-directory: pkg` running that package's `postinstall`, at a workspace root whose
+    package has one, and with uvu from `file:./stub`), and `python -m` beside a repository module
+    (`pytest/`, `pytest.py`, `PyTest.py`, `unittest/`, `mypy.py`, `_pytest/`, `argparse.py`, and
+    the same from a make recipe);
+  - 21 change in B3's note only, excluded on both sides: it now gives this pass's reason (for
     example `pytest --co`, `--collect-only`, `jest --passWithNoTests`, `tsc --showConfig`, which
-    the old no-fail list already refused, now "the check carries a flag or argument that Cejel
-    does not know to keep it failing when a test fails"; a hatch, pdm or pipenv script mutation
-    named by its script; `hatch-script-installs-project`, which main excluded because it did
-    not resolve `hatch run test` and `test` is no check by name, now named as a project install).
+    the old no-fail list already refused, and `npm test -- -w --listTests`, now "the check carries a
+    flag or argument that Cejel does not know to keep it failing when a test fails"; a hatch, pdm
+    or pipenv script mutation named by its script; `hatch-script-installs-project`, which main
+    excluded because it did not resolve `hatch run test` and `test` is no check by name, now named
+    as a project install).
 - v27 B3 above v17 B3 on the same commit: 0.
+- `hatch-toml-beside-pyproject-skip-install` does not move: main excluded it (it does not resolve
+  `hatch run test`) and this head excludes it with no reason, since `test` names no check.
 - Every v27 HTML report differs from main's, because the v27 glossary sentence changed. Rendering
   is a function of the report and the presentation code, and for the 579 reports whose JSON is
   identical the only presentation change is that sentence.
@@ -197,8 +241,20 @@ and any `--` after a yarn or pnpm test script's name; (8) `python -m X` beside a
 that is only a namespace portion (no `__init__.py`), which Python imports after a regular package
 of that name, and, from a directory the reader does not know, beside any path part named `X`; (9)
 a pdm script beside any pdm hook or shared options, and a pipenv script beside a committed `.env`.
+The review round adds, by the same rule: (10) a value flag whose value begins with `-` (such as
+`--testTimeout -1`) and any word beginning with `@`, even where the runner does not read argument
+files; (11) `python -m X` beside a root module (a `.py` file or a package) whose name is a
+standard-library or site module, begins with `_` (a root `_version.py`), or is a dependency of X,
+whatever it holds, and, from a directory the reader does not know, beside any such module anywhere
+in the repository (a `src/pkg/types.py` or `utils/logging.py` is enough); (12) every ctest run,
+including one in a configured CMake build directory with tests; (13) hatch wherever hatch.toml sits
+beside a pyproject.toml that mentions `tool.hatch`; (14) any install at an npm, yarn or pnpm
+workspace root, and any install whose package.json names a dependency, override or resolution
+that is not an index version range, including `workspace:` and `npm:` aliases and git or tarball
+sources that run no repository code; (15) a TOML key or table name with a backslash in a pdm,
+Pipfile or hatch table, even one that decodes to an unrelated name.
 
-**Not in this change** (left open). (1) A positional word that narrows a runner to a file, package or directory holding no test is
+**Not in this change** (left open; so this change is part of #641, not its fix). (1) A positional word that narrows a runner to a file, package or directory holding no test is
 admitted wherever the runner's list admits positional words: `mocha index.js` (0 tests, exit 0)
 was credited in a probe during this round (the positional rule is unchanged at `7d114e110`), and `go test ./pkg` on a package with no test files exits 0
 the same way, as can `cargo test -p`, `cypress run --spec`, `ctest --test-dir` and
@@ -207,7 +263,11 @@ item C, and restricting positional words would exclude `uvu test`, the fixtures'
 so it was left for a card of its own. (2) A test runner's own configuration (`addopts = --co` in
 pytest.ini or pyproject.toml, `"jest": {"passWithNoTests": true}`) is not read, as the glossary
 says. (3) `uv run`, a launcher since the fourth pass, also installs the project before the command
-unless told not to; item F applies the project-install rule to tox and hatch only.
+unless told not to; item F applies the project-install rule to tox and hatch only. (4) From #641's
+comment, the runner configuration items: `"jest": {"passWithNoTests": true}` in package.json and
+`addopts = "--co"` in pytest's configuration are still credited, being configuration the reader
+does not read (2, above); and its two false-exclusion nits (`NODE_OPTIONS=--experimental-vm-modules`
+before jest, `eslint . && vitest`) are not changed by this pass.
 
 No holdout or calibration ran. No behaviour-fingerprint pin moves: the fingerprint corpus holds no
 check-then-publish workflow. No published score moved: the board is scored under v17.
