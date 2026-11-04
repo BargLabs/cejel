@@ -1,0 +1,24 @@
+[
+  {
+    "statement": "A review of cejel #655 said the v27 A1 rule 'the empty nox posargs set is always read' was pinned by only one fixture. The fix round removed the empty set from the reader and ran the 151 run tests: all passed, so no fixture pinned it. Two further fixtures written to pin it (a set naming one file beside an every-test-skipped file, and a set that never loads a subdirectory's clearing conftest.py) also passed or failed the same way with and without it, because the run reader always adds a plain pytest run at the repository root, which already collects what the empty set adds. Rule: before stating how many tests pin a rule, remove the rule and count the failures; a rule another always-present input covers is inert, and the honest record says so instead of adding a fixture that cannot fail.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "evidence-discipline",
+      "testing"
+    ],
+    "tags": [
+      "review-claim",
+      "mutation-check",
+      "inert-rule"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-11-03T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 655
+    }
+  }
+]
