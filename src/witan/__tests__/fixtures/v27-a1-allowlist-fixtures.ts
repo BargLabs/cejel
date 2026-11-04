@@ -47,6 +47,9 @@ const unread = (reason: string | RegExp) => ({ outcome: 'not read', clause: type
 /** Item G: the statement that calls a builtin, and the file that names builtins. */
 const builtinUnread = (statement: string, file: string) =>
   ({ outcome: 'not read', clause: `${notRead(statement)} calls a builtin, and ${file} names builtins` }) as const;
+/** The review of #655, blocker 3: the statement that calls a builtin, and the file that may replace it. */
+const builtinReplaced = (statement: string, file: string) =>
+  ({ outcome: 'not read', clause: `${notRead(statement)} calls a builtin, which ${file} may replace` }) as const;
 
 const hook = (body: readonly string[], preamble?: readonly string[]) => ({ 'tests/conftest.py': conftestHook(body, preamble) });
 /** R: save a full copy, clear, extend from it. pytest runs every collected test. */
@@ -709,6 +712,85 @@ export const ALLOWLIST_FIXTURES: readonly AllowlistFixture[] = [
     'Control: R where no Python file in the repository names builtins; pytest runs every test, and the hook stays credited.',
     { ...hook([...R], ['import pytest', '', 'import helpers']), 'tests/helpers.py': lines('def answer():', '    return 42') },
     restores,
+  ),
+  // The review of #655, blocker 3: each way a repository file can still reach builtins, or a
+  // module's `list`, without the bare word `builtins`, and each place the search did not look. A
+  // builtin copy is credited only where no file the repository tracks, in any directory, may replace
+  // the builtin; otherwise the hook is named, never credited.
+  fixture(
+    'a1al-g-frame-f-builtins',
+    'G',
+    'R, while an imported module replaces list through sys._getframe(0).f_builtins; the "copy" is whatever the patch returns.',
+    {
+      ...hook([...R], ['import pytest', '', 'import helpers']),
+      'tests/helpers.py': lines('import sys', '', '_real = list', 'sys._getframe(0).f_builtins["list"] = lambda xs=(): []'),
+    },
+    builtinReplaced('saved = list(items)', 'tests/helpers.py'),
+  ),
+  fixture(
+    'a1al-g-fullwidth-builtins-import',
+    'G',
+    'R, while an imported module writes `import ｂuiltins` (a fullwidth b, which Python reads as builtins under NFKC) and replaces list.',
+    {
+      ...hook([...R], ['import pytest', '', 'import helpers']),
+      'tests/helpers.py': lines('import \uff42uiltins', '', '\uff42uiltins.list = lambda xs=(): []'),
+    },
+    builtinReplaced('saved = list(items)', 'tests/helpers.py'),
+  ),
+  ...(['vendor', 'build', 'dist', 'venv', 'coverage'] as const).map((directory) =>
+    fixture(
+      `a1al-g-patch-under-${directory}`,
+      'G',
+      `R, while the root conftest.py loads a plugin under ${directory}/ that replaces builtins.list; the file list A1 walks leaves ${directory}/ out, so the search must look there too.`,
+      {
+        ...hook([...R]),
+        'conftest.py': lines(`pytest_plugins = ["${directory}.patch"]`),
+        [`${directory}/__init__.py`]: '',
+        [`${directory}/patch.py`]: lines('import builtins', '', 'builtins.list = lambda xs=(): []'),
+      },
+      builtinReplaced('saved = list(items)', `${directory}/patch.py`),
+    ),
+  ),
+  fixture(
+    'a1al-g-p-plugin-f-builtins',
+    'G',
+    'R, while CI loads a plugin with -p whose import replaces list through inspect.currentframe().f_builtins.',
+    {
+      ...hook([...R]),
+      'cachelib_plugin.py': lines('import inspect', '', 'inspect.currentframe().f_builtins["list"] = lambda xs=(): []'),
+      '.github/workflows/ci.yml': lines('name: ci', 'on: push', 'jobs:', '  t:', '    runs-on: ubuntu-latest', '    steps:', '      - run: pytest -p cachelib_plugin'),
+    },
+    builtinReplaced('saved = list(items)', 'cachelib_plugin.py'),
+  ),
+  fixture(
+    'a1al-g-sys-modules-joined-name',
+    'G',
+    'R, while an imported module reaches builtins through sys.modules with a joined name, never spelling it.',
+    {
+      ...hook([...R], ['import pytest', '', 'import helpers']),
+      'tests/helpers.py': lines('import sys', '', 'sys.modules["bu" + "iltins"].list = lambda xs=(): []'),
+    },
+    builtinReplaced('saved = list(items)', 'tests/helpers.py'),
+  ),
+  fixture(
+    'a1al-g-conftest-global-from-another-module',
+    'G',
+    "R, while another module sets the conftest module's own list global, which the hook's list(items) finds before the builtin.",
+    {
+      ...hook([...R], ['import pytest', '', 'import helpers']),
+      'tests/helpers.py': lines('import conftest', '', 'conftest.list = lambda xs=(): []'),
+    },
+    builtinReplaced('saved = list(items)', 'tests/helpers.py'),
+  ),
+  fixture(
+    'a1al-g-extension-module-beside-tests',
+    'G',
+    'R, beside a compiled extension module the conftest.py imports; Cejel cannot read what its import does.',
+    {
+      ...hook([...R], ['import pytest', '', 'import _speedups']),
+      'tests/_speedups.cpython-312-x86_64-linux-gnu.so': 'not a real extension module\n',
+    },
+    builtinReplaced('saved = list(items)', 'tests/_speedups.cpython-312-x86_64-linux-gnu.so'),
   ),
 
   // ---- item H: #634's remaining shapes, checked against origin/main --------------------------
