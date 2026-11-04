@@ -266,7 +266,6 @@ describe('buildPlainSummary — what to check next', () => {
       'finding:real-outcome-evidence',
       'finding:risk-governance',
       'finding:validation-integrity',
-      'not-read:files-and-history-other',
       'not-read:history-other',
       'unrecognised-status',
     ]);

@@ -34,8 +34,10 @@ import {
   PLAIN_INSUFFICIENT_SOURCE_KINDS,
   type PlainDisclosureKind,
   type PlainInsufficientSourceKind,
+  type PlainReadGapFileAdvice,
   resolveNextCheck,
 } from './witan/next-checks.js';
+import { usesV27FalseAssuranceClosure } from './witan/repo-signals.js';
 import type {
   WitanCriterionMetric,
   WitanCriterionScore,
@@ -591,6 +593,11 @@ export function plainLimitation(limitation: string): string {
   return rewordInPlainWords(limitation);
 }
 
+/** The table entry a limitation matches, or undefined when it is reworded word by word. */
+function limitationTableKey(limitation: string): string | undefined {
+  return LIMITATION_TABLE.find((entry) => entry.pattern.test(limitation))?.key;
+}
+
 /** The limitation table's keys, so a test can pin them. */
 export function plainLimitationTableKeys(): string[] {
   return LIMITATION_TABLE.map(({ key }) => key);
@@ -603,58 +610,132 @@ function criteriaNamedIn(text: string): Set<string> {
   return new Set([...text.matchAll(/\b(A[1-5]|B[1-6])\b/g)].map((match) => match[1] ?? ''));
 }
 
-type ReadGapCause = 'files' | 'scan-limit' | 'shallow-history' | 'history';
+// #654 review, should-fix 2 and 3: an area that was not read says why in its own terms, and its
+// check-next line follows that cause. The cause comes only from what the report ties to the area:
+// the engine's abstention note on the criterion (repo-signals.ts, wholesaleCriterionAbstention, one
+// fixed sentence per cause), or the kind of the scan limitation that names it. The report-wide
+// contentReadSummary counts are used only to narrow a note that says "could not be read" to the one
+// read-failure cause the report holds, never to add a cause the area does not carry.
+
+/** Why files an area reads were not read, as the report ties it to that area. */
+type FileGapCause = 'unreadable' | 'lfs' | 'read-failure' | 'stated-limit' | 'size-limit' | 'excluded' | 'limit';
+const FILE_GAP_CAUSE_ORDER: readonly FileGapCause[] = [
+  'unreadable',
+  'lfs',
+  'read-failure',
+  'stated-limit',
+  'size-limit',
+  'excluded',
+  'limit',
+];
+
+interface ReadGap {
+  readonly files: Set<FileGapCause>;
+  history?: 'shallow' | 'other';
+}
+
+const NOTE_LFS_PREFIX =
+  'Cejel abstained on this criterion because relevant files in this checkout are Git LFS pointers';
+const NOTE_DECLINED_PREFIX =
+  'Cejel abstained on this criterion because relevant repository content was declined under the repository content size limit or excluded from scanning by policy';
+
+/**
+ * The read-failure cause behind a "could not be read" statement: Git LFS pointers, or unreadable
+ * files, when the report counts only that read-failure cause; otherwise the general statement.
+ * A Git LFS pointer is tied to an area only under a rubric that attributes it (v27).
+ */
+function readFailureCause(report: WitanReport): 'unreadable' | 'lfs' | 'read-failure' {
+  const byReason = report.contentReadSummary?.byReason;
+  if (!byReason) return 'read-failure';
+  const lfs = (byReason.lfsPointer ?? 0) > 0 && usesV27FalseAssuranceClosure(report.rubricVersion);
+  const present = [byReason.unreadable > 0, byReason.deniedPath > 0, lfs].filter(Boolean).length;
+  if (present !== 1) return 'read-failure';
+  if (byReason.unreadable > 0) return 'unreadable';
+  return lfs ? 'lfs' : 'read-failure';
+}
+
+/** The cause an abstained area's own note states (contentReadSummary.affectedCriteria). */
+function abstentionNoteCause(report: WitanReport, criterion: WitanCriterionScore | undefined): FileGapCause {
+  const notes = criterion?.notes ?? '';
+  if (notes.startsWith(NOTE_LFS_PREFIX)) return 'lfs';
+  if (notes.startsWith(NOTE_DECLINED_PREFIX)) return 'stated-limit';
+  return readFailureCause(report);
+}
+
+/** The cause a scan limitation that names an area states, by its table entry. */
+function limitationCause(report: WitanReport, limitation: string): FileGapCause {
+  switch (limitationTableKey(limitation)) {
+    case 'signal-unreadable':
+      return readFailureCause(report);
+    case 'signal-large-file':
+      return 'size-limit';
+    case 'signal-other-declined':
+      return 'excluded';
+    default:
+      return 'limit';
+  }
+}
 
 /** Every area the report says it could not fully read, and why: affectedCriteria, or named by a limitation. */
-function readGaps(report: WitanReport): Map<string, Set<ReadGapCause>> {
-  const gaps = new Map<string, Set<ReadGapCause>>();
-  const add = (id: string, cause: ReadGapCause): void => {
-    const causes = gaps.get(id) ?? new Set<ReadGapCause>();
-    causes.add(cause);
-    gaps.set(id, causes);
+function readGaps(report: WitanReport): Map<string, ReadGap> {
+  const gaps = new Map<string, ReadGap>();
+  const gapFor = (id: string): ReadGap => {
+    const existing = gaps.get(id);
+    if (existing) return existing;
+    const created: ReadGap = { files: new Set<FileGapCause>() };
+    gaps.set(id, created);
+    return created;
   };
-  for (const id of report.contentReadSummary?.affectedCriteria ?? []) add(id, 'files');
+  for (const id of report.contentReadSummary?.affectedCriteria ?? []) {
+    gapFor(id).files.add(abstentionNoteCause(report, report.criteria.find((criterion) => criterion.id === id)));
+  }
   for (const limitation of report.scanLimitations ?? []) {
-    for (const id of criteriaNamedIn(limitation)) add(id, 'scan-limit');
+    for (const id of criteriaNamedIn(limitation)) gapFor(id).files.add(limitationCause(report, limitation));
   }
   for (const limitation of report.historyLimitations ?? []) {
-    const cause: ReadGapCause = SHALLOW_HISTORY_LIMITATIONS.includes(limitation) ? 'shallow-history' : 'history';
-    for (const id of criteriaNamedIn(limitation)) add(id, cause);
+    const shallow = SHALLOW_HISTORY_LIMITATIONS.includes(limitation);
+    for (const id of criteriaNamedIn(limitation)) {
+      const gap = gapFor(id);
+      if (shallow) gap.history = 'shallow';
+      else if (gap.history === undefined) gap.history = 'other';
+    }
   }
   return gaps;
 }
 
-function skippedFilePhrases(report: WitanReport): string[] {
-  const byReason = report.contentReadSummary?.byReason;
-  if (!byReason) return ['could not be read'];
-  const phrases = [
-    byReason.unreadable > 0 ? 'could not be read' : undefined,
-    byReason.tooLarge > 0 ? 'were over the size limit' : undefined,
-    byReason.deniedPath > 0 ? 'sit on a denied path' : undefined,
-    byReason.nonRegularFile > 0 ? 'are not regular files' : undefined,
-    byReason.excludedByExtension > 0 ? 'are of a type Cejel does not read' : undefined,
-    (byReason.lfsPointer ?? 0) > 0 ? 'are Git LFS pointers' : undefined,
-  ].filter((phrase): phrase is string => phrase !== undefined);
-  return phrases.length > 0 ? phrases : ['could not be read'];
-}
+const FILE_GAP_CLAUSES: Readonly<Record<FileGapCause, string>> = {
+  unreadable: 'some files this area reads could not be read',
+  lfs: 'some files this area reads are Git LFS pointers, so their content is not in this checkout',
+  'read-failure': 'some files this area reads could not be read (the certificate below counts them by cause)',
+  'stated-limit':
+    "some files this area reads were over Cejel's size limit or are left out of scanning by its rules, a stated limit rather than a read failure",
+  'size-limit': "some source files this area reads were over Cejel's size limit, a stated limit rather than a read failure",
+  excluded:
+    'some files this area reads are of a type Cejel does not read or are not regular files, a stated limit rather than a read failure',
+  limit: 'a limit on reading, listed under Reading the repository, applies to it',
+};
 
-function readGapClauses(report: WitanReport, causes: ReadonlySet<ReadGapCause>): string[] {
-  const clauses: string[] = [];
-  if (causes.has('files')) clauses.push(`some files this area reads ${joinOr(skippedFilePhrases(report))}`);
-  if (causes.has('scan-limit')) clauses.push('a limit on reading, listed under Reading the repository, applies to it');
-  if (causes.has('shallow-history')) {
+function readGapClauses(gap: ReadGap): string[] {
+  const clauses = FILE_GAP_CAUSE_ORDER.filter((cause) => gap.files.has(cause)).map((cause) => FILE_GAP_CLAUSES[cause]);
+  if (gap.history === 'shallow') {
     clauses.push('this is a shallow clone, so only part of the commit history it reads is present');
-  } else if (causes.has('history')) {
+  } else if (gap.history === 'other') {
     clauses.push('only part of the commit history it reads could be read');
   }
   return clauses;
 }
 
-function readGapQualifier(causes: ReadonlySet<ReadGapCause>): string {
-  const files = causes.has('files') || causes.has('scan-limit');
-  const history = causes.has('shallow-history') ? 'history' : causes.has('history') ? 'history-other' : undefined;
-  if (files && history) return history === 'history' ? 'files-and-history' : 'files-and-history-other';
-  return history ?? 'files';
+/** The advice a file cause takes (PLAIN_READ_GAP_FILE_ADVICE): the three stated limits share one. */
+function fileGapAdvice(cause: FileGapCause): PlainReadGapFileAdvice {
+  return cause === 'size-limit' || cause === 'excluded' ? 'stated-limit' : cause;
+}
+
+/** The not-read table qualifier: the file advice, the history advice, or both (next-checks.ts). */
+function readGapQualifier(gap: ReadGap): string {
+  const advice = new Set([...gap.files].map(fileGapAdvice));
+  const files = advice.size === 0 ? undefined : advice.size === 1 ? [...advice][0] : 'mixed';
+  if (files !== undefined) return gap.history === 'shallow' ? `${files}-and-history` : files;
+  return gap.history === 'shallow' ? 'history' : 'history-other';
 }
 
 // ---- helpers ---------------------------------------------------------------------------------------
@@ -962,7 +1043,7 @@ function buildNotKnown(report: WitanReport): PendingCheck[] {
       anchor: plainCriterionAnchor(criterion.id),
     };
     const causes = gaps.get(criterion.id);
-    const clauses = causes ? readGapClauses(report, causes) : [];
+    const clauses = causes ? readGapClauses(causes) : [];
     const notRead = causes !== undefined && clauses.length > 0;
     switch (criterion.status) {
       case 'not_applicable':

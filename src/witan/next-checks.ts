@@ -52,16 +52,26 @@ export const PLAIN_DISCLOSURE_KINDS = [
 export type PlainDisclosureKind = (typeof PLAIN_DISCLOSURE_KINDS)[number];
 
 /**
- * Why an area was not fully read (goal_cejel_four_question_summary_v2_2026-11-03, item A): files
- * it reads were skipped or a scan limitation names it ('files'), a shallow clone cut its history
- * short ('history'), another history limitation names it ('history-other'), or both.
+ * Why an area was not fully read, as its check-next advice sees it (#654 review, should-fix 2): the
+ * files it reads could not be read ('unreadable'), are Git LFS pointers ('lfs'), could not be read
+ * for more than one counted cause ('read-failure'), were left out under Cejel's own size limit or
+ * rules ('stated-limit'), or a scan limitation names the area ('limit'); 'mixed' is more than one
+ * of these. Each is qualified by the area's own cause, never by the report-wide counts alone.
+ */
+export const PLAIN_READ_GAP_FILE_ADVICE = ['unreadable', 'lfs', 'read-failure', 'stated-limit', 'limit', 'mixed'] as const;
+export type PlainReadGapFileAdvice = (typeof PLAIN_READ_GAP_FILE_ADVICE)[number];
+
+/**
+ * The not-read qualifiers: a file advice alone, a shallow clone alone ('history'), another history
+ * limitation alone ('history-other'), or a file advice with a shallow clone ('<advice>-and-history').
+ * A file advice with another history limitation takes the file advice alone: no table line covers
+ * the other history limitation, which the area's own sentence still names.
  */
 export const PLAIN_READ_GAP_QUALIFIERS = [
-  'files',
+  ...PLAIN_READ_GAP_FILE_ADVICE,
   'history',
   'history-other',
-  'files-and-history',
-  'files-and-history-other',
+  ...PLAIN_READ_GAP_FILE_ADVICE.map((advice) => `${advice}-and-history` as const),
 ] as const;
 
 /**
@@ -100,6 +110,15 @@ export const NEXT_CHECK_FALLBACK_PREFIX = 'See ';
 const FULL_CLONE =
   'scan a full clone (run git fetch --unshallow, or set fetch-depth: 0 in actions/checkout)';
 
+const FULL_CLONE_SENTENCE = `${FULL_CLONE.charAt(0).toUpperCase()}${FULL_CLONE.slice(1)}`;
+const LFS_PULL = 'Run git lfs pull so the real file contents are present, then scan again.';
+const STATED_LIMIT =
+  'Nothing in the repository stops these files being read: Cejel leaves them out under its own size limit or rules. If what this area would read in them matters, look at those files yourself.';
+const LIMIT_LISTED =
+  'Read the limit listed under Reading the repository; where it names something in the repository you can change, change it and scan again.';
+const MIXED_CAUSES =
+  'Each cause named here needs its own step: fix what stopped files being read (the certificate below counts them by cause), then scan again; a file left out under Cejel\'s size limit or rules needs no fix.';
+
 const NEXT_CHECKS: Readonly<Record<string, string>> = {
   // A finding in one area. Qualified by the criterion id the finding belongs to.
   'finding:A1':
@@ -130,10 +149,24 @@ const NEXT_CHECKS: Readonly<Record<string, string>> = {
   // v2 (#635 review): an area with no measurement is not always missing files, so this line no
   // longer sends the reader to check that files are present and readable.
   'not-measured': "Read this area's notes in the certificate below to see why it has no measurement.",
-  'not-read:files':
-    'Make the skipped files readable (the certificate below counts them by cause), then scan again.',
-  'not-read:history': `${FULL_CLONE.charAt(0).toUpperCase()}${FULL_CLONE.slice(1)}, then scan again.`,
-  'not-read:files-and-history': `Make the skipped files readable and ${FULL_CLONE}, then scan again.`,
+  // #654 review, should-fix 2: each line follows the area's own cause. A Git LFS pointer takes the
+  // same line as the Files not read item; a stated limit is never called unreadable or told to be
+  // made readable.
+  'not-read:unreadable':
+    'Make the files that could not be read readable (the certificate below counts them by cause), then scan again.',
+  'not-read:lfs': LFS_PULL,
+  'not-read:read-failure':
+    'Look at the files the certificate below counts by cause and fix what stopped each one being read, then scan again.',
+  'not-read:stated-limit': STATED_LIMIT,
+  'not-read:limit': LIMIT_LISTED,
+  'not-read:mixed': MIXED_CAUSES,
+  'not-read:history': `${FULL_CLONE_SENTENCE}, then scan again.`,
+  'not-read:unreadable-and-history': `Make the files that could not be read readable and ${FULL_CLONE}, then scan again.`,
+  'not-read:lfs-and-history': `Run git lfs pull so the real file contents are present and ${FULL_CLONE}, then scan again.`,
+  'not-read:read-failure-and-history': `Fix what stopped each file the certificate below counts by cause being read and ${FULL_CLONE}, then scan again.`,
+  'not-read:stated-limit-and-history': `${FULL_CLONE_SENTENCE}, then scan again. ${STATED_LIMIT}`,
+  'not-read:limit-and-history': `${FULL_CLONE_SENTENCE}, then scan again. ${LIMIT_LISTED}`,
+  'not-read:mixed-and-history': `${FULL_CLONE_SENTENCE}, then scan again. ${MIXED_CAUSES}`,
   'score-not-given':
     "Fix the problem listed under What is wrong, and read this area's notes in the certificate below for why it has no score.",
   'imported-status':
@@ -198,7 +231,7 @@ const NEXT_CHECKS: Readonly<Record<string, string>> = {
     'Scan a Git clone rather than a copy of the files, so the commit history can be read.',
   'skipped-content':
     'Look at the skipped files counted in the certificate below (unreadable, too large, a denied path or not a regular file), then scan again.',
-  'lfs-pointers': 'Run git lfs pull so the real file contents are present, then scan again.',
+  'lfs-pointers': LFS_PULL,
   'excluded-file-types':
     'Nothing to fix in the repository: these file types are outside what Cejel reads.',
   'withheld-content':
