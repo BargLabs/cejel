@@ -14802,6 +14802,8 @@ export function readPytestInvocations(
   // item A: the words each tox command passes after `--`, which tox puts where {posargs} is.
   const toxPosargs: { words: readonly string[]; text: string; source: string; file: string; anchor: number }[] = [];
   const noxPosargs: PassedPosargs[] = [];
+  // The review of #655, blocker 1: each nox command whose posargs the reader cannot see.
+  const noxUnread: NoxCommandNotRead[] = [];
   const fileSet = new Set(repoFiles);
   let hatchScripts: HatchScripts | undefined;
   // The review of #648: the hatch script expansions left, across the whole read, so a script list
@@ -14826,6 +14828,9 @@ export function readPytestInvocations(
     // goal_cejel_v27_a1_gaps_2026-11-03, item B: the words a nox command passes after `--`.
     const noxPassed = posargsOf(words, 'nox');
     if (noxPassed !== undefined) noxPosargs.push({ words: noxPassed, text: words.join(' '), source, file, anchor });
+    // The review of #655, blocker 1: a nox command the reader does not read (through poetry, env,
+    // hatch, pdm, `uv run --with`, uvx with options) may pass any posargs.
+    else if (asPythonToolCommand(words, 'nox') === undefined && runsNoxUnread(words)) noxUnread.push({ text: words.join(' '), source, file, anchor });
     // cejel #642: the command as written is joined only where an invocation records it. Joining
     // every segment (a CI line of hundreds of thousands of words) made the run reader's garbage
     // grow faster than its input.
@@ -14965,7 +14970,15 @@ export function readPytestInvocations(
   const noxAt = invocations.length;
   const readNoxfiles = (): PytestInvocation[] => {
     const noxRuns: PytestInvocation[] = [];
-    const { literal, unread: unreadPosargs } = partitionPosargs(noxPosargs);
+    const partitioned = partitionPosargs(noxPosargs);
+    const { literal } = partitioned;
+    // The review of #655, blocker 1: "no posargs" is known only where every nox invocation in the
+    // repository is one the reader reads. A nox command it does not read, in a file whose commands it
+    // reads or in any other file that can run one (a script, a configuration), is named like posargs
+    // it cannot read. Searched only where a call takes posargs.
+    let hidden: readonly NoxCommandNotRead[] | undefined;
+    const unreadPosargs = (): readonly NoxCommandNotRead[] =>
+      (hidden ??= [...partitioned.unread, ...noxUnread, ...noxCommandsInUnreadFiles(repoFiles, readText, readActions)]);
     // A nox command with no `--` passes none, as does nox run by hand; the empty set is always read.
     const passedSets: readonly (readonly string[])[] = [[], ...literal.map((entry) => entry.words)];
     // Each call taking posargs is read once per set, so the work is the noxfile's calls times the
@@ -15007,7 +15020,7 @@ export function readPytestInvocations(
         // Posargs Cejel cannot read, or past the 16th set, leave the run not read, named once per
         // noxfile, where the call runs pytest or its command comes from the posargs.
         if (takesPosargs && !unreadSaid && (runs.length > 0 || call.words[0] === NOX_POSARGS_WORD)) {
-          for (const entry of unreadPosargs) {
+          for (const entry of unreadPosargs()) {
             noxRuns.push({ source: entry.source, file: entry.file, anchor: entry.anchor, directory: '', args: [], text: entry.text, unread: entry.text });
           }
           unreadSaid = true;
@@ -15088,7 +15101,6 @@ export function readPytestInvocations(
       }
     }
   }
-  invocations.splice(noxAt, 0, ...readNoxfiles());
   // The review of #648: a CI file's TOXENV names the environments tox runs; one Cejel cannot
   // resolve leaves every factor-conditional pytest line not read.
   const toxenv = readToxenvValues(environmentTexts);
@@ -15100,7 +15112,85 @@ export function readPytestInvocations(
       invocations.push({ source: entry.source, file: entry.file, anchor: entry.anchor, directory: '', args: [], text: entry.text, unread: entry.text });
     readToxCommands(file, text, namedToxEnvironments, (anchor) => visitor(a1NotePath(file), file, anchor), toxPosargs, notRead, toxenv.unknown);
   }
+  // The review of #655, blocker 1: the noxfiles are read last, once tox's commands have named
+  // their nox commands too; their runs still go where the recipes' runs began.
+  invocations.splice(noxAt, 0, ...readNoxfiles());
   return invocations;
+}
+
+/** The review of #655, blocker 1: a nox command whose posargs the reader cannot see, where it is written. */
+interface NoxCommandNotRead {
+  readonly text: string;
+  readonly source: string;
+  readonly file: string;
+  readonly anchor: number;
+}
+
+/**
+ * The review of #655, blocker 1: true where `words` runs nox in a form asPythonToolCommand does not
+ * read (`poetry run nox`, `env CI=1 nox`, `uv run --with nox nox`, `uvx --python 3.12 nox`): a word
+ * `nox` (any path), `-mnox`, or `-m nox`, not after `install` or `add` (`pip install nox`). Linear.
+ */
+function runsNoxUnread(words: readonly string[]): boolean {
+  for (let index = 0; index < words.length; index += 1) {
+    const word = words[index] ?? '';
+    if (word === 'install' || word === 'add') return false;
+    if (basename(word) === 'nox' || word === '-mnox' || (word === '-m' && words[index + 1] === 'nox')) return true;
+  }
+  return false;
+}
+
+// The review of #655, blocker 1: files that may run a nox command the reader does not read: scripts,
+// Python modules, configuration and files with no extension (a script in bin/). Documentation and
+// the files whose commands the reader reads (CI files, Makefiles and justfiles, tox.ini) are not here.
+const NOX_COMMAND_FILE_PATTERN =
+  /(?:\.(?:sh|bash|zsh|ksh|fish|ps1|psm1|bat|cmd|py|pyw|toml|cfg|ini|ya?ml|json)|(?:^|\/)(?:Dockerfile[^/]*|Containerfile|[^/.]+))$/i;
+// A `nox` word, an `install` or `add` word, or a shell operator that ends a command, in one sweep.
+const NOX_LINE_TOKEN_PATTERN = /(?<![\w.-])(?:nox|install|add)(?![\w.-])|&&|\|\||[;|&]/g;
+// After a `nox` in a file that is not Python: a dependency (`"nox"`, `nox>=2024`, `nox = "^2024"`,
+// `nox[uv]`, `- nox`), a key (`nox:`) or a bare `nox` at the end of its line, which passes no posargs.
+const NOX_DEPENDENCY_AFTER_PATTERN = /["']|[ \t]*(?:[<>=!~;:[\]{}@,]|$)/y;
+
+/**
+ * The review of #655, blocker 1: the first line of each repository file (not a noxfile, not
+ * documentation, not a file whose commands the reader reads) that names nox as it would be run:
+ * `nox` as a word, not `import nox` or `from nox` in Python, not a dependency, a key or a bare `nox`
+ * at the end of a line elsewhere, not after `install` or `add` in the same command. Linear in the
+ * files: each line is swept once.
+ */
+function noxCommandsInUnreadFiles(
+  repoFiles: readonly string[],
+  readText: (file: string) => string | undefined,
+  readActions: ReadonlySet<string>,
+): NoxCommandNotRead[] {
+  const found: NoxCommandNotRead[] = [];
+  for (const file of repoFiles) {
+    const name = basename(file);
+    if (name === 'noxfile.py' || name === 'tox.ini' || isCiWorkflow(file) || isRecipeFile(file) || readActions.has(file)) continue;
+    if (!NOX_COMMAND_FILE_PATTERN.test(file)) continue;
+    const text = readText(file);
+    if (text === undefined || !text.includes('nox')) continue;
+    const python = /\.pyw?$/i.test(file);
+    const lines = text.split(/\r?\n|\r/);
+    const at = lines.findIndex((line) => {
+      if (!line.includes('nox')) return false;
+      if (python && /^[ \t]*(?:import|from)[ \t]+nox\b/.test(line)) return false;
+      let installing = false;
+      for (const match of line.matchAll(NOX_LINE_TOKEN_PATTERN)) {
+        const token = match[0];
+        if (token === 'install' || token === 'add') installing = true;
+        else if (token !== 'nox') installing = false;
+        else if (!installing) {
+          if (python) return true;
+          NOX_DEPENDENCY_AFTER_PATTERN.lastIndex = (match.index ?? 0) + 3;
+          if (!NOX_DEPENDENCY_AFTER_PATTERN.test(line)) return true;
+        }
+      }
+      return false;
+    });
+    if (at !== -1) found.push({ text: (lines[at] ?? '').trim(), source: a1NotePath(file), file, anchor: at });
+  }
+  return found;
 }
 
 // `uses: <value>` in a GitHub Actions file, at a job or a step.
