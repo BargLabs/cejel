@@ -53,6 +53,17 @@ import { FALSE_ASSURANCE_FIXTURES, buildFalseAssuranceFixture } from './fixtures
 // came out byte-identical; the 322 v27 digests and 9 full v27 pins changed only in those two
 // texts; report-attestation-sha256.json was unchanged.
 //
+// Re-captured a second time, for goal_cejel_v17_unread_history_no_verdict_2026-11-02 (operator
+// ruling of 2 Nov: v17 gives no composite and no verdict on a shallow clone). The capture mode
+// above refuses a renderer that has the first page, so every pin was rewritten from this branch
+// by a temporary file that builds the same three corpora and strips the first page the same way
+// (certificateBelowFirstPage), and the moved entries were read off the result. Exactly four
+// fixtures moved, all v17 shallow clones: dg/b3-master-target-depth-1-clone,
+// dg/b3-master-target-ci-fetch, fa/history-shallow-clone and
+// fa/history-shallow-clone-with-committed-secret (4 certificate digests, 4 report.json and 4
+// attestation.json digests, and that last fixture's full v17 pin). Every other v17 entry and every
+// v27 entry is unchanged.
+//
 // Fixtures are scored with no ingested files, the same product name and a fixed generatedAt and
 // CLI version, so the bytes depend only on the fixture and the code. One fixture is left out:
 // a false-assurance fixture with symlinksToHostDirectory commits a symlink whose target is a fresh
