@@ -8615,6 +8615,11 @@ interface CheckReading {
   readonly justRecipes: ReadonlyMap<string, ScriptReading>;
   /** Seventh pass (#641, item A): whether bare `tox` runs a known test runner (rootToxReading). */
   readonly toxReading: ScriptReading;
+  /**
+   * Seventh pass (#641, item B): what `<tool> run <words>` runs, read from the root's script tables
+   * (scriptAliasReading).
+   */
+  readonly scriptAlias: (tool: ScriptAliasTool, words: readonly string[]) => ScriptAliasReading;
 }
 
 // The readings that rest on the root's own files, as when none of them is read.
@@ -8623,6 +8628,7 @@ const ROOT_FILES_UNREAD = {
   testScriptUnrecognised: false,
   justRecipes: new Map<string, ScriptReading>(),
   toxReading: 'unread',
+  scriptAlias: (): ScriptAliasReading => ({ kind: 'unread' }),
   makeTargets: new Map<string, ScriptReading>(),
   buildScriptRunsOnlyTsc: false,
   buildScriptTscOutputUnread: false,
@@ -8651,6 +8657,7 @@ function checkReading(root: string, inventory: PublishOnlyInventory): CheckReadi
     makeTargets: rootMakeTargetReadings(root, inventory, tscAdmitted),
     justRecipes: rootJustRecipeReadings(root, inventory, tscAdmitted),
     toxReading: rootToxReading(root, inventory, tscAdmitted),
+    scriptAlias: rootScriptAliasReader(root, inventory, tscAdmitted),
     buildScriptRunsOnlyTsc: build === 'admitted',
     buildScriptTscOutputUnread: build === 'output-unread',
     requirementsFileIsPlain: (path) => requirementsFileIsPlain(root, inventory, path),
@@ -9477,6 +9484,9 @@ function peelCommandLaunchers(input: readonly string[]): string[] | null {
     let next: number;
     if (first === 'env' || first === 'cross-env' || first === 'npx' || first === 'pnpx' || first === 'bunx') next = 1;
     else if ((first === 'pnpm' && second === 'exec') || (first === 'bundle' && second === 'exec')) next = 2;
+    // Seventh pass (#641, item B): `pdm run`, `hatch run` and `pipenv run` run a script of the name
+    // in place of the command, which a script or recipe reader does not resolve, so is not read.
+    else if (SCRIPT_ALIAS_TOOLS.has(first) && second === 'run') return null;
     else if (CHECK_COMMAND_RUN_LAUNCHERS.has(first) && second === 'run') next = 2;
     else if (first === 'coverage' && second === 'run') {
       words = ['python', ...words.slice(2)];
@@ -9926,11 +9936,20 @@ function isCheckCommand(input: readonly string[], reading: CheckReading, assignm
   // an inert key, as in a script (peelCommandLaunchers). `assignmentsRead` false asks what the
   // command would be without that rule, for B3's note (lineAssignmentReason).
   if (assignmentsRead && read.assignments.some((key) => !isInertEnvironmentKey(key))) return false;
+  // Seventh pass (#641, item B): `pdm run`, `hatch run` and `pipenv run` run the script of the name
+  // where there is one; a name that resolves to a script is a check only where the script is, one
+  // that resolves to none is the command itself, and anything not resolved withholds the credit.
+  let own = read.words;
+  if (read.alias !== undefined) {
+    const alias = reading.scriptAlias(read.alias, read.words);
+    if (alias.kind !== 'command') return alias.kind === 'script' && alias.reading === 'runner';
+    own = alias.words;
+  }
   // Sixth pass (blocker 1, review of #645): a command word holding a `/` (`./ruff`, `bin/pytest`,
   // `/abs/x`, `../x`) runs that file, not the tool of its name, so it is never a check. The words
   // are matched as written: no leading `./` is stripped. `pathsRead` false asks what the command
   // would be were its first word the tool of that name, for B3's note (checkLineReason).
-  const words = pathsRead ? read.words : [commandWordName(read.words[0] ?? ''), ...read.words.slice(1)];
+  const words = pathsRead ? own : [commandWordName(own[0] ?? ''), ...own.slice(1)];
   if (words.length === 0 || words.includes('--if-present')) return false;
   if (isPathCommandWord(words[0] ?? '')) return false;
   // Fourth pass (#627): `make test` and `make check` are checks only when the root Makefile's rule
@@ -10050,9 +10069,15 @@ function lintCommandFailsOnFinding(words: readonly string[]): boolean {
  * status-inverted command. Shared with unrecognisedCheckReason (fourth pass), unchanged from the
  * third pass's isCheckCommand.
  */
-function checkCommandWords(
-  input: readonly string[],
-): { readonly words: string[]; readonly packageManager: boolean; readonly assignments: readonly string[] } | undefined {
+function checkCommandWords(input: readonly string[]):
+  | {
+      readonly words: string[];
+      readonly packageManager: boolean;
+      readonly assignments: readonly string[];
+      /** Seventh pass (#641, item B): the launcher was `pdm run`, `hatch run` or `pipenv run`. */
+      readonly alias?: ScriptAliasTool;
+    }
+  | undefined {
   const head = commandHead(input);
   if (head.inverted) return undefined;
   const words = [head.word, ...input.slice(head.argsFrom)];
@@ -10063,9 +10088,13 @@ function checkCommandWords(
     start += 1;
   }
   const packageManager = PACKAGE_MANAGER_COMMANDS.has(words[start] ?? '');
-  if (PUBLISHING_COMMAND_LAUNCHERS.has(words[start] ?? '')) start += 1;
-  else if ((words[start] === 'python' || words[start] === 'python3') && words[start + 1] === '-m') start += 2;
-  else if (CHECK_COMMAND_RUN_LAUNCHERS.has(words[start] ?? '') && words[start + 1] === 'run') start += 2;
+  const launcher = words[start] ?? '';
+  if (PUBLISHING_COMMAND_LAUNCHERS.has(launcher)) start += 1;
+  else if ((launcher === 'python' || launcher === 'python3') && words[start + 1] === '-m') start += 2;
+  else if (CHECK_COMMAND_RUN_LAUNCHERS.has(launcher) && words[start + 1] === 'run') {
+    start += 2;
+    if (SCRIPT_ALIAS_TOOLS.has(launcher)) return { words: words.slice(start), packageManager, assignments, alias: launcher as ScriptAliasTool };
+  }
   return { words: words.slice(start), packageManager, assignments };
 }
 
@@ -10177,7 +10206,18 @@ function seventhPassReason(input: readonly string[], reading: CheckReading): str
   const read = checkCommandWords(input);
   if (read === undefined || (read.packageManager && !reading.packageManagerConfigPlain)) return undefined;
   if (read.assignments.some((key) => !isInertEnvironmentKey(key))) return undefined;
-  const words = read.words;
+  let words = read.words;
+  // Item B: a script alias that resolves to a script running no known runner, or is not resolved.
+  if (read.alias !== undefined) {
+    const alias = reading.scriptAlias(read.alias, words);
+    if (alias.kind === 'script') return alias.reading === 'runner' ? undefined : SCRIPT_ALIAS_SCRIPT_REASON(read.alias, alias.name);
+    if (alias.kind === 'unread') {
+      const spec = words[0] ?? '';
+      const named = read.alias === 'hatch' ? [spec.slice(spec.indexOf(':') + 1), ...words.slice(1)] : words;
+      return namesCheckAtStart(named) ? SCRIPT_ALIAS_UNREAD_REASON(read.alias) : undefined;
+    }
+    words = alias.words;
+  }
   if (words.length === 0 || isPathCommandWord(words[0] ?? '') || !namesCheckAtStart(words)) return undefined;
   const task = taskRunnerReading(words, reading);
   if (task !== undefined && task.reading !== 'runner') {
@@ -10355,6 +10395,180 @@ function rootToxReading(root: string, inventory: PublishOnlyInventory, tscAdmitt
   }
   return allRun ? 'runner' : 'unrecognised';
 }
+
+// ---- Item B (#641, 2): script aliases, resolved through the root's script tables ---------------
+//
+// `pdm run <name>` runs the `[tool.pdm.scripts]` entry of that name, `hatch run [env:]<name>` the
+// hatch environment script, and `pipenv run <name>` the Pipfile `[scripts]` entry, each in place
+// of the command of that name. A name that resolves to a script is credited only where that
+// script's command is (its commands as a script reader reads them); one that resolves to nothing
+// is the command itself. Anything the reader cannot resolve withholds the credit: a table not read,
+// a script that is not one plain string, words passed after a script's name, a pdm hook
+// (`pre_run`, `post_run`, `pre_script`, `post_script`, `pre_<name>`, `post_<name>`) or shared
+// options (`_`), a hatch environment setting that runs or sets anything before the script
+// (`env-vars`, `pre-install-commands`, `post-install-commands`), and a committed `.env`, which
+// `pipenv run` loads.
+
+const SCRIPT_ALIAS_TOOLS: ReadonlySet<string> = new Set(['pdm', 'hatch', 'pipenv']);
+type ScriptAliasTool = 'pdm' | 'hatch' | 'pipenv';
+type ScriptAliasReading =
+  | { readonly kind: 'command'; readonly words: string[] }
+  | { readonly kind: 'script'; readonly name: string; readonly reading: 'runner' | 'unrecognised' }
+  | { readonly kind: 'unread' };
+
+const PDM_RUN_HOOKS: readonly string[] = ['pre_run', 'post_run', 'pre_script', 'post_script', '_'];
+const HATCH_UNREAD_SETTING_PATTERN = /env-vars|pre-install-commands|post-install-commands/;
+
+/**
+ * Item B: the plain-string entries of the TOML table at `prefix` (`tool.pdm.scripts`, `scripts`),
+ * by name; null for an entry in any other form (a table, an array, a dotted key under it). Null
+ * for the whole table when the reader cannot place it: written as an inline value of a table above
+ * it, or as an array of tables. Linear (TomlValueScanner).
+ */
+function readTomlStringTable(text: string, prefix: readonly string[]): Map<string, string | null> | null {
+  const entries = new Map<string, string | null>();
+  const under = (path: readonly string[]) => prefix.every((part, at) => path[at] === part);
+  const above = (path: readonly string[]) => path.length < prefix.length && path.every((part, at) => prefix[at] === part);
+  const lines = text.split(/\r?\n/);
+  let table: string[] = [];
+  for (let index = 0; index < lines.length; index += 1) {
+    const trimmed = (lines[index] ?? '').trim();
+    if (trimmed === '' || trimmed.startsWith('#')) continue;
+    const header = /^\[\[?([^\]]*)\]\]?/.exec(trimmed);
+    if (header) {
+      table = tomlKeyPath(header[1] ?? '');
+      if (trimmed.startsWith('[[') && (under(table) || above(table))) return null;
+      if (under(table) && table.length > prefix.length) entries.set(table[prefix.length] ?? '', null);
+      continue;
+    }
+    const equals = tomlKeyEnd(trimmed);
+    if (equals === -1) continue;
+    const scanner = new TomlValueScanner();
+    scanner.feed(trimmed.slice(equals + 1));
+    while (!scanner.complete() && index + 1 < lines.length) {
+      index += 1;
+      scanner.feed(`\n${lines[index] ?? ''}`);
+    }
+    const path = [...table, ...tomlKeyPath(trimmed.slice(0, equals))];
+    if (above(path) || (under(path) && path.length === prefix.length)) return null;
+    if (!under(path)) continue;
+    const name = path[prefix.length] ?? '';
+    const value = scanner.value();
+    entries.set(name, entries.has(name) || path.length !== prefix.length + 1 || value.kind !== 'text' ? null : value.text);
+  }
+  return entries;
+}
+
+/**
+ * Item B: 'runner' when a script's command text runs a known test runner with only admitted checks
+ * before it, 'unrecognised' otherwise. A pdm or pipenv script runs without a shell, so it must be
+ * one command with no shell character; a hatch script runs in a shell, so it may be an `&&` chain.
+ */
+function scriptAliasBodyKinds(text: string, shell: boolean, tscAdmitted: (words: readonly string[]) => boolean): ('runner' | 'check' | 'other')[] {
+  if (shell ? !commandsAreAndChain(text) : /[|&;<>$`(){}\\\r\n]/.test(text)) return ['other'];
+  const commands = shell ? shellCommands(text) : [shellWords(text)];
+  return commands.map((words) => {
+    const peeled = peelCommandLaunchers(words);
+    return peeled === null ? 'other' : scriptCommandKind(peeled, tscAdmitted);
+  });
+}
+
+/** Item B: a script name B3's note may give as written, or a stand-in. */
+function scriptNameForNote(name: string): string {
+  return /^[A-Za-z0-9_.-]{1,40}$/.test(name) ? name : 'of that name';
+}
+
+/** Item B, CheckReading.scriptAlias: the root's pdm, hatch and pipenv script tables, each read once when first asked. */
+function rootScriptAliasReader(
+  root: string,
+  inventory: PublishOnlyInventory,
+  tscAdmitted: (words: readonly string[]) => boolean,
+): (tool: ScriptAliasTool, words: readonly string[]) => ScriptAliasReading {
+  const readText = (file: string) => (inventory.scanned.has(file) ? readRepoText(join(root, file), 'utf8') : undefined);
+  // A table of a file that is absent is empty; of a file present but not scanned, not read (null).
+  const table = (file: string, prefix: readonly string[]) => {
+    if (!inventory.known.has(file)) return new Map<string, string | null>();
+    const text = readText(file);
+    return text === undefined ? null : readTomlStringTable(text, prefix);
+  };
+  let pdm: Map<string, string | null> | null | undefined;
+  let pipenv: Map<string, string | null> | null | undefined;
+  let hatch: HatchScripts | null | undefined;
+  const hatchScripts = (): HatchScripts | null => {
+    for (const file of ['hatch.toml', 'pyproject.toml']) {
+      if (!inventory.known.has(file)) continue;
+      const text = readText(file);
+      if (text === undefined) return null;
+      if ((file === 'hatch.toml' || text.includes('tool.hatch')) && HATCH_UNREAD_SETTING_PATTERN.test(text)) return null;
+    }
+    return readHatchScripts(inventory.scanned, readText);
+  };
+  return (tool, words) => {
+    const [spec = '', ...args] = words;
+    if (spec === '' || spec.startsWith('-')) return { kind: 'unread' };
+    if (tool === 'hatch') {
+      hatch = hatch === undefined ? hatchScripts() : hatch;
+      if (hatch === null) return { kind: 'unread' };
+      const colon = spec.indexOf(':');
+      const environment = colon > 0 ? spec.slice(0, colon) : 'default';
+      const name = colon > 0 ? spec.slice(colon + 1) : spec;
+      const scripts = hatch;
+      const find = (script: string) => {
+        const own = scripts.get(environment)?.get(script);
+        if (own !== undefined || environment === 'default') return own;
+        // As #648's reader: an environment inherits `default`'s scripts unless a template is named.
+        const inherited = scripts.get('default')?.get(script);
+        return inherited !== undefined && hatchNamesTemplate(inventory.scanned, readText) ? null : inherited;
+      };
+      const found = find(name);
+      if (found === undefined) return { kind: 'command', words: [name, ...args] };
+      if (found === null || args.length > 0) return { kind: 'unread' };
+      const kinds: ('runner' | 'check' | 'other')[] = [];
+      let budget = HATCH_EXPANSION_BUDGET;
+      const expand = (commands: readonly string[] | undefined, depth: number): boolean => {
+        budget -= commands?.length ?? 1;
+        if (commands === undefined || budget < 0 || depth > SCRIPT_EXPANSION_MAX_DEPTH) return false;
+        for (const command of commands) {
+          const text = substituteHatchArguments(command.trim(), []);
+          // `- ` ignores the command's failure; a remaining brace is a context field not read.
+          if (text.startsWith('-') || /[{}]/.test(text)) {
+            kinds.push('other');
+            continue;
+          }
+          const first = text.split(/[ \t]+/)[0] ?? '';
+          const inner = find(first);
+          if (inner === null) return false;
+          if (inner !== undefined && first !== name) {
+            if (text !== first || !expand(inner.commands, depth + 1)) return false;
+            continue;
+          }
+          kinds.push(...scriptAliasBodyKinds(text, true, tscAdmitted));
+        }
+        return true;
+      };
+      if (!expand(found.commands, 0)) return { kind: 'unread' };
+      return { kind: 'script', name, reading: kindsRunKnownRunner(kinds) ? 'runner' : 'unrecognised' };
+    }
+    let scripts: Map<string, string | null> | null;
+    if (tool === 'pdm') {
+      pdm = pdm === undefined ? table('pyproject.toml', ['tool', 'pdm', 'scripts']) : pdm;
+      scripts = pdm;
+      if (scripts !== null && [...PDM_RUN_HOOKS, `pre_${spec}`, `post_${spec}`].some((hook) => scripts?.has(hook))) return { kind: 'unread' };
+    } else {
+      pipenv = pipenv === undefined ? (inventory.rootPathsLower.has('.env') ? null : table('Pipfile', ['scripts'])) : pipenv;
+      scripts = pipenv;
+    }
+    if (scripts === null) return { kind: 'unread' };
+    if (!scripts.has(spec)) return { kind: 'command', words: [...words] };
+    const body = scripts.get(spec);
+    if (body === null || body === undefined || args.length > 0) return { kind: 'unread' };
+    return { kind: 'script', name: spec, reading: kindsRunKnownRunner(scriptAliasBodyKinds(body, false, tscAdmitted)) ? 'runner' : 'unrecognised' };
+  };
+}
+
+const SCRIPT_ALIAS_UNREAD_REASON = (tool: string) => `the check runs ${tool} run, whose scripts Cejel does not read`;
+const SCRIPT_ALIAS_SCRIPT_REASON = (tool: string, name: string) =>
+  `the check runs the ${tool} script ${scriptNameForNote(name)}, which does not run a test runner Cejel recognises`;
 
 // A pull-request (or merge-queue) trigger makes a workflow a pull-request gate whatever its steps.
 // One list feeds both v27's publish-only test (a word match) and B2's trigger label (a parsed key).
