@@ -33,6 +33,9 @@ import {
   V6_COUNTED,
   V6_EXCLUDED,
   V6_FIXTURES,
+  V7_COUNTED,
+  V7_EXCLUDED,
+  V7_FIXTURES,
   publishingFile,
 } from './fixtures/b3-publishing-with-checks-fixtures.js';
 import { buildFalseAssuranceFixture } from './fixtures/false-assurance-fixtures.js';
@@ -49,7 +52,7 @@ import { checkNoRise, lostFindings } from './v27-no-rise.js';
 const V17 = WITAN_RUBRIC_VERSION_V17;
 const V27 = WITAN_RUBRIC_VERSION_V27;
 
-const ALL = [...PUBLISHING_WITH_CHECKS_FIXTURES, ...EDGE_FIXTURES, ...V2_FIXTURES, ...V3_FIXTURES, ...V4_FIXTURES, ...V5_FIXTURES, ...V6_FIXTURES];
+const ALL = [...PUBLISHING_WITH_CHECKS_FIXTURES, ...EDGE_FIXTURES, ...V2_FIXTURES, ...V3_FIXTURES, ...V4_FIXTURES, ...V5_FIXTURES, ...V6_FIXTURES, ...V7_FIXTURES];
 
 const repos = new Map<string, string>();
 const reports = new Map<string, WitanReport>();
@@ -108,11 +111,11 @@ const COUNTED_DETAILS: Readonly<Record<string, string>> = {
   'npmrc-registry-only': 'is triggered by push to main, and its publishing job declares no environment.',
   'poetry-install-no-root-before-check': 'is triggered by push to main, and its publishing job declares no environment.',
   'job-level-keys-written-plainly': 'is triggered by push to main, and its publishing job declares no environment.',
-  ...Object.fromEntries([...V4_COUNTED, ...V5_COUNTED, ...V6_COUNTED].map(([name]) => [name, 'is triggered by push to main, and its publishing job declares no environment.'])),
+  ...Object.fromEntries([...V4_COUNTED, ...V5_COUNTED, ...V6_COUNTED, ...V7_COUNTED].map(([name]) => [name, 'is triggered by push to main, and its publishing job declares no environment.'])),
 };
 
 describe('v27 (#517 correction) — a publishing workflow that checks before it publishes is counted', () => {
-  for (const [name] of [...COUNTED, ...EDGE_COUNTED, ...V2_COUNTED, ...V3_COUNTED, ...V4_COUNTED, ...V5_COUNTED, ...V6_COUNTED]) {
+  for (const [name] of [...COUNTED, ...EDGE_COUNTED, ...V2_COUNTED, ...V3_COUNTED, ...V4_COUNTED, ...V5_COUNTED, ...V6_COUNTED, ...V7_COUNTED]) {
     it(`v27 counts ${name}, as v17 does`, () => {
       const file = publishingFile(name);
       const b3 = criterion(name, V27, 'B3');
@@ -135,7 +138,7 @@ describe('v27 (#517 correction) — a publishing workflow that checks before it 
 const TAG_TRIGGERED_ONLY: ReadonlySet<string> = new Set(['pytest-before-twine-on-tag']);
 
 describe('v27 (#517 correction) — a publishing workflow with no check before its publish step is still excluded', () => {
-  for (const [name] of [...EXCLUDED, ...EDGE_EXCLUDED, ...V2_EXCLUDED, ...V3_EXCLUDED, ...V4_EXCLUDED, ...V5_EXCLUDED, ...V6_EXCLUDED]) {
+  for (const [name] of [...EXCLUDED, ...EDGE_EXCLUDED, ...V2_EXCLUDED, ...V3_EXCLUDED, ...V4_EXCLUDED, ...V5_EXCLUDED, ...V6_EXCLUDED, ...V7_EXCLUDED]) {
     it(`v27 excludes ${name}, with the note and disclosure unchanged`, () => {
       const file = publishingFile(name);
       const b3 = criterion(name, V27, 'B3');
@@ -167,7 +170,7 @@ describe('B2 and B3 agree about every workflow here (#527)', () => {
   });
 
   it('a workflow B3 counts under this correction is one B2 credits: neither leaves it uncredited', () => {
-    for (const [name] of [...COUNTED, ...EDGE_COUNTED, ...V2_COUNTED, ...V3_COUNTED, ...V4_COUNTED, ...V5_COUNTED, ...V6_COUNTED]) {
+    for (const [name] of [...COUNTED, ...EDGE_COUNTED, ...V2_COUNTED, ...V3_COUNTED, ...V4_COUNTED, ...V5_COUNTED, ...V6_COUNTED, ...V7_COUNTED]) {
       const file = publishingFile(name);
       for (const id of ['B2', 'B3']) {
         const score = criterion(name, V27, id);
@@ -183,6 +186,15 @@ describe('B2 and B3 agree about every workflow here (#527)', () => {
 const PATH_COMMAND_REASON = 'a check command is written as a path, so it runs a file in the repository or on the runner, not the tool of that name';
 const MAKE_ASSIGNMENT_REASON = 'the Makefile assigns a variable, which make exports to what the target runs when the environment also sets it';
 const TSC_OUTPUT_REASON = 'the build script in package.json runs tsc, whose output may overwrite what the check runs';
+// Seventh pass (#641, #647): a task runner whose configuration is not read, or is read and runs no
+// known test runner; a word a known runner is not known to keep failing with; a repository module.
+const CONFIGURATION_UNREAD = (runner: string) => `the check runs ${runner}, whose configuration Cejel does not read`;
+const RUNS_NO_KNOWN_RUNNER = (runner: string) => `the check runs ${runner}, and what its configuration runs is not a test runner Cejel recognises`;
+const RUNNER_ARGUMENT_REASON = 'the check carries a flag or argument that Cejel does not know to keep it failing when a test fails';
+const REPOSITORY_MODULE_REASON =
+  'the check runs a Python module by name, and the repository holds a module of that name, or one it or the standard library imports, which Python imports first';
+// Item F, completed: hatch run in an environment that installs the project.
+const HATCH_INSTALLS_PROJECT_REASON = 'the check runs hatch run in an environment that does not set skip-install, so hatch first installs the project, running its build code';
 
 // Fourth pass (#627 item A, #628 item B): where a check is not credited because its test script or
 // make target runs no test runner Cejel recognises, or because an environment key on its path may
@@ -244,6 +256,96 @@ const NOT_CREDITED_REASONS: Readonly<Record<string, string>> = {
   'build-tsc-extends': TSC_OUTPUT_REASON,
   'check-line-assignment-ci-false': 'the environment key CI may change what the check runs',
   'workflow-env-node-env': 'the environment key NODE_ENV may change what the check runs',
+  // Seventh pass (#641, #647).
+  'just-test-recipe-true': RUNS_NO_KNOWN_RUNNER('just'),
+  'just-test-recipe-ignored-error': RUNS_NO_KNOWN_RUNNER('just'),
+  'just-test-dotenv-load': CONFIGURATION_UNREAD('just'),
+  'tox-commands-python-c-pass': RUNS_NO_KNOWN_RUNNER('tox'),
+  'tox-ignore-outcome': CONFIGURATION_UNREAD('tox'),
+  'tox-installs-project': CONFIGURATION_UNREAD('tox'),
+  'nox-unread': CONFIGURATION_UNREAD('nox'),
+  'pre-commit-unread': CONFIGURATION_UNREAD('pre-commit'),
+  'turbo-run-test-unread': CONFIGURATION_UNREAD('turbo'),
+  'gradle-test-unread': CONFIGURATION_UNREAD('gradle'),
+  'mvn-verify-unread': CONFIGURATION_UNREAD('mvn'),
+  'bazel-test-unread': CONFIGURATION_UNREAD('bazel'),
+  'make-test-recipe-mvn-test': "the Makefile's test target does not run a test runner Cejel recognises",
+  'pdm-script-shadows-pytest': 'the check runs the pdm script pytest, which does not run a test runner Cejel recognises',
+  'pdm-pre-run-hook': 'the check runs pdm run, whose scripts Cejel does not read',
+  'hatch-script-shadows-pytest': 'the check runs the hatch script pytest, which does not run a test runner Cejel recognises',
+  'hatch-script-inherited-shadows-pytest': 'the check runs the hatch script pytest, which does not run a test runner Cejel recognises',
+  'pipenv-script-shadows-pytest': 'the check runs the pipenv script pytest, which does not run a test runner Cejel recognises',
+  'jest-list-tests': RUNNER_ARGUMENT_REASON,
+  'pytest-fixtures-flag': RUNNER_ARGUMENT_REASON,
+  'mocha-dry-run': RUNNER_ARGUMENT_REASON,
+  'go-test-run-filter': RUNNER_ARGUMENT_REASON,
+  'cargo-nextest-list': RUNNER_ARGUMENT_REASON,
+  'test-script-vitest-list': 'the test script in package.json does not run a test runner Cejel recognises',
+  'test-script-jest-pass-with-no-tests-equivalent': 'the test script in package.json does not run a test runner Cejel recognises',
+  'python-m-pytest-repo-package': REPOSITORY_MODULE_REASON,
+  'python-m-pytest-repo-module-file': REPOSITORY_MODULE_REASON,
+  'python-m-pytest-repo-module-other-case': REPOSITORY_MODULE_REASON,
+  'python-m-unittest-repo-package': "the Makefile's test target does not run a test runner Cejel recognises",
+  'make-test-python-m-pytest-repo-module': "the Makefile's test target does not run a test runner Cejel recognises",
+  'python-m-mypy-repo-module': REPOSITORY_MODULE_REASON,
+  'just-test-recipe-pytest-fixtures': RUNS_NO_KNOWN_RUNNER('just'),
+  'tox-skipsdist-pytest-fixtures': RUNS_NO_KNOWN_RUNNER('tox'),
+  'pdm-script-runs-pytest-fixtures': 'the check runs the pdm script test, which does not run a test runner Cejel recognises',
+  'pdm-no-script-pytest-fixtures': RUNNER_ARGUMENT_REASON,
+  'hatch-script-runs-pytest-fixtures': 'the check runs the hatch script test, which does not run a test runner Cejel recognises',
+  'pipenv-script-runs-pytest-fixtures': 'the check runs the pipenv script test, which does not run a test runner Cejel recognises',
+  'pytest-listed-flags-fixtures': RUNNER_ARGUMENT_REASON,
+  'npm-test-separator-list-tests': RUNNER_ARGUMENT_REASON,
+  'python-m-pytest-beside-pytest-ini-fixtures': RUNNER_ARGUMENT_REASON,
+  // Item F, completed (finishing pass on #657).
+  'go-test-count-zero': RUNNER_ARGUMENT_REASON,
+  'go-test-count-zero-spaced': RUNNER_ARGUMENT_REASON,
+  'cargo-test-no-run': RUNNER_ARGUMENT_REASON,
+  'cargo-nextest-run-no-tests-pass': RUNNER_ARGUMENT_REASON,
+  'cargo-clippy-cap-lints-warn': RUNNER_ARGUMENT_REASON,
+  'dotnet-test-list-tests': RUNNER_ARGUMENT_REASON,
+  'ctest-show-only': CONFIGURATION_UNREAD('ctest'),
+  'rspec-dry-run': RUNNER_ARGUMENT_REASON,
+  'phpunit-list-tests': RUNNER_ARGUMENT_REASON,
+  'jest-test-name-pattern-none': RUNNER_ARGUMENT_REASON,
+  'vitest-list-line': RUNNER_ARGUMENT_REASON,
+  'mocha-grep-none': RUNNER_ARGUMENT_REASON,
+  'node-test-name-pattern-none': RUNNER_ARGUMENT_REASON,
+  'tsc-list-files-only': RUNNER_ARGUMENT_REASON,
+  'pyright-createstub': RUNNER_ARGUMENT_REASON,
+  'yarn-test-list-tests': RUNNER_ARGUMENT_REASON,
+  'pnpm-test-list-tests': RUNNER_ARGUMENT_REASON,
+  'pipenv-no-script-pytest-co': RUNNER_ARGUMENT_REASON,
+  'test-script-go-test-count-zero': 'the test script in package.json does not run a test runner Cejel recognises',
+  'test-script-deno-no-run': 'the test script in package.json does not run a test runner Cejel recognises',
+  'test-script-bun-pass-with-no-tests': 'the test script in package.json does not run a test runner Cejel recognises',
+  'test-script-playwright-list': 'the test script in package.json does not run a test runner Cejel recognises',
+  'test-script-karma-no-fail-on-failing': 'the test script in package.json does not run a test runner Cejel recognises',
+  'test-script-tsx-name-pattern-none': 'the test script in package.json does not run a test runner Cejel recognises',
+  'test-script-lab-dry': 'the test script in package.json does not run a test runner Cejel recognises',
+  'test-script-ts-mocha-dry-run': 'the test script in package.json does not run a test runner Cejel recognises',
+  'test-script-uvu-ignore-all': 'the test script in package.json does not run a test runner Cejel recognises',
+  'make-test-python-m-unittest-k-none': "the Makefile's test target does not run a test runner Cejel recognises",
+  'hatch-inherited-script-pytest-co': 'the check runs the hatch script test, which does not run a test runner Cejel recognises',
+  'hatch-script-list-pytest-co': 'the check runs the hatch script test, which does not run a test runner Cejel recognises',
+  'hatch-script-installs-project': HATCH_INSTALLS_PROJECT_REASON,
+  'hatch-no-script-installs-project': HATCH_INSTALLS_PROJECT_REASON,
+  // Review of #657 at 26ad2484f.
+  'jest-short-workers-swallows-list-tests': RUNNER_ARGUMENT_REASON,
+  'jest-max-workers-swallows-list-tests': RUNNER_ARGUMENT_REASON,
+  'jest-test-timeout-swallows-list-tests': RUNNER_ARGUMENT_REASON,
+  'npm-test-separator-workers-list-tests': RUNNER_ARGUMENT_REASON,
+  'pytest-argument-file': RUNNER_ARGUMENT_REASON,
+  'just-recipe-pytest-argument-file': RUNS_NO_KNOWN_RUNNER('just'),
+  'tox-indented-ignore-outcome-after-header': CONFIGURATION_UNREAD('tox'),
+  'tox-indented-commands-pre-after-header': CONFIGURATION_UNREAD('tox'),
+  'pdm-escaped-key-shadows-pytest': 'the check runs pdm run, whose scripts Cejel does not read',
+  'pipenv-escaped-key-shadows-pytest': 'the check runs pipenv run, whose scripts Cejel does not read',
+  'hatch-escaped-key-shadows-pytest': 'the check runs hatch run, whose scripts Cejel does not read',
+  'pdm-escaped-shared-options-env-file': 'the check runs pdm run, whose scripts Cejel does not read',
+  'python-m-pytest-repo-underscore-pytest': REPOSITORY_MODULE_REASON,
+  'python-m-pytest-repo-stdlib-module': REPOSITORY_MODULE_REASON,
+  'ctest-output-on-failure': CONFIGURATION_UNREAD('ctest'),
 };
 
 describe('fourth pass — B3 names why a check was not credited', () => {
@@ -257,7 +359,7 @@ describe('fourth pass — B3 names why a check was not credited', () => {
   }
 
   it('no counted fixture carries a not-credited reason', () => {
-    for (const [name] of [...COUNTED, ...EDGE_COUNTED, ...V2_COUNTED, ...V3_COUNTED, ...V4_COUNTED, ...V5_COUNTED, ...V6_COUNTED]) {
+    for (const [name] of [...COUNTED, ...EDGE_COUNTED, ...V2_COUNTED, ...V3_COUNTED, ...V4_COUNTED, ...V5_COUNTED, ...V6_COUNTED, ...V7_COUNTED]) {
       expect(criterion(name, V27, 'B3').notes ?? '', name).not.toContain('was not counted:');
     }
   });
@@ -274,7 +376,7 @@ describe('sixth pass — B3 says a lint or format check is counted without readi
   }
 
   it('no counted fixture whose check is a test carries the clause', () => {
-    for (const [name] of [...COUNTED, ...EDGE_COUNTED, ...V2_COUNTED, ...V3_COUNTED, ...V4_COUNTED, ...V5_COUNTED, ...V6_COUNTED]) {
+    for (const [name] of [...COUNTED, ...EDGE_COUNTED, ...V2_COUNTED, ...V3_COUNTED, ...V4_COUNTED, ...V5_COUNTED, ...V6_COUNTED, ...V7_COUNTED]) {
       if (LINT_CREDITED.includes(name)) continue;
       expect(criterion(name, V27, 'B3').notes ?? '', name).not.toContain(LINT_CONFIGURATION_CLAUSE);
     }

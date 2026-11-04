@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   analyzeCoverageConfiguration,
+  b3TaskRunnerReadingsForScaling,
   findPytestRunWideSkips,
   isShellWhitespaceCode,
   readPytestDeclaredOptions,
@@ -485,6 +486,92 @@ describe('scaling: the ratio check itself (cejel #642)', () => {
     const { ratio, timing } = scalingRatio((length) => work(length * 4), SCALING_LENGTH);
     expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
   }, 60_000);
+});
+
+// v27 B3 seventh pass (#641, item A): the justfile and tox.ini readers, each on the input that
+// maximises its work. For the justfile: `test` depending on L/14 empty recipes (each reached recipe
+// is visited, and each dependency list read, once). For tox.ini: L/60 environments, each with a
+// section of its own that falls back to a `[testenv]` deps list of L/26 lines (each value is read
+// once, by its text, not once per environment). Both must answer 'runner' at L and 2L.
+describe('scaling: the v27 B3 justfile, tox.ini and hatch environment readers grow no faster than linearly', () => {
+  const repoCache = new Map<string, { repo: string; files: string[] }>();
+  const repoFor = (key: string, files: Record<string, string>) => {
+    const existing = repoCache.get(key);
+    if (existing) return existing;
+    const made = { repo: makeRepo(files), files: Object.keys(files) };
+    repoCache.set(key, made);
+    return made;
+  };
+  it('the justfile reader, on `test` depending on L/14 and 2L/14 empty recipes', () => {
+    const justfile = (length: number): string => {
+      const count = Math.floor(length / 14);
+      const names = Array.from({ length: count }, (_, index) => `r${index}`);
+      return `test: ${names.join(' ')}\n    pytest\n\n${names.map((name) => `${name}:\n`).join('')}`;
+    };
+    const read = (length: number) => {
+      const { repo, files } = repoFor(`just-${length}`, { justfile: justfile(length) });
+      return b3TaskRunnerReadingsForScaling(repo, files).just;
+    };
+    expect(justfile(2 * SCALING_LENGTH).length).toBeLessThan(512_000);
+    const { ratio, timing, atL, at2L } = scalingRatio(read);
+    expect(atL).toBe('runner');
+    expect(at2L).toBe(atL);
+    expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
+  }, 120_000);
+
+  it('the tox.ini reader, on L/60 and 2L/60 environments falling back to a deps list of L/26 and 2L/26 lines', () => {
+    const toxIni = (length: number): string => {
+      const environments = Array.from({ length: Math.floor(length / 60) }, (_, index) => `e${index}`);
+      const deps = '    pytest\n'.repeat(Math.floor(length / 26));
+      return `[tox]\nenv_list = ${environments.join(',')}\nskipsdist = true\n\n[testenv]\ndeps =\n${deps}commands = pytest\n\n${environments.map((name) => `[testenv:${name}]\ndescription = x\n`).join('')}`;
+    };
+    const read = (length: number) => {
+      const { repo, files } = repoFor(`tox-${length}`, { 'tox.ini': toxIni(length) });
+      return b3TaskRunnerReadingsForScaling(repo, files).tox;
+    };
+    expect(toxIni(2 * SCALING_LENGTH).length).toBeLessThan(512_000);
+    const { ratio, timing, atL, at2L } = scalingRatio(read);
+    expect(atL).toBe('runner');
+    expect(at2L).toBe(atL);
+    expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
+  }, 120_000);
+  // Item F (finishing pass): the hatch environment reader reads every line once; the input that
+  // maximises its work is one `dependencies` list of L/12 and 2L/12 lines, each fed to the TOML
+  // value scanner and read as an index project name, beside the script it resolves.
+  it('the hatch environment reader, on a dependencies list of L/12 and 2L/12 lines', () => {
+    const hatchToml = (length: number): string =>
+      `[envs.default]\nskip-install = true\ndependencies = [\n${'  "pytest",\n'.repeat(Math.floor(length / 12))}]\n\n[envs.default.scripts]\ntest = "pytest"\n`;
+    const read = (length: number) => {
+      const { repo, files } = repoFor(`hatch-${length}`, { 'hatch.toml': hatchToml(length) });
+      return b3TaskRunnerReadingsForScaling(repo, files).hatch;
+    };
+    expect(hatchToml(2 * SCALING_LENGTH).length).toBeLessThan(512_000);
+    const { ratio, timing, atL, at2L } = scalingRatio(read);
+    expect(atL).toBe('script runner');
+    expect(at2L).toBe(atL);
+    expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
+  }, 120_000);
+
+  // Review of #657 (blocker 5): the module-shadow reader reads every known path once, from a
+  // directory it does not know; the input that maximises its work is many deep paths, none a module
+  // that shadows pytest, so every path is read and every module name compared: L/24 and 2L/24 paths.
+  it('the python -m module-shadow reader, on L/24 and 2L/24 known paths of three parts', () => {
+    const { repo } = repoFor('module-shadow', {});
+    const files = (length: number): string[] => Array.from({ length: Math.floor(length / 24) }, (_, index) => `d${index}/pkg/mod${index}.py`);
+    const listed = new Map<number, string[]>();
+    const read = (length: number) => {
+      let paths = listed.get(length);
+      if (paths === undefined) {
+        paths = files(length);
+        listed.set(length, paths);
+      }
+      return b3TaskRunnerReadingsForScaling(repo, paths).module;
+    };
+    const { ratio, timing, atL, at2L } = scalingRatio(read);
+    expect(atL).toBe(false);
+    expect(at2L).toBe(atL);
+    expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
+  }, 120_000);
 });
 
 describe('scaling: each v27 A1 reader the CI-line guard exercises grows no faster than linearly', () => {

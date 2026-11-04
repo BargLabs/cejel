@@ -1673,6 +1673,304 @@ export const V6_EXCLUDED: readonly Shape[] = [
   ...NOT_INERT_ENVIRONMENT_EXCLUDED,
 ];
 
+// ---- Seventh pass: #641 and #647 (goal_cejel_v27_b3_gaps) ---------------------------------------
+//
+// A check counts only where the reader follows it to a runner that can fail. Every V7_EXCLUDED
+// fixture marked red was counted by main 4cf09b263; every V7_COUNTED fixture is counted, those
+// marked new being excluded by main. Each credit path this pass keeps has a mutation fixture that
+// changes only the check, so that it cannot fail, without `|| true`. Synthetic files only.
+
+/** A Python release on push to main that installs `tools` by name, then runs `check`. */
+const pythonToolRelease = (tools: string, check: string): string => pythonReleaseWith(`pip install ${tools} build twine`, check);
+
+const JUSTFILE_PYTEST = 'test:\n    pytest\n';
+const TOX_PYTEST = '[tox]\nenv_list = py\nskipsdist = true\n\n[testenv]\ndeps = pytest\ncommands = pytest\n';
+const PDM_SCRIPTS = (scripts: string): string => `${PY_PROJECT}\n[tool.pdm.scripts]\n${scripts}`;
+// Item F (finishing pass): hatch builds and installs the project into an environment that does not
+// set `skip-install = true`, running its build code before the script, so every hatch fixture but
+// the ones that test that sets it.
+const HATCH_SCRIPTS = (scripts: string): string => `[envs.default]\nskip-install = true\n\n[envs.default.scripts]\n${scripts}`;
+const PIPFILE_WITH_SCRIPTS = (scripts: string): string => `${PIPFILE_PLAIN}\n[scripts]\n${scripts}`;
+const JS_JEST = (test: string): Record<string, string> => jsWithScriptsAndDev({ test }, { jest: '29.7.0' });
+
+/** Item A (#641, 1): a task runner credited by name without reading what it runs. */
+export const TASK_RUNNER_EXCLUDED: readonly Shape[] = [
+  ['just-test-recipe-true', 'Excluded (red): `just test`, whose justfile recipe is `@true`.', { ...PY_BASE, justfile: 'test:\n    @true\n', [PUBLISH]: pythonToolRelease('rust-just pytest', 'just test') }],
+  ['just-test-recipe-ignored-error', 'Excluded (red): `just test`, whose recipe line `-pytest` ignores the runner\'s failure.', { ...PY_BASE, justfile: 'test:\n    -pytest\n', [PUBLISH]: pythonToolRelease('rust-just pytest', 'just test') }],
+  ['just-test-dotenv-load', 'Excluded (red): the justfile sets `dotenv-load`, so a committed `.env` reaches pytest.', { ...PY_BASE, justfile: `set dotenv-load\n\n${JUSTFILE_PYTEST}`, '.env': 'PYTEST_ADDOPTS=--co\n', [PUBLISH]: pythonToolRelease('rust-just pytest', 'just test') }],
+  ['tox-commands-python-c-pass', 'Excluded (red): `tox`, whose only environment runs `python -c pass`.', { ...PY_BASE, 'tox.ini': '[tox]\nenv_list = py\nskipsdist = true\n\n[testenv]\ncommands = python -c pass\n', [PUBLISH]: pythonToolRelease('tox', 'tox') }],
+  ['tox-ignore-outcome', 'Excluded (red): `tox`, whose environment sets `ignore_outcome = true`, so a failed pytest is a warning.', { ...PY_BASE, 'tox.ini': TOX_PYTEST.replace('commands = pytest', 'commands = pytest\nignore_outcome = true'), [PUBLISH]: pythonToolRelease('tox', 'tox') }],
+  ['tox-installs-project', 'Excluded (red): `tox` builds and installs the project first, running its build code before pytest.', { ...PY_BASE, 'tox.ini': '[tox]\nenv_list = py\n\n[testenv]\ndeps = pytest\ncommands = pytest\n', [PUBLISH]: pythonToolRelease('tox', 'tox') }],
+  ['nox-unread', 'Excluded (red): `nox`, whose noxfile.py is code Cejel does not read.', { ...PY_BASE, 'noxfile.py': 'import nox\n\n\n@nox.session\ndef tests(session):\n    session.run("python", "-c", "pass")\n', [PUBLISH]: pythonToolRelease('nox', 'nox') }],
+  ['pre-commit-unread', 'Excluded (red): `pre-commit run --all-files`, whose hooks Cejel does not read.', { ...PY_BASE, '.pre-commit-config.yaml': 'repos: []\n', [PUBLISH]: pythonToolRelease('pre-commit', 'pre-commit run --all-files') }],
+  ['turbo-run-test-unread', 'Excluded (red): `turbo run test`, whose turbo.json and package scripts Cejel does not read.', { ...PY_BASE, 'turbo.json': '{ "tasks": { "test": {} } }\n', [PUBLISH]: pythonToolRelease('pytest', 'turbo run test') }],
+  ['gradle-test-unread', 'Excluded (red): `gradle test`, whose build script Cejel does not read.', { ...PY_BASE, 'build.gradle': 'tasks.register("test") {}\n', [PUBLISH]: pythonToolRelease('pytest', 'gradle test') }],
+  ['mvn-verify-unread', 'Excluded (red): `mvn verify`, whose pom.xml Cejel does not read.', { ...PY_BASE, 'pom.xml': '<project></project>\n', [PUBLISH]: pythonToolRelease('pytest', 'mvn verify') }],
+  ['bazel-test-unread', 'Excluded (red): `bazel test //...`, whose BUILD files Cejel does not read.', { ...PY_BASE, 'BUILD.bazel': '', [PUBLISH]: pythonToolRelease('pytest', 'bazel test //...') }],
+  ['make-test-recipe-mvn-test', 'Excluded (red): `make test`, whose recipe runs `mvn test`; pom.xml is not read.', { ...pythonMakeRelease('.PHONY: test\n\ntest:\n\tmvn test\n'), 'pom.xml': '<project></project>\n' }],
+];
+
+/** Item A, the other side: a justfile recipe or a tox environment the reader follows to pytest. */
+export const TASK_RUNNER_COUNTED: readonly Shape[] = [
+  ['just-test-recipe-pytest', 'Counted: `just test`, whose justfile recipe runs pytest.', { ...PY_BASE, justfile: JUSTFILE_PYTEST, [PUBLISH]: pythonToolRelease('rust-just pytest', 'just test') }],
+  ['tox-skipsdist-pytest', 'Counted: `tox`, whose one environment installs pytest by name, not the project, and runs it.', { ...PY_BASE, 'tox.ini': TOX_PYTEST, [PUBLISH]: pythonToolRelease('tox', 'tox') }],
+];
+
+/** Item B (#641, 2): a script alias that runs another command in place of the one named. */
+export const SCRIPT_ALIAS_EXCLUDED: readonly Shape[] = [
+  ['pdm-script-shadows-pytest', 'Excluded (red): `pdm run pytest`, where `[tool.pdm.scripts]` names `pytest` as `python -c pass`.', { ...PY_BASE, 'pyproject.toml': PDM_SCRIPTS('pytest = "python -c pass"\n'), [PUBLISH]: pythonToolRelease('pdm', 'pdm run pytest') }],
+  ['pdm-pre-run-hook', 'Excluded (red): `pdm run pytest`, where a `pre_run` script runs first.', { ...PY_BASE, 'pyproject.toml': PDM_SCRIPTS('pre_run = "python scripts/stub.py"\n'), 'scripts/stub.py': 'open("stub.txt", "w").write("x")\n', [PUBLISH]: pythonToolRelease('pdm', 'pdm run pytest') }],
+  ['hatch-script-shadows-pytest', 'Excluded (red): `hatch run pytest`, where hatch.toml names a default-environment script `pytest`.', { ...PY_BASE, 'hatch.toml': HATCH_SCRIPTS('pytest = "python -c pass"\n'), [PUBLISH]: pythonToolRelease('hatch', 'hatch run pytest') }],
+  ['hatch-script-inherited-shadows-pytest', 'Excluded (excluded by main too, which reads no `env:` prefix): `hatch run test:pytest`, where the `test` environment inherits `default`\'s script `pytest`.', { ...PY_BASE, 'hatch.toml': `${HATCH_SCRIPTS('pytest = "python -c pass"\n')}\n[envs.test]\n`, [PUBLISH]: pythonToolRelease('hatch', 'hatch run test:pytest') }],
+  ['pipenv-script-shadows-pytest', 'Excluded (red): `pipenv run pytest` after a pip install, where the Pipfile `[scripts]` names `pytest` as `true`.', { ...PY_BASE, Pipfile: PIPFILE_WITH_SCRIPTS('pytest = "true"\n'), [PUBLISH]: pythonToolRelease('pipenv pytest', 'pipenv run pytest') }],
+];
+
+/** Item B, the other side: a name that resolves to a script running pytest, or to no script. */
+export const SCRIPT_ALIAS_COUNTED: readonly Shape[] = [
+  ['pdm-script-runs-pytest', 'Counted (new): `pdm run test`, where `[tool.pdm.scripts]` names `test` as `pytest -q`.', { ...PY_BASE, 'pyproject.toml': PDM_SCRIPTS('test = "pytest -q"\n'), [PUBLISH]: pythonToolRelease('pdm', 'pdm run test') }],
+  ['pdm-no-script-pytest', 'Counted: `pdm run pytest`, where pyproject.toml names no pdm script, so pdm runs pytest.', { ...PY_BASE, [PUBLISH]: pythonToolRelease('pdm', 'pdm run pytest') }],
+  ['hatch-script-runs-pytest', 'Counted (new): `hatch run test`, where hatch.toml names `test` as `pytest`.', { ...PY_BASE, 'hatch.toml': HATCH_SCRIPTS('test = "pytest"\n'), [PUBLISH]: pythonToolRelease('hatch', 'hatch run test') }],
+  ['pipenv-script-runs-pytest', 'Counted (new): `pipenv run test`, where the Pipfile `[scripts]` names `test` as `pytest`.', { ...PY_BASE, Pipfile: PIPFILE_WITH_SCRIPTS('test = "pytest"\n'), [PUBLISH]: pythonToolRelease('pipenv pytest', 'pipenv run test') }],
+];
+
+/** Item C (#641, 3): a flag with which a known runner exits 0 whatever its tests do. */
+export const RUNNER_FLAG_EXCLUDED: readonly Shape[] = [
+  ['jest-list-tests', 'Excluded (red): `jest --listTests` lists the test files and exits 0.', { ...JS_JEST('jest'), [RELEASE]: releaseAfterInstall(`      - run: jest --listTests\n${NPM_PUBLISH}`) }],
+  ['pytest-fixtures-flag', 'Excluded (red): `pytest --fixtures` lists fixtures and runs no test.', { ...PY_BASE, [PUBLISH]: pythonPlainRelease('pytest --fixtures') }],
+  ['mocha-dry-run', 'Excluded (red): `mocha --dry-run` reports every test as passed without running it.', { ...jsWithScriptsAndDev({ test: 'mocha' }, { mocha: '10.7.3' }), [RELEASE]: releaseAfterInstall(`      - run: mocha --dry-run\n${NPM_PUBLISH}`) }],
+  ['go-test-run-filter', 'Excluded (red): `go test -run NoSuchTest ./...` runs no test and exits 0.', { ...PY_BASE, 'go.mod': 'module example.invalid/tint\n\ngo 1.22\n', [PUBLISH]: pythonPlainRelease('go test -run NoSuchTest ./...') }],
+  ['cargo-nextest-list', 'Excluded (red): `cargo nextest list` lists the tests and runs none.', { ...PY_BASE, [PUBLISH]: pythonPlainRelease('cargo nextest list') }],
+  ['test-script-vitest-list', 'Excluded (red): the test script is `vitest list`, which lists the tests and runs none.', { ...jsWithScriptsAndDev({ test: 'vitest list' }, { vitest: '2.1.9' }), [RELEASE]: releaseAfterInstall(`      - run: npm test\n${NPM_PUBLISH}`) }],
+  ['test-script-jest-pass-with-no-tests-equivalent', 'Excluded (red): the test script is `jest --onlyChanged`, which runs no test on a clean checkout and exits 0.', { ...JS_JEST('jest --onlyChanged'), [RELEASE]: releaseAfterInstall(`      - run: npm test\n${NPM_PUBLISH}`) }],
+];
+
+/** Item C, the other side: listed flags, and words after npm's `--` read against the script's runner. */
+export const RUNNER_FLAG_COUNTED: readonly Shape[] = [
+  ['pytest-listed-flags', 'Counted: `pytest -q -x --tb=short tests`; each flag keeps a failed test failing.', { ...PY_BASE, [PUBLISH]: pythonPlainRelease('pytest -q -x --tb=short tests') }],
+  ['npm-test-separator-run-in-band', 'Counted (new): `npm test -- --runInBand`, appended to the test script `jest`, a listed flag.', { ...JS_JEST('jest'), [RELEASE]: releaseAfterInstall(`      - run: npm test -- --runInBand\n${NPM_PUBLISH}`) }],
+];
+
+/** Item D (#641, 4): an install that runs another directory's manifest. */
+export const INSTALL_DIRECTORY_EXCLUDED: readonly Shape[] = [
+  [
+    'working-directory-install-runs-postinstall',
+    'Excluded (red): `npm ci` runs with `working-directory: pkg`, whose package.json has a `postinstall` script; the root package.json has none.',
+    {
+      ...PY_BASE,
+      'package.json': `${JSON.stringify({ name: 'signer-tools', version: '1.0.0', private: true }, null, 2)}\n`,
+      'pkg/package.json': `${JSON.stringify({ name: 'pkg', version: '1.0.0', scripts: { postinstall: 'node ../scripts/stub.js' } }, null, 2)}\n`,
+      'scripts/stub.js': "import { writeFileSync } from 'node:fs';\nwriteFileSync('stub.txt', 'x');\n",
+      [PUBLISH]: pythonPlainRelease('pytest').replace('      - run: pip install pytest build twine\n', '      - run: pip install pytest build twine\n      - run: npm ci\n        working-directory: pkg\n'),
+    },
+  ],
+];
+
+/** Item E (#647): `python -m X`, where the repository holds a module X that Python imports first. */
+export const REPOSITORY_MODULE_EXCLUDED: readonly Shape[] = [
+  [
+    'python-m-pytest-repo-package',
+    'Excluded (red): `python -m pytest` with a committed `pytest/__main__.py` that exits 0; the install names no package of that name, which pip would read as the directory.',
+    { ...PY_BASE, 'pytest/__init__.py': '', 'pytest/__main__.py': 'raise SystemExit(0)\n', [PUBLISH]: pythonToolRelease('nose2', 'python -m pytest') },
+  ],
+  ['python-m-pytest-repo-module-file', 'Excluded (red): `python -m pytest` with a committed `pytest.py` that exits 0.', { ...PY_BASE, 'pytest.py': 'raise SystemExit(0)\n', [PUBLISH]: pythonPlainRelease('python -m pytest') }],
+  ['python-m-pytest-repo-module-other-case', 'Excluded (red): `python -m pytest` with a committed `PyTest.py`, which a case-insensitive file system imports as pytest.', { ...PY_BASE, 'PyTest.py': 'raise SystemExit(0)\n', [PUBLISH]: pythonPlainRelease('python -m pytest') }],
+  [
+    'python-m-unittest-repo-package',
+    'Excluded (red): `make test`, whose recipe runs `python -m unittest`, with a committed `unittest/__main__.py`.',
+    { ...pythonMakeRelease('.PHONY: test\n\ntest:\n\tpython -m unittest\n'), 'unittest/__init__.py': '', 'unittest/__main__.py': 'raise SystemExit(0)\n' },
+  ],
+  ['make-test-python-m-pytest-repo-module', 'Excluded (red): `make test`, whose recipe runs `python -m pytest`, with a committed `pytest.py`.', { ...pythonMakeRelease('.PHONY: test\n\ntest:\n\tpython -m pytest\n'), 'pytest.py': 'raise SystemExit(0)\n' }],
+  ['python-m-mypy-repo-module', 'Excluded (red): `python -m mypy .` with a committed `mypy.py`.', { ...PY_BASE, 'mypy.py': 'raise SystemExit(0)\n', [PUBLISH]: pythonPlainRelease('python -m mypy .') }],
+];
+
+/** Item E, the other side: `python -m pytest` beside `pytest.ini`, which Python does not import. */
+export const REPOSITORY_MODULE_COUNTED: readonly Shape[] = [
+  ['python-m-pytest-beside-pytest-ini', 'Counted: `python -m pytest` with a `pytest.ini`, which is no module.', { ...PY_BASE, 'pytest.ini': '[pytest]\n', [PUBLISH]: pythonPlainRelease('python -m pytest') }],
+];
+
+/**
+ * Item F: for each credit path this pass keeps, the counted fixture with only its check changed so
+ * that it cannot fail, without `|| true`. Each is excluded.
+ */
+export const SEVENTH_PASS_MUTATION_EXCLUDED: readonly Shape[] = [
+  ['just-test-recipe-pytest-fixtures', 'Excluded: as just-test-recipe-pytest, with the recipe `pytest --fixtures`.', { ...PY_BASE, justfile: 'test:\n    pytest --fixtures\n', [PUBLISH]: pythonToolRelease('rust-just pytest', 'just test') }],
+  ['tox-skipsdist-pytest-fixtures', 'Excluded: as tox-skipsdist-pytest, with the command `pytest --fixtures`.', { ...PY_BASE, 'tox.ini': TOX_PYTEST.replace('commands = pytest', 'commands = pytest --fixtures'), [PUBLISH]: pythonToolRelease('tox', 'tox') }],
+  ['pdm-script-runs-pytest-fixtures', 'Excluded: as pdm-script-runs-pytest, with the script `pytest --fixtures`.', { ...PY_BASE, 'pyproject.toml': PDM_SCRIPTS('test = "pytest --fixtures"\n'), [PUBLISH]: pythonToolRelease('pdm', 'pdm run test') }],
+  ['pdm-no-script-pytest-fixtures', 'Excluded: as pdm-no-script-pytest, with `pdm run pytest --fixtures`.', { ...PY_BASE, [PUBLISH]: pythonToolRelease('pdm', 'pdm run pytest --fixtures') }],
+  ['hatch-script-runs-pytest-fixtures', 'Excluded: as hatch-script-runs-pytest, with the script `pytest --fixtures`.', { ...PY_BASE, 'hatch.toml': HATCH_SCRIPTS('test = "pytest --fixtures"\n'), [PUBLISH]: pythonToolRelease('hatch', 'hatch run test') }],
+  ['pipenv-script-runs-pytest-fixtures', 'Excluded: as pipenv-script-runs-pytest, with the script `pytest --fixtures`.', { ...PY_BASE, Pipfile: PIPFILE_WITH_SCRIPTS('test = "pytest --fixtures"\n'), [PUBLISH]: pythonToolRelease('pipenv pytest', 'pipenv run test') }],
+  ['pytest-listed-flags-fixtures', 'Excluded: as pytest-listed-flags, with `--fixtures` added.', { ...PY_BASE, [PUBLISH]: pythonPlainRelease('pytest -q -x --tb=short --fixtures tests') }],
+  ['npm-test-separator-list-tests', 'Excluded: as npm-test-separator-run-in-band, with `npm test -- --listTests`.', { ...JS_JEST('jest'), [RELEASE]: releaseAfterInstall(`      - run: npm test -- --listTests\n${NPM_PUBLISH}`) }],
+  ['python-m-pytest-beside-pytest-ini-fixtures', 'Excluded: as python-m-pytest-beside-pytest-ini, with `python -m pytest --fixtures`.', { ...PY_BASE, 'pytest.ini': '[pytest]\n', [PUBLISH]: pythonPlainRelease('python -m pytest --fixtures') }],
+];
+
+// ---- Item F, completed (finishing pass on #657) ---------------------------------------------------
+//
+// Item C keeps a credit path for every runner and check in CHECK_FORMS, item B for a hatch script
+// reached through an environment's inheritance or written as a list, and for `pipenv run` of a name
+// with no script. For each, a counted control and the same fixture with only the check changed so
+// that it cannot fail, without `|| true`. Two were credited at 5d9af3ef8, marked red: `go test
+// -count=0` (`-count` was admitted with any value) and a hatch environment that installs the
+// project, running its build code before the script. Synthetic files only.
+
+const GO_MOD = 'module example.invalid/tint\n\ngo 1.22\n';
+/** A Python release (the base package) whose check line is `check`, beside a go.mod. */
+const goRelease = (check: string): Record<string, string> => ({ ...PY_BASE, 'go.mod': GO_MOD, [PUBLISH]: pythonPlainRelease(check) });
+/** A Python release (the base package) whose check line is `check`. */
+const pyLine = (check: string): Record<string, string> => ({ ...PY_BASE, [PUBLISH]: pythonPlainRelease(check) });
+/** A JavaScript release of `pkg` whose check line, after `npm ci`, is `check`. */
+const jsLine = (pkg: Record<string, string>, check: string): Record<string, string> => ({ ...pkg, [RELEASE]: releaseAfterInstall(`      - run: ${check}\n${NPM_PUBLISH}`) });
+/** A JavaScript release whose test script is `test`, run as `npm test` after `npm ci`. */
+const jsTestScript = (test: string, dev: Record<string, string>): Record<string, string> => jsLine(jsWithScriptsAndDev({ test }, dev), 'npm test');
+const VITEST_PACKAGE = jsWithScriptsAndDev({ test: 'vitest run' }, { vitest: '2.1.9' });
+const MOCHA_PACKAGE = jsWithScriptsAndDev({ test: 'mocha' }, { mocha: '10.7.3' });
+const HATCH_INHERITED = (script: string): string => `${HATCH_SCRIPTS(`test = "${script}"\n`)}\n[envs.ci]\n`;
+const HATCH_LIST = (last: string): string => HATCH_SCRIPTS(`test = ["ruff check .", "${last}"]\n`);
+const UNITTEST_MAKEFILE = (recipe: string): string => `.PHONY: test\n\ntest:\n\t${recipe}\n`;
+
+/** Item F: a counted control for each credit path that had none. */
+export const MUTATION_CONTROLS_COUNTED: readonly Shape[] = [
+  ['go-test-all', 'Counted: `go test ./...`.', goRelease('go test ./...')],
+  ['cargo-test-workspace', 'Counted: `cargo test --workspace`.', pyLine('cargo test --workspace')],
+  ['cargo-nextest-run', 'Counted: `cargo nextest run`.', pyLine('cargo nextest run')],
+  ['cargo-clippy-deny-warnings', 'Counted: `cargo clippy -- -D warnings`.', pyLine('cargo clippy -- -D warnings')],
+  ['dotnet-test', 'Counted: `dotnet test`.', pyLine('dotnet test')],
+  ['rspec-plain', 'Counted: `rspec`.', pyLine('rspec')],
+  ['phpunit-plain', 'Counted: `phpunit`.', pyLine('phpunit')],
+  ['jest-ci-line', 'Counted: `jest --ci` on the check line.', jsLine(JS_JEST('jest'), 'jest --ci')],
+  ['vitest-run-line', 'Counted: `vitest run` on the check line.', jsLine(VITEST_PACKAGE, 'vitest run')],
+  ['mocha-line', 'Counted: `mocha` on the check line.', jsLine(MOCHA_PACKAGE, 'mocha')],
+  ['node-test-line', 'Counted: `node --test` on the check line.', jsLine(JS_JEST('jest'), 'node --test')],
+  ['tsc-no-emit-line', 'Counted: `tsc --noEmit` on the check line.', jsLine(JS_JEST('jest'), 'tsc --noEmit')],
+  ['pyright-line', 'Counted: `pyright` on the check line.', pyLine('pyright')],
+  ['yarn-test-run-in-band', 'Counted: `yarn test --runInBand`, which yarn appends to the test script `jest`.', jsLine(JS_JEST('jest'), 'yarn test --runInBand')],
+  ['pnpm-test-run-in-band', 'Counted: `pnpm test --runInBand`, which pnpm appends to the test script `jest`.', jsLine(JS_JEST('jest'), 'pnpm test --runInBand')],
+  ['test-script-go-test', 'Counted: the test script is `go test ./...`.', jsTestScript('go test ./...', {})],
+  ['test-script-deno-test', 'Counted: the test script is `deno test -A`.', jsTestScript('deno test -A', {})],
+  ['test-script-bun-test', 'Counted: the test script is `bun test`.', jsTestScript('bun test', {})],
+  ['test-script-playwright-test', 'Counted: the test script is `playwright test`.', jsTestScript('playwright test', { '@playwright/test': '1.48.2' })],
+  ['test-script-karma-single-run', 'Counted: the test script is `karma start --single-run`.', jsTestScript('karma start --single-run', { karma: '6.4.4' })],
+  ['test-script-tsx-test', 'Counted: the test script is `tsx --test`.', jsTestScript('tsx --test', { tsx: '4.19.2' })],
+  ['test-script-lab', 'Counted: the test script is `lab`.', jsTestScript('lab', { '@hapi/lab': '25.3.1' })],
+  ['test-script-ts-mocha', 'Counted: the test script is `ts-mocha`.', jsTestScript('ts-mocha', { 'ts-mocha': '10.0.0' })],
+  ['make-test-python-m-unittest', 'Counted: `make test`, whose recipe runs `python -m unittest -v`.', pythonMakeRelease(UNITTEST_MAKEFILE('python -m unittest -v'))],
+  ['hatch-inherited-script-runs-pytest', 'Counted (new): `hatch run ci:test`, where the `ci` environment inherits `default`\'s script `test`, `pytest`.', { ...PY_BASE, 'hatch.toml': HATCH_INHERITED('pytest'), [PUBLISH]: pythonToolRelease('hatch', 'hatch run ci:test') }],
+  ['hatch-script-list-ruff-then-pytest', 'Counted (new): `hatch run test`, whose script is the list `ruff check .`, `pytest`.', { ...PY_BASE, 'hatch.toml': HATCH_LIST('pytest'), [PUBLISH]: pythonToolRelease('hatch', 'hatch run test') }],
+];
+
+/** Item F: each control above, and the counted fixtures named, with only the check changed so that it cannot fail. */
+export const MUTATION_REST_EXCLUDED: readonly Shape[] = [
+  ['go-test-count-zero', 'Excluded (red): as go-test-all, with `-count=0`, which runs every test zero times and exits 0.', goRelease('go test -count=0 ./...')],
+  ['go-test-count-zero-spaced', 'Excluded (red): as go-test-all, with `-count 0`.', goRelease('go test -count 0 ./...')],
+  ['test-script-go-test-count-zero', 'Excluded (red): as test-script-go-test, with `-count=0`.', jsTestScript('go test -count=0 ./...', {})],
+  ['cargo-test-no-run', 'Excluded: as cargo-test-workspace, with `--no-run`, which builds the tests and runs none.', pyLine('cargo test --no-run')],
+  ['cargo-nextest-run-no-tests-pass', 'Excluded: as cargo-nextest-run, running only ignored tests and passing when there are none.', pyLine('cargo nextest run --no-tests=pass --run-ignored only')],
+  ['cargo-clippy-cap-lints-warn', 'Excluded: as cargo-clippy-deny-warnings, with every lint capped at a warning.', pyLine('cargo clippy -- --cap-lints warn')],
+  ['dotnet-test-list-tests', 'Excluded: as dotnet-test, with `--list-tests`, which lists the tests and runs none.', pyLine('dotnet test --list-tests')],
+  ['ctest-show-only', 'Excluded: as ctest-output-on-failure, with `-N`, which lists the tests and runs none.', pyLine('ctest -N')],
+  ['rspec-dry-run', 'Excluded: as rspec-plain, with `--dry-run`, which reports every example passed without running it.', pyLine('rspec --dry-run')],
+  ['phpunit-list-tests', 'Excluded: as phpunit-plain, with `--list-tests`.', pyLine('phpunit --list-tests')],
+  ['jest-test-name-pattern-none', 'Excluded: as jest-ci-line, with `-t zzz`, which skips every test whose name does not match.', jsLine(JS_JEST('jest'), 'jest -t zzz')],
+  ['vitest-list-line', 'Excluded: as vitest-run-line, with `vitest list`, which lists the tests and runs none.', jsLine(VITEST_PACKAGE, 'vitest list')],
+  ['mocha-grep-none', 'Excluded: as mocha-line, with `--grep zzz`, which runs no test and exits 0.', jsLine(MOCHA_PACKAGE, 'mocha --grep zzz')],
+  ['node-test-name-pattern-none', 'Excluded: as node-test-line, with a name pattern no test matches.', jsLine(JS_JEST('jest'), 'node --test --test-name-pattern=zzz')],
+  ['tsc-list-files-only', 'Excluded: as tsc-no-emit-line, with `--listFilesOnly`, which lists the files and checks none.', jsLine(JS_JEST('jest'), 'tsc --noEmit --listFilesOnly')],
+  ['pyright-createstub', 'Excluded: as pyright-line, with `--createstub`, which writes a stub and checks nothing.', pyLine('pyright --createstub signer')],
+  ['yarn-test-list-tests', 'Excluded: as yarn-test-run-in-band, with `--listTests` appended to jest.', jsLine(JS_JEST('jest'), 'yarn test --listTests')],
+  ['pnpm-test-list-tests', 'Excluded: as pnpm-test-run-in-band, with `--listTests` appended to jest.', jsLine(JS_JEST('jest'), 'pnpm test --listTests')],
+  ['test-script-deno-no-run', 'Excluded: as test-script-deno-test, with `--no-run`, which type-checks and runs no test.', jsTestScript('deno test --no-run', {})],
+  ['test-script-bun-pass-with-no-tests', 'Excluded: as test-script-bun-test, with a name filter no test matches and `--pass-with-no-tests`.', jsTestScript('bun test --pass-with-no-tests -t zzz', {})],
+  ['test-script-playwright-list', 'Excluded: as test-script-playwright-test, with `--list`.', jsTestScript('playwright test --list', { '@playwright/test': '1.48.2' })],
+  ['test-script-karma-no-fail-on-failing', 'Excluded: as test-script-karma-single-run, with failure on a failing suite turned off.', jsTestScript('karma start --single-run --no-fail-on-failing-test-suite', { karma: '6.4.4' })],
+  ['test-script-tsx-name-pattern-none', 'Excluded: as test-script-tsx-test, with a name pattern no test matches.', jsTestScript('tsx --test --test-name-pattern=zzz', { tsx: '4.19.2' })],
+  ['test-script-lab-dry', 'Excluded: as test-script-lab, with `--dry`, which skips every test.', jsTestScript('lab --dry', { '@hapi/lab': '25.3.1' })],
+  ['test-script-ts-mocha-dry-run', 'Excluded: as test-script-ts-mocha, with `--dry-run`.', jsTestScript('ts-mocha --dry-run', { 'ts-mocha': '10.0.0' })],
+  ['test-script-uvu-ignore-all', 'Excluded: as the base package\'s `uvu test`, with `-i .`, which ignores every file.', jsTestScript('uvu test -i .', { uvu: '0.5.6' })],
+  ['make-test-python-m-unittest-k-none', 'Excluded: as make-test-python-m-unittest, with `-k zzz`, which selects no test (before Python 3.12, unittest then exits 0).', pythonMakeRelease(UNITTEST_MAKEFILE('python -m unittest -k zzz'))],
+  ['pipenv-no-script-pytest-co', 'Excluded: as pipenv-install-plain-pipfile, with `pipenv run pytest --co`.', { ...PY_BASE, Pipfile: PIPFILE_PLAIN, 'Pipfile.lock': PIPFILE_LOCK_PLAIN, [PUBLISH]: pipenvRelease('pipenv run pytest --co') }],
+  ['hatch-inherited-script-pytest-co', 'Excluded: as hatch-inherited-script-runs-pytest, with the script `pytest --co`.', { ...PY_BASE, 'hatch.toml': HATCH_INHERITED('pytest --co'), [PUBLISH]: pythonToolRelease('hatch', 'hatch run ci:test') }],
+  ['hatch-script-list-pytest-co', 'Excluded: as hatch-script-list-ruff-then-pytest, with `pytest --co` last.', { ...PY_BASE, 'hatch.toml': HATCH_LIST('pytest --co'), [PUBLISH]: pythonToolRelease('hatch', 'hatch run test') }],
+  [
+    'hatch-script-installs-project',
+    'Excluded (red): as hatch-script-runs-pytest without `skip-install`, so hatch builds and installs the project, running its setup.py, before pytest.',
+    { ...PY_BASE, 'hatch.toml': '[envs.default.scripts]\ntest = "pytest"\n', 'setup.py': 'from setuptools import setup\n\nopen("stub.txt", "w").write("x")\nsetup()\n', [PUBLISH]: pythonToolRelease('hatch', 'hatch run test') },
+  ],
+  ['hatch-no-script-installs-project', 'Excluded (red): `hatch run pytest` with no hatch configuration, so hatch installs the project before pytest.', { ...PY_BASE, [PUBLISH]: pythonToolRelease('hatch pytest', 'hatch run pytest') }],
+];
+
+// ---- Review of #657 at 26ad2484f: six false-credit blockers and two should-fix items -------------
+//
+// Each was credited at b22a5f0f2 (marked red); each counted control named is still counted.
+
+const TOX_HEADER = '[tox]\nenv_list = py\nskipsdist = true\n\n[testenv]\n';
+
+/** The review of #657: checks credited that cannot fail, and install shapes that run repository code. */
+export const REVIEW_657_EXCLUDED: readonly Shape[] = [
+  // Blocker 1: a value flag takes the next word only where it does not start with `-`.
+  ['jest-short-workers-swallows-list-tests', 'Excluded (red): as jest-ci-line, with `jest -w --listTests`; jest takes no `-`-word as a value, so it lists the tests and exits 0.', jsLine(JS_JEST('jest'), 'jest -w --listTests')],
+  ['jest-max-workers-swallows-list-tests', 'Excluded (red): as jest-ci-line, with `jest --maxWorkers --listTests`.', jsLine(JS_JEST('jest'), 'jest --maxWorkers --listTests')],
+  ['jest-test-timeout-swallows-list-tests', 'Excluded (red): as jest-ci-line, with `jest --testTimeout --listTests`.', jsLine(JS_JEST('jest'), 'jest --testTimeout --listTests')],
+  ['npm-test-separator-workers-list-tests', 'Excluded (red): as npm-test-separator-run-in-band, with `npm test -- -w --listTests`.', jsLine(JS_JEST('jest'), 'npm test -- -w --listTests')],
+  // Blocker 2: pytest reads arguments from an `@` file.
+  ['pytest-argument-file', 'Excluded (red): as pytest-listed-flags, with `pytest @ci.args`, where ci.args holds `--co`.', { ...PY_BASE, 'ci.args': '--co\n', [PUBLISH]: pythonPlainRelease('pytest @ci.args') }],
+  ['just-recipe-pytest-argument-file', 'Excluded (red): as just-test-recipe-pytest, with the recipe `pytest @ci.args`.', { ...PY_BASE, 'ci.args': '--co\n', justfile: 'test:\n    pytest @ci.args\n', [PUBLISH]: pythonToolRelease('rust-just pytest', 'just test') }],
+  // Blocker 3: configparser reads an indented line straight after a section header as a key.
+  ['tox-indented-ignore-outcome-after-header', 'Excluded (red): as tox-skipsdist-pytest, with `  ignore_outcome = true` indented straight after `[testenv]`.', { ...PY_BASE, 'tox.ini': `${TOX_HEADER}  ignore_outcome = true\ndeps = pytest\ncommands = pytest\n`, [PUBLISH]: pythonToolRelease('tox', 'tox') }],
+  ['tox-indented-commands-pre-after-header', 'Excluded (red): as tox-skipsdist-pytest, with `  commands_pre = python scripts/stub.py` indented straight after `[testenv]`.', { ...PY_BASE, 'scripts/stub.py': 'open("stub.txt", "w").write("x")\n', 'tox.ini': `${TOX_HEADER}  commands_pre = python scripts/stub.py\ndeps = pytest\ncommands = pytest\n`, [PUBLISH]: pythonToolRelease('tox', 'tox') }],
+  // Blocker 4: a TOML key written with an escape names the script it decodes to.
+  ['pdm-escaped-key-shadows-pytest', 'Excluded (red): as pdm-script-shadows-pytest, with the key written `"py\\u0074est"`.', { ...PY_BASE, 'pyproject.toml': PDM_SCRIPTS('"py\\u0074est" = "python -c pass"\n'), [PUBLISH]: pythonToolRelease('pdm', 'pdm run pytest') }],
+  ['pipenv-escaped-key-shadows-pytest', 'Excluded (red): as pipenv-script-shadows-pytest, with the key written `"py\\u0074est"`.', { ...PY_BASE, Pipfile: PIPFILE_WITH_SCRIPTS('"py\\u0074est" = "true"\n'), [PUBLISH]: pythonToolRelease('pipenv pytest', 'pipenv run pytest') }],
+  ['hatch-escaped-key-shadows-pytest', 'Excluded (red): as hatch-script-shadows-pytest, with the key written `"py\\u0074est"`.', { ...PY_BASE, 'hatch.toml': HATCH_SCRIPTS('"py\\u0074est" = "python -c pass"\n'), [PUBLISH]: pythonToolRelease('hatch', 'hatch run pytest') }],
+  ['pdm-escaped-shared-options-env-file', 'Excluded (red): `pdm run pytest`, with shared options written `"\\u005f".env_file = ".env"` and a `.env` setting PYTEST_ADDOPTS.', { ...PY_BASE, '.env': 'PYTEST_ADDOPTS=--co\n', 'pyproject.toml': PDM_SCRIPTS('"\\u005f".env_file = ".env"\n'), [PUBLISH]: pythonToolRelease('pdm', 'pdm run pytest') }],
+  // Blocker 5: `python -m pytest` imports pytest's own modules and the standard library from the directory first.
+  ['python-m-pytest-repo-underscore-pytest', 'Excluded (red): `python -m pytest` with a committed `_pytest/__init__.py`, which pytest imports.', { ...PY_BASE, '_pytest/__init__.py': 'raise SystemExit(0)\n', [PUBLISH]: pythonPlainRelease('python -m pytest') }],
+  ['python-m-pytest-repo-stdlib-module', 'Excluded (red): `python -m pytest` with a committed `argparse.py`, which pytest imports from the standard library.', { ...PY_BASE, 'argparse.py': 'raise SystemExit(0)\n', [PUBLISH]: pythonPlainRelease('python -m pytest') }],
+  // Blocker 6: ctest with no CMake configuration that defines tests runs none and exits 0.
+  ['ctest-output-on-failure', 'Excluded (red; was a counted control): `ctest --output-on-failure` in a repository with no CMake configuration, so it runs no test and exits 0.', pyLine('ctest --output-on-failure')],
+  // Should-fix: hatch.toml beside a pyproject.toml that configures hatch.
+  ['hatch-toml-beside-pyproject-skip-install', 'Excluded (red): `hatch run test`, with the script in hatch.toml and `skip-install` only in pyproject.toml.', { ...PY_BASE, 'pyproject.toml': `${PY_PROJECT}\n[tool.hatch.envs.default]\nskip-install = true\n`, 'hatch.toml': '[envs.default.scripts]\ntest = "pytest"\n', [PUBLISH]: pythonToolRelease('hatch', 'hatch run test') }],
+  // Should-fix: an npm workspace package's lifecycle script runs at the root install.
+  [
+    'npm-workspace-package-postinstall',
+    'Excluded (red): `npm ci` at a root whose `workspaces` lists `pkg`, whose package.json has a `postinstall` script.',
+    {
+      ...jsLine(jsWithScriptsAndDev({ test: 'uvu test' }, { uvu: '0.5.6' }), 'npm test'),
+      'package.json': `${JSON.stringify({ name: 'tint', version: '1.0.0', main: 'index.js', workspaces: ['pkg'], scripts: { test: 'uvu test' }, devDependencies: { uvu: '0.5.6' } }, null, 2)}\n`,
+      'pkg/package.json': `${JSON.stringify({ name: 'pkg', version: '1.0.0', scripts: { postinstall: 'node ../scripts/stub.js' } }, null, 2)}\n`,
+      'scripts/stub.js': "import { writeFileSync } from 'node:fs';\nwriteFileSync('stub.txt', 'x');\n",
+    },
+  ],
+  // #641's comment: a runner installed from the repository.
+  [
+    'uvu-file-dependency',
+    'Excluded (red): the test script `uvu test`, where package.json installs uvu from `file:./stub`.',
+    {
+      ...jsLine(jsWithScriptsAndDev({ test: 'uvu test' }, { uvu: 'file:./stub' }), 'npm test'),
+      'stub/package.json': `${JSON.stringify({ name: 'uvu', version: '0.0.0', bin: { uvu: 'bin.js' } }, null, 2)}\n`,
+      'stub/bin.js': '#!/usr/bin/env node\n',
+    },
+  ],
+];
+
+/** This pass's counted and excluded shapes, in the order the tests read them. */
+export const V7_COUNTED: readonly Shape[] = [
+  ...TASK_RUNNER_COUNTED,
+  ...SCRIPT_ALIAS_COUNTED,
+  ...RUNNER_FLAG_COUNTED,
+  ...REPOSITORY_MODULE_COUNTED,
+  ...MUTATION_CONTROLS_COUNTED,
+];
+export const V7_EXCLUDED: readonly Shape[] = [
+  ...TASK_RUNNER_EXCLUDED,
+  ...SCRIPT_ALIAS_EXCLUDED,
+  ...RUNNER_FLAG_EXCLUDED,
+  ...INSTALL_DIRECTORY_EXCLUDED,
+  ...REPOSITORY_MODULE_EXCLUDED,
+  ...SEVENTH_PASS_MUTATION_EXCLUDED,
+  ...MUTATION_REST_EXCLUDED,
+  ...REVIEW_657_EXCLUDED,
+];
+
 function fixture(name: string, purpose: string, files: Record<string, string>): FalseAssuranceFixture {
   return { name, issue: '#517', purpose, commits: [files] };
 }
@@ -1705,9 +2003,15 @@ export const V6_FIXTURES: readonly FalseAssuranceFixture[] = [...V6_COUNTED, ...
   fixture(name, purpose, files),
 );
 
+export const V7_FIXTURES: readonly FalseAssuranceFixture[] = [...V7_COUNTED, ...V7_EXCLUDED].map(([name, purpose, files]) =>
+  fixture(name, purpose, files),
+);
+
 /** The publishing workflow each fixture adds. */
 export const publishingFile = (name: string): string => {
   const shape = [
+    ...V7_COUNTED,
+    ...V7_EXCLUDED,
     ...V6_COUNTED,
     ...V6_EXCLUDED,
     ...V5_COUNTED,

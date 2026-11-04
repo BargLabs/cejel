@@ -46,6 +46,13 @@ import { FALSE_ASSURANCE_FIXTURES, buildFalseAssuranceFixture } from './fixtures
 // afterwards. To re-capture after a deliberate certificate change, repeat that against the main
 // that holds the change.
 //
+// Re-captured once, for #657 (v27 B3 seventh pass), whose v27 glossary sentence and B3 metric
+// description change every v27 certificate on purpose: this file was copied unchanged into a
+// detached worktree of #657's head e1050b8bd (main 3fd17ea56 plus #657, before #654's first page
+// was merged into it) and run there in capture mode. All 322 v17 digests and the 9 full v17 pins
+// came out byte-identical; the 322 v27 digests and 9 full v27 pins changed only in those two
+// texts; report-attestation-sha256.json was unchanged.
+//
 // Fixtures are scored with no ingested files, the same product name and a fixed generatedAt and
 // CLI version, so the bytes depend only on the fixture and the code. One fixture is left out:
 // a false-assurance fixture with symlinksToHostDirectory commits a symlink whose target is a fresh
