@@ -237,11 +237,12 @@ const NO_MEASUREMENT_COVERAGE_PATTERN = new RegExp(
 // A history abstention's reason names the rubric it ran under (operator ruling of 2 Nov), so its
 // pattern matches the reason for any rubric id: v27's 1 Nov wording exactly, and every other
 // rubric's wording with its id.
-function rubricReasonPattern(reasonFor: (rubricVersion: string) => string): RegExp {
+function rubricReasonPattern(reasonFor: (rubricVersion: string, v27Wording: boolean) => string): RegExp {
   const placeholder = '\u0000rubric\u0000';
-  const alternatives = [WITAN_RUBRIC_VERSION_V27, placeholder].map((rubricVersion) =>
-    escapeRegExp(reasonFor(rubricVersion)).replace(placeholder, 'witan-rubric-[a-z0-9.-]+'),
-  );
+  const alternatives = [
+    escapeRegExp(reasonFor(WITAN_RUBRIC_VERSION_V27, true)),
+    escapeRegExp(reasonFor(placeholder, false)).replace(placeholder, 'witan-rubric-[a-z0-9.-]+'),
+  ];
   return new RegExp(`^(?:${alternatives.join('|')})$`);
 }
 

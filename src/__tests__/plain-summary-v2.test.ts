@@ -326,8 +326,8 @@ describe('blocker 2: every insufficient-source reason the engine emits gets its 
       ['shallow-history', WITAN_V27_SHALLOW_HISTORY_REASON],
       ['history-depth-unknown', WITAN_V27_HISTORY_DEPTH_UNKNOWN_REASON],
       // Operator ruling of 2 Nov: every rubric gives these reasons, naming the rubric it ran under.
-      ['shallow-history', shallowHistoryAbstentionReason(WITAN_RUBRIC_VERSION_V17)],
-      ['history-depth-unknown', historyDepthUnknownAbstentionReason(WITAN_RUBRIC_VERSION_V17)],
+      ['shallow-history', shallowHistoryAbstentionReason(WITAN_RUBRIC_VERSION_V17, false)],
+      ['history-depth-unknown', historyDepthUnknownAbstentionReason(WITAN_RUBRIC_VERSION_V17, false)],
       ['no-git-history', noGitHistoryAbstentionReason(WITAN_RUBRIC_VERSION_V17)],
       ['no-git-history', noGitHistoryAbstentionReason(WITAN_RUBRIC_VERSION_V27)],
     ];

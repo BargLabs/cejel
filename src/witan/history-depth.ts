@@ -38,14 +38,16 @@ export const SHALLOW_HISTORY_FETCH_INSTRUCTION =
   'example fetch-depth: 0 in actions/checkout), then scan again.';
 
 /**
- * What a scan's history abstention says about the composite, worded per rubric. Under
- * witan-rubric-v27-prospective-2026-10-19 the 1 Nov reasons say the composite "could fall below"
- * the full clone's, the case that ruling was about, and their bytes are unchanged. Under every other
- * rubric (operator ruling of 2 Nov) a truncated history can also raise it: A2 on a depth-1 clone
- * cannot see a secret committed and later deleted.
+ * What a scan's history abstention says about the composite. `v27Wording` is the v27 gate's answer
+ * for the rubric that ran (usesV27FalseAssuranceClosure in repo-signals.ts, the one place a rubric is
+ * compared with v27; this module cannot import it without a cycle, so callers pass it). Under v27 the
+ * 1 Nov reasons say the composite "could fall below" the full clone's, the case that ruling was
+ * about, and their bytes are unchanged. Under every other rubric (operator ruling of 2 Nov) a
+ * truncated history can also raise it: A2 on a depth-1 clone cannot see a secret committed and later
+ * deleted.
  */
-function truncatedHistoryConsequence(rubricVersion: string): string {
-  return rubricVersion === WITAN_RUBRIC_VERSION_V27 ? 'could fall below' : 'could be higher or lower than';
+function truncatedHistoryConsequence(v27Wording: boolean): string {
+  return v27Wording ? 'could fall below' : 'could be higher or lower than';
 }
 
 /**
@@ -59,18 +61,18 @@ function truncatedHistoryConsequence(rubricVersion: string): string {
  * out of an average moves the average toward the other criteria, so the composite could fall below
  * the same commit's full-clone composite, which the operator's 26 Oct rule forbids.
  */
-export function shallowHistoryAbstentionReason(rubricVersion: string): string {
+export function shallowHistoryAbstentionReason(rubricVersion: string, v27Wording: boolean): string {
   return (
     `Under ${rubricVersion} Cejel gives no composite score and no verdict for a ` +
     'shallow clone (reason: shallow_history). A2 and B2 read commit history, and a composite over a ' +
-    `truncated history ${truncatedHistoryConsequence(rubricVersion)} the same commit's composite over its full history. Each ` +
+    `truncated history ${truncatedHistoryConsequence(v27Wording)} the same commit's composite over its full history. Each ` +
     "criterion's reading is still shown. " +
     SHALLOW_HISTORY_FETCH_INSTRUCTION
   );
 }
 
 /** v27's shallow-clone reason, byte for byte as on 1 Nov. */
-export const WITAN_V27_SHALLOW_HISTORY_REASON = shallowHistoryAbstentionReason(WITAN_RUBRIC_VERSION_V27);
+export const WITAN_V27_SHALLOW_HISTORY_REASON = shallowHistoryAbstentionReason(WITAN_RUBRIC_VERSION_V27, true);
 
 /**
  * The instruction a v27 scan carries when it could not tell whether the checkout is a shallow
@@ -90,12 +92,12 @@ export const HISTORY_DEPTH_UNKNOWN_INSTRUCTION =
  * ruling of 2 Nov every rubric does. Its exact text under `rubricVersion` is the discriminator
  * (isWitanHistoryDepthUnknownAbstention), as for the shallow-clone reason.
  */
-export function historyDepthUnknownAbstentionReason(rubricVersion: string): string {
+export function historyDepthUnknownAbstentionReason(rubricVersion: string, v27Wording: boolean): string {
   return (
     `Under ${rubricVersion} Cejel gives no composite score and no verdict when ` +
     'it cannot tell whether the checkout is a shallow clone (reason: history_depth_unknown). A .git ' +
     'entry is present, but git could not report the history depth and the repository files did not ' +
-    `show it. A2 and B2 read commit history, and a composite over a truncated history ${truncatedHistoryConsequence(rubricVersion)} ` +
+    `show it. A2 and B2 read commit history, and a composite over a truncated history ${truncatedHistoryConsequence(v27Wording)} ` +
     "the same commit's composite over its full history. Each criterion's reading is still " +
     'shown. ' +
     HISTORY_DEPTH_UNKNOWN_INSTRUCTION
@@ -103,7 +105,7 @@ export function historyDepthUnknownAbstentionReason(rubricVersion: string): stri
 }
 
 /** v27's unknown-depth reason, byte for byte as on 1 Nov. */
-export const WITAN_V27_HISTORY_DEPTH_UNKNOWN_REASON = historyDepthUnknownAbstentionReason(WITAN_RUBRIC_VERSION_V27);
+export const WITAN_V27_HISTORY_DEPTH_UNKNOWN_REASON = historyDepthUnknownAbstentionReason(WITAN_RUBRIC_VERSION_V27, true);
 
 /**
  * The instruction a scan of a directory with no git history carries (operator ruling of 2 Nov).
@@ -158,11 +160,24 @@ export const SHALLOW_HISTORY_V27_ABSTENTION =
   'abstains where none of those remains. ' +
   SHALLOW_HISTORY_FETCH_INSTRUCTION;
 
+/**
+ * True when `reason` is `reasonFor`'s text for `rubricVersion` in either wording. The text names the
+ * rubric that ran, so this recognises only that rubric's own reason; the wording (v27's 1 Nov text or
+ * every other rubric's) is the gate's to choose and the producer's to apply, not this reader's.
+ */
+function isReasonFor(
+  reason: string | undefined,
+  rubricVersion: string,
+  reasonFor: (rubricVersion: string, v27Wording: boolean) => string,
+): boolean {
+  return reason === reasonFor(rubricVersion, true) || reason === reasonFor(rubricVersion, false);
+}
+
 /** A report that abstained because the scanned checkout is a shallow clone (any rubric). */
 export function isWitanShallowHistoryAbstention(report: WitanReport): boolean {
   return (
     report.verdict === 'insufficient_source' &&
-    report.insufficientSourceReason === shallowHistoryAbstentionReason(report.rubricVersion)
+    isReasonFor(report.insufficientSourceReason, report.rubricVersion, shallowHistoryAbstentionReason)
   );
 }
 
@@ -170,7 +185,7 @@ export function isWitanShallowHistoryAbstention(report: WitanReport): boolean {
 export function isWitanHistoryDepthUnknownAbstention(report: WitanReport): boolean {
   return (
     report.verdict === 'insufficient_source' &&
-    report.insufficientSourceReason === historyDepthUnknownAbstentionReason(report.rubricVersion)
+    isReasonFor(report.insufficientSourceReason, report.rubricVersion, historyDepthUnknownAbstentionReason)
   );
 }
 
@@ -313,11 +328,16 @@ export function unreadHistoryDepth(depth: HistoryDepth): UnreadHistoryDepth | un
  * The report-level abstention reason a history depth calls for under `rubricVersion` (operator
  * rulings of 1 Nov for v27 and 2 Nov for every rubric): the shallow-history reason for a shallow
  * clone, the unknown-depth reason where the depth could not be read, the no-git reason for a
- * directory that is not a repository, and none for a complete clone.
+ * directory that is not a repository, and none for a complete clone. `v27Wording` is the v27 gate's
+ * answer for `rubricVersion` (truncatedHistoryConsequence).
  */
-export function historyDepthAbstentionReason(depth: HistoryDepth, rubricVersion: string): string | undefined {
-  if (depth === 'shallow') return shallowHistoryAbstentionReason(rubricVersion);
-  if (depth === 'unknown') return historyDepthUnknownAbstentionReason(rubricVersion);
+export function historyDepthAbstentionReason(
+  depth: HistoryDepth,
+  rubricVersion: string,
+  v27Wording: boolean,
+): string | undefined {
+  if (depth === 'shallow') return shallowHistoryAbstentionReason(rubricVersion, v27Wording);
+  if (depth === 'unknown') return historyDepthUnknownAbstentionReason(rubricVersion, v27Wording);
   if (depth === 'not_a_repository') return noGitHistoryAbstentionReason(rubricVersion);
   return undefined;
 }

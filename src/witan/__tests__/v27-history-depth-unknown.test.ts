@@ -130,9 +130,20 @@ describe('v27 when git cannot report the history depth', () => {
     expect(isHistoryDepthUnknown(report)).toBe(false);
   });
 
-  it('a directory with no git metadata is not a repository: v27 scores it as before, with or without git', () => {
-    expectScored(scanRepository(repos.noRepository, V27), 'no repository');
-    expectScored(withoutGitOnPath(() => scanRepository(repos.noRepository, V27)), 'no repository, no git');
+  // Until the operator's ruling of 2 Nov a directory with no git metadata was scored as before. It
+  // has no history to read, so it now gets no composite and no verdict under every rubric, with or
+  // without git on the host, and its reason is no_git_history, never history_depth_unknown.
+  it('a directory with no git metadata is not a repository: Unrated: no git history, with or without git', () => {
+    for (const [label, report] of [
+      ['no repository', scanRepository(repos.noRepository, V27)],
+      ['no repository, no git', withoutGitOnPath(() => scanRepository(repos.noRepository, V27))],
+    ] as const) {
+      expect(report.verdict, label).toBe('insufficient_source');
+      expect(report.overallScore, label).toBeNull();
+      expect(reasonOf(report) ?? '', label).toContain('(reason: no_git_history)');
+      expect(isHistoryDepthUnknown(report), label).toBe(false);
+      expect(buildWitanCliSummary(report).verdict, label).toBe('Unrated: no git history');
+    }
   });
 
   it('a dangling .git symlink: neither git nor the files can say, so v27 withholds with history_depth_unknown', () => {
@@ -167,21 +178,31 @@ describe('v27 when git cannot report the history depth', () => {
   });
 });
 
-describe('every other rubric is unchanged on the same checkouts', () => {
-  it('v17 scores each of them, with git and without it', () => {
+// Until the operator's ruling of 2 Nov every other rubric scored each of these checkouts. The ruling
+// gives v17 (and every rubric) the same reading of the depth and the same abstention as v27, with a
+// reason that names the rubric; a complete clone whose files settle the depth is still scored.
+describe('every other rubric reads the depth the same way since the ruling of 2 Nov', () => {
+  it('v17 abstains on each shallow or unknown-depth checkout, with git and without it, and scores the complete clone', () => {
     const dangling = withoutGit(repos.full);
     symlinkSync(join(dangling, 'gone', '.git'), join(dangling, '.git'));
-    const cases: [string, () => WitanReport][] = [
-      ['shallow, no git', () => withoutGitOnPath(() => scanRepository(repos.shallow, V17))],
-      ['worktree, no git', () => withoutGitOnPath(() => scanRepository(repos.shallowWorktree, V17))],
-      ['corrupt HEAD', () => scanRepository(repos.shallowCorruptHead, V17)],
-      ['full, no git', () => withoutGitOnPath(() => scanRepository(repos.full, V17))],
-      ['dangling symlink', () => scanRepository(dangling, V17)],
+    const cases: [string, () => WitanReport, string | undefined][] = [
+      ['shallow, no git', () => withoutGitOnPath(() => scanRepository(repos.shallow, V17)), 'shallow_history'],
+      ['worktree, no git', () => withoutGitOnPath(() => scanRepository(repos.shallowWorktree, V17)), 'shallow_history'],
+      ['corrupt HEAD', () => scanRepository(repos.shallowCorruptHead, V17), 'shallow_history'],
+      ['full, no git', () => withoutGitOnPath(() => scanRepository(repos.full, V17)), undefined],
+      ['dangling symlink', () => scanRepository(dangling, V17), 'history_depth_unknown'],
     ];
-    for (const [label, scan] of cases) {
+    for (const [label, scan, reason] of cases) {
       const report = scan();
-      expectScored(report, label);
-      expect(reasonOf(report), label).toBeUndefined();
+      if (reason === undefined) {
+        expectScored(report, label);
+        expect(reasonOf(report), label).toBeUndefined();
+      } else {
+        expect(report.verdict, label).toBe('insufficient_source');
+        expect(report.overallScore, label).toBeNull();
+        expect(reasonOf(report) ?? '', label).toContain(`Under ${V17} Cejel gives no composite score and no verdict`);
+        expect(reasonOf(report) ?? '', label).toContain(`(reason: ${reason})`);
+      }
     }
   });
 });

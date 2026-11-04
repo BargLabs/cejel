@@ -852,7 +852,7 @@ function buildWitanInputFromRepoUntracked(
   const insufficientSourceReason =
     ignoredTargetReason ??
     archetype.insufficientSourceReason ??
-    (unreadHistory ? historyDepthAbstentionReason(unreadHistory, rubricVersion) : undefined);
+    (unreadHistory ? historyDepthAbstentionReason(unreadHistory, rubricVersion, usesV27Closure) : undefined);
 
   return {
     productSlug: options.productSlug,

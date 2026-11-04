@@ -189,9 +189,17 @@ function expectFailedHistoryNoRise(repoPath: string, marker: string, depthUnknow
   const result = checkNoRise(before, after);
   expect(result.problems).toEqual([]);
   expect(lostFindings(before, after)).toEqual([]);
-  expect(result.introducedAbstentions.filter(({ id }) => id === 'A2')).toEqual([
-    { id: 'A2', kind: 'failed-history', denominator: depthUnknown ? 'unchecked' : 'kept' },
-  ]);
+  // Operator ruling of 2 Nov: where the depth cannot be read, v17 withholds the composite and its A2
+  // abstains exactly as v27's does, so v27 introduces no A2 abstention against v17 there. Until then
+  // v27 introduced one, with its denominator unchecked.
+  if (depthUnknown) {
+    expect(a2(before).status).toBe('insufficient_data');
+    expect(a2(before).notes).toBe(a2(after).notes);
+    expect(before.overallScore).toBeNull();
+  }
+  expect(result.introducedAbstentions.filter(({ id }) => id === 'A2')).toEqual(
+    depthUnknown ? [] : [{ id: 'A2', kind: 'failed-history', denominator: 'kept' }],
+  );
   expect(isWitanV27HistoryDepthUnknownAbstention(after)).toBe(depthUnknown);
   expect(result.historyDepthUnknownAbstention).toBe(depthUnknown);
   if (depthUnknown) expect(after.overallScore).toBeNull();
