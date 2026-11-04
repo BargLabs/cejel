@@ -668,6 +668,45 @@ export const RUN_FIXTURES: readonly RunFixture[] = [
     },
     [runNotRead('--runslow tests', CI_PATH)],
   ),
+  // The review of #655, should-fix 5: a conftest.py with CRLF line endings is read as the same file
+  // with LF endings (the reader's offsets drifted by one per line, so the declaration was missed).
+  caught(
+    'a1gap-option-store-true-crlf',
+    'G',
+    'pytest --runslow tests, where a CRLF conftest.py declares --runslow with action="store_true": tests is a path, and the run loads the clear hook.',
+    {
+      'conftest.py': 'import pytest\r\n\r\n\r\ndef pytest_addoption(parser):\r\n    parser.addoption("--runslow", action="store_true", default=False)\r\n',
+      'tests/conftest.py': CLEAR_HOOK,
+      [CI_PATH]: ciWorkflow(['pytest --runslow tests']),
+    },
+    HOOK_REMOVED,
+  ),
+  // The review of #655, should-fix 6: a declaration through a name may declare any option, so a
+  // literal declaration elsewhere (here docs/conftest.py) does not settle how the option is read.
+  withheld(
+    'a1gap-option-literal-elsewhere-name-in-root',
+    'G',
+    'Control: docs/conftest.py declares --runslow with action="store_true", but the root conftest.py declares an option through a name, which may be --runslow taking a value: the run stays not read.',
+    {
+      'conftest.py': lines('SLOW = "--runslow"', '', '', 'def pytest_addoption(parser):', '    parser.addoption(SLOW, default="no")'),
+      'docs/conftest.py': lines('def pytest_addoption(parser):', '    parser.addoption("--runslow", action="store_true")'),
+      'tests/conftest.py': CLEAR_HOOK,
+      [CI_PATH]: ciWorkflow(['pytest --runslow tests']),
+    },
+    [runNotRead('--runslow tests', CI_PATH)],
+  ),
+  // The review of #655, nit: every .addoption( on a line is read, not only the first.
+  caught(
+    'a1gap-option-second-declaration-on-a-line',
+    'G',
+    'pytest --runslow tests, where --runslow is the second of two store_true declarations on one line: tests is a path.',
+    {
+      'conftest.py': lines('def pytest_addoption(parser):', '    parser.addoption("--fast", action="store_true"); parser.addoption("--runslow", action="store_true")'),
+      'tests/conftest.py': CLEAR_HOOK,
+      [CI_PATH]: ciWorkflow(['pytest --runslow tests']),
+    },
+    HOOK_REMOVED,
+  ),
 ];
 
 /** The sentence A1's note holds once where a run could read a configuration file above the repository's root (item C). */
