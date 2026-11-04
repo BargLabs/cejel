@@ -474,6 +474,78 @@ export const RUN_FIXTURES: readonly RunFixture[] = [
     },
     [runNotRead('nox -s tests -- -k t16', CI_PATH)],
   ),
+  // The review of #655, blocker 1: "no posargs" is known only where every nox invocation in the
+  // repository is one the reader reads. A nox command through a runner or wrapper the reader does
+  // not read (poetry, env, hatch, pdm, uv run --with, uvx with options, a shell script, a Python
+  // script) may pass any posargs, so the noxfile run is not read and named with that command.
+  ...(
+    [
+      ['poetry', 'poetry run nox -s tests -- --noconftest'],
+      ['env', 'env CI=1 nox -s tests -- --noconftest'],
+      ['hatch', 'hatch run nox -s tests -- --noconftest'],
+      ['pdm', 'pdm run nox -s tests -- --noconftest'],
+      ['uv-with', 'uv run --with nox nox -s tests -- --noconftest'],
+      ['uvx-options', 'uvx --python 3.12 nox -s tests -- --noconftest'],
+    ] as const
+  ).map(([form, command]) =>
+    withheld(
+      `a1gap-nox-unread-invocation-${form}`,
+      'F',
+      `CI runs ${command}, a nox command the reader does not read: its posargs are unknown, so the noxfile run is not read, never read as passing none.`,
+      { 'tests/conftest.py': CLEAR_HOOK, 'noxfile.py': NOXFILE('session.run("pytest", *session.posargs)'), [CI_PATH]: ciWorkflow([command]) },
+      [runNotRead(command, CI_PATH)],
+    ),
+  ),
+  withheld(
+    'a1gap-nox-unread-invocation-shell-script',
+    'F',
+    'CI runs sh scripts/ci.sh, whose nox command passes --noconftest; the reader does not read the script, so the noxfile run is not read.',
+    {
+      'tests/conftest.py': CLEAR_HOOK,
+      'noxfile.py': NOXFILE('session.run("pytest", *session.posargs)'),
+      'scripts/ci.sh': lines('#!/bin/sh', 'set -e', 'nox -s tests -- --noconftest'),
+      [CI_PATH]: ciWorkflow(['sh scripts/ci.sh']),
+    },
+    [runNotRead('nox -s tests -- --noconftest', 'scripts/ci.sh')],
+  ),
+  withheld(
+    'a1gap-nox-unread-invocation-python-script',
+    'F',
+    'CI runs a Python script that calls nox with posargs through subprocess; the reader does not read the script, so the noxfile run is not read.',
+    {
+      'tests/conftest.py': CLEAR_HOOK,
+      'noxfile.py': NOXFILE('session.run("pytest", *session.posargs)'),
+      'scripts/run_tests.py': lines('import subprocess', '', 'subprocess.run(["nox", "-s", "tests", "--", "--noconftest"], check=True)'),
+      [CI_PATH]: ciWorkflow(['python scripts/run_tests.py']),
+    },
+    [runNotRead('subprocess.run(["nox", "-s", "tests", "--", "--noconftest"], check=True)', 'scripts/run_tests.py')],
+  ),
+  withheld(
+    'a1gap-nox-posargs-from-tox-command',
+    'F',
+    'tox runs nox -s tests -- --noconftest from its commands; the reader reads tox commands, so the set is read and --noconftest is in force.',
+    {
+      'tests/conftest.py': CLEAR_HOOK,
+      'noxfile.py': NOXFILE('session.run("pytest", *session.posargs)'),
+      'tox.ini': lines('[tox]', 'envlist = py', '', '[testenv]', 'deps = nox', 'commands = nox -s tests -- --noconftest'),
+      [CI_PATH]: ciWorkflow(['pip install tox', 'tox -e py']),
+    },
+    [NO_CONFTEST('noxfile.py')],
+  ),
+  caught(
+    'a1gap-nox-posargs-dependency-mentions',
+    'F',
+    'Control: nox named only as a dependency (pyproject, a requirements file, tox deps) and in a README; the one nox command passes no --, so the session runs plain pytest.',
+    {
+      'tests/conftest.py': CLEAR_HOOK,
+      'noxfile.py': NOXFILE('session.run("pytest", *session.posargs)'),
+      'pyproject.toml': lines('[project]', 'name = "cachelib"', 'version = "1.0.0"', 'dependencies = []', '', '[project.optional-dependencies]', 'dev = ["nox>=2024.3", "pytest"]'),
+      'requirements-dev.txt': lines('nox', 'pytest'),
+      'README.md': lines('# cachelib', '', 'Run `nox -s tests -- -x` to stop at the first failure.'),
+      [CI_PATH]: ciWorkflow(['pip install nox', 'nox -s tests']),
+    },
+    HOOK_REMOVED,
+  ),
 
   // ---- item G: options a conftest.py declares (goal_cejel_v27_a1_gaps_2026-11-03, item C; #649, 2)
   // An unknown long option before a word is looked up in the repository's conftest.py files:
