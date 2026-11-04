@@ -1,0 +1,23 @@
+[
+  {
+    "statement": "In zsh, an unquoted $VAR holding several words is one argument, so a list built in a variable reaches a command as a single path and the command can pass doing nothing. Incident: on 2026-11-03 the reviewing session, in the Bash tool's zsh, ran `set -- $p` to split 'PR head' pairs, and created two worktrees at main under paths containing a space instead of at the PR heads. Later, `npx vitest run $F`, with F listing 18 test files, printed no results, and the session nearly read a heading mutation as uncaught. Both were caught only by reading the output: `git worktree list` showed the paths, and the test summary line was absent. Fix: expand lists with ${=VAR} or an array in zsh, and confirm the effect (worktree HEAD, the test-file count) before reading a result. Rule: a command fed a list must report how many items it got.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "review",
+      "shell"
+    ],
+    "tags": [
+      "reviewer-error",
+      "pass-by-absence",
+      "zsh",
+      "word-splitting"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-11-03T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "anchorless-by-nature",
+      "reason": "A review-method error by the reviewing session: no code change fixes it; the rule is to expand lists explicitly in zsh and confirm the item count a command received before reading its result."
+    }
+  }
+]
