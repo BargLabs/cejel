@@ -237,24 +237,7 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     before a runner, only when every place it writes is a directory holding no tracked file and
 //     not under node_modules and tsconfig.json has no `extends`; drops `CI` and `NODE_ENV` from the
 //     inert environment keys; and says in B3's note when a credited check is a lint or format
-//     command whose configuration is not read; the seventh pass (#641, #647, 2026-11-03) credits
-//     `just <recipe>` and bare `tox` only where a strict reader of the root justfile or tox.ini
-//     follows the recipe or every environment's commands to a known runner (for tox: listed keys
-//     only, deps by index name, and the project not installed), and withholds nox, pre-commit,
-//     turbo, gradle, mvn and bazel, which are no longer known runners in a script or recipe either,
-//     B3's note naming the runner; resolves `pdm run`, `hatch run [env:]` and `pipenv run` through
-//     `[tool.pdm.scripts]`, the hatch scripts with their inheritance and budget, and the Pipfile's
-//     `[scripts]`, crediting a script only where its command is, a name that resolves to none as the
-//     command itself, and nothing unresolved (a hook, shared options, hatch env-vars or install
-//     commands, a committed `.env` under pipenv); admits a known runner or check only with the
-//     flags a per-runner list knows to keep it failing (CHECK_FORMS), so `jest --listTests`,
-//     `pytest --fixtures`, `mocha --dry-run`, `go test -run`, `cargo nextest list` and `vitest list`
-//     are no checks, and no list of no-fail flags decides, reading words after npm's `--` (and every
-//     word after a yarn or pnpm test script's name) against the runner of the test script's last
-//     command; treats the root's install-script and package-manager readings as unread wherever a
-//     working-directory or a `cd` is set, as the other root readings were; and credits `python -m X`
-//     only where the root, and the directory it runs in, hold no path X, X/ or module file of stem X,
-//     compared case-insensitively);
+//     command whose configuration is not read);
 //   - A1: conftest.py is not a concrete test file (not cited as one, and rated hollow where it
 //     asserts; from 2026-11-01 test_to_source_ratio counts it as test surface, as v17 does), and
 //     an unconditional run-wide pytest skip
