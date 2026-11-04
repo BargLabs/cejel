@@ -35,9 +35,15 @@ import {
 const ROOT = fileURLToPath(new URL('../../../', import.meta.url));
 const CHILD = fileURLToPath(new URL('./fixtures/scan-repo-child.ts', import.meta.url));
 
-// The scan itself must finish inside SCAN_BUDGET_MS, measured around the scan in the child. The
-// hard kill is wider only to absorb child start-up (loading TypeScript through tsx) on a loaded CI
-// runner; before the fix, neither fixture finishes inside the kill window at all.
+// The scan itself must finish inside SCAN_BUDGET_MS of the child's own CPU time, measured around
+// the scan in the child (cpuMs, user plus system). It was wall time until 2026-11-04 (cejel #561):
+// on a shared CI runner, wall time also counted the moments other test workers held the CPU, and
+// one guard here failed on main at 2,003 ms and on #657 at 2,036 and 2,070 ms while the same scan
+// took about 820 ms locally on main and on #657 alike. A regex stall or a super-linear reader burns
+// the scan's own CPU, so it still fails this budget (the check below shows both directions). The
+// hard kill stays in wall time and is wider only to absorb child start-up (loading TypeScript
+// through tsx) on a loaded CI runner; before the fix, neither fixture finishes inside the kill
+// window at all.
 const SCAN_BUDGET_MS = 2_000;
 const KILL_AFTER_MS = 20_000;
 
@@ -57,6 +63,7 @@ function makeRepo(files: Readonly<Record<string, string>>): string {
 
 interface ChildScan {
   readonly elapsedMs: number;
+  readonly cpuMs: number;
   readonly a1Findings: readonly string[];
   readonly b3ScriptDepthCondition: string | null;
   readonly b2Notes: string | null;
@@ -64,11 +71,12 @@ interface ChildScan {
   readonly b3Disclosures: readonly string[];
 }
 
-function scanInChild(repo: string, rubricVersion: string): ChildScan {
+function scanInChild(repo: string, rubricVersion: string, standIn: Readonly<Record<string, string>> = {}): ChildScan {
   const started = performance.now();
   const result = spawnSync(process.execPath, ['--import', 'tsx', CHILD, repo, rubricVersion], {
     cwd: ROOT,
     encoding: 'utf8',
+    env: { ...process.env, ...standIn },
     timeout: KILL_AFTER_MS,
     killSignal: 'SIGKILL',
   });
@@ -257,7 +265,7 @@ describe('timing guards: the real scan finishes on pathological repository input
       expect(UPLOAD_ONLY_LONG_WORKFLOW.length).toBeLessThan(512_000);
       expect(UPLOAD_ONLY_LONG_WORKFLOW.length).toBeGreaterThan(450_000);
       const scan = scanInChild(makeRepo(UNCREDITED_WORKFLOW_FIXTURE), rubric);
-      expect(scan.elapsedMs).toBeLessThan(SCAN_BUDGET_MS);
+      expect(scan.cpuMs, `cpu ${Math.round(scan.cpuMs)} ms, wall ${Math.round(scan.elapsedMs)} ms`).toBeLessThan(SCAN_BUDGET_MS);
       // Both readers classified both files in full: an early bail-out would keep them credited and
       // drop them from these sentences, so a fast but incomplete reader fails here.
       if (rubric === WITAN_RUBRIC_VERSION_V27) {
@@ -276,7 +284,7 @@ describe('timing guards: the real scan finishes on pathological repository input
     'CI lines and a conftest whitespace run just under the content limit — %s',
     (rubric) => {
       const scan = scanInChild(makeRepo(CI_LINE_FIXTURE), rubric);
-      expect(scan.elapsedMs).toBeLessThan(SCAN_BUDGET_MS);
+      expect(scan.cpuMs, `cpu ${Math.round(scan.cpuMs)} ms, wall ${Math.round(scan.elapsedMs)} ms`).toBeLessThan(SCAN_BUDGET_MS);
     },
     KILL_AFTER_MS + 10_000,
   );
@@ -285,7 +293,7 @@ describe('timing guards: the real scan finishes on pathological repository input
     'workflows of 24,000 steps in one job and 24,000 `run:` keys outside a list — %s',
     (rubric) => {
       const scan = scanInChild(makeRepo(LONG_WORKFLOW_FIXTURE), rubric);
-      expect(scan.elapsedMs).toBeLessThan(SCAN_BUDGET_MS);
+      expect(scan.cpuMs, `cpu ${Math.round(scan.cpuMs)} ms, wall ${Math.round(scan.elapsedMs)} ms`).toBeLessThan(SCAN_BUDGET_MS);
     },
     KILL_AFTER_MS + 10_000,
   );
@@ -297,7 +305,7 @@ describe('timing guards: the real scan finishes on pathological repository input
       expect(NESTED_STEPS_KEYS_WORKFLOW.length).toBeLessThan(512_000);
       expect(NESTED_STEPS_KEYS_WORKFLOW.length).toBeGreaterThan(500_000);
       const scan = scanInChild(makeRepo(NESTED_WORKFLOW_FIXTURE), rubric);
-      expect(scan.elapsedMs).toBeLessThan(SCAN_BUDGET_MS);
+      expect(scan.cpuMs, `cpu ${Math.round(scan.cpuMs)} ms, wall ${Math.round(scan.elapsedMs)} ms`).toBeLessThan(SCAN_BUDGET_MS);
     },
     KILL_AFTER_MS + 10_000,
   );
@@ -306,7 +314,7 @@ describe('timing guards: the real scan finishes on pathological repository input
     'a `cd` target and a `working-directory` of 480,000 slashes before a letter — %s',
     (rubric) => {
       const scan = scanInChild(makeRepo(SLASH_RUN_FIXTURE), rubric);
-      expect(scan.elapsedMs).toBeLessThan(SCAN_BUDGET_MS);
+      expect(scan.cpuMs, `cpu ${Math.round(scan.cpuMs)} ms, wall ${Math.round(scan.elapsedMs)} ms`).toBeLessThan(SCAN_BUDGET_MS);
     },
     KILL_AFTER_MS + 10_000,
   );
@@ -318,7 +326,7 @@ describe('timing guards: the real scan finishes on pathological repository input
         expect(contents.length).toBeLessThan(512_000);
       }
       const scan = scanInChild(makeRepo(REVIEW_521_READER_FIXTURE), rubric);
-      expect(scan.elapsedMs).toBeLessThan(SCAN_BUDGET_MS);
+      expect(scan.cpuMs, `cpu ${Math.round(scan.cpuMs)} ms, wall ${Math.round(scan.elapsedMs)} ms`).toBeLessThan(SCAN_BUDGET_MS);
     },
     KILL_AFTER_MS + 10_000,
   );
@@ -327,7 +335,7 @@ describe('timing guards: the real scan finishes on pathological repository input
     '`pnpm run /^(a+)+$/` beside a script named 40 `a`s and `!` — %s',
     (rubric) => {
       const scan = scanInChild(makeRepo(SELECTOR_FIXTURE), rubric);
-      expect(scan.elapsedMs).toBeLessThan(SCAN_BUDGET_MS);
+      expect(scan.cpuMs, `cpu ${Math.round(scan.cpuMs)} ms, wall ${Math.round(scan.elapsedMs)} ms`).toBeLessThan(SCAN_BUDGET_MS);
     },
     KILL_AFTER_MS + 10_000,
   );
@@ -336,7 +344,7 @@ describe('timing guards: the real scan finishes on pathological repository input
     '`pnpm run /` followed by 60 unterminated backslashes — %s',
     (rubric) => {
       const scan = scanInChild(makeRepo(BACKSLASH_FIXTURE), rubric);
-      expect(scan.elapsedMs).toBeLessThan(SCAN_BUDGET_MS);
+      expect(scan.cpuMs, `cpu ${Math.round(scan.cpuMs)} ms, wall ${Math.round(scan.elapsedMs)} ms`).toBeLessThan(SCAN_BUDGET_MS);
     },
     KILL_AFTER_MS + 10_000,
   );
@@ -345,7 +353,7 @@ describe('timing guards: the real scan finishes on pathological repository input
     'a workspace glob of 12 `*a` pairs and `*b` beside a 40-character directory of `a`s — %s',
     (rubric) => {
       const scan = scanInChild(makeRepo(GLOB_FIXTURE), rubric);
-      expect(scan.elapsedMs).toBeLessThan(SCAN_BUDGET_MS);
+      expect(scan.cpuMs, `cpu ${Math.round(scan.cpuMs)} ms, wall ${Math.round(scan.elapsedMs)} ms`).toBeLessThan(SCAN_BUDGET_MS);
       // The glob does not match the directory (it ends in `b`), so only the root is read.
       expect(scan.b3ScriptDepthCondition).toBe(
         'package scripts for this metric are read from the root package.json only; 1 other package.json file present',
@@ -410,6 +418,27 @@ function scalingRatio<T>(read: (length: number) => T, length = SCALING_LENGTH): 
   const timing = `${repetitions} reads per sample, ${SCALING_PAIRS} alternating pairs, CPU time: L ${msL.toFixed(1)} ms, 2L ${ms2L.toFixed(1)} ms, ratio ${ratio.toFixed(2)}`;
   return { ratio, timing, atL, at2L };
 }
+
+describe('timing guards: the CPU-time budget itself (cejel #561)', () => {
+  // The guards above read cpuMs. These two runs show that measure can still fail, and that it fails
+  // on the scan's own work rather than on the runner's: the burn stand-in spends CPU inside the
+  // timed span as a stalled regex would, and the idle stand-in only waits, as a scan does while the
+  // runner gives its CPU to other test workers.
+  it('rejects a scan that spends more CPU than the budget inside the timed span', () => {
+    const scan = scanInChild(makeRepo(SELECTOR_FIXTURE), WITAN_RUBRIC_VERSION_V17, {
+      CEJEL_SCAN_CHILD_BURN_MS: String(SCAN_BUDGET_MS + 500),
+    });
+    expect(scan.cpuMs, `cpu ${Math.round(scan.cpuMs)} ms, wall ${Math.round(scan.elapsedMs)} ms`).toBeGreaterThan(SCAN_BUDGET_MS);
+  }, KILL_AFTER_MS + 10_000);
+
+  it('admits a scan whose wall time passes the budget while it waits without using CPU', () => {
+    const scan = scanInChild(makeRepo(SELECTOR_FIXTURE), WITAN_RUBRIC_VERSION_V17, {
+      CEJEL_SCAN_CHILD_IDLE_MS: String(SCAN_BUDGET_MS + 500),
+    });
+    expect(scan.elapsedMs).toBeGreaterThan(SCAN_BUDGET_MS);
+    expect(scan.cpuMs, `cpu ${Math.round(scan.cpuMs)} ms, wall ${Math.round(scan.elapsedMs)} ms`).toBeLessThan(SCAN_BUDGET_MS);
+  }, KILL_AFTER_MS + 10_000);
+});
 
 describe('scaling: the ratio check itself (cejel #642)', () => {
   // The check must still tell a reader whose cost grows with the square from a linear one. Both
