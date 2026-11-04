@@ -619,7 +619,15 @@ function criteriaNamedIn(text: string): Set<string> {
 // read-failure cause the report holds, never to add a cause the area does not carry.
 
 /** Why files an area reads were not read, as the report ties it to that area. */
-type FileGapCause = 'unreadable' | 'lfs' | 'read-failure' | 'stated-limit' | 'size-limit' | 'excluded' | 'limit';
+type FileGapCause =
+  | 'unreadable'
+  | 'lfs'
+  | 'read-failure'
+  | 'stated-limit'
+  | 'size-limit'
+  | 'excluded'
+  | 'limit'
+  | 'unstated';
 const FILE_GAP_CAUSE_ORDER: readonly FileGapCause[] = [
   'unreadable',
   'lfs',
@@ -628,6 +636,7 @@ const FILE_GAP_CAUSE_ORDER: readonly FileGapCause[] = [
   'size-limit',
   'excluded',
   'limit',
+  'unstated',
 ];
 
 interface ReadGap {
@@ -639,6 +648,8 @@ const NOTE_LFS_PREFIX =
   'Cejel abstained on this criterion because relevant files in this checkout are Git LFS pointers';
 const NOTE_DECLINED_PREFIX =
   'Cejel abstained on this criterion because relevant repository content was declined under the repository content size limit or excluded from scanning by policy';
+const NOTE_READ_FAILURE_PREFIX =
+  'Cejel abstained on this criterion because one or more relevant repository files could not be read';
 
 /**
  * The read-failure cause behind a "could not be read" statement: Git LFS pointers, or unreadable
@@ -655,12 +666,17 @@ function readFailureCause(report: WitanReport): 'unreadable' | 'lfs' | 'read-fai
   return lfs ? 'lfs' : 'read-failure';
 }
 
-/** The cause an abstained area's own note states (contentReadSummary.affectedCriteria). */
-function abstentionNoteCause(report: WitanReport, criterion: WitanCriterionScore | undefined): FileGapCause {
+/**
+ * The cause an area's own wholesale abstention note states (contentReadSummary.affectedCriteria),
+ * or undefined for any other note: a v23 per-measurement note, whose causes the scan limitation
+ * naming the area's measurements carries, or a note no producer here writes.
+ */
+function abstentionNoteCause(report: WitanReport, criterion: WitanCriterionScore | undefined): FileGapCause | undefined {
   const notes = criterion?.notes ?? '';
   if (notes.startsWith(NOTE_LFS_PREFIX)) return 'lfs';
   if (notes.startsWith(NOTE_DECLINED_PREFIX)) return 'stated-limit';
-  return readFailureCause(report);
+  if (notes.startsWith(NOTE_READ_FAILURE_PREFIX)) return readFailureCause(report);
+  return undefined;
 }
 
 /** The cause a scan limitation that names an area states, by its table entry. */
@@ -689,7 +705,7 @@ function scanLimitationKind(report: WitanReport, limitation: string): PlainScanL
       const causes = new Set(
         (report.contentReadSummary?.affectedCriteria ?? [])
           .map((id) => abstentionNoteCause(report, report.criteria.find((criterion) => criterion.id === id)))
-          .filter((cause) => cause !== 'stated-limit'),
+          .filter((cause) => cause !== undefined && cause !== 'stated-limit'),
       );
       const [only] = [...causes];
       return causes.size === 1 && (only === 'lfs' || only === 'unreadable') ? only : 'read-failure';
@@ -717,11 +733,15 @@ function readGaps(report: WitanReport): Map<string, ReadGap> {
     gaps.set(id, created);
     return created;
   };
-  for (const id of report.contentReadSummary?.affectedCriteria ?? []) {
-    gapFor(id).files.add(abstentionNoteCause(report, report.criteria.find((criterion) => criterion.id === id)));
-  }
   for (const limitation of report.scanLimitations ?? []) {
     for (const id of criteriaNamedIn(limitation)) gapFor(id).files.add(limitationCause(report, limitation));
+  }
+  for (const id of report.contentReadSummary?.affectedCriteria ?? []) {
+    const cause = abstentionNoteCause(report, report.criteria.find((criterion) => criterion.id === id));
+    // With no wholesale note, the cause is the limitation that names the area, or, when none does,
+    // stated without one: "were not read", which is true of every cause.
+    if (cause !== undefined) gapFor(id).files.add(cause);
+    else if (!gaps.has(id)) gapFor(id).files.add('unstated');
   }
   for (const limitation of report.historyLimitations ?? []) {
     const shallow = SHALLOW_HISTORY_LIMITATIONS.includes(limitation);
@@ -744,6 +764,7 @@ const FILE_GAP_CLAUSES: Readonly<Record<FileGapCause, string>> = {
   excluded:
     'some files this area reads are of a type Cejel does not read or are not regular files, a stated limit rather than a read failure',
   limit: 'a limit on reading, listed under Reading the repository, applies to it',
+  unstated: 'some files this area reads were not read (the certificate below counts them by cause)',
 };
 
 function readGapClauses(gap: ReadGap): string[] {
@@ -758,7 +779,9 @@ function readGapClauses(gap: ReadGap): string[] {
 
 /** The advice a file cause takes (PLAIN_READ_GAP_FILE_ADVICE): the three stated limits share one. */
 function fileGapAdvice(cause: FileGapCause): PlainReadGapFileAdvice {
-  return cause === 'size-limit' || cause === 'excluded' ? 'stated-limit' : cause;
+  if (cause === 'size-limit' || cause === 'excluded') return 'stated-limit';
+  // A cause the report does not state takes the advice that covers every cause.
+  return cause === 'unstated' ? 'mixed' : cause;
 }
 
 /** The not-read table qualifier: the file advice, the history advice, or both (next-checks.ts). */

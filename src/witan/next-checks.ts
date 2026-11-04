@@ -56,7 +56,7 @@ export type PlainDisclosureKind = (typeof PLAIN_DISCLOSURE_KINDS)[number];
  * files it reads could not be read ('unreadable'), are Git LFS pointers ('lfs'), could not be read
  * for more than one counted cause ('read-failure'), were left out under Cejel's own size limit or
  * rules ('stated-limit'), or a scan limitation names the area ('limit'); 'mixed' is more than one
- * of these. Each is qualified by the area's own cause, never by the report-wide counts alone.
+ * of these, or a cause the report does not state. Each is qualified by the area's own cause, never by the report-wide counts alone.
  */
 export const PLAIN_READ_GAP_FILE_ADVICE = ['unreadable', 'lfs', 'read-failure', 'stated-limit', 'limit', 'mixed'] as const;
 export type PlainReadGapFileAdvice = (typeof PLAIN_READ_GAP_FILE_ADVICE)[number];
@@ -127,7 +127,7 @@ const STATED_LIMIT =
 const LIMIT_LISTED =
   'Read the limit listed under Reading the repository; where it names something in the repository you can change, change it and scan again.';
 const MIXED_CAUSES =
-  'Each cause named here needs its own step: fix what stopped files being read (the certificate below counts them by cause), then scan again; a file left out under Cejel\'s size limit or rules needs no fix.';
+  'The certificate below counts the files not read by cause: fix what stopped files being read, then scan again; a file left out under Cejel\'s size limit or rules needs no fix.';
 
 const NEXT_CHECKS: Readonly<Record<string, string>> = {
   // A finding in one area. Qualified by the criterion id the finding belongs to.
