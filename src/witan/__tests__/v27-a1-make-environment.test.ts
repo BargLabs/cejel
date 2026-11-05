@@ -212,6 +212,30 @@ describe('v27 A1, item A: PYTEST_ADDOPTS in the environment of the command that 
     });
   });
 
+  it('an env prefix, env PYTEST_ADDOPTS=-q make test', () => {
+    expectWithheld('a1env-env-prefix', { Makefile: UNEXPORTED, [CI]: workflow(['      - run: env PYTEST_ADDOPTS=-q make test']) }, MAKEFILE_VALUE);
+  });
+
+  it('make -e with an override assignment: the Makefile value still wins', () => {
+    expectWithheld(
+      'a1env-make-e-override',
+      { Makefile: recipe('override PYTEST_ADDOPTS = -p no:skipping'), [CI]: workflow(['      - run: make -e test'], ['    env:', '      PYTEST_ADDOPTS: "-q"']) },
+      MAKEFILE_VALUE,
+    );
+  });
+
+  it('make -C sub reads sub/Makefile with the environment, not the root Makefile', () => {
+    expectWithheld(
+      'a1env-make-directory',
+      {
+        Makefile: lines('PYTEST_ADDOPTS = -x', '', 'test:', '\techo root'),
+        'sub/Makefile': lines('PYTEST_ADDOPTS = -p no:skipping', '', 'test:', '\tpytest ../tests'),
+        [CI]: workflow(['      - run: make -C sub test'], ['    env:', '      PYTEST_ADDOPTS: "-q"']),
+      },
+      'every-test-skipped rule not applied: -p no:skipping in PYTEST_ADDOPTS in sub/Makefile',
+    );
+  });
+
   it('control: the same job env with a step that runs pytest itself', () => {
     expectWithheld(
       'a1env-control-direct-pytest',
