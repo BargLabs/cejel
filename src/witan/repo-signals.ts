@@ -6793,7 +6793,9 @@ function collectB3CiDisciplineEvidence(
           uncreditedCiWorkflows(repoPath, workflows, inventory),
           publishingDetails,
           checkedPublishingDetails,
-          checkReading(repoPath, inventory),
+          // Eighth pass (#659): v17's test-file list, the one A1 counts, read only when a runner is
+          // given a positional word (testPathReader reads it once).
+          checkReading(repoPath, inventory, () => findConcreteTestFiles(repoPath, repoFiles, WITAN_RUBRIC_VERSION_V17)),
         );
       })
     : new Map();
@@ -8710,6 +8712,12 @@ interface CheckReading {
    * name (pythonModuleReader), from the root (`fromRoot`) or from a directory the reader does not know.
    */
   readonly pythonModuleMayExist: (name: string, fromRoot: boolean) => boolean;
+  /**
+   * Eighth pass (#659): whether a runner's positional word names a test file Cejel counts (v17's
+   * test-file list), resolved from the root (`fromRoot`), or from a directory the reader does not
+   * know, where every word is 'unread' (testPathReader).
+   */
+  readonly testPath: (word: string, kind: PositionalReading, fromRoot: boolean) => TestPathReading;
 }
 
 // The readings that rest on the root's own files, as when none of them is read.
@@ -8736,16 +8744,24 @@ const UNREAD_CHECK_READING: CheckReading = {
   ...ROOT_FILES_UNREAD,
   pathMayExist: () => true,
   pythonModuleMayExist: () => true,
+  testPath: () => 'unread',
 };
 
-/** The CheckReading of a checkout's root, read from its inventory. */
-function checkReading(root: string, inventory: PublishOnlyInventory): CheckReading {
+/**
+ * The CheckReading of a checkout's root, read from its inventory. Eighth pass (#659): `testFiles`
+ * gives v17's test-file list (findConcreteTestFiles), the one A1 counts; called only when a runner
+ * is given a positional word.
+ */
+function checkReading(root: string, inventory: PublishOnlyInventory, testFiles: () => readonly string[]): CheckReading {
   // Sixth pass (blocker 4): read once, for every tsc run a build, test script or recipe makes.
   const tsconfig = rootTsconfigReading(root, inventory);
   // Seventh pass (#647, item E): a script or recipe runs from the root, so its `python -m` is read there.
   const pythonModuleMayExist = pythonModuleReader(inventory);
+  const testPath = testPathReader(testFiles);
   const tscAdmitted: ScriptAdmission = Object.assign((words: readonly string[]) => tscRunWritesNothingRead(words, tsconfig, inventory), {
     moduleMayExist: (name: string) => pythonModuleMayExist(name, true),
+    // Eighth pass (#659): a script or recipe runs from the root.
+    testPath: (word: string, kind: PositionalReading) => testPath(word, kind, true),
   });
   const testScript = rootTestScriptReading(root, inventory, tscAdmitted);
   const build = rootBuildScriptReading(root, inventory, tscAdmitted);
@@ -8768,6 +8784,7 @@ function checkReading(root: string, inventory: PublishOnlyInventory): CheckReadi
     installRunsNoProjectScript: rootInstallRunsNoProjectScript(root, inventory),
     packageManagerConfigPlain: packageManagerConfigIsPlain(root, inventory),
     pythonModuleMayExist,
+    testPath,
   };
 }
 
@@ -8779,6 +8796,8 @@ function checkReading(root: string, inventory: PublishOnlyInventory): CheckReadi
 interface ScriptAdmission {
   (words: readonly string[]): boolean;
   readonly moduleMayExist: (name: string) => boolean;
+  /** Eighth pass (#659): CheckReading.testPath, from the root. */
+  readonly testPath: (word: string, kind: PositionalReading) => TestPathReading;
 }
 
 // Item E: the suffixes of a file Python imports as a module of its stem.
@@ -9758,10 +9777,11 @@ function scriptCommandKind(words: readonly string[], tscAdmitted: ScriptAdmissio
   // Seventh pass (#647, item E): `python -m <name>` beside a repository module of that name runs it.
   if (python && tscAdmitted.moduleMayExist(third)) return 'other';
   // Seventh pass (#641, item C): a runner only with the words its CHECK_FORMS entry admits.
+  // Eighth pass (#659): a positional path only where it holds a counted test (tscAdmitted.testPath).
   if (KNOWN_TEST_RUNNER_WORDS.has(first) || KNOWN_TEST_RUNNER_SUBCOMMANDS.get(first)?.includes(second)) {
-    return checkFormAdmits(words) === true ? 'runner' : 'other';
+    return checkFormAdmits(words, tscAdmitted.testPath) === true ? 'runner' : 'other';
   }
-  if (python && KNOWN_TEST_RUNNER_MODULES.has(third)) return checkFormAdmits(words.slice(2)) === true ? 'runner' : 'other';
+  if (python && KNOWN_TEST_RUNNER_MODULES.has(third)) return checkFormAdmits(words.slice(2), tscAdmitted.testPath) === true ? 'runner' : 'other';
   // Sixth pass (blocker 4): tsc before the runner only where it writes nothing the runner reads.
   if (first === 'tsc') return tscAdmitted(words) ? 'check' : 'other';
   if (PRE_RUNNER_CHECK_WORDS.has(first) || (python && PRE_RUNNER_CHECK_WORDS.has(third))) return 'check';
@@ -10219,8 +10239,9 @@ function isCheckCommand(input: readonly string[], reading: CheckReading, assignm
     // script runs may follow the script's name. Seventh pass (#641, item C): words passed to the
     // script are read against the runner of its last command.
     if (packageTestArgumentsProblem(words, reading) !== undefined) return false;
-  } else if (checkFormAdmits(words) !== true) {
+  } else if (checkFormAdmits(words, stepTestPath(reading)) !== true) {
     // Seventh pass (#641, item C): every other check only with the words its CHECK_FORMS entry admits.
+    // Eighth pass (#659): and a positional path only where it holds a counted test.
     return false;
   }
   return verificationCommandPatterns().some((pattern) => {
@@ -10396,7 +10417,15 @@ function packageTestArgumentsProblem(words: readonly string[], reading: CheckRea
   if (last === undefined) return UNREAD_TEST_ARGUMENT_REASON;
   const runner = [...last, ...passed];
   const python = (runner[0] === 'python' || runner[0] === 'python3') && runner[1] === '-m';
-  return checkFormAdmits(python ? runner.slice(2) : runner) === true ? undefined : RUNNER_ARGUMENT_REASON;
+  // Eighth pass (#659): the script runs from the root, where its positional words are read.
+  const admitted = checkFormAdmits(python ? runner.slice(2) : runner, stepTestPath(reading));
+  if (typeof admitted === 'object') return positionalReason(admitted);
+  return admitted === true ? undefined : RUNNER_ARGUMENT_REASON;
+}
+
+/** Eighth pass (#659): CheckReading.testPath from the directory a step's command runs in. */
+function stepTestPath(reading: CheckReading): (word: string, kind: PositionalReading) => TestPathReading {
+  return (word, kind) => reading.testPath(word, kind, reading.pipNamesFromRoot);
 }
 
 /**
@@ -10508,7 +10537,10 @@ function seventhPassReason(input: readonly string[], reading: CheckReading): str
   const first = (words[0] ?? '').toLowerCase();
   if (first === 'make' || LINT_OR_FORMAT_COMMANDS.has(first) || NPM_FAMILY_TEST_SCRIPT_PATTERN.test(words.join(' '))) return undefined;
   if (words.some((word) => REPORT_ONLY_FLAGS.has(word))) return undefined;
-  return checkFormAdmits(words) === false ? RUNNER_ARGUMENT_REASON : undefined;
+  const admitted = checkFormAdmits(words, stepTestPath(reading));
+  // Eighth pass (#659): a positional word that names no counted test, or that Cejel cannot resolve.
+  if (typeof admitted === 'object') return positionalReason(admitted);
+  return admitted === false ? RUNNER_ARGUMENT_REASON : undefined;
 }
 
 // ---- Item A: the root justfile, read strictly -------------------------------------------------
@@ -10718,7 +10750,7 @@ export function b3TaskRunnerReadingsForScaling(
   root: string,
   repoFiles: readonly string[],
 ): { readonly just: string; readonly tox: string; readonly hatch: string; readonly module: boolean } {
-  const reading = checkReading(root, ownPublishOnlyInventory(repoFiles));
+  const reading = checkReading(root, ownPublishOnlyInventory(repoFiles), () => findConcreteTestFiles(root, repoFiles, WITAN_RUBRIC_VERSION_V17));
   const hatch = reading.scriptAlias('hatch', ['test']);
   return {
     just: reading.justRecipe('test'),
@@ -11094,18 +11126,247 @@ const CHECK_FORMS: ReadonlyMap<string, readonly CheckForm[]> = new Map<string, r
   ...['ava', 'uvu', 'tap', 'tape', 'jasmine', 'qunit', 'lab', 'ts-mocha'].map((runner): [string, readonly CheckForm[]] => [runner, [PLAIN_RUNNER_FORM]]),
 ]);
 
+// ---- Eighth pass (#659, operator ruling A of 5 November 2026): a path holds a counted test -------
+//
+// A runner pointed at a path runs only what that path holds: `mocha index.js` runs 0 tests and
+// exits 0, and `go test ./pkg` on a package with no `_test.go` prints "no test files" and exits 0.
+// For each CHECK_FORMS runner whose positional words are paths, files, packages or modules, a
+// positional word is admitted only where it resolves, from the root, to a file on v17's test-file
+// list (the one A1 counts), a directory holding one at any depth, or a glob matching one. A runner
+// not listed keeps the seventh pass's rule: jest, `bun test` and `playwright test` read a positional
+// as a filter of test paths and, by their documentation, exit 1 where it matches none; karma's is
+// its configuration file and pyright's the files it checks, none of them a test; vitest, cypress,
+// cargo and tsc admit none.
+
+/** How a runner reads its positional words. */
+type PositionalReading =
+  /** A file, directory or glob (pytest after its `::` node id is stripped, mocha, node and others). */
+  | 'path'
+  /** go: a package directory written `.`, `./dir` or `../dir`, with `/...` for every one below it. */
+  | 'go'
+  /** unittest: a module, class or method name, dotted, or a file path. */
+  | 'module'
+  /** uvu: its first positional is a directory; its second a file-name pattern, which is not read. */
+  | 'uvu';
+
+const POSITIONAL_READINGS: ReadonlyMap<string, PositionalReading> = new Map<string, PositionalReading>([
+  ['pytest', 'path'], ['mocha', 'path'], ['node', 'path'], ['tsx', 'path'], ['deno', 'path'], ['rspec', 'path'],
+  ['phpunit', 'path'], ['dotnet', 'path'], ['ava', 'path'], ['tap', 'path'], ['tape', 'path'], ['jasmine', 'path'],
+  ['qunit', 'path'], ['lab', 'path'], ['ts-mocha', 'path'], ['go', 'go'], ['unittest', 'module'], ['uvu', 'uvu'],
+]);
+
+/** What a positional word names: a counted test, no counted test, or something Cejel cannot resolve. */
+type TestPathReading = 'test' | 'no-test' | 'unread';
+
+/** Item C, and the eighth pass (#659): why a positional word withholds the credit. */
+interface PositionalProblem {
+  readonly word: string;
+  readonly unread: boolean;
+}
+
+// A word whose path Cejel does not resolve: a substitution, quote, brace, escape, home directory or
+// character class.
+const UNRESOLVED_PATH_WORD_PATTERN = /[$`'"{}\\[\]]|^~/;
+// The glob characters a positional word is matched by (`*`, `**`, `?`).
+const GLOB_WORD_PATTERN = /[*?]/;
+// The most character comparisons the glob matcher makes in one scan; past it every glob is 'unread'.
+const TEST_PATH_GLOB_BUDGET = 2_000_000;
+
+/**
+ * Eighth pass (#659): a path from the root as Cejel compares it with the test-file list: `./`, `.`
+ * and empty parts dropped, `..` applied, no trailing `/` (`''` is the root). Null where it leaves the
+ * repository (absolute, or `..` above the root). Linear in the word.
+ */
+function repositoryRelativePath(word: string): string | null {
+  if (word.startsWith('/')) return null;
+  const parts: string[] = [];
+  for (const part of word.split('/')) {
+    if (part === '' || part === '.') continue;
+    if (part === '..') {
+      if (parts.length === 0) return null;
+      parts.pop();
+    } else parts.push(part);
+  }
+  return parts.join('/');
+}
+
+/**
+ * Eighth pass (#659): whether `path` matches `glob`, both split at `/`, where `**` is any number of
+ * parts, `*` any run within a part and `?` one character. Undefined once `budget.steps` is spent:
+ * each part comparison spends its characters' product, so the work is bounded by the budget.
+ */
+function globMatchesPath(glob: readonly string[], path: readonly string[], budget: { steps: number }): boolean | undefined {
+  const part = (pattern: string, text: string): boolean | undefined => {
+    budget.steps -= (pattern.length + 1) * (text.length + 1);
+    if (budget.steps < 0) return undefined;
+    // Iterative wildcard match, backing up to the last `*` only.
+    let p = 0;
+    let t = 0;
+    let star = -1;
+    let mark = 0;
+    while (t < text.length) {
+      if (p < pattern.length && (pattern[p] === '?' || pattern[p] === text[t])) {
+        p += 1;
+        t += 1;
+      } else if (p < pattern.length && pattern[p] === '*') {
+        star = p;
+        mark = t;
+        p += 1;
+      } else if (star !== -1) {
+        p = star + 1;
+        mark += 1;
+        t = mark;
+      } else return false;
+    }
+    while (p < pattern.length && pattern[p] === '*') p += 1;
+    return p === pattern.length;
+  };
+  // Parts matched by dynamic programming over (glob part, path part): linear in their product.
+  let reachable = new Array<boolean>(path.length + 1).fill(false);
+  reachable[0] = true;
+  for (const pattern of glob) {
+    const next = new Array<boolean>(path.length + 1).fill(false);
+    for (let at = 0; at <= path.length; at += 1) {
+      if (!reachable[at]) continue;
+      if (pattern === '**') {
+        for (let end = at; end <= path.length; end += 1) next[end] = true;
+        break;
+      }
+      if (at === path.length) continue;
+      const matched = part(pattern, path[at] ?? '');
+      if (matched === undefined) return undefined;
+      if (matched) next[at + 1] = true;
+    }
+    reachable = next;
+  }
+  return reachable[path.length] === true;
+}
+
+/**
+ * Eighth pass (#659), CheckReading.testPath: reads `testFiles` once, when first asked, into the set
+ * of listed files, every directory above one (so a directory holds a listed file at any depth), and,
+ * for go, every package directory holding a listed `_test.go` directly and every directory above
+ * one; a directory part go skips for `/...` (`testdata`, or beginning with `.` or `_`) holds none.
+ * Each lookup is linear in the word; globs share TEST_PATH_GLOB_BUDGET.
+ */
+function testPathReader(testFiles: () => readonly string[]): (word: string, kind: PositionalReading, fromRoot: boolean) => TestPathReading {
+  let read:
+    | { readonly files: readonly string[]; readonly fileSet: ReadonlySet<string>; readonly directories: ReadonlySet<string>; readonly goPackages: ReadonlySet<string>; readonly goTrees: ReadonlySet<string> }
+    | undefined;
+  const budget = { steps: TEST_PATH_GLOB_BUDGET };
+  const inventory = () => {
+    if (read !== undefined) return read;
+    const files = testFiles();
+    const directories = new Set<string>();
+    const goPackages = new Set<string>();
+    const goTrees = new Set<string>();
+    for (const file of files) {
+      const parts = file.split('/');
+      for (let at = 0; at < parts.length; at += 1) directories.add(parts.slice(0, at).join('/'));
+      if (!file.endsWith('_test.go') || parts.slice(0, -1).some((name) => name === 'testdata' || name.startsWith('.') || name.startsWith('_'))) continue;
+      goPackages.add(parts.slice(0, -1).join('/'));
+      for (let at = 0; at < parts.length; at += 1) goTrees.add(parts.slice(0, at).join('/'));
+    }
+    read = { files, fileSet: new Set(files), directories, goPackages, goTrees };
+    return read;
+  };
+  const pathReading = (word: string): TestPathReading => {
+    const { files, fileSet, directories } = inventory();
+    if (GLOB_WORD_PATTERN.test(word)) {
+      const glob = repositoryRelativePath(word);
+      if (glob === null) return 'no-test';
+      const parts = glob.split('/');
+      for (const file of files) {
+        const matched = globMatchesPath(parts, file.split('/'), budget);
+        if (matched === undefined) return 'unread';
+        if (matched) return 'test';
+      }
+      return 'no-test';
+    }
+    const path = repositoryRelativePath(word);
+    if (path === null) return 'no-test';
+    return fileSet.has(path) || directories.has(path) ? 'test' : 'no-test';
+  };
+  return (word, kind, fromRoot) => {
+    if (!fromRoot || word === '' || UNRESOLVED_PATH_WORD_PATTERN.test(word)) return 'unread';
+    if (kind === 'go') {
+      if (GLOB_WORD_PATTERN.test(word)) return 'unread';
+      const tree = word === '...' || word.endsWith('/...');
+      const directory = tree ? word.slice(0, -3) : word;
+      // An import path (`example.invalid/m/pkg`, `all`, `std`) is resolved through go.mod, not read.
+      if (!(directory === '' || directory === '.' || directory.startsWith('./') || directory.startsWith('../') || directory === '..')) return 'unread';
+      if (directory.includes('...')) return 'unread';
+      const path = repositoryRelativePath(directory);
+      if (path === null) return 'no-test';
+      const { goPackages, goTrees } = inventory();
+      return (tree ? goTrees : goPackages).has(path) ? 'test' : 'no-test';
+    }
+    if (kind === 'module' && !word.includes('/') && !word.endsWith('.py')) {
+      // A dotted name is a module, then perhaps a class and a method: some prefix of its parts must
+      // be a listed `.py` file, or the whole name a directory holding one.
+      const { fileSet, directories } = inventory();
+      const parts = word.split('.');
+      if (parts.some((name) => name === '')) return 'unread';
+      const whole = parts.join('/');
+      if (directories.has(whole)) return 'test';
+      for (let at = parts.length; at > 0; at -= 1) if (fileSet.has(`${parts.slice(0, at).join('/')}.py`)) return 'test';
+      return 'no-test';
+    }
+    return pathReading(word);
+  };
+}
+
+// A positional word B3's note gives as written: bounded, and only characters a path is made of.
+const NAMEABLE_POSITIONAL_WORD_PATTERN = /^[A-Za-z0-9_./:*?@+=,-]{1,80}$/;
+const POSITIONAL_NO_TEST_REASON = (word: string) =>
+  NAMEABLE_POSITIONAL_WORD_PATTERN.test(word)
+    ? `the check points at \`${word}\`, where Cejel finds no test file`
+    : 'the check points at a path where Cejel finds no test file';
+
+/**
+ * Eighth pass (#659): the problem a runner's positional words give, read as POSITIONAL_READINGS
+ * says; undefined where each names a counted test, or the runner's positionals are not read so.
+ */
+function positionalProblem(
+  runner: string,
+  positionals: readonly string[],
+  testPath: (word: string, kind: PositionalReading) => TestPathReading,
+): PositionalProblem | undefined {
+  const kind = POSITIONAL_READINGS.get(runner);
+  if (kind === undefined) return undefined;
+  for (const [at, positional] of positionals.entries()) {
+    // unittest's `discover` alone runs default discovery from the directory, as bare unittest does.
+    if (kind === 'module' && at === 0 && positional === 'discover') {
+      if (positionals.length > 1) return { word: positional, unread: true };
+      continue;
+    }
+    if (kind === 'uvu' && at > 0) return { word: positional, unread: true };
+    // A pytest node id (`file::Class::test`) names the file before its first `::`.
+    const word = runner === 'pytest' && positional.includes('::') ? positional.slice(0, positional.indexOf('::')) : positional;
+    const reading = testPath(word, kind === 'uvu' ? 'path' : kind);
+    if (reading !== 'test') return { word: positional, unread: reading === 'unread' };
+  }
+  return undefined;
+}
+
 /**
  * Item C: for launcher-free words (a Python module's words start at its name), true when a
  * CHECK_FORMS form of the command word admits every word after it; false when the command has forms
- * and none admits them; undefined when it has none.
+ * and none admits them; undefined when it has none. Eighth pass (#659): where `testPath` is given,
+ * a PositionalProblem when the form admits the words but a positional word names no counted test
+ * (positionalProblem).
  */
-function checkFormAdmits(words: readonly string[]): boolean | undefined {
+function checkFormAdmits(
+  words: readonly string[],
+  testPath?: (word: string, kind: PositionalReading) => TestPathReading,
+): boolean | undefined | PositionalProblem {
   const forms = CHECK_FORMS.get(words[0] ?? '');
   if (forms === undefined) return undefined;
   const form = forms.find(({ sub }) => sub.every((word, at) => words[1 + at] === word));
   if (form === undefined) return false;
   const args = words.slice(1 + form.sub.length);
   let positionals = 0;
+  const paths: string[] = [];
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index] ?? '';
     if (arg === '--') return form.afterSeparator !== undefined && args.slice(index + 1).every((word) => form.afterSeparator?.has(word));
@@ -11134,12 +11395,20 @@ function checkFormAdmits(words: readonly string[]): boolean | undefined {
     if (form.firstPositional !== undefined && positionals === 0) {
       if (!form.firstPositional.has(arg)) return false;
     } else if (!form.positional) return false;
+    // Eighth pass (#659): a `firstPositional` subcommand word (`vitest run`) is no path.
+    else paths.push(arg);
     positionals += 1;
   }
-  return true;
+  if (testPath === undefined || paths.length === 0) return true;
+  return positionalProblem(words[0] ?? '', paths, testPath) ?? true;
 }
 
 const RUNNER_ARGUMENT_REASON = 'the check carries a flag or argument that Cejel does not know to keep it failing when a test fails';
+
+/** Eighth pass (#659): the reason B3's note gives for a positional word that withholds the credit. */
+function positionalReason(problem: PositionalProblem): string {
+  return problem.unread ? UNREAD_TEST_ARGUMENT_REASON : POSITIONAL_NO_TEST_REASON(problem.word);
+}
 
 /**
  * Item C, CheckReading.testScriptLastRunner: the launcher-free words of the last command of the
