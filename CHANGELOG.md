@@ -16,6 +16,48 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+v17 remains the default rubric. Every change below applies only when the prospective v27 rubric is
+pinned. v27 carries no precision or recall claim.
+
+### Changed
+
+- **Prospective v27: A1 reads `PYTEST_ADDOPTS` in the environment of the CI command that runs
+  make, and names a collection hook defined in a plugin class (#633 item D, #634 item 3).** Under
+  `witan-rubric-v27-prospective-2026-10-19` only.
+  - **The two choices #648 kept are confirmed** by the operator on 2026-11-04. A plain `pytest` at
+    the repository's root always counts as a run, so the root configuration is always in force. A
+    Makefile `PYTEST_ADDOPTS = ...` without `export` is not read where make runs with no
+    `PYTEST_ADDOPTS` in its environment, since make does not pass it to a recipe.
+  - **The environment reaches the recipe.** Where a CI make command has `PYTEST_ADDOPTS` in its
+    environment, make passes `PYTEST_ADDOPTS` to every recipe, exported or not. Before, A1 read
+    the Makefile's value only where the Makefile exported it, and read the environment's only for a
+    pytest the CI step ran itself, so it rated a file "runs no test" that pytest runs. The
+    environment is a workflow-, job- or step-level `env:`, a leading `PYTEST_ADDOPTS=... make`, an
+    `env PYTEST_ADDOPTS=... make`, an `export PYTEST_ADDOPTS=...` earlier in the same `run:`, or a
+    non-GitHub CI file's variables key. The recipe's pytest then runs with the Makefile's value
+    where it assigns one with `=`, `:=` or `::=` (a `+=` appends it to the environment's), and with
+    the environment's where it assigns with `?=`, not at all, or make runs with `-e` (an `override`
+    assignment still wins). The Makefile read is the one in the directory make runs in, after `cd`
+    and `-C` (with `-f`, any), from the targets the command names. A value on make's command line
+    is still not read, as before.
+  - **An environment Cejel cannot read is named.** A workflow naming both `$GITHUB_ENV` and
+    `PYTEST_ADDOPTS` (the rule by name), an `env:` value that is an expression, or a value holding
+    `$` or a backtick leaves the recipe's pytest runs not read: "pytest run not read: `<reason>` in
+    Makefile". At most 16 distinct environments are read per Makefile; the rest are read as one
+    that is not known.
+  - **A `?=` default of `PYTEST_ADDOPTS`** is no longer "not known" because a CI file names it;
+    the environment of each CI make command is read instead. So `PYTEST_ADDOPTS ?= ...` with a CI
+    environment that sets it to an inert value is read with that value and can rate a file hollow,
+    where main named the run as not read.
+  - **A hook in a plugin class is named.** A `pytest_collection_modifyitems` defined as a method of
+    a class in a `conftest.py`, whose body names `items`, is named "hook not read:
+    `<Class>.pytest_collection_modifyitems` in `<path>`", with a pointer at the method's `def`. It is
+    not read, and the files keep v17's reading, as before; only A1's note and evidence change.
+  - **Not read:** `MAKEFLAGS` in the environment; a justfile run with `PYTEST_ADDOPTS` in its
+    environment; a hook class in a module that is not a `conftest.py`; and a direct pytest step
+    whose `env:` sets `PYTEST_ADDOPTS` by an expression, which is still read as setting nothing
+    (cejel #669).
+
 ## [0.6.10] — 2026-11-04
 
 v17 remains the default rubric. Two entries change default output: the plain-language first page
