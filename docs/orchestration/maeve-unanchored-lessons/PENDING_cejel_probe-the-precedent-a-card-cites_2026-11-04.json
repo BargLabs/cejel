@@ -1,0 +1,24 @@
+[
+  {
+    "statement": "The v27 A1 make-environment card (goal_cejel_v27_a1_makefile_addopts_environment_2026-11-04) told the session to name a run whose environment comes from an expression as not read 'as #648 does'. A one-fixture probe on main showed #648 does not: readGithubRunSteps drops an env: PYTEST_ADDOPTS holding ${{ }}, so a direct pytest step is read as running with no setting and its skipped file is rated hollow. The session applied the not-read rule to make commands only, which was its scope, and filed the direct-step gap as cejel #669 instead of reusing a precedent that did not exist. Rules: when a card cites an existing behaviour as the model for a new one, run one fixture of that behaviour on main before building on it; a cited precedent is a claim to verify, not a fact; and where the probe shows the precedent missing, stay in scope and file the gap rather than widening the change or copying the missing rule.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "evidence-discipline"
+    ],
+    "tags": [
+      "card-premise",
+      "probe-before-reuse",
+      "false-assertion",
+      "scope-discipline"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-11-04T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 670
+    }
+  }
+]
