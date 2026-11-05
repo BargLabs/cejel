@@ -821,7 +821,7 @@ export const ALLOWLIST_FIXTURES: readonly AllowlistFixture[] = [
   fixture(
     'a1al-h-self-method-helper-in-plugin-class',
     'H',
-    "#634 item 3: a plugin class registered from pytest_configure whose hook calls self.refill(items, saved); the module-level reader reads no hook in a class, so it makes no claim and the files keep v17's reading.",
+    "#634 item 3: a plugin class registered from pytest_configure whose hook calls self.refill(items, saved); the reader reads no hook in a class, so the files keep v17's reading, and (goal_cejel_v27_a1_makefile_addopts_environment_2026-11-04, item C) the method is named as not read at its def.",
     {
       'tests/conftest.py': lines(
         'import pytest',
@@ -841,7 +841,7 @@ export const ALLOWLIST_FIXTURES: readonly AllowlistFixture[] = [
         '    config.pluginmanager.register(Keeper())',
       ),
     },
-    { outcome: 'untouched' },
+    unread('Keeper.pytest_collection_modifyitems'),
   ),
   fixture(
     'a1al-h-hanging-indent-def-items-next-line',

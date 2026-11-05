@@ -22,6 +22,137 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
+## 2026-11-04 (A1 make environment) — v27 A1 reads `PYTEST_ADDOPTS` in the environment of the CI command that runs make, so the Makefile's value or the environment's reaches the recipe's pytest, and names a collection hook defined in a plugin class (#633 item D, #634 item 3); v17-v26 byte-identical; v27 never above v17; no published score moved
+
+**Status.** A scoring change under `witan-rubric-v27-prospective-2026-10-19` only, with no
+identifier change (goal_cejel_v27_a1_makefile_addopts_environment_2026-11-04). No holdout or
+calibration ran for it, and this entry makes no precision or recall claim. The default stays v17.
+
+**Operator rulings, 2026-11-04** (#633 item D, the two choices #648 kept). 1. A plain root `pytest`
+always counts as a run, so the root configuration is always in force: confirmed. It can only add
+withholds. 2. A Makefile `PYTEST_ADDOPTS = ...` without `export` is not read: confirmed for the plain
+case, since GNU make does not pass an unexported Makefile variable to a recipe. But the value is in
+force where the Makefile exports everything (`.EXPORT_ALL_VARIABLES:` or a bare `export`), where
+the recipe passes it on the command line (`pytest $(PYTEST_ADDOPTS)`), and where `PYTEST_ADDOPTS`
+is already in make's environment, since make then passes the Makefile's value to the recipe.
+
+**Why.** The operator's probe of 4 Nov ran 0.6.10 (main `e3f1a047f`) under v27 on synthetic
+repositories and found seven missed shapes, each a false "runs no test": an unexported Makefile
+value with `PYTEST_ADDOPTS` set by a job, workflow or step `env:`, by an earlier step's
+`$GITHUB_ENV` write, by a leading `PYTEST_ADDOPTS=-q make test`, or by an `export` earlier in the
+same `run:`; and no Makefile value with the job's `env:` setting it, where `make test` runs pytest.
+A1 read the environment only for a pytest the CI step ran itself. The probe checked each make claim
+with GNU Make 3.81. #634 item 3, left open by #655: a hook defined as a method of a plugin class was
+neither read nor named.
+
+**Change.**
+
+- **The environment reaches the recipe (item A).** Each CI make command run with `PYTEST_ADDOPTS`
+  in its environment is recorded while CI is read: workflow-, job- or step-level `env:`, a leading
+  `PYTEST_ADDOPTS=... make`, `env PYTEST_ADDOPTS=... make`, an `export PYTEST_ADDOPTS=...` earlier in
+  the same `run:`, or a non-GitHub CI file's variables key (#648's readers, unchanged). It is read
+  against the Makefile in the directory make runs in, after `cd` and `-C` (with `-f`, any
+  directory), from the targets it names (the default goal where it names none). make then passes
+  `PYTEST_ADDOPTS` to every recipe, exported or not. `readMakeVariables` now takes the environment's
+  value as defined before the file, as GNU make does: a `?=` keeps it, a `+=` appends to it, and
+  `=`, `:=` or `::=` replace it; under `make -e` only an `override` assignment changes it. So the
+  recipe's pytest runs with the Makefile's value where it assigns one (a `+=` gives the
+  environment's value followed by the Makefile's), and with the environment's where it assigns with
+  `?=`, not at all, or make runs with `-e`. The clause names where the value is set: `in
+  PYTEST_ADDOPTS in Makefile` for the Makefile's value, `in PYTEST_ADDOPTS in
+  .github/workflows/ci.yml` for the environment's, with a pointer at the CI line that sets it. A value
+  on make's command line (`make test PYTEST_ADDOPTS=...`) stays not read through `makeOverrides`.
+- **An environment Cejel cannot read** leaves the pytest runs the command's targets reach not read,
+  named with #644's clause: a workflow naming both `$GITHUB_ENV` and `PYTEST_ADDOPTS` (#648's rule by
+  name: "pytest run not read: `PYTEST_ADDOPTS written to $GITHUB_ENV` in Makefile"), an `env:` value
+  that is an expression ("`PYTEST_ADDOPTS: ${{ ... }}`"), or a value holding `$` or a backtick. No
+  value is asserted for these.
+- **A `?=` default of `PYTEST_ADDOPTS`** is no longer "not known" because a CI file names it (the
+  review of #648's rule); the environment of each CI make command is read instead. Make run by
+  hand, or by a CI command with no `PYTEST_ADDOPTS` in its environment, reads the Makefile as before.
+- **Pins for the forms main reads right (item B).** One fixture each, all passing on main and kept:
+  a plain root pytest with root configuration in force; an unexported Makefile value with no
+  environment (rated hollow); `.EXPORT_ALL_VARIABLES:`; a bare `export`; `export PYTEST_ADDOPTS =
+  ...`; `pytest $(PYTEST_ADDOPTS)`; `PYTEST_ADDOPTS="$(PYTEST_ADDOPTS)" pytest`. None was wrong on
+  main.
+- **A hook in a plugin class (item C, #634 item 3).** A `pytest_collection_modifyitems` defined as a
+  method of a class in a `conftest.py` (registered from `pytest_configure`, through
+  `pytest_plugins` or `config.pluginmanager.register`), whose body names `items`, is named "hook not
+  read: `<Class>.pytest_collection_modifyitems` in `<path>`", with a pointer at the method's `def`.
+  It is not read; the files keep v17's reading, as before, so only A1's note and evidence change. A
+  nested `def` of the name inside a function is not a class method and is not named here (it still
+  blocks any module-level claim, as before).
+- **Not read, stated limits.** `MAKEFLAGS` in the environment (an `e` there is not seen); a
+  justfile run with `PYTEST_ADDOPTS` in its environment (just passes its environment to a recipe;
+  not this card's item); a hook class in a module that is not a `conftest.py`; remote step actions
+  beyond #648's narrow rule. Found while probing and not fixed here, as outside the card's items: a
+  direct pytest step whose `env:` sets `PYTEST_ADDOPTS` by an expression is still read as setting
+  nothing, though the card took it to be named as not read "as #648 does" (cejel #669).
+
+**Bounds.** Each distinct CI make environment re-reads the Makefile's variables and the recipes its
+targets reach, so N environments against a Makefile of N targets would cost N x N. At most 16
+distinct environments (directory, value, `-e`) are read per Makefile; every later one joins one
+environment that is not known, in no known directory, whose targets are merged. Measured by the new
+scaling checks in `scan-path-regex-bounds.test.ts` (L = 240,000, CPU-time samples, limit 3), at
+`e46ba416e`, on the input that maximises each reader's work:
+
+- the make environment reader, on L/400 CI make steps each with its own `PYTEST_ADDOPTS` and target,
+  against a Makefile of L/400 pytest targets with a `?=` default: ratio 2.06. With the cap removed
+  the same check measured 3.70 and failed;
+- the class hook search (one pass over the logical lines, a stack of open blocks and of the class
+  hooks open in them), on L/120 plugin classes each defining the hook with a body naming `items`:
+  ratio 2.19.
+
+Per Makefile, the targets each environment starts from are filtered as the base read already
+filters the CI-named targets, which is #648's product of Makefiles and named targets, unchanged in
+kind. The ReDoS guard (1,252 regex literals across 31 production witan files, 0 failures) passed.
+
+**The no-rise property.** Item A only adds a setting in force or a run not read for a recipe's
+pytest; either withholds, and a withhold falls back to v17's reading. The one place it withholds
+less is a `?=` default whose CI environment sets an inert value, which main named as not read: that
+can lower v27's A1 only where v17 already scores the file. Item C names a hook that made no claim
+before and changes no file's reading. v27 cannot score A1 above v17 on the same commit.
+
+**Measured** (code at `74af0e2ca`, the last code commit; the commits after it change tests, a
+comment in the v27 declaration and records only). The set #648's "Measured again after the review
+round" names, from this branch's fixture files: the false-assurance (269), CI-claims (71) and B3
+(347) sets and every v27 A1 set (removal 39, hook outcome 38, allowlist 86, withhold 96, run 58),
+1,004 synthetic repositories built once and scanned with main `e3f1a047f` and with this branch,
+under v17, v26 and v27, comparing the report JSON and the HTML and Markdown certificates: 3,012
+reports each side, 0 errors.
+
+- v17: 1,004 of 1,004 reports, HTML and Markdown certificates byte-identical to main.
+- v26: 1,004 of 1,004, the same.
+- v18 to v25 were not rescanned: both changed readers run only where
+  `usesV27FalseAssuranceClosure` holds, which is `rubricVersion === WITAN_RUBRIC_VERSION_V27`.
+- v27: 1,003 of 1,004 byte-identical. The one that moved is the #634 item 3 pin
+  `a1al-h-self-method-helper-in-plugin-class`, in A1's note and evidence alone (score 2.3 and status
+  verified unchanged): it gains "Hook not read: `Keeper.pytest_collection_modifyitems` in
+  tests/conftest.py." and its pointer. Its fixture pin moved from "untouched" to "not read", the only
+  v27 pin this change moves; no fingerprint pin moved. None of the 1,004 holds a CI make command
+  with `PYTEST_ADDOPTS` in its environment, so none moves by item A.
+- v27 A1 above v17 A1 on the same repository: 0 of 1,004. Overall score above v17: 0 of 1,001
+  compared (the others carry no headline score).
+
+**Fixtures and tests.** `src/witan/__tests__/v27-a1-make-environment.test.ts`, committed red first
+at `c9b1fc949` and run with main `e3f1a047f`'s code: 16 of 29 failed, and the #634 item 3 pin failed
+in `v27-a1-hook-outcomes.test.ts`. Of the 16: 11 item A fixtures that main rated hollow (the seven
+missed rows of the probe, `+=`, `-e`, an expression value and a GitLab variables key) now withhold,
+so A1 rises back to v17's score; `?=` with the environment setting `-p no:skipping` changes only in
+the note (main named the run not read; it now says the setting in force); `?=` with an inert
+environment falls, as designed (main named it not read; pytest runs with `-q`, so the file is rated
+hollow); and three item C fixtures change only in the note. The 13 that passed on main are item B's
+seven pins, four controls (`make -e` with an inert environment, a target the environment's step
+does not run, a direct pytest step, a value on make's command line) and two item C controls. Three
+more were added with the fix (`3aaa07e80`): an `env` prefix, `make -e` with an `override`, and
+`make -C sub`. make and pytest were not run in this session (its shell could not run make or any
+Python package); each make claim rests on GNU make's documented rules for the environment, `-e`,
+`?=`, `+=`, `override` and export, and on the operator's probe with GNU Make 3.81; no pytest version
+is claimed. The full suite, the typecheck and `pnpm run build` ran at the branch's head (see the
+pull request).
+
+No published score moved: the board is scored under v17.
+
 ## 2026-11-02 (unread history, every rubric) — under v17 and every rubric, a shallow clone or an unreadable history depth gives no composite and no verdict, as under v27 since 1 Nov; a directory with no .git gives none under every rubric, v27 included; complete clones byte-identical under v17 and v27; no published score moved
 
 **Status.** A scoring change under the calibrated default `witan-rubric-v17-2026-07-24` and every

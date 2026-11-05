@@ -383,7 +383,8 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     repository, --pyargs, a working-directory expression, Jenkins dir(), a reusable workflow in
 //     another repository, or an option the reader does not know before a word that may be its
 //     value or a path; after the review of #648, also a make variable set by !=, define, inside a
-//     conditional, for one target or by a ?= default a CI file may replace, hatch test, a TOXENV
+//     conditional, for one target or by a ?= default a CI file may replace (from 2026-11-04 not
+//     PYTEST_ADDOPTS, whose environment is read as below), hatch test, a TOXENV
 //     Cejel cannot resolve, a step action whose with: input runs pytest, and every pytest run in a
 //     workflow that names both $GITHUB_ENV and PYTEST_ADDOPTS or checks out into a path:) is named in A1's
 //     note as "pytest run not read: `<reason>` in <path>" (#644's
@@ -397,12 +398,34 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     the root before the per-argument search). A run that finds no configuration file in the
 //     repository may read one above its root, which the scan cannot see; A1's note says so once
 //     where a file is rated hollow on such a run, and nothing is rated on what it might hold. Two
-//     choices are kept, for the operator to confirm: a plain `pytest` at the root always counts as
-//     a run, as the documented default invocation, so the root configuration is always in force;
-//     and a Makefile `PYTEST_ADDOPTS = ...` without export is not read, since make does not pass it
-//     to a recipe (#626's first pass, 892a95a40, read it; an `export PYTEST_ADDOPTS` line, a bare
-//     `export` or .EXPORT_ALL_VARIABLES exports it). Each setting, command-line and not-read clause
-//     carries an evidence pointer at its line, sharing the eight with the hooks, the rest counted.
+//     choices, confirmed by the operator on 2026-11-04 (#633 item D): a plain `pytest` at the root
+//     always counts as a run, as the documented default invocation, so the root configuration is
+//     always in force; and a Makefile `PYTEST_ADDOPTS = ...` without export is not read where make
+//     runs with no PYTEST_ADDOPTS in its environment, since make does not pass it to a recipe
+//     (#626's first pass, 892a95a40, read it; an `export PYTEST_ADDOPTS` line, a bare `export` or
+//     .EXPORT_ALL_VARIABLES exports it, and `pytest $(PYTEST_ADDOPTS)` or
+//     `PYTEST_ADDOPTS="$(PYTEST_ADDOPTS)" pytest` in the recipe passes it). From 2026-11-04
+//     (goal_cejel_v27_a1_makefile_addopts_environment_2026-11-04, item A) a CI make command run
+//     with PYTEST_ADDOPTS in its environment (workflow, job or step env:, a leading assignment, an
+//     `env` prefix, an earlier `export` in the same run:, or a non-GitHub CI file's variables key)
+//     is read against the Makefile in the directory it runs in (after cd and -C; with -f, any
+//     directory), from the targets it names: make then passes PYTEST_ADDOPTS to every recipe,
+//     exported or not, with the Makefile's value where it assigns one with =, := or ::= (a +=
+//     appends it to the environment's), and the environment's where it assigns with ?=, not at all,
+//     or make runs with -e (an override assignment still wins). A make command whose environment
+//     Cejel cannot read (a workflow naming $GITHUB_ENV and PYTEST_ADDOPTS, an env: expression, a
+//     value holding $ or a backtick) leaves the pytest runs its targets reach not read; a value on
+//     make's command line stays not read, as before. At most 16 distinct environments are read per
+//     Makefile; the rest are read as one not known. A ?= default of PYTEST_ADDOPTS is no longer
+//     not known because a CI file names it. MAKEFLAGS in the environment and a justfile run with
+//     PYTEST_ADDOPTS in its environment are not read. Each setting, command-line and not-read clause
+//     carries an evidence pointer at its line, sharing the eight with the hooks, the rest counted; a
+//     CI environment's value reaching a recipe points at the CI line that sets it.
+//     From 2026-11-04 (item C, #634 item 3) a pytest_collection_modifyitems defined as a method of a
+//     class in a conftest.py, whose body names items, is named "hook not read:
+//     `<Class>.pytest_collection_modifyitems` in <path>", with a pointer at the method's def; it is
+//     not read, and the files keep v17's reading. A hook class in a module that is not a
+//     conftest.py is not searched.
 //     From 2026-11-03 (goal_cejel_v27_a1_gaps_2026-11-03, items B and C, cejel #649; the #655
 //     review) a noxfile's *session.posargs holds the words after `--` of each CI, recipe or tox nox
 //     command (nox, python -m nox, uvx, uv run or pipx run nox), read as tox's posargs are (the

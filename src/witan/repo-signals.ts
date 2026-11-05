@@ -14292,6 +14292,12 @@ interface PytestInvocation {
   readonly unread?: string;
   /** The review of #648: the 0-based line of the `env:` entry that sets `addopts`, where one does. */
   readonly addoptsAnchor?: number;
+  /**
+   * goal_cejel_v27_a1_makefile_addopts_environment_2026-11-04, item A: where `addopts` is set when
+   * that is another file than the run's (a CI environment make passes on to a recipe's pytest): the
+   * file as A1's note names it, its repository path, and the 0-based line to search from.
+   */
+  readonly addoptsAt?: { readonly source: string; readonly file: string; readonly line: number };
 }
 
 /** One group of pytest flags, with where A1's note says they are set and where its evidence points. */
@@ -14783,11 +14789,16 @@ function resolvePytestRun(invocation: PytestInvocation, repo: PytestRepositoryVi
     file === '' ? undefined : { path: file, line: repo.lineOf(file, [token, ...tokens], anchor), label };
   const groups: PytestFlagGroup[] = [];
   if (invocation.addopts && invocation.addopts.length > 0) {
+    const elsewhere = invocation.addoptsAt;
     groups.push({
       words: invocation.addopts,
-      where: `in PYTEST_ADDOPTS in ${a1NotePath(invocation.source ?? '')}`,
+      where: `in PYTEST_ADDOPTS in ${a1NotePath(elsewhere?.source ?? invocation.source ?? '')}`,
       at: (_token, label) => () =>
-        file === '' ? undefined : { path: file, line: repo.lineOf(file, ['PYTEST_ADDOPTS'], invocation.addoptsAnchor ?? anchor), label },
+        elsewhere !== undefined
+          ? { path: elsewhere.file, line: repo.lineOf(elsewhere.file, ['PYTEST_ADDOPTS'], elsewhere.line), label }
+          : file === ''
+            ? undefined
+            : { path: file, line: repo.lineOf(file, ['PYTEST_ADDOPTS'], invocation.addoptsAnchor ?? anchor), label },
     });
   }
   if (invocation.args.length > 0) groups.push({ words: invocation.args, where: commandWhere, at: commandAt(['pytest', 'py.test']) });
@@ -15770,6 +15781,12 @@ interface GithubRunStep {
   readonly line: number;
   /** item A: the working-directory expression that leaves `directory` unknown. */
   readonly unknownDirectory?: string;
+  /**
+   * goal_cejel_v27_a1_makefile_addopts_environment_2026-11-04, item A: the `PYTEST_ADDOPTS: <value>`
+   * entry whose value is an expression, so whether it sets PYTEST_ADDOPTS, and to what, is not known.
+   * Read only for a make command (the environment make passes on to a recipe).
+   */
+  readonly addoptsNotKnown?: string;
 }
 
 function readGithubRunSteps(text: string): GithubRunStep[] {
@@ -15893,6 +15910,7 @@ function readGithubRunSteps(text: string): GithubRunStep[] {
       ...(directory === null && directoryValue !== undefined ? { unknownDirectory: `working-directory: ${directoryValue}` } : {}),
       ...(addoptsValue === undefined || addoptsValue.includes('${{') ? {} : { addopts: shellWords(addoptsValue) }),
       ...(addoptsValue === undefined || addoptsValue.includes('${{') || addoptsLine === undefined ? {} : { addoptsLine }),
+      ...(addoptsValue !== undefined && addoptsValue.includes('${{') ? { addoptsNotKnown: `PYTEST_ADDOPTS: ${addoptsValue}` } : {}),
     });
   }
   return steps;
@@ -15925,6 +15943,10 @@ export function readPytestInvocations(
   // The review of #648: the text of every CI file read, where a CI command may set a variable in the
   // environment of the make or tox it runs (a `?=` default, TOXENV).
   const environmentTexts: string[] = [];
+  // goal_cejel_v27_a1_makefile_addopts_environment_2026-11-04, item A: each CI make command run with
+  // PYTEST_ADDOPTS in its environment, or with one Cejel cannot read. Recorded while CI is read only.
+  const makeEnvironments: MakeEnvironment[] = [];
+  let readingCi = true;
   const visitor = (
     source: string,
     file: string,
@@ -15932,8 +15954,31 @@ export function readPytestInvocations(
     depth = 0,
     // The review of #648: where an `env:` mapping set the PYTEST_ADDOPTS words `envAddopts` (0-based line).
     envAddopts?: { readonly words: readonly string[]; readonly line: number },
+    // Item A: why PYTEST_ADDOPTS in this command's environment is not known (an expression, a
+    // `$GITHUB_ENV` write), where it is not.
+    envNotKnown?: string,
+    // Item A: the CI environment's PYTEST_ADDOPTS words a recipe's pytest runs with, and where they are set.
+    addoptsAt?: { readonly words: readonly string[]; readonly source: string; readonly file: string; readonly line: number },
   ): ShellCommandVisitor => (words, directory, addopts, unknownDirectory) => {
     for (const target of recipeTargetsNamed(words)) namedTargets.add(target);
+    const makeRun = readingCi ? makeCommandOf(words) : undefined;
+    if (makeRun !== undefined) {
+      const inForce = makeRun.addopts ?? addopts;
+      // A word make or the shell would expand (`$VAR`, `$(X)`, a backtick) is not a value Cejel knows.
+      const notKnown = envNotKnown ?? (inForce?.some((word) => /[$`]/.test(word)) ? `PYTEST_ADDOPTS=${inForce.join(' ')}` : undefined);
+      if (inForce !== undefined || notKnown !== undefined) {
+        // A Makefile named with -f may be in any directory: read as one in no known directory.
+        let runIn = makeRun.namesFile ? null : directory;
+        for (const step of makeRun.directories) runIn = runIn === null ? null : resolveCommandPath(runIn, step);
+        makeEnvironments.push({
+          directory: runIn,
+          targets: makeRun.targets,
+          overrides: makeRun.overrides,
+          ...(notKnown !== undefined ? { notKnown } : inForce !== undefined ? { addopts: inForce } : {}),
+          at: { source, file, line: envAddopts !== undefined && inForce === envAddopts.words ? envAddopts.line : anchor },
+        });
+      }
+    }
     for (const name of makeAssignmentsNamed(words)) makeOverrides.add(name);
     for (const environment of toxEnvironmentsNamed(words)) namedToxEnvironments.add(environment);
     const posargs = toxPosargsOf(words);
@@ -16005,6 +16050,7 @@ export function readPytestInvocations(
     }
     const inForce = found.addopts ?? addopts;
     const addoptsAnchor = inForce !== undefined && envAddopts !== undefined && inForce === envAddopts.words ? envAddopts.line : undefined;
+    const elsewhere = inForce !== undefined && addoptsAt !== undefined && inForce === addoptsAt.words ? addoptsAt : undefined;
     invocations.push({
       source,
       file,
@@ -16014,6 +16060,7 @@ export function readPytestInvocations(
       args: found.args,
       ...(inForce === undefined ? {} : { addopts: inForce }),
       ...(addoptsAnchor === undefined ? {} : { addoptsAnchor }),
+      ...(elsewhere === undefined ? {} : { addoptsAt: { source: elsewhere.source, file: elsewhere.file, line: elsewhere.line } }),
     });
   };
   const usable = repoFiles.filter((file) => !GENERATED_OR_VENDOR_PATH_PATTERN.test(file));
@@ -16031,8 +16078,11 @@ export function readPytestInvocations(
     const unreadWhy = writesAddopts ?? remote.checkoutPath;
     for (const step of readGithubRunSteps(text)) {
       const envAddopts = step.addopts !== undefined && step.addoptsLine !== undefined ? { words: step.addopts, line: step.addoptsLine } : undefined;
-      if (unreadWhy !== undefined) readShellCommands(step.command, null, step.addopts, visitor(source, file, step.line, 0, envAddopts), unreadWhy);
-      else readShellCommands(step.command, step.directory, step.addopts, visitor(source, file, step.line, 0, envAddopts), step.unknownDirectory);
+      // Item A: a make command's environment is not known where the file may write PYTEST_ADDOPTS
+      // to $GITHUB_ENV (the rule by name) or an `env:` entry sets it by an expression.
+      const envNotKnown = writesAddopts ?? step.addoptsNotKnown;
+      if (unreadWhy !== undefined) readShellCommands(step.command, null, step.addopts, visitor(source, file, step.line, 0, envAddopts, envNotKnown), unreadWhy);
+      else readShellCommands(step.command, step.directory, step.addopts, visitor(source, file, step.line, 0, envAddopts, envNotKnown), step.unknownDirectory);
     }
     // The review of #648: a step action whose inputs run pytest (a retry or display wrapper) runs
     // it with arguments Cejel does not read.
@@ -16145,6 +16195,10 @@ export function readPytestInvocations(
     }
     return noxRuns;
   };
+  // goal_cejel_v27_a1_makefile_addopts_environment_2026-11-04, item A: CI has been read; a make
+  // command in a recipe or a tox environment adds no environment.
+  readingCi = false;
+  const environments = distinctMakeEnvironments(makeEnvironments);
   for (const file of usable.filter(isRecipeFile)) {
     const text = readText(file);
     if (text === undefined) continue;
@@ -16153,16 +16207,22 @@ export function readPytestInvocations(
     const headers = just ? new Map([...readJustRecipes(text)].map(([name, recipe]) => [name, recipe.line])) : makeTargetLines(text);
     // item A: make variables defined in the same Makefile (and just's own assignments) are expanded.
     // The review of #648: as make reads them, or not known (readMakeVariables); a `?=` default is
-    // not known where a CI file names the variable, since a CI command may set it.
-    const setByEnvironment = (name: string) => environmentTexts.some((ciText) => containsWord(ciText, name));
+    // not known where a CI file names the variable, since a CI command may set it. Item A of
+    // goal_cejel_v27_a1_makefile_addopts_environment_2026-11-04: not PYTEST_ADDOPTS, whose value in
+    // the environment of each CI make command is read below.
+    const setByEnvironment = (name: string) => name !== 'PYTEST_ADDOPTS' && environmentTexts.some((ciText) => containsWord(ciText, name));
     const justVariables = just ? readJustVariables(text) : undefined;
     const make = just ? undefined : readMakeVariables(text, setByEnvironment);
     const budget = { left: MAKE_EXPANSION_BUDGET };
-    const isUnknown = (name: string) => make?.unknown.has(name) === true || makeOverrides.has(name);
-    const expand = (command: string): { readonly text: string; readonly unknown: boolean } =>
-      justVariables !== undefined
-        ? { text: expandJustVariables(command, justVariables), unknown: false }
-        : expandMakeVariables(command, make?.values ?? new Map(), isUnknown, budget);
+    const unknownIn = (variables: MakeVariables | undefined) => (name: string) => variables?.unknown.has(name) === true || makeOverrides.has(name);
+    const isUnknown = unknownIn(make);
+    const expandWith =
+      (variables: MakeVariables | undefined) =>
+      (command: string): { readonly text: string; readonly unknown: boolean } =>
+        justVariables !== undefined
+          ? { text: expandJustVariables(command, justVariables), unknown: false }
+          : expandMakeVariables(command, variables?.values ?? new Map(), unknownIn(variables), budget);
+    const expand = expandWith(make);
     // Item D: make passes PYTEST_ADDOPTS to a recipe only where the Makefile exports it. The review
     // of #648: a just file's `set export` exports every assignment.
     let addoptsUnknown = false;
@@ -16191,30 +16251,80 @@ export function readPytestInvocations(
       command.toLowerCase().includes('pytest') ||
       expanded.toLowerCase().includes('pytest') ||
       makeReferencesIn(expanded).some((name) => make?.pytestNames.has(name) === true);
-    const reached = new Set<string>();
-    const queue = [[...targets.keys()][0], 'test', 'tests', 'check', ...namedTargets].filter(
-      (name): name is string => name !== undefined && targets.has(name),
-    );
-    while (queue.length > 0) {
-      const name = queue.shift() ?? '';
-      if (reached.has(name)) continue;
-      reached.add(name);
-      const target = targets.get(name);
-      if (!target) continue;
-      queue.push(...target.dependencies.filter((dependency) => targets.has(dependency)));
-      const commands = joinRecipeContinuations(target.commands);
-      for (const command of commands) {
-        const expanded = expand(command);
-        if (expanded.unknown && unknownRunsPytest(command, expanded.text)) {
-          invocations.push({ source: a1NotePath(file), file, anchor: headers.get(name) ?? 0, directory: '', args: [], text: command, unread: command });
-          continue;
+    const firstTarget = [...targets.keys()][0];
+    // One read of the recipes reached from `names`, with the variables `variables` holds and
+    // PYTEST_ADDOPTS `inForceAddopts` in force, or not known (`notKnown`, the reason the note names).
+    const readRecipes = (
+      names: readonly (string | undefined)[],
+      variables: MakeVariables | undefined,
+      inForceAddopts: readonly string[] | undefined,
+      notKnown: string | undefined,
+      addoptsAt?: { readonly words: readonly string[]; readonly source: string; readonly file: string; readonly line: number },
+    ): void => {
+      const expandHere = variables === make ? expand : expandWith(variables);
+      const reached = new Set<string>();
+      const queue = names.filter((name): name is string => name !== undefined && targets.has(name));
+      while (queue.length > 0) {
+        const name = queue.shift() ?? '';
+        if (reached.has(name)) continue;
+        reached.add(name);
+        const target = targets.get(name);
+        if (!target) continue;
+        queue.push(...target.dependencies.filter((dependency) => targets.has(dependency)));
+        const commands = joinRecipeContinuations(target.commands);
+        for (const command of commands) {
+          const expanded = expandHere(command);
+          if (expanded.unknown && unknownRunsPytest(command, expanded.text)) {
+            invocations.push({ source: a1NotePath(file), file, anchor: headers.get(name) ?? 0, directory: '', args: [], text: command, unread: command });
+            continue;
+          }
+          readShellCommands(expanded.text, repoDirectory(file), inForceAddopts, (words, directory, inForce, why) => {
+            queue.push(...recipeTargetsNamed(words).filter((named) => targets.has(named)));
+            const visit = visitor(a1NotePath(file), file, headers.get(name) ?? 0, 0, undefined, undefined, addoptsAt);
+            if (notKnown !== undefined) visit(words, null, inForce, notKnown);
+            else visit(words, directory, inForce, why);
+          });
         }
-        readShellCommands(expanded.text, repoDirectory(file), addopts, (words, directory, inForce, why) => {
-          queue.push(...recipeTargetsNamed(words).filter((named) => targets.has(named)));
-          if (addoptsUnknown) visitor(a1NotePath(file), file, headers.get(name) ?? 0)(words, null, inForce, 'PYTEST_ADDOPTS');
-          else visitor(a1NotePath(file), file, headers.get(name) ?? 0)(words, directory, inForce, why);
-        });
       }
+    };
+    // make run by hand, or by a CI command with no PYTEST_ADDOPTS in its environment.
+    readRecipes([firstTarget, 'test', 'tests', 'check', ...namedTargets], make, addopts, addoptsUnknown ? 'PYTEST_ADDOPTS' : undefined);
+    // Item A of goal_cejel_v27_a1_makefile_addopts_environment_2026-11-04: each CI make command run
+    // in this Makefile's directory (or one not known) with PYTEST_ADDOPTS in its environment. make
+    // then passes PYTEST_ADDOPTS to every recipe, exported or not: with the Makefile's value where it
+    // assigns one (`=`, `:=`, `::=`; a `+=` appends to the environment's), else the environment's
+    // (`?=`, no assignment, `make -e`). An environment Cejel cannot read leaves the runs not read.
+    // Where the run's PYTEST_ADDOPTS is not known already, every run these reach is named above.
+    // A justfile is not read here: just passes its environment to a recipe, which is not item A.
+    if (make === undefined || addoptsUnknown) continue;
+    const here = repoDirectory(file);
+    const baseKey = addopts?.join('\u0000');
+    for (const environment of environments) {
+      if (environment.directory !== null && environment.directory !== here) continue;
+      const names = environment.targets.map((target) => (target === '' ? firstTarget : target));
+      if (environment.notKnown !== undefined) {
+        readRecipes(names, make, undefined, environment.notKnown);
+        continue;
+      }
+      const words = environment.addopts ?? [];
+      const local = readMakeVariables(text, setByEnvironment, { name: 'PYTEST_ADDOPTS', value: words.join(' '), overrides: environment.overrides });
+      if (local.unknown.has('PYTEST_ADDOPTS')) {
+        readRecipes(names, local, undefined, 'PYTEST_ADDOPTS');
+        continue;
+      }
+      if (local.fromEnvironment) {
+        readRecipes(names, local, words, undefined, { words, ...environment.at });
+        continue;
+      }
+      const expanded = expandWith(local)(local.values.get('PYTEST_ADDOPTS') ?? '');
+      if (expanded.unknown) {
+        readRecipes(names, local, undefined, 'PYTEST_ADDOPTS');
+        continue;
+      }
+      const inForce = shellWords(shellWords(expanded.text.trim()).join(' '));
+      // The Makefile's own exported value, which the read above already used.
+      if (inForce.join('\u0000') === baseKey) continue;
+      readRecipes(names, local, inForce, undefined);
     }
   }
   // The review of #648: a CI file's TOXENV names the environments tox runs; one Cejel cannot
@@ -16419,6 +16529,128 @@ function makeAssignmentsNamed(words: readonly string[]): string[] {
   });
 }
 
+/** GNU make's long options that take a value as the next word, where `=` does not join it. */
+const MAKE_LONG_OPTIONS_WITH_VALUE: ReadonlySet<string> = new Set([
+  '--directory', '--file', '--makefile', '--include-dir', '--old-file', '--assume-old', '--new-file',
+  '--assume-new', '--what-if', '--jobs', '--load-average', '--max-load', '--output-sync', '--debug',
+]);
+
+/**
+ * goal_cejel_v27_a1_makefile_addopts_environment_2026-11-04, item A: a command that runs make
+ * (`make`, `gmake`, `$(MAKE)`, after `env` and its assignments), as what decides the environment
+ * make passes on to a recipe: the directory `-C` moves to (relative, joined in order), the targets it
+ * names, whether `-e` (`--environment-overrides`) gives the environment precedence, and a
+ * PYTEST_ADDOPTS an `env` prefix sets. GNU make's short options are read as getopt reads them: `-C`,
+ * `-f`, `-I`, `-o` and `-W` take the rest of the word or the next word, and `-j` and `-l` an attached
+ * value or a next word of digits. Undefined for another command. Linear in the words.
+ */
+function makeCommandOf(words: readonly string[]):
+  | {
+      readonly directories: readonly string[];
+      readonly targets: readonly string[];
+      readonly overrides: boolean;
+      /** `-f` / `--file`: the Makefile is named, so it may be in any directory. */
+      readonly namesFile: boolean;
+      readonly addopts?: readonly string[];
+    }
+  | undefined {
+  let index = 0;
+  let addopts: readonly string[] | undefined;
+  if (words[0] === 'env') {
+    index = 1;
+    while ((words[index] ?? '').startsWith('-') || /^[A-Za-z_]\w*=/.test(words[index] ?? '')) {
+      const assignment = words[index] ?? '';
+      if (assignment.startsWith(PYTEST_ADDOPTS_ASSIGNMENT)) addopts = shellWords(assignment.slice(PYTEST_ADDOPTS_ASSIGNMENT.length));
+      index += 1;
+    }
+  }
+  const head = words[index] ?? '';
+  const name = basename(head);
+  if (name !== 'make' && name !== 'gmake' && !/^\$[({]MAKE[)}]$/.test(head)) return undefined;
+  const directories: string[] = [];
+  const targets: string[] = [];
+  let overrides = false;
+  let namesFile = false;
+  for (index += 1; index < words.length; index += 1) {
+    const word = words[index] ?? '';
+    if (word.startsWith('--')) {
+      const equals = word.indexOf('=');
+      const option = equals === -1 ? word : word.slice(0, equals);
+      const value = equals === -1 ? (MAKE_LONG_OPTIONS_WITH_VALUE.has(option) ? words[(index += 1)] : undefined) : word.slice(equals + 1);
+      if (option === '--environment-overrides') overrides = true;
+      else if (option === '--directory' && value !== undefined) directories.push(value);
+      else if (option === '--file' || option === '--makefile') namesFile = true;
+      continue;
+    }
+    if (word.startsWith('-') && word.length > 1) {
+      for (let at = 1; at < word.length; at += 1) {
+        const flag = word[at] ?? '';
+        if (flag === 'e') overrides = true;
+        else if ('CfIoW'.includes(flag)) {
+          const value = at + 1 < word.length ? word.slice(at + 1) : words[(index += 1)];
+          if (flag === 'C' && value !== undefined) directories.push(value);
+          if (flag === 'f') namesFile = true;
+          break;
+        } else if (flag === 'j' || flag === 'l') {
+          if (at + 1 === word.length && /^\d+(?:\.\d+)?$/.test(words[index + 1] ?? '')) index += 1;
+          break;
+        }
+      }
+      continue;
+    }
+    if (!word.includes('=')) targets.push(word);
+  }
+  return { directories, targets, overrides, namesFile, ...(addopts === undefined ? {} : { addopts }) };
+}
+
+/**
+ * goal_cejel_v27_a1_makefile_addopts_environment_2026-11-04, item A: a CI make command run with
+ * PYTEST_ADDOPTS in its environment, or with an environment Cejel cannot read.
+ */
+interface MakeEnvironment {
+  /** The directory make runs in (after `cd` and `-C`); null where it is not known. */
+  readonly directory: string | null;
+  /** The targets it names; empty for the default goal. */
+  readonly targets: readonly string[];
+  /** `make -e`: the environment's value wins over the Makefile's assignments (not `override` ones). */
+  readonly overrides: boolean;
+  /** PYTEST_ADDOPTS in make's environment, as words, where it is known. */
+  readonly addopts?: readonly string[];
+  /** Why PYTEST_ADDOPTS in make's environment is not known, where it is not. */
+  readonly notKnown?: string;
+  /** Where the environment's value is set, for its evidence pointer. */
+  readonly at: { readonly source: string; readonly file: string; readonly line: number };
+}
+
+// Item A: at most this many distinct CI make environments are read per Makefile; the rest are read
+// as one environment Cejel cannot read, so CI make commands times Makefile lines stays bounded.
+const MAKE_ENVIRONMENTS_READ = 16;
+
+/**
+ * Item A: the distinct make environments, their targets merged, at most MAKE_ENVIRONMENTS_READ;
+ * every later one joins a last environment that is not known, in no known directory. Linear.
+ */
+function distinctMakeEnvironments(environments: readonly MakeEnvironment[]): MakeEnvironment[] {
+  const byKey = new Map<string, { environment: MakeEnvironment; targets: Set<string> }>();
+  let rest: { environment: MakeEnvironment; targets: Set<string> } | undefined;
+  for (const environment of environments) {
+    const key = [environment.directory ?? '\u0001', environment.notKnown ?? '', ...(environment.addopts ?? []), String(environment.overrides)].join('\u0000');
+    let entry = byKey.get(key);
+    if (entry === undefined && byKey.size < MAKE_ENVIRONMENTS_READ) {
+      entry = { environment, targets: new Set() };
+      byKey.set(key, entry);
+    }
+    if (entry === undefined) {
+      rest ??= { environment: { directory: null, targets: [], overrides: false, notKnown: 'PYTEST_ADDOPTS', at: environment.at }, targets: new Set() };
+      entry = rest;
+    }
+    // The default goal is written as the empty name.
+    if (environment.targets.length === 0) entry.targets.add('');
+    for (const target of environment.targets) entry.targets.add(target);
+  }
+  return [...byKey.values(), ...(rest === undefined ? [] : [rest])].map(({ environment, targets }) => ({ ...environment, targets: [...targets] }));
+}
+
 /**
  * The review of #648: a command that runs tox, as `tox` and its words: `tox`, `python -m tox`,
  * `uvx tox`, `uv run tox`, `pipx run tox`; undefined for another command.
@@ -16500,6 +16732,12 @@ interface MakeVariables {
   readonly unknown: ReadonlySet<string>;
   /** Names any assignment of which mentions pytest, known or not. */
   readonly pytestNames: ReadonlySet<string>;
+  /**
+   * Item A of goal_cejel_v27_a1_makefile_addopts_environment_2026-11-04: where an environment value
+   * was given, true where no assignment in the file replaced or extended it, so make passes it on as
+   * the environment set it.
+   */
+  readonly fromEnvironment: boolean;
 }
 
 // The review of #648: at most this many variable substitutions per Makefile, so a chain of
@@ -16513,13 +16751,24 @@ const MAKE_EXPANSION_BUDGET = 4096;
  * known where its value is a `!=` (shell) result, set by `define`, assigned inside a conditional
  * (`ifeq`, `ifneq`, `ifdef`, `ifndef`), assigned for a target (`test: OPTS = ...`), assigned with
  * `:::=`, or a `?=` default the environment of a CI command may replace (`setByEnvironment`).
+ *
+ * Item A of goal_cejel_v27_a1_makefile_addopts_environment_2026-11-04: `environment` is a variable
+ * already in make's environment, as GNU make reads one: defined (recursively) before the file, so a
+ * `?=` keeps it, a `+=` appends to it and `=`, `:=` or `::=` replace it; under `make -e`
+ * (`overrides`) only an `override` assignment changes it.
  */
-function readMakeVariables(text: string, setByEnvironment: (name: string) => boolean = () => false): MakeVariables {
+function readMakeVariables(
+  text: string,
+  setByEnvironment: (name: string) => boolean = () => false,
+  environment?: { readonly name: string; readonly value: string; readonly overrides: boolean },
+): MakeVariables {
   const values = new Map<string, string>();
   const simple = new Set<string>();
   const unknown = new Set<string>();
   const pytestNames = new Set<string>();
   const budget = { left: MAKE_EXPANSION_BUDGET };
+  let fromEnvironment = environment !== undefined;
+  if (environment !== undefined) values.set(environment.name, environment.value);
   const forget = (name: string) => {
     unknown.add(name);
     values.delete(name);
@@ -16562,10 +16811,15 @@ function readMakeVariables(text: string, setByEnvironment: (name: string) => boo
     const value = (match[3] ?? '').trim();
     if (value.toLowerCase().includes('pytest')) pytestNames.add(name);
     if (unknown.has(name)) continue;
+    const fromTheEnvironment = environment !== undefined && name === environment.name;
+    // Item A: under `make -e` an assignment to an environment variable is ignored unless `override`.
+    if (fromTheEnvironment && environment.overrides && !/^override[ \t]/.test(line)) continue;
     if (conditional > 0 || operator === '!=' || operator === ':::=' || (operator === '?=' && setByEnvironment(name))) {
       forget(name);
       continue;
     }
+    // Item A: a `?=` keeps the environment's value; any other assignment replaces or extends it.
+    if (fromTheEnvironment && operator !== '?=') fromEnvironment = false;
     if (operator === '?=') {
       if (!values.has(name)) {
         values.set(name, value);
@@ -16589,7 +16843,7 @@ function readMakeVariables(text: string, setByEnvironment: (name: string) => boo
       simple.delete(name);
     }
   }
-  return { values, unknown, pytestNames };
+  return { values, unknown, pytestNames, fromEnvironment };
 }
 
 /**
@@ -17187,6 +17441,8 @@ const PYTEST_COLLECT_IGNORE_PATTERN = /\b(?:collect_ignore|collect_ignore_glob|p
 // Only a hook defined at the top level of conftest.py is read: one defined inside an `if`, `try`
 // or other block exists only on some runs, so it is conditional too.
 const PYTEST_COLLECTION_HOOK_PATTERN = /^def[ \t]+pytest_collection_modifyitems[ \t]*\(/;
+// goal_cejel_v27_a1_makefile_addopts_environment_2026-11-04, item C: the hook as a method, indented.
+const PYTEST_CLASS_COLLECTION_HOOK_PATTERN = /^[ \t]+(?:async[ \t]+)?def[ \t]+pytest_collection_modifyitems[ \t]*\(/;
 const PYTEST_COLLECTION_HOOK_NAME = 'pytest_collection_modifyitems';
 const PYTEST_COLLECTION_HOOK_NAME_PATTERN = /\bpytest_collection_modifyitems\b/;
 // Inside the hook: any of these makes what it does depend on something, and Cejel then makes no
@@ -19300,11 +19556,45 @@ export function findPytestRunWideSkips(
     // 2026-11-02, item B): a comment, or a statement that is only a string (a docstring), that names
     // the hook binds nothing.
     let last = -1;
+    // Once another binding or mention is met, no module-level hook is claimed (the loop goes on
+    // only to find the class hooks below).
+    let blocked = false;
+    // goal_cejel_v27_a1_makefile_addopts_environment_2026-11-04, item C (#634 item 3): a collection
+    // hook defined as a method of a class (a plugin class registered from pytest_configure, through
+    // pytest_plugins or config.pluginmanager.register) is not read. Where its body names `items` it
+    // is named as not read, at its `def`. One pass: a stack of the open blocks, and of the class
+    // hooks open in them, the innermost of which a line naming `items` marks.
+    const classHooks: { readonly line: number; readonly className: string; touches: boolean }[] = [];
+    const blocks: { readonly indent: number; readonly className?: string; readonly hook: boolean }[] = [];
+    const openHooks: number[] = [];
     for (const { first, last: final } of pythonLogicalLines(source)) {
-      if (PYTEST_COLLECTION_HOOK_PATTERN.test(source.masked[first] ?? '')) {
-        last = first;
+      const indent = pythonLineIndent(source, first);
+      const opening = source.masked[first] ?? '';
+      if (indent !== -1) {
+        while (blocks.length > 0 && (blocks[blocks.length - 1]?.indent ?? 0) >= indent) {
+          if (blocks.pop()?.hook === true) openHooks.pop();
+        }
+        const enclosing = blocks[blocks.length - 1]?.className;
+        if (indent > 0 && enclosing !== undefined && PYTEST_CLASS_COLLECTION_HOOK_PATTERN.test(opening)) {
+          classHooks.push({ line: first, className: enclosing, touches: false });
+          openHooks.push(classHooks.length - 1);
+          blocks.push({ indent, hook: true });
+        } else {
+          let logical = '';
+          for (let line = first; line <= final; line += 1) logical += `${source.masked[line] ?? ''}\n`;
+          const open = openHooks[openHooks.length - 1];
+          if (open !== undefined && /\bitems\b/.test(logical)) (classHooks[open] as { touches: boolean }).touches = true;
+          if (logical.trimEnd().endsWith(':')) {
+            const className = /^[ \t]*class[ \t]+([A-Za-z_]\w*)/.exec(opening)?.[1];
+            blocks.push({ indent, hook: false, ...(className === undefined ? {} : { className }) });
+          }
+        }
+      }
+      if (PYTEST_COLLECTION_HOOK_PATTERN.test(opening)) {
+        if (!blocked) last = first;
         continue;
       }
+      if (blocked) continue;
       let named = false;
       let code = '';
       for (let line = first; line <= final && !named; line += 1) {
@@ -19319,13 +19609,25 @@ export function findPytestRunWideSkips(
       }
       if (named) {
         last = -1;
-        break;
+        blocked = true;
       }
+    }
+    const scope = dirname(file);
+    for (const hook of classHooks) {
+      if (!hook.touches) continue;
+      const reason = `${hook.className}.${PYTEST_COLLECTION_HOOK_NAME}`;
+      found.push({
+        path: file,
+        line: hook.line + 1,
+        scope: scope === '.' ? '' : scope,
+        kind: 'unread',
+        unread: reason,
+        withheld: `${A1_HOOK_NOT_READ}\`${reason}\` in ${a1NotePath(file)}`,
+      });
     }
     if (last === -1) continue;
     const reading = readPytestCollectionHook(source, last, builtinsNamedIn);
     if (reading === undefined) continue;
-    const scope = dirname(file);
     const where = { path: file, line: last + 1, scope: scope === '.' ? '' : scope };
     if (reading.kind === 'not read') {
       const because = reading.builtins === undefined ? '' : ` calls a builtin, ${reading.builtins}`;
