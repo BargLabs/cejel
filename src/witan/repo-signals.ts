@@ -10507,6 +10507,11 @@ function readUvProject(text: string): UvProjectReading {
   return packaged === true || buildSystem ? 'builds' : 'no-build';
 }
 
+/** Eighth pass (#660): readUvProject, exported only for the scaling checks in scan-path-regex-bounds.test.ts. */
+export function b3UvProjectReadingForScaling(text: string): string {
+  return readUvProject(text);
+}
+
 /** Eighth pass (#660), CheckReading.uvProject: the root pyproject.toml, read once per scan. */
 function uvProjectReading(root: string, inventory: PublishOnlyInventory): UvProjectReading {
   // uv.toml settings apply to every project under it, and are not read.
@@ -11312,7 +11317,7 @@ const CHECK_FORMS: ReadonlyMap<string, readonly CheckForm[]> = new Map<string, r
 // cargo and tsc admit none.
 
 /** How a runner reads its positional words. */
-type PositionalReading =
+export type PositionalReading =
   /** A file, directory or glob (pytest after its `::` node id is stripped, mocha, node and others). */
   | 'path'
   /** go: a package directory written `.`, `./dir` or `../dir`, with `/...` for every one below it. */
@@ -11329,7 +11334,7 @@ const POSITIONAL_READINGS: ReadonlyMap<string, PositionalReading> = new Map<stri
 ]);
 
 /** What a positional word names: a counted test, no counted test, or something Cejel cannot resolve. */
-type TestPathReading = 'test' | 'no-test' | 'unread';
+export type TestPathReading = 'test' | 'no-test' | 'unread';
 
 /** Item C, and the eighth pass (#659): why a positional word withholds the credit. */
 interface PositionalProblem {
@@ -11398,6 +11403,8 @@ function globMatchesPath(glob: readonly string[], path: readonly string[], budge
   let reachable = new Array<boolean>(path.length + 1).fill(false);
   reachable[0] = true;
   for (const pattern of glob) {
+    budget.steps -= path.length + 1;
+    if (budget.steps < 0) return undefined;
     const next = new Array<boolean>(path.length + 1).fill(false);
     for (let at = 0; at <= path.length; at += 1) {
       if (!reachable[at]) continue;
@@ -11416,49 +11423,90 @@ function globMatchesPath(glob: readonly string[], path: readonly string[], budge
 }
 
 /**
- * Eighth pass (#659), CheckReading.testPath: reads `testFiles` once, when first asked, into the set
- * of listed files, every directory above one (so a directory holds a listed file at any depth), and,
- * for go, every package directory holding a listed `_test.go` directly and every directory above
- * one; a directory part go skips for `/...` (`testdata`, or beginning with `.` or `_`) holds none.
- * Each lookup is linear in the word; globs share TEST_PATH_GLOB_BUDGET.
+ * Eighth pass (#659): v17's test-file list as a trie of directories, flattened into shared maps:
+ * each directory has a number (the root 0), found from its parent's number and its name.
+ */
+interface TestDirectoryTrie {
+  /** `<parent number>/<name>` to the directory's number. */
+  readonly directories: Map<string, number>;
+  /** `<directory number>/<name>` of each listed file. */
+  readonly files: Set<string>;
+  /** go: the directories a listed `_test.go` is directly in. */
+  readonly goPackages: Set<number>;
+  /** go: the directories a listed `_test.go` is in or below, outside a part `/...` skips. */
+  readonly goTrees: Set<number>;
+  readonly parts: readonly (readonly string[])[];
+}
+
+/**
+ * Eighth pass (#659), CheckReading.testPath: reads `testFiles` once, when first asked, into a trie
+ * of directories (TestDirectoryTrie), so a directory in the trie holds a listed file at any depth;
+ * for go, each directory is marked where a listed `_test.go` is in it, or in it or below it outside
+ * a part go skips for `/...` (`testdata`, or beginning with `.` or `_`). Each part is hashed once,
+ * with its parent's number, so building is linear in the list; each lookup walks the word's parts,
+ * so it is linear in the word. Globs share TEST_PATH_GLOB_BUDGET, which every comparison spends.
  */
 function testPathReader(testFiles: () => readonly string[]): (word: string, kind: PositionalReading, fromRoot: boolean) => TestPathReading {
-  let read:
-    | { readonly files: readonly string[]; readonly fileSet: ReadonlySet<string>; readonly directories: ReadonlySet<string>; readonly goPackages: ReadonlySet<string>; readonly goTrees: ReadonlySet<string> }
-    | undefined;
+  let read: TestDirectoryTrie | undefined;
   const budget = { steps: TEST_PATH_GLOB_BUDGET };
-  const inventory = () => {
+  const inventory = (): TestDirectoryTrie => {
     if (read !== undefined) return read;
-    const files = testFiles();
-    const directories = new Set<string>();
-    const goPackages = new Set<string>();
-    const goTrees = new Set<string>();
-    for (const file of files) {
-      const parts = file.split('/');
-      for (let at = 0; at < parts.length; at += 1) directories.add(parts.slice(0, at).join('/'));
-      if (!file.endsWith('_test.go') || parts.slice(0, -1).some((name) => name === 'testdata' || name.startsWith('.') || name.startsWith('_'))) continue;
-      goPackages.add(parts.slice(0, -1).join('/'));
-      for (let at = 0; at < parts.length; at += 1) goTrees.add(parts.slice(0, at).join('/'));
+    const trie: TestDirectoryTrie = { directories: new Map(), files: new Set(), goPackages: new Set(), goTrees: new Set(), parts: testFiles().map((file) => file.split('/')) };
+    for (const file of trie.parts) {
+      const goTest = (file[file.length - 1] ?? '').endsWith('_test.go');
+      let skipped = false;
+      let node = 0;
+      if (goTest) trie.goTrees.add(node);
+      for (let at = 0; at < file.length - 1; at += 1) {
+        const name = file[at] ?? '';
+        const key = `${node}/${name}`;
+        let next = trie.directories.get(key);
+        if (next === undefined) {
+          next = trie.directories.size + 1;
+          trie.directories.set(key, next);
+        }
+        node = next;
+        skipped ||= name === 'testdata' || name.startsWith('.') || name.startsWith('_');
+        if (goTest && !skipped) trie.goTrees.add(node);
+      }
+      trie.files.add(`${node}/${file[file.length - 1] ?? ''}`);
+      if (goTest && !skipped) trie.goPackages.add(node);
     }
-    read = { files, fileSet: new Set(files), directories, goPackages, goTrees };
+    read = trie;
     return read;
   };
+  const child = (node: number, name: string): number | undefined => inventory().directories.get(`${node}/${name}`);
+  const hasFile = (node: number, name: string): boolean => inventory().files.has(`${node}/${name}`);
+  // The directory at `parts` from the root, walked part by part; undefined where none is listed.
+  const directoryAt = (parts: readonly string[]): number | undefined => {
+    let node: number | undefined = 0;
+    for (const name of parts) {
+      node = child(node, name);
+      if (node === undefined) return undefined;
+    }
+    return node;
+  };
+  const listed = (path: string): boolean => {
+    const parts = path === '' ? [] : path.split('/');
+    if (parts.length === 0) return inventory().parts.length > 0;
+    if (directoryAt(parts) !== undefined) return true;
+    const parent = directoryAt(parts.slice(0, -1));
+    return parent !== undefined && hasFile(parent, parts[parts.length - 1] ?? '');
+  };
   const pathReading = (word: string): TestPathReading => {
-    const { files, fileSet, directories } = inventory();
     if (GLOB_WORD_PATTERN.test(word)) {
       const glob = repositoryRelativePath(word);
       if (glob === null) return 'no-test';
-      const parts = glob.split('/');
-      for (const file of files) {
-        const matched = globMatchesPath(parts, file.split('/'), budget);
+      const pattern = glob.split('/');
+      for (const file of inventory().parts) {
+        const matched = globMatchesPath(pattern, file, budget);
         if (matched === undefined) return 'unread';
         if (matched) return 'test';
       }
       return 'no-test';
     }
     const path = repositoryRelativePath(word);
-    if (path === null) return 'no-test';
-    return fileSet.has(path) || directories.has(path) ? 'test' : 'no-test';
+    return path !== null && listed(path) ? 'test' : 'no-test';
   };
   return (word, kind, fromRoot) => {
     if (!fromRoot || word === '' || UNRESOLVED_PATH_WORD_PATTERN.test(word)) return 'unread';
@@ -11471,22 +11519,32 @@ function testPathReader(testFiles: () => readonly string[]): (word: string, kind
       if (directory.includes('...')) return 'unread';
       const path = repositoryRelativePath(directory);
       if (path === null) return 'no-test';
-      const { goPackages, goTrees } = inventory();
-      return (tree ? goTrees : goPackages).has(path) ? 'test' : 'no-test';
+      const node = directoryAt(path === '' ? [] : path.split('/'));
+      return node !== undefined && (tree ? inventory().goTrees : inventory().goPackages).has(node) ? 'test' : 'no-test';
     }
     if (kind === 'module' && !word.includes('/') && !word.endsWith('.py')) {
       // A dotted name is a module, then perhaps a class and a method: some prefix of its parts must
-      // be a listed `.py` file, or the whole name a directory holding one.
-      const { fileSet, directories } = inventory();
+      // be a listed `.py` file, or the whole name a directory holding one. One walk down the trie.
       const parts = word.split('.');
       if (parts.some((name) => name === '')) return 'unread';
-      const whole = parts.join('/');
-      if (directories.has(whole)) return 'test';
-      for (let at = parts.length; at > 0; at -= 1) if (fileSet.has(`${parts.slice(0, at).join('/')}.py`)) return 'test';
-      return 'no-test';
+      let node: number | undefined = 0;
+      for (const name of parts) {
+        if (hasFile(node, `${name}.py`)) return 'test';
+        node = child(node, name);
+        if (node === undefined) return 'no-test';
+      }
+      return 'test';
     }
     return pathReading(word);
   };
+}
+
+/**
+ * Eighth pass (#659): the positional reader on `files` as v17's test-file list, exported only for
+ * the scaling checks in scan-path-regex-bounds.test.ts.
+ */
+export function b3TestPathReadingForScaling(files: readonly string[], word: string, kind: PositionalReading): TestPathReading {
+  return testPathReader(() => files)(word, kind, true);
 }
 
 // A positional word B3's note gives as written: bounded, and only characters a path is made of.
