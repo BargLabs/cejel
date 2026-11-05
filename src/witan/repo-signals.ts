@@ -17441,6 +17441,8 @@ const PYTEST_COLLECT_IGNORE_PATTERN = /\b(?:collect_ignore|collect_ignore_glob|p
 // Only a hook defined at the top level of conftest.py is read: one defined inside an `if`, `try`
 // or other block exists only on some runs, so it is conditional too.
 const PYTEST_COLLECTION_HOOK_PATTERN = /^def[ \t]+pytest_collection_modifyitems[ \t]*\(/;
+// goal_cejel_v27_a1_makefile_addopts_environment_2026-11-04, item C: the hook as a method, indented.
+const PYTEST_CLASS_COLLECTION_HOOK_PATTERN = /^[ \t]+(?:async[ \t]+)?def[ \t]+pytest_collection_modifyitems[ \t]*\(/;
 const PYTEST_COLLECTION_HOOK_NAME = 'pytest_collection_modifyitems';
 const PYTEST_COLLECTION_HOOK_NAME_PATTERN = /\bpytest_collection_modifyitems\b/;
 // Inside the hook: any of these makes what it does depend on something, and Cejel then makes no
@@ -19554,11 +19556,45 @@ export function findPytestRunWideSkips(
     // 2026-11-02, item B): a comment, or a statement that is only a string (a docstring), that names
     // the hook binds nothing.
     let last = -1;
+    // Once another binding or mention is met, no module-level hook is claimed (the loop goes on
+    // only to find the class hooks below).
+    let blocked = false;
+    // goal_cejel_v27_a1_makefile_addopts_environment_2026-11-04, item C (#634 item 3): a collection
+    // hook defined as a method of a class (a plugin class registered from pytest_configure, through
+    // pytest_plugins or config.pluginmanager.register) is not read. Where its body names `items` it
+    // is named as not read, at its `def`. One pass: a stack of the open blocks, and of the class
+    // hooks open in them, the innermost of which a line naming `items` marks.
+    const classHooks: { readonly line: number; readonly className: string; touches: boolean }[] = [];
+    const blocks: { readonly indent: number; readonly className?: string; readonly hook: boolean }[] = [];
+    const openHooks: number[] = [];
     for (const { first, last: final } of pythonLogicalLines(source)) {
-      if (PYTEST_COLLECTION_HOOK_PATTERN.test(source.masked[first] ?? '')) {
-        last = first;
+      const indent = pythonLineIndent(source, first);
+      const opening = source.masked[first] ?? '';
+      if (indent !== -1) {
+        while (blocks.length > 0 && (blocks[blocks.length - 1]?.indent ?? 0) >= indent) {
+          if (blocks.pop()?.hook === true) openHooks.pop();
+        }
+        const enclosing = blocks[blocks.length - 1]?.className;
+        if (indent > 0 && enclosing !== undefined && PYTEST_CLASS_COLLECTION_HOOK_PATTERN.test(opening)) {
+          classHooks.push({ line: first, className: enclosing, touches: false });
+          openHooks.push(classHooks.length - 1);
+          blocks.push({ indent, hook: true });
+        } else {
+          let logical = '';
+          for (let line = first; line <= final; line += 1) logical += `${source.masked[line] ?? ''}\n`;
+          const open = openHooks[openHooks.length - 1];
+          if (open !== undefined && /\bitems\b/.test(logical)) (classHooks[open] as { touches: boolean }).touches = true;
+          if (logical.trimEnd().endsWith(':')) {
+            const className = /^[ \t]*class[ \t]+([A-Za-z_]\w*)/.exec(opening)?.[1];
+            blocks.push({ indent, hook: false, ...(className === undefined ? {} : { className }) });
+          }
+        }
+      }
+      if (PYTEST_COLLECTION_HOOK_PATTERN.test(opening)) {
+        if (!blocked) last = first;
         continue;
       }
+      if (blocked) continue;
       let named = false;
       let code = '';
       for (let line = first; line <= final && !named; line += 1) {
@@ -19573,13 +19609,25 @@ export function findPytestRunWideSkips(
       }
       if (named) {
         last = -1;
-        break;
+        blocked = true;
       }
+    }
+    const scope = dirname(file);
+    for (const hook of classHooks) {
+      if (!hook.touches) continue;
+      const reason = `${hook.className}.${PYTEST_COLLECTION_HOOK_NAME}`;
+      found.push({
+        path: file,
+        line: hook.line + 1,
+        scope: scope === '.' ? '' : scope,
+        kind: 'unread',
+        unread: reason,
+        withheld: `${A1_HOOK_NOT_READ}\`${reason}\` in ${a1NotePath(file)}`,
+      });
     }
     if (last === -1) continue;
     const reading = readPytestCollectionHook(source, last, builtinsNamedIn);
     if (reading === undefined) continue;
-    const scope = dirname(file);
     const where = { path: file, line: last + 1, scope: scope === '.' ? '' : scope };
     if (reading.kind === 'not read') {
       const because = reading.builtins === undefined ? '' : ` calls a builtin, ${reading.builtins}`;
