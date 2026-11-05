@@ -275,7 +275,33 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     module named X, `_X`, any `_`-name, a standard-library or site module, or a dependency of X,
 //     withholds ctest (no CMake configuration is read), leaves hatch unread where hatch.toml sits
 //     beside a pyproject.toml configuring hatch, and reads no install at a workspace root or with a
-//     dependency, override or resolution that is not an index version range);
+//     dependency, override or resolution that is not an index version range); the eighth pass
+//     (#659, #660; the operator's rulings of 2026-11-05, option A for each) admits a positional
+//     word only where it names a test Cejel counts, read per runner: pytest (a file, directory or
+//     glob, its `::` node id stripped), mocha, `node --test`, `tsx --test`, `deno test`, rspec,
+//     phpunit, `dotnet test`, ava, tap, tape, jasmine, qunit, lab and ts-mocha (a file, directory
+//     or glob), uvu (its first positional a directory; a second, a file-name pattern, is not
+//     read), `go test` (`.`, `./dir` or `../dir`, a package directory holding a `_test.go`
+//     directly, or with `/...` one at any depth; an import path is not read) and unittest (a
+//     dotted module, class or method name some prefix of which is a listed `.py` file, or the
+//     whole name a directory holding one; `discover` alone runs default discovery; a file path as
+//     a path); the word is resolved from the root against v17's test-file list (the one A1
+//     counts), and one that leaves the repository or names no listed file, directory holding one,
+//     or glob match withholds the credit, B3's note saying "the check points at `<word>`, where
+//     Cejel finds no test file", while one Cejel cannot resolve (a substitution, quote, brace,
+//     escape, `~`, character class, a directory not known, a glob past its budget) withholds with
+//     the unread-argument clause; jest, `bun test` and `playwright test` (a positional filters
+//     test paths and, by their documentation, fails where it matches none), karma (its
+//     configuration file) and pyright (the files it checks) keep the seventh pass's rule, and
+//     vitest, cypress, cargo and tsc admit no positional; and withholds a check launched with
+//     `uv run`, on the check line or in a script or recipe, where the root pyproject.toml defines
+//     `[build-system]` or sets `tool.uv.package = true` and does not set it false, since uv then
+//     builds and installs the project, running its build code, first (the project-install reason
+//     hatch gives), unless the command carries `--no-project`, or `--no-sync` with no earlier step
+//     of its job running `uv sync` without `--no-install-project`; and names `uv run` as not read
+//     where Cejel cannot tell: a directory not known, no root pyproject.toml, a committed uv.toml,
+//     a `tool.uv` key other than package, dev-dependencies, required-version and index (so a
+//     workspace or sources), a key with a backslash, or `--package`, `--project` or `--directory`;
 //   - A1: conftest.py is not a concrete test file (not cited as one, and rated hollow where it
 //     asserts; from 2026-11-01 test_to_source_ratio counts it as test surface, as v17 does), and
 //     an unconditional run-wide pytest skip
