@@ -801,6 +801,63 @@ describe('scaling: the v27 A1 gap readers grow no faster than linearly', () => {
   }, 60_000);
 });
 
+// goal_cejel_v27_a1_makefile_addopts_environment_2026-11-04. Each new reader, on the input that
+// maximises its work.
+describe('scaling: the v27 A1 make environment and class hook readers grow no faster than linearly', () => {
+  // Item A: each distinct CI make environment re-reads the Makefile's variables and the recipes its
+  // targets reach. Unbounded, N steps each with its own PYTEST_ADDOPTS and target against a Makefile
+  // of N targets cost N x N. Both grow with L here: N = L/400 steps and targets, each target a pytest
+  // recipe, and a `?=` default so each environment's own value is in force. Past 16 environments the
+  // rest are read as one environment not known.
+  it('the make environment reader, on L/400 CI make steps with distinct PYTEST_ADDOPTS and a Makefile of L/400 targets', () => {
+    const textsFor = (length: number): Map<string, string> => {
+      const count = Math.floor(length / 400);
+      const steps = Array.from({ length: count }, (_, index) => `      - run: make t${index}\n        env:\n          PYTEST_ADDOPTS: "-k e${index}"`).join('\n');
+      const recipes = Array.from({ length: count }, (_, index) => `t${index}:\n\tpytest tests/test_${index}.py`).join('\n');
+      return new Map([
+        ['.github/workflows/ci.yml', `name: ci\non: push\njobs:\n  t:\n    runs-on: ubuntu-latest\n    steps:\n${steps}\n`],
+        ['Makefile', `PYTEST_ADDOPTS ?= -x\n\n${recipes}\n`],
+      ]);
+    };
+    const files = ['.github/workflows/ci.yml', 'Makefile'];
+    const texts = new Map([SCALING_LENGTH, 2 * SCALING_LENGTH].map((length) => [length, textsFor(length)]));
+    const { ratio, timing, atL, at2L } = scalingRatio((length) => readPytestInvocations(files, (file) => texts.get(length)?.get(file)));
+    // The first 16 environments are read with their own value; the rest are named as not read.
+    expect(atL.filter(({ addoptsAt }) => addoptsAt !== undefined)).toHaveLength(16);
+    expect(at2L.filter(({ addoptsAt }) => addoptsAt !== undefined)).toHaveLength(16);
+    expect(atL.filter(({ unread }) => unread === 'PYTEST_ADDOPTS').length).toBe(Math.floor(SCALING_LENGTH / 400) - 16);
+    expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
+  }, 120_000);
+
+  // Item C: the class hook search keeps a stack of open blocks and of the class hooks open in them.
+  // The input that maximises its work: L/120 classes, each defining the hook with a body that names
+  // items, and between them a nest of blocks the stack must open and close.
+  it('the class hook search, on a conftest.py of L/120 plugin classes each defining the hook', () => {
+    const repos = new Map<number, string>();
+    const repoFor = (length: number): string => {
+      const existing = repos.get(length);
+      if (existing) return existing;
+      const count = Math.floor(length / 120);
+      const classes = Array.from(
+        { length: count },
+        (_, index) => `class K${index}:\n    def pytest_collection_modifyitems(self, config, items):\n        if True:\n            items.sort()\n`,
+      ).join('');
+      const repo = makeRepo({
+        'tests/test_lines.py': 'def test_value():\n    assert 1 == 1\n',
+        'tests/conftest.py': `import pytest\n\n\n${classes}`,
+      });
+      repos.set(length, repo);
+      return repo;
+    };
+    const files = ['tests/conftest.py', 'tests/test_lines.py'];
+    const { ratio, timing, atL, at2L } = scalingRatio((length) => findPytestRunWideSkips(repoFor(length), files));
+    expect(atL).toHaveLength(Math.floor(SCALING_LENGTH / 120));
+    expect(at2L).toHaveLength(Math.floor((2 * SCALING_LENGTH) / 120));
+    expect(atL[0]?.withheld).toBe('hook not read: `K0.pytest_collection_modifyitems` in tests/conftest.py');
+    expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
+  }, 60_000);
+});
+
 // goal_cejel_v27_conftest_timing_guard_2026-11-02, item B. The shell word scanner every reader
 // shares now tests white space by character code and copies kept characters a run at a time. It must
 // return the same words as the scanner it replaced, kept here verbatim as the specification.
