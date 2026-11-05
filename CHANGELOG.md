@@ -75,9 +75,9 @@ pinned. v27 carries no precision or recall claim.
     counts. jest, `bun test`, `playwright test`, karma and pyright keep their earlier rule.
   - **`uv run` builds the project first (#660).** uv builds and installs the project before the
     command where pyproject.toml defines `[build-system]` or sets `tool.uv.package = true`, running
-    its build code. Such a check, on the check line or in a script or recipe, is not credited, with
-    the project-install reason hatch already gives, unless it carries `--no-project`, or
-    `--no-sync` with no earlier `uv sync` in its job that installs the project.
+    its build code. Such a check, on the check line or in a script or recipe, is not credited (on
+    the check line with the project-install reason hatch already gives), unless it carries
+    `--no-project`, or `--no-sync` with no earlier `uv sync` in its job that installs the project.
     `tool.uv.package = false`, or no build system, keeps the credit. Where Cejel cannot tell (no
     root pyproject.toml, a committed uv.toml, a uv workspace or sources table, `--package`,
     `--project` or `--directory`, a directory it does not know) the check is named as not read.

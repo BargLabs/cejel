@@ -22,6 +22,176 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
+## 2026-11-05 (B3 eighth pass) — under v27 a runner pointed at a path is credited only where that path holds a test file Cejel counts, and a check `uv run` launches only where uv does not build the project first (#659, #660); v17-v26 byte-identical; v27 never above v17; no published score moved
+
+**Status.** A scoring change under `witan-rubric-v27-prospective-2026-10-19` only, with no
+identifier change (goal_cejel_v27_b3_positional_tests_and_uv_run_2026-11-05). It reaches only the
+check-before-publish reading of the B3 passes below: a GitHub Actions workflow with no pull-request
+trigger that publishes on every run, counted where a check runs before every publish. No holdout
+or calibration ran for it, and this entry makes no precision or recall claim. The default stays
+v17.
+
+**Rulings.** The operator ruled on both issues on 2026-11-05, option A for each. #659: credit a
+path argument only where the path holds a test file Cejel already counts (narrowing positional
+words by name would have dropped `uvu test`, correct where `test/` holds tests). #660: withhold
+the credit only where uv builds the project.
+
+**Why.** The seventh pass (#657) left two false credits, both named in its "Not in this change".
+(1) `checkFormAdmits` admitted any positional word for a runner whose form admits positionals, so
+`mocha index.js` (0 tests, exit 0) and `go test ./pkg` on a package with no `_test.go` ("no test
+files", exit 0) were credited. (2) Item F withheld the credit where tox or hatch installs the
+project before the check, but not where `uv run` does. Per uv's documentation, `uv run` syncs the
+project's environment first, building and installing the project where pyproject.toml defines
+`[build-system]` or sets `tool.uv.package = true`; `tool.uv.package = false` makes it ignore a
+declared build system, and with neither it installs only the dependencies.
+
+**Change.** Under v27, on that credit path only:
+
+- **A — a path holds a counted test (#659).** For each `CHECK_FORMS` runner whose positional words
+  are paths, files, packages or modules, a positional word counts only where, resolved from the
+  root, it names one of these: a file on v17's test-file list (`findConcreteTestFiles`, the list
+  A1 counts; no second detector), a directory holding one at any depth, or a glob (`*`, `**`, `?`)
+  matching one. Each runner's reading: pytest (a path, its `::` node id stripped); mocha,
+  `node --test`, `tsx --test`, `deno test`, rspec, phpunit, `dotnet test`, ava, tap, tape,
+  jasmine, qunit, lab and ts-mocha (a path); uvu (its first positional a directory; its second, a
+  file-name pattern, is not read); `go test` (`.`, `./dir` or `../dir`: a package directory holding
+  a listed `_test.go` directly, or with `/...` one at any depth outside `testdata` and parts
+  beginning `.` or `_`; an import path is not read); unittest (a dotted module, class or method
+  name, some prefix of which is a listed `.py` file, or the whole name a directory holding one;
+  `discover` alone runs default discovery, and words after it are not read). A word that names
+  nothing listed, a path that does not exist, and one leaving the repository (absolute, or `..`
+  above the root) withhold the credit, and B3's note says "the check points at `<word>`, where
+  Cejel finds no test file". A word Cejel cannot resolve withholds with the unread-argument
+  clause: a substitution, quote, brace, escape, `~` or character class; a directory not known (a
+  working-directory, or a `cd`, as the earlier passes track them); a glob past its budget. A
+  `firstPositional` subcommand (`vitest run`) is no path, as before. jest, `bun test` and
+  `playwright test` read a positional as a filter of test paths and, by their documentation, exit
+  1 where it matches none; karma's positional is its configuration file and pyright's the files it
+  checks. These five keep the seventh pass's rule. vitest, cypress, cargo and tsc admit no
+  positional, as before. The rule applies on the check line, after npm's `--`, and in a test
+  script, make or just recipe, tox command or script alias, all read from the root.
+- **B — `uv run` builds the project (#660).** A check launched with `uv run`, on the check line or
+  in a script or recipe, withholds the credit where the root pyproject.toml defines `[build-system]`
+  or sets `tool.uv.package = true` and does not set it false. On the check line the reason is item
+  F's project-install reason, now one shared reason: "the check runs uv run in a project uv builds,
+  so uv first installs the project, running its build code". In a script or recipe such a line,
+  like any it does not read, leaves the script or recipe running no known runner, and its existing
+  reason names that. It does not withhold where the command
+  carries `--no-project`. It also does not withhold where the command carries `--no-sync` and no
+  earlier step of the job runs `uv sync` without `--no-install-project`; after such a sync the note
+  names "uv run --no-sync after a uv sync of a project uv builds". Where Cejel cannot tell, the
+  check is named "the check runs uv run, whose configuration Cejel does not read": a directory not
+  known, no root pyproject.toml, a committed uv.toml, a `tool.uv` key other than `package`,
+  `dev-dependencies`, `required-version` and `index` (so a `workspace` or `sources` table), a key
+  with a backslash, or `--package`, `--project` or `--directory`. A `UV_*` key on the command or
+  step already withholds under the fourth pass's environment rule, which names the key; no second
+  reason was added. Since uv reads the pyproject.toml at or above the directory it runs in, and
+  B3 resolves only the root, "nearest pyproject.toml" is the root's.
+- **Records.** The v27 declaration and the CHANGELOG Unreleased entry state the above. The v27
+  glossary sentence is unchanged, so no v27 certificate's HTML moves for an unmoved report.
+
+**The no-rise property.** A counted workflow is counted as v17 counts it, so B3 can only return to
+v17's value, never rise past it; `checkNoRise` and `lostFindings` pass on every fixture, and the
+measurement below finds v27 B3 above v17 B3 on 0 of 701 checkouts.
+
+**Fixtures** (`b3-publishing-with-checks-fixtures.ts`): this pass's `V8_COUNTED` 8 and
+`V8_EXCLUDED` 8; 361 in all. They were committed red at `7137758e8` against main `4efc8f5b8`: 21 of
+598 tests of `b3-publishing-with-checks.test.ts` failed. They were the five false credits
+(`mocha index.js`, `go test ./pkg`, `pytest` on a missing path, `uv run pytest` with
+`[build-system]` and with `tool.uv.package = true`), the two former controls, the two new uv
+credits, their note assertions, the B2/B3 agreement test and the v17 pin. That commit's message
+says 22; that count was taken before one counted fixture was rewritten from a check-line `uvu test`
+(no check by name on main) to the test script `uvu test`, and 21 is the count re-run on the
+committed input. Exclusions: `mocha-index-js-no-tests`, `go-test-package-no-test-files`,
+`pytest-path-missing`, `uv-run-pytest-build-system`, `uv-run-pytest-package-true`,
+`uv-run-no-sync-after-uv-sync` (red by its note: main excluded it with no reason), and the two
+former controls below. Admitted forms: `uvu-test-directory-script`, `go-test-all-with-tests`,
+`go-test-package-with-tests`, `pytest-node-id`, `uv-run-pytest-no-build-system`,
+`uv-run-no-project-pytest`, `uv-run-pytest-package-false`,
+`uv-run-no-sync-after-sync-no-install-project`. **Former controls.** Item F's `go-test-all` and
+`test-script-go-test` ran `go test ./...` in a module with no `_test.go`, so they were checks that
+cannot fail. They are now excluded and named, as ctest's control was in #657's review round; the
+counted control is `go-test-all-with-tests`. Their files are unchanged, so their v17 pins did not
+move. **v17 pin.** `b3-publishing-with-checks-v17.json` was re-pinned at main `4efc8f5b8` with
+this branch's fixture file, byte-identical. The test's env-var re-pin command was refused by this
+session's harness, so the 14 new entries were printed by main's code in an ignored worktree and
+inserted. Main's v17 output was then compared with the whole pin: all 361 entries equal, and the
+HTML pin byte-identical. Only the v17 pin moved; no v27 pin and no behaviour fingerprint moved.
+
+**Bounds.** No new regular expression is quadratic. The ones added are character classes (one
+alternated with an anchored `^~`), an anchored class of bounded length, and the TOML table-header
+pattern the hatch reader already uses. The positional reader builds a trie of the test-file list, flattened into shared maps (each
+part hashed once with its parent's number), and walks a word's parts once. The first version
+joined every prefix of every path, which grows with the square of a path's depth; the scaling check
+caught a ratio of 5.15 on its many-files input, and it was replaced before measuring. Globs charge
+every part comparison and part split to a budget of 2,000,000 per scan, past which a glob is not
+read. The uv reader reads each pyproject.toml line once. CPU time, L = 240,000:
+
+- many listed files (L/24 paths of three parts, looking up the last): L 97.6 ms, 2L 220.2 ms,
+  ratio 2.26;
+- one listed file L/2 directories deep, looking up its directory and a dotted module: L 106.6 ms,
+  2L 241.8 ms, ratio 2.27;
+- the uv reader on a `tool.uv` dev-dependencies list of L/12 lines: L 122.2 ms, 2L 262.6 ms,
+  ratio 2.15;
+- a glob matching none of 2L/24 listed files: stops as not read at its budget after 11.0 ms.
+
+Each limit is 3; the ReDoS guard and timing tests of `scan-path-regex-bounds.test.ts` pass.
+
+**Measured** (at `aae8c4fbd`, whose last code commit is `5582dd36b`). Main `4efc8f5b8` and this
+head scored the same 701 synthetic checkouts: the 361 fixtures of
+`b3-publishing-with-checks-fixtures.ts` and every fixture of `false-assurance-fixtures.ts` and
+`ci-claims-followups-fixtures.ts`. Both sides ran in one process, in an ignored worktree at main
+with this branch's fixture files; main's source was imported there and this head's from its own
+worktree, by path. Each checkout was built once and scored by both sides under all eleven
+selectable rubrics, and report JSON, HTML and Markdown were compared by hash. Built once, the
+symlink fixture's head SHA no longer differs between sides. Errors: 0 on both sides.
+
+- v17-v26: 7,010 of 7,010 reports byte-identical to main, their HTML and Markdown too.
+- v27: 691 of 701 reports byte-identical (HTML and Markdown 692). The 10 that move move in B3
+  only, and are all this pass's fixtures or its two former controls:
+  - 2 rise to v17's B3 value, the new credit paths: `uv-run-no-project-pytest` and
+    `uv-run-no-sync-after-sync-no-install-project`;
+  - 7 fall from v17's value, the false credit main gave: `mocha-index-js-no-tests`,
+    `go-test-package-no-test-files`, `pytest-path-missing`, `uv-run-pytest-build-system`,
+    `uv-run-pytest-package-true`, `go-test-all` and `test-script-go-test`;
+  - 1 changes in B3's note only, excluded on both sides: `uv-run-no-sync-after-uv-sync`, which
+    main excluded giving no reason (its `uv sync` is no setup step, and main read no `uv run`
+    option), and which this head names with the project-install reason.
+- No existing fixture but the two former controls moves. In particular every `uvu test` fixture
+  whose `test/` holds a counted test file stays credited.
+- v27 B3 above v17 B3 on the same commit: 0.
+
+**Runner claims.** None of the runners was run in this session: mocha is not installed on the
+host, and this session's harness required approval, not given, for every `go` and `uv` command. The claims
+rest on each runner's documentation, and on #657's records for `mocha index.js` (0 tests, exit 0,
+seen in a probe there) and `go test ./pkg` ("no test files", exit 0). pytest exits 4 on a missing
+path, so `pytest-path-missing` was not a check that cannot fail. It is excluded by construction:
+Cejel cannot show a test there.
+
+**False exclusions this change adds.** By the same rule as the earlier passes, a check that can
+fail is now excluded in these cases:
+
+1. A runner pointed at a test the list does not count: a file outside v17's naming conventions
+   that pytest's own `python_files` setting collects, a `dotnet test` project or solution file
+   (never on the list), and an rspec `file:line` or `file[id]`.
+2. Any positional from a step with a working-directory or a `cd`.
+3. A go import path, and a unittest dotted name whose module is not on the list.
+4. `uv run` wherever Cejel cannot tell, including a pyproject.toml with a `tool.uv.sources` or
+   `managed` key, a committed uv.toml, and any working-directory.
+5. `uv run --no-sync` after a project-installing `uv sync` in a conditional step that did not run.
+
+**Not in this change** (left open). A runner with no positional word whose default discovery
+finds no tests (`go test` in a directory with no test files) is out of the card's scope. So are a
+value flag naming a directory without tests (`cargo test -p`, `cypress run --spec`,
+`python -m unittest -s`, `ctest --test-dir`), `uvx`, and `pip install` steps. jest, bun and
+playwright keep crediting a positional filter on their documented exit code, which was not run
+here either. A mocha directory given without `--recursive`, whose listed tests are all below its
+top level, is still credited, since the ruling's "at any depth" is followed; mocha then reads only
+the top level.
+
+No holdout or calibration ran. No behaviour-fingerprint pin moves: the fingerprint corpus holds no
+check-then-publish workflow. No published score moved: the board is scored under v17.
+
 ## 2026-11-04 (A1 make environment) — v27 A1 reads `PYTEST_ADDOPTS` in the environment of the CI command that runs make, so the Makefile's value or the environment's reaches the recipe's pytest, and names a collection hook defined in a plugin class (#633 item D, #634 item 3); v17-v26 byte-identical; v27 never above v17; no published score moved
 
 **Status.** A scoring change under `witan-rubric-v27-prospective-2026-10-19` only, with no
