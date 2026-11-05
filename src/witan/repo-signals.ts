@@ -8445,16 +8445,20 @@ function firstCheckLineByJob(
   const runSteps = githubActionsRunSteps(contents, isGuardLine);
   // Fourth pass (#628): the environment on the path to each step item's check.
   const environment = checkPathEnvironmentProblems(contents, jobs, items, runSteps);
+  // Eighth pass (#660): the jobs (by `steps:` line) in which a step so far ran a `uv sync` that
+  // installs the project, conditional or not.
+  const uvSyncedJobs = new Set<number>();
   for (const step of runSteps) {
+    const uvProjectSynced = uvSyncedJobs.has(step.job);
+    const stepCommands = joinShellContinuationLines(step.lines.map(({ text }) => text)).flatMap((text) => shellCommands(text));
+    if (stepCommands.some(runsProjectUvSync)) uvSyncedJobs.add(step.job);
     if (step.conditional || step.job === -1 || !step.ownKey) continue;
-    const commands = joinShellContinuationLines(step.lines.map(({ text }) => text)).flatMap((text) =>
-      shellCommands(text).map((words) => ({ words })),
-    );
+    const commands = stepCommands.map((words) => ({ words }));
     if (stepShellIsConditional(step, commands)) continue;
     // A step that changes directory runs the scripts and files of another directory, which the root
     // readings do not describe.
     const changesDirectory = commands.some(({ words }) => ['cd', 'pushd'].includes(commandHead(words).word));
-    const stepReading: CheckReading = changesDirectory ? { ...reading, ...ROOT_FILES_UNREAD } : reading;
+    const stepReading: CheckReading = { ...(changesDirectory ? { ...reading, ...ROOT_FILES_UNREAD } : reading), uvProjectSynced };
     const isCheck = (words: readonly string[]) => isCheckCommand(words, stepReading);
     // Fourth pass (#627): a test script or make target the reader read and found to run no known
     // runner is named in B3's note.
@@ -8718,6 +8722,18 @@ interface CheckReading {
    * know, where every word is 'unread' (testPathReader).
    */
   readonly testPath: (word: string, kind: PositionalReading, fromRoot: boolean) => TestPathReading;
+  /**
+   * Eighth pass (#660): whether `uv run` from the root builds the project first (uvProjectReading):
+   * 'builds' where the root pyproject.toml defines `[build-system]` or sets `tool.uv.package =
+   * true`, and does not set it false; 'no-build' where it does neither; 'unread' where Cejel
+   * cannot tell.
+   */
+  readonly uvProject: UvProjectReading;
+  /**
+   * Eighth pass (#660): an earlier step of the check's job runs `uv sync` without
+   * `--no-install-project`, which installs the project, running its build code. Set per step.
+   */
+  readonly uvProjectSynced: boolean;
 }
 
 // The readings that rest on the root's own files, as when none of them is read.
@@ -8738,6 +8754,8 @@ const ROOT_FILES_UNREAD = {
   // manifest and configuration of the directory it runs in, which the root readings do not describe.
   installRunsNoProjectScript: false,
   packageManagerConfigPlain: false,
+  // Eighth pass (#660): uv reads the pyproject.toml at or above the directory it runs in.
+  uvProject: 'unread',
 } as const satisfies Partial<CheckReading>;
 
 const UNREAD_CHECK_READING: CheckReading = {
@@ -8745,6 +8763,7 @@ const UNREAD_CHECK_READING: CheckReading = {
   pathMayExist: () => true,
   pythonModuleMayExist: () => true,
   testPath: () => 'unread',
+  uvProjectSynced: false,
 };
 
 /**
@@ -8758,10 +8777,12 @@ function checkReading(root: string, inventory: PublishOnlyInventory, testFiles: 
   // Seventh pass (#647, item E): a script or recipe runs from the root, so its `python -m` is read there.
   const pythonModuleMayExist = pythonModuleReader(inventory);
   const testPath = testPathReader(testFiles);
+  const uvProject = uvProjectReading(root, inventory);
   const tscAdmitted: ScriptAdmission = Object.assign((words: readonly string[]) => tscRunWritesNothingRead(words, tsconfig, inventory), {
     moduleMayExist: (name: string) => pythonModuleMayExist(name, true),
-    // Eighth pass (#659): a script or recipe runs from the root.
+    // Eighth pass (#659, #660): a script or recipe runs from the root.
     testPath: (word: string, kind: PositionalReading) => testPath(word, kind, true),
+    uvRunBuildsProject: uvProject !== 'no-build',
   });
   const testScript = rootTestScriptReading(root, inventory, tscAdmitted);
   const build = rootBuildScriptReading(root, inventory, tscAdmitted);
@@ -8785,6 +8806,8 @@ function checkReading(root: string, inventory: PublishOnlyInventory, testFiles: 
     packageManagerConfigPlain: packageManagerConfigIsPlain(root, inventory),
     pythonModuleMayExist,
     testPath,
+    uvProject,
+    uvProjectSynced: false,
   };
 }
 
@@ -8798,6 +8821,11 @@ interface ScriptAdmission {
   readonly moduleMayExist: (name: string) => boolean;
   /** Eighth pass (#659): CheckReading.testPath, from the root. */
   readonly testPath: (word: string, kind: PositionalReading) => TestPathReading;
+  /**
+   * Eighth pass (#660): `uv run` from the root may build the project first (uvProject is not
+   * 'no-build'), so a script or recipe line `uv run <command>` is not read.
+   */
+  readonly uvRunBuildsProject: boolean;
 }
 
 // Item E: the suffixes of a file Python imports as a module of its stem.
@@ -9726,9 +9754,10 @@ function commandsAreAndChain(text: string): boolean {
  * isInertEnvironmentKey admits, `env` and `cross-env` with such assignments, `npx`, `pnpx`, `bunx`,
  * `pnpm exec`, the coverage wrappers `c8` and `nyc` (their flags skipped), `coverage run` (read as
  * `python`), `uv`, `poetry`, `pdm`, `pipenv` or `hatch` then `run`, and `bundle exec`. Null when an
- * assignment sets any other key, a launcher is given a flag, or the status is inverted.
+ * assignment sets any other key, a launcher is given a flag, or the status is inverted. Eighth pass
+ * (#660): null for `uv run` where `admission.uvRunBuildsProject`, since uv builds the project first.
  */
-function peelCommandLaunchers(input: readonly string[]): string[] | null {
+function peelCommandLaunchers(input: readonly string[], admission: ScriptAdmission): string[] | null {
   const head = commandHead(input);
   if (head.inverted || commandIsBackgrounded(input)) return null;
   let words = [head.word, ...input.slice(head.argsFrom)];
@@ -9746,6 +9775,9 @@ function peelCommandLaunchers(input: readonly string[]): string[] | null {
     // Seventh pass (#641, item B): `pdm run`, `hatch run` and `pipenv run` run a script of the name
     // in place of the command, which a script or recipe reader does not resolve, so is not read.
     else if (SCRIPT_ALIAS_TOOLS.has(first) && second === 'run') return null;
+    // Eighth pass (#660): `uv run` from the root builds the project first unless the root
+    // pyproject.toml is read and shows that uv builds no project.
+    else if (first === 'uv' && second === 'run' && admission.uvRunBuildsProject) return null;
     else if (CHECK_COMMAND_RUN_LAUNCHERS.has(first) && second === 'run') next = 2;
     else if (first === 'coverage' && second === 'run') {
       words = ['python', ...words.slice(2)];
@@ -9819,6 +9851,7 @@ function packageScriptRun(words: readonly string[], scripts: Readonly<Record<str
 function packageScriptCommands(
   scripts: Readonly<Record<string, unknown>>,
   name: string,
+  admission: ScriptAdmission,
 ): (string[] | null)[] | undefined {
   const commands: (string[] | null)[] = [];
   const visit = (script: string, depth: number, stack: ReadonlySet<string>): boolean => {
@@ -9829,7 +9862,7 @@ function packageScriptCommands(
       const body = scripts[part];
       if (typeof body !== 'string' || !commandsAreAndChain(body)) return false;
       for (const words of shellCommands(body)) {
-        const peeled = peelCommandLaunchers(words);
+        const peeled = peelCommandLaunchers(words, admission);
         const run = peeled === null ? undefined : packageScriptRun(peeled, scripts);
         if (run !== undefined) {
           if (!visit(run, depth + 1, inner)) return false;
@@ -9863,7 +9896,7 @@ function rootTestScriptReading(
 ): ScriptReading {
   const scripts = rootPackageScripts(root, inventory);
   if (scripts === undefined || typeof scripts.test !== 'string') return 'unread';
-  const commands = packageScriptCommands(scripts, 'test');
+  const commands = packageScriptCommands(scripts, 'test', tscAdmitted);
   const kinds = (commands ?? []).map((words) => (words === null ? 'other' : scriptCommandKind(words, tscAdmitted)));
   return commands !== undefined && kindsRunKnownRunner(kinds) ? 'runner' : 'unrecognised';
 }
@@ -10004,7 +10037,7 @@ function makeTargetCommandKinds(
       if (ignored || !commandsAreAndChain(text)) kinds.push('other');
       else {
         for (const words of shellCommands(text)) {
-          const peeled = peelCommandLaunchers(words);
+          const peeled = peelCommandLaunchers(words, tscAdmitted);
           kinds.push(peeled === null ? 'other' : scriptCommandKind(peeled, tscAdmitted));
         }
       }
@@ -10070,7 +10103,7 @@ function rootBuildScriptReading(
 ): 'admitted' | 'output-unread' | 'other' {
   const scripts = rootPackageScripts(root, inventory);
   if (scripts === undefined || !inventory.scanned.has('tsconfig.json')) return 'other';
-  const commands = packageScriptCommands(scripts, 'build');
+  const commands = packageScriptCommands(scripts, 'build', tscAdmitted);
   const runsOnlyTsc =
     commands !== undefined &&
     commands.length > 0 &&
@@ -10201,6 +10234,8 @@ function isCheckCommand(input: readonly string[], reading: CheckReading, assignm
   // an inert key, as in a script (peelCommandLaunchers). `assignmentsRead` false asks what the
   // command would be without that rule, for B3's note (lineAssignmentReason).
   if (assignmentsRead && read.assignments.some((key) => !isInertEnvironmentKey(key))) return false;
+  // Eighth pass (#660): `uv run` only where uv runs no build code of the project first.
+  if (read.uv !== undefined && uvRunProblem(read.uv, reading) !== undefined) return false;
   // Seventh pass (#641, item B): `pdm run`, `hatch run` and `pipenv run` run the script of the name
   // where there is one; a name that resolves to a script is a check only where the script is, one
   // that resolves to none is the command itself, and anything not resolved withholds the credit.
@@ -10350,6 +10385,8 @@ function checkCommandWords(input: readonly string[]):
       readonly alias?: ScriptAliasTool;
       /** Seventh pass (#647, item E): the launcher was `python -m` or `python3 -m`, naming this module. */
       readonly module?: string;
+      /** Eighth pass (#660): the launcher was `uv run`, with these of its own options. */
+      readonly uv?: UvRunOptions;
     }
   | undefined {
   const head = commandHead(input);
@@ -10370,8 +10407,134 @@ function checkCommandWords(input: readonly string[]):
   } else if (CHECK_COMMAND_RUN_LAUNCHERS.has(launcher) && words[start + 1] === 'run') {
     start += 2;
     if (SCRIPT_ALIAS_TOOLS.has(launcher)) return { words: words.slice(start), packageManager, assignments, alias: launcher as ScriptAliasTool };
+    // Eighth pass (#660): `uv run`'s own options before the command. Only `--no-project`,
+    // `--no-sync` and the options that choose another project are read; at any other option the
+    // command's words begin with it, so it is no check, as before.
+    if (launcher === 'uv') {
+      let noProject = false;
+      let noSync = false;
+      let unread: string | undefined;
+      for (; start < words.length; start += 1) {
+        const word = words[start] ?? '';
+        const option = word.split('=')[0] ?? word;
+        if (word === '--no-project') noProject = true;
+        else if (word === '--no-sync') noSync = true;
+        else if (UV_RUN_PROJECT_OPTIONS.has(option)) {
+          unread = option;
+          if (!word.includes('=')) start += 1;
+        } else break;
+      }
+      return { words: words.slice(start), packageManager, assignments, uv: { noProject, noSync, ...(unread === undefined ? {} : { unread }) } };
+    }
   }
   return { words: words.slice(start), packageManager, assignments };
+}
+
+// ---- Eighth pass (#660, operator ruling A of 5 November 2026): `uv run` builds the project -------
+//
+// Per uv's documentation, `uv run` first syncs the project's environment, and builds and installs
+// the project into it where pyproject.toml defines `[build-system]` or sets `tool.uv.package =
+// true`, running its build code before the command; `tool.uv.package = false` makes it ignore a
+// declared build system, and with neither it installs only the dependencies. So a check launched
+// with `uv run` withholds the credit, with the project-install reason tox and hatch give (item F),
+// where the root pyproject.toml makes uv build the project, unless the command carries
+// `--no-project`, or carries `--no-sync` with no earlier step of the job running a `uv sync` that
+// installs the project. Where Cejel cannot tell (a directory not known, no root pyproject.toml, a
+// committed uv.toml, a `tool.uv` key not read such as `workspace` or `sources`, or an option that
+// chooses another project) the check is named as not read.
+
+/** Eighth pass (#660): the `uv run` options checkCommandWords reads. */
+interface UvRunOptions {
+  readonly noProject: boolean;
+  readonly noSync: boolean;
+  /** An option that chooses another project or directory (`--package`, `--project`, `--directory`). */
+  readonly unread?: string;
+}
+
+const UV_RUN_PROJECT_OPTIONS: ReadonlySet<string> = new Set(['--package', '--project', '--directory']);
+
+/** Eighth pass (#660): what `uv run` from the root does with the project before the command. */
+type UvProjectReading = 'builds' | 'no-build' | 'unread';
+
+// The `tool.uv` keys the reader admits: none of them changes whether or what uv builds.
+const UV_PROJECT_ADMITTED_KEYS: ReadonlySet<string> = new Set(['package', 'dev-dependencies', 'required-version', 'index']);
+
+/**
+ * Eighth pass (#660): reads one pyproject.toml for whether `uv run` builds the project. A key or
+ * table name with a backslash, `tool` or `tool.uv` written inline, a `tool.uv` key
+ * UV_PROJECT_ADMITTED_KEYS does not list (`workspace`, `sources`, `managed`, ...), or a
+ * `tool.uv.package` that is not `true` or `false` is 'unread'. Each line is read once
+ * (TomlValueScanner), so the work is linear in the file.
+ */
+function readUvProject(text: string): UvProjectReading {
+  let buildSystem = false;
+  let packaged: boolean | undefined;
+  const lines = text.split(/\r?\n/);
+  let table: string[] = [];
+  const uvKeyUnread = (path: readonly string[]) =>
+    path[0] === 'tool' && (path.length === 1 || (path[1] === 'uv' && (path.length === 2 || !UV_PROJECT_ADMITTED_KEYS.has(path[2] ?? ''))));
+  for (let index = 0; index < lines.length; index += 1) {
+    const trimmed = (lines[index] ?? '').trim();
+    if (trimmed === '' || trimmed.startsWith('#')) continue;
+    const header = /^\[\[?([^\]]*)\]\]?/.exec(trimmed);
+    if (header) {
+      if ((header[1] ?? '').includes('\\')) return 'unread';
+      table = tomlKeyPath(header[1] ?? '');
+      if (table[0] === 'build-system') buildSystem = true;
+      // A `[tool]` or `[tool.uv]` table is placed; a table below `tool.uv` must be an admitted key.
+      if (table[0] === 'tool' && table[1] === 'uv' && table.length > 2 && !UV_PROJECT_ADMITTED_KEYS.has(table[2] ?? '')) return 'unread';
+      continue;
+    }
+    const equals = tomlKeyEnd(trimmed);
+    if (equals === -1) continue;
+    const scanner = new TomlValueScanner();
+    scanner.feed(trimmed.slice(equals + 1));
+    while (!scanner.complete() && index + 1 < lines.length) {
+      index += 1;
+      scanner.feed(`\n${lines[index] ?? ''}`);
+    }
+    if (trimmed.slice(0, equals).includes('\\')) return 'unread';
+    const path = [...table, ...tomlKeyPath(trimmed.slice(0, equals))];
+    if (path[0] === 'build-system') buildSystem = true;
+    if (uvKeyUnread(path)) return 'unread';
+    if (path[0] === 'tool' && path[1] === 'uv' && path[2] === 'package') {
+      const code = scanner.code().trim();
+      if (path.length !== 3 || (code !== 'true' && code !== 'false')) return 'unread';
+      packaged = code === 'true';
+    }
+  }
+  if (packaged === false) return 'no-build';
+  return packaged === true || buildSystem ? 'builds' : 'no-build';
+}
+
+/** Eighth pass (#660), CheckReading.uvProject: the root pyproject.toml, read once per scan. */
+function uvProjectReading(root: string, inventory: PublishOnlyInventory): UvProjectReading {
+  // uv.toml settings apply to every project under it, and are not read.
+  if (inventory.hasUvConfiguration || !inventory.scanned.has('pyproject.toml')) return 'unread';
+  const text = readRepoText(join(root, 'pyproject.toml'), 'utf8');
+  return text === undefined ? 'unread' : readUvProject(text);
+}
+
+/**
+ * Eighth pass (#660): the reason a `uv run` launch withholds its check's credit, or undefined where
+ * uv runs no build code of the project first.
+ */
+function uvRunProblem(uv: UvRunOptions, reading: CheckReading): string | undefined {
+  if (uv.unread !== undefined) return UV_RUN_UNREAD_REASON;
+  if (uv.noProject) return undefined;
+  if (reading.uvProject === 'unread') return UV_RUN_UNREAD_REASON;
+  if (reading.uvProject === 'no-build') return undefined;
+  if (!uv.noSync) return UV_INSTALLS_PROJECT_REASON;
+  return reading.uvProjectSynced ? UV_SYNCED_PROJECT_REASON : undefined;
+}
+
+/** Eighth pass (#660): one shell command runs `uv sync` without `--no-install-project`. */
+function runsProjectUvSync(input: readonly string[]): boolean {
+  const head = commandHead(input);
+  const words = [head.word, ...input.slice(head.argsFrom)];
+  let start = 0;
+  while (start < words.length && SHELL_ASSIGNMENT_PATTERN.test(words[start] ?? '')) start += 1;
+  return words[start] === 'uv' && words[start + 1] === 'sync' && !words.includes('--no-install-project');
 }
 
 // ---- Fifth pass (items C and D, review of #640): what follows an npm-family test script's name ----
@@ -10511,6 +10674,11 @@ function seventhPassReason(input: readonly string[], reading: CheckReading): str
   if (read === undefined || (read.packageManager && !reading.packageManagerConfigPlain)) return undefined;
   if (read.assignments.some((key) => !isInertEnvironmentKey(key))) return undefined;
   let words = read.words;
+  // Eighth pass (#660): a check `uv run` launches after building the project, or where Cejel cannot tell.
+  if (read.uv !== undefined) {
+    const problem = uvRunProblem(read.uv, reading);
+    if (problem !== undefined) return words.length > 0 && !isPathCommandWord(words[0] ?? '') && namesCheckAtStart(words) ? problem : undefined;
+  }
   // Item B: a script alias that resolves to a script running no known runner, or is not resolved.
   if (read.alias !== undefined) {
     const alias = reading.scriptAlias(read.alias, words);
@@ -10625,7 +10793,7 @@ function rootJustRecipeReader(root: string, inventory: PublishOnlyInventory, tsc
         }
         if (ignored || !commandsAreAndChain(text)) kinds.push('other');
         else for (const words of shellCommands(text)) {
-          const peeled = peelCommandLaunchers(words);
+          const peeled = peelCommandLaunchers(words, tscAdmitted);
           kinds.push(peeled === null ? 'other' : scriptCommandKind(peeled, tscAdmitted));
         }
         if (kinds.length > SCRIPT_EXPANSION_MAX_COMMANDS) return false;
@@ -10718,7 +10886,7 @@ function rootToxReading(root: string, inventory: PublishOnlyInventory, tscAdmitt
       // holding a shell character, is not read.
       if (line.startsWith('-') || line.startsWith('!') || /[|&;<>$`()]/.test(line)) kinds.push('other');
       else {
-        const peeled = peelCommandLaunchers(shellWords(line));
+        const peeled = peelCommandLaunchers(shellWords(line), tscAdmitted);
         kinds.push(peeled === null ? 'other' : scriptCommandKind(peeled, tscAdmitted));
       }
       if (kinds.length > SCRIPT_EXPANSION_MAX_COMMANDS) return false;
@@ -10793,8 +10961,13 @@ const HATCH_UNREAD_SETTING_PATTERN = /env-vars|pre-install-commands|post-install
 // `template`, `env-vars`, `pre-install-commands`, `matrix`, `overrides`, ...) and an environment
 // plugin (`[env]`) leave hatch not read.
 const HATCH_ENV_ADMITTED_OPTIONS: ReadonlySet<string> = new Set(['skip-install', 'description', 'dependencies', 'extra-dependencies']);
-const HATCH_INSTALLS_PROJECT_REASON =
-  'the check runs hatch run in an environment that does not set skip-install, so hatch first installs the project, running its build code';
+// Eighth pass (#660): the project-install reason, shared by hatch (item F) and `uv run`.
+const PROJECT_INSTALL_REASON = (runs: string, tool: string) => `the check runs ${runs}, so ${tool} first installs the project, running its build code`;
+const HATCH_INSTALLS_PROJECT_REASON = PROJECT_INSTALL_REASON('hatch run in an environment that does not set skip-install', 'hatch');
+const UV_INSTALLS_PROJECT_REASON = PROJECT_INSTALL_REASON('uv run in a project uv builds', 'uv');
+const UV_SYNCED_PROJECT_REASON = PROJECT_INSTALL_REASON('uv run --no-sync after a uv sync of a project uv builds', 'uv');
+// Eighth pass (#660): where Cejel cannot tell whether uv builds the project, the not-read clause.
+const UV_RUN_UNREAD_REASON = CONFIGURATION_UNREAD_REASON('uv run');
 
 /**
  * Item F: for each hatch environment of the root hatch.toml (`[envs.<env>]`) and pyproject.toml
@@ -10919,7 +11092,7 @@ function scriptAliasBodyKinds(text: string, shell: boolean, tscAdmitted: ScriptA
   if (shell ? !commandsAreAndChain(text) : /[|&;<>$`(){}\\\r\n]/.test(text)) return ['other'];
   const commands = shell ? shellCommands(text) : [shellWords(text)];
   return commands.map((words) => {
-    const peeled = peelCommandLaunchers(words);
+    const peeled = peelCommandLaunchers(words, tscAdmitted);
     return peeled === null ? 'other' : scriptCommandKind(peeled, tscAdmitted);
   });
 }
@@ -11424,7 +11597,7 @@ function rootTestScriptLastRunner(
   const body = scripts?.test;
   if (scripts === undefined || typeof body !== 'string' || !commandsAreAndChain(body)) return undefined;
   const commands = shellCommands(body);
-  const peeled = peelCommandLaunchers(commands[commands.length - 1] ?? []);
+  const peeled = peelCommandLaunchers(commands[commands.length - 1] ?? [], tscAdmitted);
   if (peeled === null || packageScriptRun(peeled, scripts) !== undefined) return undefined;
   return scriptCommandKind(peeled, tscAdmitted) === 'runner' ? peeled : undefined;
 }
