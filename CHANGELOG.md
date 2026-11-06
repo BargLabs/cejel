@@ -115,7 +115,7 @@ pinned. v27 carries no precision or recall claim.
 ### Fixed
 
 - **The scaling check in `scan-path-regex-bounds.test.ts` steps by 4, from L/2 to 2L, and refuses
-  above 8 (#678).** Test only; no reader, rubric or report changes. At L and 2L with a limit of 3,
+  above 11 (#678).** Test only; no reader, rubric or report changes. At L and 2L with a limit of 3,
   a linear reader gives 2, and the same unchanged code measured from 1.9 to 3.2 on CI, so the
   runner decided some runs. On a quiet host it failed 3 of 5 runs on main (the test-path reader on
   many listed files: 3.15, 3.03, 3.10). At a step of 4, linear is about 4, n log n about 4.5 and the
@@ -132,12 +132,18 @@ pinned. v27 carries no precision or recall claim.
     Without the cap, a reader whose L/2 input was missing while its 2L input was present ran for
     hours instead of failing.
   - A self-test admits an n log n stand-in, and refuses one that does the same work at both lengths.
+  - **Why 11 and not 8.** Six readers grow faster than linearly, and the noise between runs
+    multiplies a ratio by the same factor at any step. A limit of 8 left the slowest of them 1.10 to
+    1.15 of room, about what a limit of 3 had left at a step of 2. 11 sits about halfway, on a ratio
+    scale, between the highest reader seen (7.26) and the square stand-in (16.0), about 1.5 from each.
   - **Measured on five runs of the file alone, on one quiet host:** every test passed. Across the
     20 readers the highest ratio was 6.94 and the lowest 3.12. The file ran in 77.0 to 82.2 s,
     against 95.9 to 104.1 s on main. Six readers grow faster than linearly, 5.2 to 6.9 at the step
     of 4 where linear is about 4. The test-path reader on many listed files (6.14 to 6.94) has the
     smallest margin under 8, a factor of 1.15. In one run of the whole suite, under parallel load,
-    the two test-path readers reached 7.20 and 7.26, a factor of 1.10. That is not fixed here.
+    the two test-path readers reached 7.20 and 7.26. CI on this change gave 7.02 at most. Those
+    margins were measured against 8; against 11 they are about 1.5. Where the test-path readers'
+    superlinear cost comes from is not found here (#680).
 
 ## [0.6.10] — 2026-11-04
 

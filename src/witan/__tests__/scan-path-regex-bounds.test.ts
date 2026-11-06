@@ -405,12 +405,16 @@ describe('timing guards: the real scan finishes on pathological repository input
 // decide it (cejel #642). Each reader must return the same answer at both lengths, so a reader that
 // stops early cannot pass by being fast.
 //
-// cejel #678: why the lengths are four times apart and the limit is 8. Until #678 the lengths were
+// cejel #678: why the lengths are four times apart and the limit is 11. Until #678 the lengths were
 // L and 2L and the limit 3, where a linear reader gives 2 and one that grows with the square gives
 // 4. The same unchanged code then measured from 1.9 to 3.2 on CI (the deep-path test-path reader:
 // 2.43, 2.42, 3.06, 3.17, 2.45 and 1.94 in six runs), a spread wider than the gap between linear and
 // the limit, so the runner, not the reader, decided some runs. At a step of four, linear gives about
-// 4, n log n about 4.5 and the square 16, and 8 sits a factor of two from both linear and the square.
+// 4, n log n about 4.5 and the square 16. The readers here are not linear: six of them measured 5.2
+// to 7.3 at this step (exponent 1.2 to 1.4), and the noise between runs multiplies a ratio by the
+// same factor at any step, about 1.3 to 1.6 on CI. A limit of 8 left the slowest of them a factor
+// of 1.1 to 1.15 of room. 11 sits about halfway, on a ratio scale, between the highest reader seen
+// (7.26, under full-suite load) and the square (16.0): a factor of about 1.5 from each.
 // The step is taken from L/2 to 2L rather than from L to 4L, so the largest input, and with it most
 // of this file's run time, stays as it was (the sample floor below is halved to match).
 //
@@ -426,7 +430,7 @@ const SCALING_SMALL = SCALING_LENGTH / 2;
 const SCALING_LARGE = 2 * SCALING_LENGTH;
 const SCALING_LENGTHS = [SCALING_SMALL, SCALING_LARGE] as const;
 const SCALING_FACTOR = SCALING_LARGE / SCALING_SMALL;
-const SCALING_RATIO_LIMIT = 8;
+const SCALING_RATIO_LIMIT = 11;
 const SCALING_RATIO_FLOOR = 2;
 const CI_LINE_UNITS = ['yarn ', 'uv run ', 'cargo b ', 'pnpm i ', 'npm npm ', 'poetry check '];
 
@@ -482,7 +486,7 @@ function scalingRatio<T>(read: (length: number) => T): { ratio: number; timing: 
   // does not read, where the larger one still hits) reads in no time there, so the reads per sample
   // would double to the cap and each sample at the larger length run for hours, which no per-test
   // timeout can interrupt. One read at the larger length bounds them: a sample there may take at
-  // most 64 times the floor, where a reader the limit admits takes at most 8 times it. Such a reader
+  // most 64 times the floor, where a reader the limit admits takes at most 11 times it. Such a reader
   // then fails on the limit, at once.
   const largeOnce = Math.max(timeMs(() => read(SCALING_LARGE), 1), 0.001);
   const largest = Math.max(1, Math.floor((64 * SCALING_SAMPLE_MS) / largeOnce));
