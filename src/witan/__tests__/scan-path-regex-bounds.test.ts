@@ -418,7 +418,10 @@ describe('timing guards: the real scan finishes on pathological repository input
 // The check also refuses a ratio below SCALING_RATIO_FLOOR, 2. A reader that reads all of its input
 // gives about 4; one that was never handed the larger input (a caller whose inputs are keyed on
 // lengths the helper does not read, so the reader gets nothing, or the same thing, at both) gives
-// about 1, and would otherwise pass by giving the same answer twice, fast.
+// about 1, and would otherwise pass by giving the same answer twice, fast. A caller that builds its
+// inputs ahead of time builds them with scalingInputs, for exactly SCALING_LENGTHS; its lookup
+// throws on any other length. The test names below keep the "L and 2L" they had before #678: each
+// builder is a function of the length it is handed, and is now read at L/2 and 2L.
 const SCALING_LENGTH = 240_000;
 const SCALING_SMALL = SCALING_LENGTH / 2;
 const SCALING_LARGE = 2 * SCALING_LENGTH;
