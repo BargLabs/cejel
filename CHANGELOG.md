@@ -136,7 +136,8 @@ pinned. v27 carries no precision or recall claim.
     20 readers the highest ratio was 6.94 and the lowest 3.12. The file ran in 77.0 to 82.2 s,
     against 95.9 to 104.1 s on main. Six readers grow faster than linearly, 5.2 to 6.9 at the step
     of 4 where linear is about 4. The test-path reader on many listed files (6.14 to 6.94) has the
-    smallest margin under 8, a factor of 1.15. That is not fixed here.
+    smallest margin under 8, a factor of 1.15. In one run of the whole suite, under parallel load,
+    the two test-path readers reached 7.20 and 7.26, a factor of 1.10. That is not fixed here.
 
 ## [0.6.10] — 2026-11-04
 
