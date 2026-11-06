@@ -439,7 +439,7 @@ const CI_LINE_UNITS = ['yarn ', 'uv run ', 'cargo b ', 'pnpm i ', 'npm npm ', 'p
 // was 80 ms at L. A reader takes about half as long at L/2 as at L, so this takes the same reads per
 // sample as before and a sample at 2L as long as before. Kept at 80 ms, each sample at 2L was at
 // least 320 ms, and this file ran in 141.9 s against main's 100.1 s (mean of five), past the 25%
-// the card allows.
+// longer run that #678 allows.
 const SCALING_SAMPLE_MS = 40;
 const SCALING_PAIRS = 7;
 
