@@ -16284,7 +16284,9 @@ interface GithubRunStep {
   /**
    * goal_cejel_v27_a1_makefile_addopts_environment_2026-11-04, item A: the `PYTEST_ADDOPTS: <value>`
    * entry whose value is an expression, so whether it sets PYTEST_ADDOPTS, and to what, is not known.
-   * Read only for a make command (the environment make passes on to a recipe).
+   * goal_cejel_v27_a1_addopts_not_known_2026-11-05, item A (#669): read for a make command (the
+   * environment make passes on to a recipe) and for a pytest run on the step; the value as written
+   * (quotes kept), and `addoptsLine` is the entry's line.
    */
   readonly addoptsNotKnown?: string;
 }
@@ -16337,6 +16339,15 @@ function readGithubRunSteps(text: string): GithubRunStep[] {
   };
   const scalarAt = (index: number | undefined): string | undefined =>
     index === undefined ? undefined : yamlPlainScalar(lines[index]?.value ?? '');
+  // Item A of goal_cejel_v27_a1_addopts_not_known_2026-11-05: a value as written, its quotes kept
+  // and its trailing comment removed, so a clause naming it matches the line it is on.
+  const writtenAt = (index: number): string => {
+    const value = lines[index]?.value ?? '';
+    const scalar = yamlPlainScalar(value);
+    const quote = value[0];
+    const close = quote === '"' || quote === "'" ? value.lastIndexOf(quote) : -1;
+    return close > 0 && value.slice(1, close) === scalar ? value.slice(0, close + 1) : scalar;
+  };
   const isFalse = (value: string | undefined) => value !== undefined && /^(?:false|\$\{\{\s*false\s*\}\})$/.test(value);
   const defaultDirectory = (keys: Map<string, number>) => scalarAt(childKeys(childKeys(keys.get('defaults')).get('run')).get('working-directory'));
   const addoptsLineIn = (keys: Map<string, number>) => childKeys(keys.get('env')).get('PYTEST_ADDOPTS');
@@ -16403,14 +16414,17 @@ function readGithubRunSteps(text: string): GithubRunStep[] {
     } else {
       command = yamlPlainScalar(line.value);
     }
+    // The most specific level that sets PYTEST_ADDOPTS decides, so a literal on the step is read
+    // over an expression on its job or workflow, and an expression on the step over a literal above.
+    const expression = addoptsValue !== undefined && addoptsValue.includes('${{');
     steps.push({
       command,
       directory,
       line: index,
       ...(directory === null && directoryValue !== undefined ? { unknownDirectory: `working-directory: ${directoryValue}` } : {}),
-      ...(addoptsValue === undefined || addoptsValue.includes('${{') ? {} : { addopts: shellWords(addoptsValue) }),
-      ...(addoptsValue === undefined || addoptsValue.includes('${{') || addoptsLine === undefined ? {} : { addoptsLine }),
-      ...(addoptsValue !== undefined && addoptsValue.includes('${{') ? { addoptsNotKnown: `PYTEST_ADDOPTS: ${addoptsValue}` } : {}),
+      ...(addoptsValue === undefined || expression ? {} : { addopts: shellWords(addoptsValue) }),
+      ...(addoptsValue === undefined || addoptsLine === undefined ? {} : { addoptsLine }),
+      ...(expression ? { addoptsNotKnown: `PYTEST_ADDOPTS: ${addoptsLine === undefined ? addoptsValue : writtenAt(addoptsLine)}` } : {}),
     });
   }
   return steps;
@@ -16455,8 +16469,8 @@ export function readPytestInvocations(
     // The review of #648: where an `env:` mapping set the PYTEST_ADDOPTS words `envAddopts` (0-based line).
     envAddopts?: { readonly words: readonly string[]; readonly line: number },
     // Item A: why PYTEST_ADDOPTS in this command's environment is not known (an expression, a
-    // `$GITHUB_ENV` write), where it is not.
-    envNotKnown?: string,
+    // `$GITHUB_ENV` write), where it is not, and where that is written (goal_cejel_v27_a1_addopts_not_known_2026-11-05, item A).
+    envNotKnown?: { readonly reason: string; readonly source: string; readonly file: string; readonly line: number },
     // Item A: the CI environment's PYTEST_ADDOPTS words a recipe's pytest runs with, and where they are set.
     addoptsAt?: { readonly words: readonly string[]; readonly source: string; readonly file: string; readonly line: number },
   ): ShellCommandVisitor => (words, directory, addopts, unknownDirectory) => {
@@ -16465,7 +16479,7 @@ export function readPytestInvocations(
     if (makeRun !== undefined) {
       const inForce = makeRun.addopts ?? addopts;
       // A word make or the shell would expand (`$VAR`, `$(X)`, a backtick) is not a value Cejel knows.
-      const notKnown = envNotKnown ?? (inForce?.some((word) => /[$`]/.test(word)) ? `PYTEST_ADDOPTS=${inForce.join(' ')}` : undefined);
+      const notKnown = envNotKnown?.reason ?? (inForce?.some((word) => /[$`]/.test(word)) ? `PYTEST_ADDOPTS=${inForce.join(' ')}` : undefined);
       if (inForce !== undefined || notKnown !== undefined) {
         // A Makefile named with -f may be in any directory: read as one in no known directory.
         let runIn = makeRun.namesFile ? null : directory;
@@ -16528,7 +16542,9 @@ export function readPytestInvocations(
           const inner = hatchScripts.get(hatch.environment)?.has(first)
             ? `hatch run ${hatch.environment}:${substituted.trim()}`
             : substituted;
-          readShellCommands(inner, directory === null ? null : repoDirectory(script.file), addopts, visitor(a1NotePath(script.file), script.file, script.line, depth + 1), unknownDirectory);
+          // Item A of goal_cejel_v27_a1_addopts_not_known_2026-11-05: the step's environment, known or
+          // not, is the script's.
+          readShellCommands(inner, directory === null ? null : repoDirectory(script.file), addopts, visitor(a1NotePath(script.file), script.file, script.line, depth + 1, undefined, envNotKnown), unknownDirectory);
         }
         return;
       }
@@ -16549,7 +16565,15 @@ export function readPytestInvocations(
       return;
     }
     const inForce = found.addopts ?? addopts;
-    const addoptsAnchor = inForce !== undefined && envAddopts !== undefined && inForce === envAddopts.words ? envAddopts.line : undefined;
+    // Item A of goal_cejel_v27_a1_addopts_not_known_2026-11-05 (#669): a step, job or workflow env:
+    // that sets PYTEST_ADDOPTS by an expression, which nothing in the command replaces, leaves the
+    // run not read, named with the entry and pointed at its line. (A `$GITHUB_ENV` write leaves the
+    // directory unknown, so its runs were named above.)
+    if (inForce === undefined && envNotKnown !== undefined) {
+      invocations.push({ source: envNotKnown.source, file: envNotKnown.file, anchor: envNotKnown.line, directory: '', args: [], text: textOf(), unread: envNotKnown.reason });
+      return;
+    }
+    const addoptsAnchor =inForce !== undefined && envAddopts !== undefined && inForce === envAddopts.words ? envAddopts.line : undefined;
     const elsewhere = inForce !== undefined && addoptsAt !== undefined && inForce === addoptsAt.words ? addoptsAt : undefined;
     invocations.push({
       source,
@@ -16580,7 +16604,13 @@ export function readPytestInvocations(
       const envAddopts = step.addopts !== undefined && step.addoptsLine !== undefined ? { words: step.addopts, line: step.addoptsLine } : undefined;
       // Item A: a make command's environment is not known where the file may write PYTEST_ADDOPTS
       // to $GITHUB_ENV (the rule by name) or an `env:` entry sets it by an expression.
-      const envNotKnown = writesAddopts ?? step.addoptsNotKnown;
+      // goal_cejel_v27_a1_addopts_not_known_2026-11-05, item A: and a pytest run on the step, whose
+      // clause points at the expression's entry.
+      const notKnownReason = writesAddopts ?? step.addoptsNotKnown;
+      const envNotKnown =
+        notKnownReason === undefined
+          ? undefined
+          : { reason: notKnownReason, source, file, line: writesAddopts === undefined && step.addoptsLine !== undefined ? step.addoptsLine : step.line };
       if (unreadWhy !== undefined) readShellCommands(step.command, null, step.addopts, visitor(source, file, step.line, 0, envAddopts, envNotKnown), unreadWhy);
       else readShellCommands(step.command, step.directory, step.addopts, visitor(source, file, step.line, 0, envAddopts, envNotKnown), step.unknownDirectory);
     }
