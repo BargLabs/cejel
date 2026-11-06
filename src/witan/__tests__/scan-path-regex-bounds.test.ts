@@ -412,8 +412,7 @@ describe('timing guards: the real scan finishes on pathological repository input
 // the limit, so the runner, not the reader, decided some runs. At a step of four, linear gives about
 // 4, n log n about 4.5 and the square 16, and 8 sits a factor of two from both linear and the square.
 // The step is taken from L/2 to 2L rather than from L to 4L, so the largest input, and with it most
-// of this file's run time, stays as it was; the smaller length reads faster, so the calibration
-// below takes more reads per sample.
+// of this file's run time, stays as it was (the sample floor below is halved to match).
 //
 // The check also refuses a ratio below SCALING_RATIO_FLOOR, 2. A reader that reads all of its input
 // gives about 4; one that was never handed the larger input (a caller whose inputs are keyed on
@@ -436,8 +435,12 @@ const CI_LINE_UNITS = ['yarn ', 'uv run ', 'cargo b ', 'pnpm i ', 'npm npm ', 'p
 // length, it takes at least SCALING_SAMPLE_MS; the larger length is read the same number of times.
 // cejel #642: the samples at the two lengths are taken in alternation, so a burst of load on the
 // host falls on both lengths alike rather than on one phase, and the floor is well above one read,
-// so a sample is never decided by one or two reads.
-const SCALING_SAMPLE_MS = 80;
+// so a sample is never decided by one or two reads. cejel #678: the floor is 40 ms at L/2, where it
+// was 80 ms at L. A reader takes about half as long at L/2 as at L, so this takes the same reads per
+// sample as before and a sample at 2L as long as before. Kept at 80 ms, each sample at 2L was at
+// least 320 ms, and this file ran in 141.9 s against main's 100.1 s (mean of five), past the 25%
+// the card allows.
+const SCALING_SAMPLE_MS = 40;
 const SCALING_PAIRS = 7;
 
 // cejel #642: a sample is timed in this process's own CPU time (user and system), not wall time,
