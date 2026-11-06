@@ -478,8 +478,16 @@ function scalingRatio<T>(read: (length: number) => T): { ratio: number; timing: 
     read(SCALING_SMALL);
     read(SCALING_LARGE);
   }
+  // cejel #678: a reader handed nothing at the smaller length (inputs keyed on lengths the helper
+  // does not read, where the larger one still hits) reads in no time there, so the reads per sample
+  // would double to the cap and each sample at the larger length run for hours, which no per-test
+  // timeout can interrupt. One read at the larger length bounds them: a sample there may take at
+  // most 64 times the floor, where a reader the limit admits takes at most 8 times it. Such a reader
+  // then fails on the limit, at once.
+  const largeOnce = Math.max(timeMs(() => read(SCALING_LARGE), 1), 0.001);
+  const largest = Math.max(1, Math.floor((64 * SCALING_SAMPLE_MS) / largeOnce));
   let repetitions = 1;
-  while (repetitions < 65_536 && timeMs(() => read(SCALING_SMALL), repetitions) < SCALING_SAMPLE_MS) repetitions *= 2;
+  while (repetitions < 65_536 && 2 * repetitions <= largest && timeMs(() => read(SCALING_SMALL), repetitions) < SCALING_SAMPLE_MS) repetitions *= 2;
   const { msSmall, msLarge, ratio } = interleavedRatio(() => read(SCALING_SMALL), () => read(SCALING_LARGE), repetitions);
   const timing =
     `L/2 = ${SCALING_SMALL} against 2L = ${SCALING_LARGE} (x${SCALING_FACTOR}), ${repetitions} reads per sample, ${SCALING_PAIRS} alternating pairs, ` +
