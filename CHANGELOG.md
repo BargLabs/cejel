@@ -112,6 +112,32 @@ pinned. v27 carries no precision or recall claim.
   - v17 and every other rubric are unchanged. No holdout or calibration ran, and no published score
     moved.
 
+### Fixed
+
+- **The scaling check in `scan-path-regex-bounds.test.ts` steps by 4, from L/2 to 2L, and refuses
+  above 8 (#678).** Test only; no reader, rubric or report changes. At L and 2L with a limit of 3,
+  a linear reader gives 2, and the same unchanged code measured from 1.9 to 3.2 on CI, so the
+  runner decided some runs. On a quiet host it failed 3 of 5 runs on main (the test-path reader on
+  many listed files: 3.15, 3.03, 3.10). At a step of 4, linear is about 4, n log n about 4.5 and the
+  square 16. The largest input stays 2L, and the sample floor is 40 ms at L/2 (it was 80 ms at L),
+  so each sample at 2L costs what it did before.
+  - **A ratio below 2 is refused:** "the reader did not read the length it was given". Inputs built
+    ahead of time are built for exactly the two lengths the check reads, and a lookup at any other
+    length throws, so a reader can no longer get nothing at one length and pass.
+  - **Two inputs changed, not their assertions.** The builtins search had measured the fixed cost of
+    listing the tracked files, not the sweep (1.21 to 1.27 on main). It now sweeps near misses in
+    further modules, and gives 3.6 to 3.8. The module-shadow reader's expected answer had been the
+    empty answer; one shadowing module, last, now makes it true.
+  - **A reader handed nothing at L/2 fails at once.** One read at 2L caps the reads per sample.
+    Without the cap, a reader whose L/2 input was missing while its 2L input was present ran for
+    hours instead of failing.
+  - A self-test admits an n log n stand-in, and refuses one that does the same work at both lengths.
+  - **Measured on five runs of the file alone, on one quiet host:** every test passed. Across the
+    20 readers the highest ratio was 6.94 and the lowest 3.12. The file ran in 77.0 to 82.2 s,
+    against 95.9 to 104.1 s on main. Six readers grow faster than linearly, 5.2 to 6.9 at the step
+    of 4 where linear is about 4. The test-path reader on many listed files (6.14 to 6.94) has the
+    smallest margin under 8, a factor of 1.15. That is not fixed here.
+
 ## [0.6.10] — 2026-11-04
 
 v17 remains the default rubric. Two entries change default output: the plain-language first page

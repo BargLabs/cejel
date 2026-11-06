@@ -1,0 +1,52 @@
+[
+  {
+    "statement": "Set a scaling check's limit from the exponents the readers actually show, not from the ideal. Incident: cejel's L-versus-2L check refused ratios above 3, where linear is 2. Unchanged code failed it on CI (#678), and on a quiet Mac it failed 3 of 5 runs, the many-files test-path reader at 3.03 to 3.15. #678 moved the step to x4 (L/2 to 2L), assuming linear readers give about 4 against a limit of 8. Measured over five runs, six readers gave 5.2 to 6.9, an effective exponent of 1.2 to 1.4, not 4. And 8 at x4 is exponent 1.5, stricter than 3 at x2 (1.58). What the step buys is a halved spread in exponent terms, not more room. Rule: before choosing a limit, run every reader at the planned lengths several times. Put the limit, in exponent terms, outside the highest exponent seen, and say how far.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "testing",
+      "performance"
+    ],
+    "tags": [
+      "timing-guard",
+      "scaling-check",
+      "measure-before-limit",
+      "card-premise"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-11-06T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 679
+    },
+    "recurrence": {
+      "disposition": "distinct-cause",
+      "evidence": "alfred docs/orchestration/maeve-unanchored-lessons/PENDING_cejel_a-load-test-whose-load-never-started-reads-as-a-pass_2026-11-03.json#0 (#642): that seed's check passed because its load never started; here the host was quiet, and the limit sat inside the readers' own measured exponent spread."
+    }
+  },
+  {
+    "statement": "A scaling ratio measures a reader only where the reader's own work outweighs every fixed per-read cost. Incident: cejel's scaling check on the v27 A1 builtins search gave 1.21 to 1.27 at L and 2L on main in five runs, and passed. Each read first runs `git ls-files`, a fixed cost in the test's process about three times the sweep the check was meant to time, so the ratio described the listing, not the sweep. #678 added a floor (a ratio below 2 at x4 means the reader did not read what it was given), and the floor refused the check at 1.43. Spreading near misses over L/7,500 more modules put the sweep on top: 3.6 to 3.8, and the test went from 24.8 s to about 5 s. Rule: time a reader at length zero before trusting its ratio; if that is a sizeable share of the small-length time, grow the input. Refuse a ratio near 1 as loudly as one near the square.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "testing",
+      "performance"
+    ],
+    "tags": [
+      "scaling-check",
+      "fixed-cost",
+      "pass-by-absence",
+      "vacuous-test"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-11-06T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 679
+    }
+  }
+]
