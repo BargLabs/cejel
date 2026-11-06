@@ -31,7 +31,7 @@ const HOLLOW = 'rated hollow here';
 
 const fixture = (name: string, files: Readonly<Record<string, string>>): FalseAssuranceFixture => ({
   name,
-  issue: '#669',
+  issue: name.startsWith('a1qdef-') ? '#673' : '#669',
   purpose: name,
   commits: [{ ...PY_BASE, 'tests/test_cache.py': SKIPPED_CACHE_TEST, ...files }],
 });

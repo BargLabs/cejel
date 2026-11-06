@@ -14667,6 +14667,9 @@ const PYTEST_EXECUTABLE_PATTERN = /^(?:pytest|py\.test)(?:\.exe)?$/;
 const PYTEST_ADDOPTS_ASSIGNMENT = 'PYTEST_ADDOPTS=';
 // `PYTEST_ADDOPTS: value` (YAML env) or `PYTEST_ADDOPTS = value`, in a CI file other than GitHub Actions.
 const PYTEST_ADDOPTS_LINE_PATTERN = /^[ \t]*(?:-[ \t]*)?(?:export[ \t]+)?PYTEST_ADDOPTS[ \t]*(?::|[:?+]?=)(.*)$/;
+// goal_cejel_v27_a1_addopts_not_known_2026-11-05, item B: such a line that is a key (`PYTEST_ADDOPTS:`
+// or `PYTEST_ADDOPTS = `), never a shell assignment word, so no mention is counted twice.
+const PYTEST_ADDOPTS_KEY_PATTERN = /^[ \t]*PYTEST_ADDOPTS(?:[ \t]*:|[ \t]+[:?+]?=)/;
 // CI keys whose value is shell (GitLab, Azure, CircleCI's `command:` and others); `run:` is
 // extractCiRunCommands's.
 const CI_SCRIPT_KEY_PATTERN =
@@ -15946,6 +15949,10 @@ function readShellCommands(
   addopts: readonly string[] | undefined,
   visit: ShellCommandVisitor,
   unknownDirectory?: string,
+  // goal_cejel_v27_a1_addopts_not_known_2026-11-05, item B (#673): where given, counts the
+  // PYTEST_ADDOPTS assignments read as make's environment: an `export` word, and a leading
+  // assignment or `env` prefix on a make command. Any other mention is not counted.
+  mentions?: { read: number },
 ): void {
   let current = directory;
   let why = directory === null ? unknownDirectory : undefined;
@@ -15959,10 +15966,14 @@ function readShellCommands(
     if (start >= all.length) continue;
     all[start] = (all[start] ?? '').replace(/^[({]+/, '').replace(/^[@+-]+(?=[A-Za-z./{$])/, '');
     let local = exported;
+    let leading = 0;
     // Leading assignments, read by index: shifting each off would be quadratic in their number.
     while (start < all.length && /^[A-Za-z_]\w*=/.test(all[start] ?? '')) {
       const assignment = all[start] ?? '';
-      if (assignment.startsWith(PYTEST_ADDOPTS_ASSIGNMENT)) local = shellWords(assignment.slice(PYTEST_ADDOPTS_ASSIGNMENT.length));
+      if (assignment.startsWith(PYTEST_ADDOPTS_ASSIGNMENT)) {
+        local = shellWords(assignment.slice(PYTEST_ADDOPTS_ASSIGNMENT.length));
+        leading += 1;
+      }
       start += 1;
     }
     const words = start === 0 ? all : all.slice(start);
@@ -15973,9 +15984,16 @@ function readShellCommands(
     const name = words[0] ?? '';
     if (name === 'export') {
       for (const word of words.slice(1)) {
-        if (word.startsWith(PYTEST_ADDOPTS_ASSIGNMENT)) exported = shellWords(word.slice(PYTEST_ADDOPTS_ASSIGNMENT.length));
+        if (word.startsWith(PYTEST_ADDOPTS_ASSIGNMENT)) {
+          exported = shellWords(word.slice(PYTEST_ADDOPTS_ASSIGNMENT.length));
+          if (mentions !== undefined) mentions.read += 1;
+        }
       }
       continue;
+    }
+    if (mentions !== undefined && (leading > 0 || name === 'env')) {
+      const make = makeCommandOf(words);
+      if (make !== undefined) mentions.read += leading + make.addoptsAssignments;
     }
     if (name === 'cd' || name === 'pushd') {
       const target = words[1];
@@ -16289,6 +16307,11 @@ interface GithubRunStep {
    * (quotes kept), and `addoptsLine` is the entry's line.
    */
   readonly addoptsNotKnown?: string;
+  /**
+   * goal_cejel_v27_a1_addopts_not_known_2026-11-05, item B (#673): the 0-based lines of the
+   * workflow-, job- and step-level `env:` entries for PYTEST_ADDOPTS read for this step.
+   */
+  readonly addoptsKeyLines: readonly number[];
 }
 
 function readGithubRunSteps(text: string): GithubRunStep[] {
@@ -16417,10 +16440,12 @@ function readGithubRunSteps(text: string): GithubRunStep[] {
     // The most specific level that sets PYTEST_ADDOPTS decides, so a literal on the step is read
     // over an expression on its job or workflow, and an expression on the step over a literal above.
     const expression = addoptsValue !== undefined && addoptsValue.includes('${{');
+    const stepAddoptsLine = addoptsLineIn(stepKeys);
     steps.push({
       command,
       directory,
       line: index,
+      addoptsKeyLines: [root.addoptsLine, job.addoptsLine, stepAddoptsLine].filter((at): at is number => at !== undefined),
       ...(directory === null && directoryValue !== undefined ? { unknownDirectory: `working-directory: ${directoryValue}` } : {}),
       ...(addoptsValue === undefined || expression ? {} : { addopts: shellWords(addoptsValue) }),
       ...(addoptsValue === undefined || addoptsLine === undefined ? {} : { addoptsLine }),
@@ -16457,6 +16482,14 @@ export function readPytestInvocations(
   // The review of #648: the text of every CI file read, where a CI command may set a variable in the
   // environment of the make or tox it runs (a `?=` default, TOXENV).
   const environmentTexts: string[] = [];
+  // goal_cejel_v27_a1_addopts_not_known_2026-11-05, item B (#673): true where a CI file names
+  // PYTEST_ADDOPTS somewhere the readers below do not read as an environment (a script a step runs
+  // with it set, a comment, an expression), so a Makefile's `?=` default of it is not known.
+  let addoptsMentionNotRead = false;
+  // Item B: whether every whole-word PYTEST_ADDOPTS in `text` is one of the `read` mentions.
+  const noteAddoptsMentions = (text: string, read: number): void => {
+    if (wordCount(text, 'PYTEST_ADDOPTS') !== read) addoptsMentionNotRead = true;
+  };
   // goal_cejel_v27_a1_makefile_addopts_environment_2026-11-04, item A: each CI make command run with
   // PYTEST_ADDOPTS in its environment, or with one Cejel cannot read. Recorded while CI is read only.
   const makeEnvironments: MakeEnvironment[] = [];
@@ -16600,7 +16633,15 @@ export function readPytestInvocations(
     const remote = readGithubRemoteSteps(text);
     const writesAddopts = text.includes('GITHUB_ENV') && text.includes('PYTEST_ADDOPTS') ? 'PYTEST_ADDOPTS written to $GITHUB_ENV' : undefined;
     const unreadWhy = writesAddopts ?? remote.checkoutPath;
+    // goal_cejel_v27_a1_addopts_not_known_2026-11-05, item B (#673): the mentions of PYTEST_ADDOPTS
+    // read as an environment: each `env:` entry read for a run step, once; in a file the
+    // `$GITHUB_ENV` rule covers, every mention on a line naming GITHUB_ENV (the rule is by name, so
+    // the shell forms are not counted there); elsewhere an `export` and a leading assignment or
+    // `env` prefix on a make command.
+    const keyLines = new Set<number>();
+    const shellMentions = writesAddopts === undefined && text.includes('PYTEST_ADDOPTS') ? { read: 0 } : undefined;
     for (const step of readGithubRunSteps(text)) {
+      for (const at of step.addoptsKeyLines) keyLines.add(at);
       const envAddopts = step.addopts !== undefined && step.addoptsLine !== undefined ? { words: step.addopts, line: step.addoptsLine } : undefined;
       // Item A: a make command's environment is not known where the file may write PYTEST_ADDOPTS
       // to $GITHUB_ENV (the rule by name) or an `env:` entry sets it by an expression.
@@ -16611,8 +16652,17 @@ export function readPytestInvocations(
         notKnownReason === undefined
           ? undefined
           : { reason: notKnownReason, source, file, line: writesAddopts === undefined && step.addoptsLine !== undefined ? step.addoptsLine : step.line };
-      if (unreadWhy !== undefined) readShellCommands(step.command, null, step.addopts, visitor(source, file, step.line, 0, envAddopts, envNotKnown), unreadWhy);
-      else readShellCommands(step.command, step.directory, step.addopts, visitor(source, file, step.line, 0, envAddopts, envNotKnown), step.unknownDirectory);
+      if (unreadWhy !== undefined) readShellCommands(step.command, null, step.addopts, visitor(source, file, step.line, 0, envAddopts, envNotKnown), unreadWhy, shellMentions);
+      else readShellCommands(step.command, step.directory, step.addopts, visitor(source, file, step.line, 0, envAddopts, envNotKnown), step.unknownDirectory, shellMentions);
+    }
+    if (text.includes('PYTEST_ADDOPTS')) {
+      let read = keyLines.size + (shellMentions?.read ?? 0);
+      if (writesAddopts !== undefined) {
+        text.split(/\r?\n/).forEach((line, index) => {
+          if (!keyLines.has(index) && line.includes('GITHUB_ENV')) read += wordCount(line, 'PYTEST_ADDOPTS');
+        });
+      }
+      noteAddoptsMentions(text, read);
     }
     // The review of #648: a step action whose inputs run pytest (a retry or display wrapper) runs
     // it with arguments Cejel does not read.
@@ -16652,8 +16702,16 @@ export function readPytestInvocations(
     // pytest run in a Jenkinsfile that holds one is not read.
     const jenkinsDir = file === 'Jenkinsfile' ? jenkinsDirCall(text) : undefined;
     const addopts = readCiAddopts(text);
+    // Item B of goal_cejel_v27_a1_addopts_not_known_2026-11-05 (#673): the variables or env key
+    // readCiAddopts reads (its first line, where that line is a key, not a shell assignment), and
+    // the shell forms make's environment is read from.
+    const shellMentions = text.includes('PYTEST_ADDOPTS') ? { read: 0 } : undefined;
     for (const command of ciShellTexts(text)) {
-      readShellCommands(command, jenkinsDir === undefined ? '' : null, addopts, visitor(source, file, 0), jenkinsDir);
+      readShellCommands(command, jenkinsDir === undefined ? '' : null, addopts, visitor(source, file, 0), jenkinsDir, shellMentions);
+    }
+    if (shellMentions !== undefined) {
+      const keyLine = text.split(/\r?\n/).find((line) => PYTEST_ADDOPTS_LINE_PATTERN.test(line));
+      noteAddoptsMentions(text, shellMentions.read + (keyLine !== undefined && PYTEST_ADDOPTS_KEY_PATTERN.test(keyLine) ? 1 : 0));
     }
   }
   // item A: a noxfile's session.run calls (nox runs every session it is not told to skip). Item B
@@ -16740,7 +16798,11 @@ export function readPytestInvocations(
     // not known where a CI file names the variable, since a CI command may set it. Item A of
     // goal_cejel_v27_a1_makefile_addopts_environment_2026-11-04: not PYTEST_ADDOPTS, whose value in
     // the environment of each CI make command is read below.
-    const setByEnvironment = (name: string) => name !== 'PYTEST_ADDOPTS' && environmentTexts.some((ciText) => containsWord(ciText, name));
+    // Item B of goal_cejel_v27_a1_addopts_not_known_2026-11-05 (#673): PYTEST_ADDOPTS too, where a
+    // CI file names it somewhere those readers do not read; this changes only a `?=` default, since
+    // make passes the Makefile's value of an `=`, `:=` or `+=` whatever the environment holds.
+    const setByEnvironment = (name: string) =>
+      name === 'PYTEST_ADDOPTS' ? addoptsMentionNotRead : environmentTexts.some((ciText) => containsWord(ciText, name));
     const justVariables = just ? readJustVariables(text) : undefined;
     const make = just ? undefined : readMakeVariables(text, setByEnvironment);
     const budget = { left: MAKE_EXPANSION_BUDGET };
@@ -17082,15 +17144,21 @@ function makeCommandOf(words: readonly string[]):
       /** `-f` / `--file`: the Makefile is named, so it may be in any directory. */
       readonly namesFile: boolean;
       readonly addopts?: readonly string[];
+      /** goal_cejel_v27_a1_addopts_not_known_2026-11-05, item B: the `env` prefix's PYTEST_ADDOPTS assignments. */
+      readonly addoptsAssignments: number;
     }
   | undefined {
   let index = 0;
   let addopts: readonly string[] | undefined;
+  let addoptsAssignments = 0;
   if (words[0] === 'env') {
     index = 1;
     while ((words[index] ?? '').startsWith('-') || /^[A-Za-z_]\w*=/.test(words[index] ?? '')) {
       const assignment = words[index] ?? '';
-      if (assignment.startsWith(PYTEST_ADDOPTS_ASSIGNMENT)) addopts = shellWords(assignment.slice(PYTEST_ADDOPTS_ASSIGNMENT.length));
+      if (assignment.startsWith(PYTEST_ADDOPTS_ASSIGNMENT)) {
+        addopts = shellWords(assignment.slice(PYTEST_ADDOPTS_ASSIGNMENT.length));
+        addoptsAssignments += 1;
+      }
       index += 1;
     }
   }
@@ -17130,7 +17198,7 @@ function makeCommandOf(words: readonly string[]):
     }
     if (!word.includes('=')) targets.push(word);
   }
-  return { directories, targets, overrides, namesFile, ...(addopts === undefined ? {} : { addopts }) };
+  return { directories, targets, overrides, namesFile, addoptsAssignments, ...(addopts === undefined ? {} : { addopts }) };
 }
 
 /**
@@ -17440,6 +17508,20 @@ function containsWord(text: string, name: string): boolean {
     if ((at === 0 || !word(text.charCodeAt(at - 1))) && (at + name.length >= text.length || !word(text.charCodeAt(at + name.length)))) return true;
   }
   return false;
+}
+
+/**
+ * goal_cejel_v27_a1_addopts_not_known_2026-11-05, item B: how many times `name` appears in `text` as
+ * a whole word, as containsWord reads one. Linear: each indexOf starts past the last match's start.
+ */
+function wordCount(text: string, name: string): number {
+  if (name === '') return 0;
+  const word = (code: number) => (code >= 48 && code <= 57) || (code >= 65 && code <= 90) || (code >= 97 && code <= 122) || code === 95;
+  let count = 0;
+  for (let at = text.indexOf(name); at !== -1; at = text.indexOf(name, at + 1)) {
+    if ((at === 0 || !word(text.charCodeAt(at - 1))) && (at + name.length >= text.length || !word(text.charCodeAt(at + name.length)))) count += 1;
+  }
+  return count;
 }
 
 /** The review of #648: the names of the `$(NAME)` and `${NAME}` references left in `text`. Linear. */

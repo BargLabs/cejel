@@ -20,7 +20,7 @@ import { PY_SOURCES, testsWorkflow } from './ci-claims-followups-fixtures.js';
 
 export interface FalseAssuranceFixture {
   readonly name: string;
-  readonly issue: '#517' | '#518' | '#519' | '#520' | '#442' | '#527' | '#535' | '#564' | '#633';
+  readonly issue: '#517' | '#518' | '#519' | '#520' | '#442' | '#527' | '#535' | '#564' | '#633' | '#669' | '#673';
   /** Set for a case an adversarial review of #521 found against the first implementation. */
   readonly foundInReview?: true;
   readonly purpose: string;
