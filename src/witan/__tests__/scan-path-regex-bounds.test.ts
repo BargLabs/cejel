@@ -519,8 +519,10 @@ describe('timing guards: the relative budget itself (cejel #561)', () => {
 });
 
 describe('scaling: the ratio check itself (cejel #642)', () => {
-  // The check must still tell a reader whose cost grows with the square from a linear one. Both
-  // stand-ins do arithmetic only, sized so a sample fills the floor quickly.
+  // The check must still tell a reader whose cost grows with the square from a linear one, admit
+  // one that grows with n log n, and (cejel #678) refuse one that does the same work at both
+  // lengths as not having read its input. The stand-ins do arithmetic only, sized so a sample fills
+  // the floor quickly.
   const work = (iterations: number): number => {
     let total = 0;
     for (let index = 0; index < iterations; index += 1) total = (total + index * 31) % 1_000_003;
@@ -533,6 +535,13 @@ describe('scaling: the ratio check itself (cejel #642)', () => {
   it('admits a stand-in reader whose work grows with its input', () => {
     const { ratio, timing } = scalingRatio((length) => work(length * 4));
     expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
+  }, 60_000);
+  it('admits a stand-in reader whose work grows with n log n of its input', () => {
+    const { ratio, timing } = scalingRatio((length) => work(Math.round(length * Math.log2(length))));
+    expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
+  }, 60_000);
+  it('refuses a stand-in reader that does the same work at both lengths: it did not read the length it was given', () => {
+    expect(() => scalingRatio(() => work(SCALING_LARGE * 4))).toThrow(/the reader did not read the length it was given/);
   }, 60_000);
 });
 
