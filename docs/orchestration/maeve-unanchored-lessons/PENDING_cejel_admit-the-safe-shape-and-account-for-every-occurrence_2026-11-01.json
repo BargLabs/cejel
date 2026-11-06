@@ -19,6 +19,10 @@
       "kind": "pr-merged",
       "repository": "BargLabs/cejel",
       "number": 625
+    },
+    "recurrence": {
+      "disposition": "distinct-cause",
+      "evidence": "docs/orchestration/maeve-unanchored-lessons/PENDING_cejel_a-shape-check-reads-the-decoded-value-not-the-raw-text_2026-11-02.json#0: that seed matches undecoded YAML bytes; this one is a denylist of spellings evaded by success() || true."
     }
   },
   {
