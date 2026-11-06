@@ -414,12 +414,18 @@ describe('timing guards: the real scan finishes on pathological repository input
 // The step is taken from L/2 to 2L rather than from L to 4L, so the largest input, and with it most
 // of this file's run time, stays as it was; the smaller length reads faster, so the calibration
 // below takes more reads per sample.
+//
+// The check also refuses a ratio below SCALING_RATIO_FLOOR, 2. A reader that reads all of its input
+// gives about 4; one that was never handed the larger input (a caller whose inputs are keyed on
+// lengths the helper does not read, so the reader gets nothing, or the same thing, at both) gives
+// about 1, and would otherwise pass by giving the same answer twice, fast.
 const SCALING_LENGTH = 240_000;
 const SCALING_SMALL = SCALING_LENGTH / 2;
 const SCALING_LARGE = 2 * SCALING_LENGTH;
 const SCALING_LENGTHS = [SCALING_SMALL, SCALING_LARGE] as const;
 const SCALING_FACTOR = SCALING_LARGE / SCALING_SMALL;
 const SCALING_RATIO_LIMIT = 8;
+const SCALING_RATIO_FLOOR = 2;
 const CI_LINE_UNITS = ['yarn ', 'uv run ', 'cargo b ', 'pnpm i ', 'npm npm ', 'poetry check '];
 
 // A reader can take well under a millisecond once optimised, where a timer and a stray pause
@@ -455,6 +461,8 @@ function interleavedRatio(readSmall: () => unknown, readLarge: () => unknown, re
  * The reader's CPU time at SCALING_LARGE over its CPU time at SCALING_SMALL, and its answer at each
  * (cejel #678). `timing` names both lengths and the factor between them, so a CI log says what was
  * compared; it is also written to stdout under the test's name, so every run records each ratio.
+ * Throws where the ratio is below SCALING_RATIO_FLOOR: the reader did not read the length it was
+ * given. The caller checks the ratio against SCALING_RATIO_LIMIT.
  */
 function scalingRatio<T>(read: (length: number) => T): { ratio: number; timing: string; atSmall: T; atLarge: T } {
   const atSmall = read(SCALING_SMALL);
@@ -471,6 +479,9 @@ function scalingRatio<T>(read: (length: number) => T): { ratio: number; timing: 
     `L/2 = ${SCALING_SMALL} against 2L = ${SCALING_LARGE} (x${SCALING_FACTOR}), ${repetitions} reads per sample, ${SCALING_PAIRS} alternating pairs, ` +
     `CPU time: L/2 ${msSmall.toFixed(1)} ms, 2L ${msLarge.toFixed(1)} ms, ratio ${ratio.toFixed(2)} (limit ${SCALING_RATIO_LIMIT})`;
   process.stdout.write(`scaling, ${expect.getState().currentTestName ?? 'unnamed'}: ${timing}\n`);
+  if (ratio < SCALING_RATIO_FLOOR) {
+    throw new Error(`the reader did not read the length it was given: ratio ${ratio.toFixed(2)} is below ${SCALING_RATIO_FLOOR}; ${timing}`);
+  }
   return { ratio, timing, atSmall, atLarge };
 }
 
