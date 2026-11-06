@@ -485,6 +485,19 @@ function scalingRatio<T>(read: (length: number) => T): { ratio: number; timing: 
   return { ratio, timing, atSmall, atLarge };
 }
 
+/**
+ * cejel #678: a caller's inputs built ahead of time, one for each of SCALING_LENGTHS, the lengths
+ * scalingRatio reads. The lookup throws on any other length, so inputs keyed on lengths the helper
+ * does not read fail loudly rather than hand the reader nothing at one of them.
+ */
+function scalingInputs<T>(build: (length: number) => T): (length: number) => T {
+  const inputs = new Map<number, T>(SCALING_LENGTHS.map((length) => [length, build(length)]));
+  return (length) => {
+    if (!inputs.has(length)) throw new Error(`no scaling input built for length ${length}; inputs are built for ${SCALING_LENGTHS.join(' and ')}`);
+    return inputs.get(length) as T;
+  };
+}
+
 describe('timing guards: the relative budget itself (cejel #561)', () => {
   // The guards above hold every rubric but v17 to the larger of SCAN_BUDGET_MS and three times a v17
   // scan on the same runner. These two runs show that budget can still fail, and that it moves with
@@ -547,7 +560,7 @@ describe('scaling: the v27 B3 justfile, tox.ini and hatch environment readers gr
       const { repo, files } = repoFor(`just-${length}`, { justfile: justfile(length) });
       return b3TaskRunnerReadingsForScaling(repo, files).just;
     };
-    expect(justfile(2 * SCALING_LENGTH).length).toBeLessThan(512_000);
+    expect(justfile(SCALING_LARGE).length).toBeLessThan(512_000);
     const { ratio, timing, atSmall, atLarge } = scalingRatio(read);
     expect(atSmall).toBe('runner');
     expect(atLarge).toBe(atSmall);
@@ -564,7 +577,7 @@ describe('scaling: the v27 B3 justfile, tox.ini and hatch environment readers gr
       const { repo, files } = repoFor(`tox-${length}`, { 'tox.ini': toxIni(length) });
       return b3TaskRunnerReadingsForScaling(repo, files).tox;
     };
-    expect(toxIni(2 * SCALING_LENGTH).length).toBeLessThan(512_000);
+    expect(toxIni(SCALING_LARGE).length).toBeLessThan(512_000);
     const { ratio, timing, atSmall, atLarge } = scalingRatio(read);
     expect(atSmall).toBe('runner');
     expect(atLarge).toBe(atSmall);
@@ -580,7 +593,7 @@ describe('scaling: the v27 B3 justfile, tox.ini and hatch environment readers gr
       const { repo, files } = repoFor(`hatch-${length}`, { 'hatch.toml': hatchToml(length) });
       return b3TaskRunnerReadingsForScaling(repo, files).hatch;
     };
-    expect(hatchToml(2 * SCALING_LENGTH).length).toBeLessThan(512_000);
+    expect(hatchToml(SCALING_LARGE).length).toBeLessThan(512_000);
     const { ratio, timing, atSmall, atLarge } = scalingRatio(read);
     expect(atSmall).toBe('script runner');
     expect(atLarge).toBe(atSmall);
@@ -590,9 +603,14 @@ describe('scaling: the v27 B3 justfile, tox.ini and hatch environment readers gr
   // Review of #657 (blocker 5): the module-shadow reader reads every known path once, from a
   // directory it does not know; the input that maximises its work is many deep paths, none a module
   // that shadows pytest, so every path is read and every module name compared: L/24 and 2L/24 paths.
+  // cejel #678: one module that does shadow it, `zz/pytest.py`, comes last in both list and sort
+  // order, so the answer is true only where the reader reached the end, never the empty answer.
   it('the python -m module-shadow reader, on L/24 and 2L/24 known paths of three parts', () => {
     const { repo } = repoFor('module-shadow', {});
-    const files = (length: number): string[] => Array.from({ length: Math.floor(length / 24) }, (_, index) => `d${index}/pkg/mod${index}.py`);
+    const files = (length: number): string[] => [
+      ...Array.from({ length: Math.floor(length / 24) }, (_, index) => `d${index}/pkg/mod${index}.py`),
+      'zz/pytest.py',
+    ];
     const listed = new Map<number, string[]>();
     const read = (length: number) => {
       let paths = listed.get(length);
@@ -603,7 +621,7 @@ describe('scaling: the v27 B3 justfile, tox.ini and hatch environment readers gr
       return b3TaskRunnerReadingsForScaling(repo, paths).module;
     };
     const { ratio, timing, atSmall, atLarge } = scalingRatio(read);
-    expect(atSmall).toBe(false);
+    expect(atSmall).toBe(true);
     expect(atLarge).toBe(atSmall);
     expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
   }, 120_000);
@@ -760,9 +778,9 @@ describe('scaling: each v27 A1 reader the CI-line guard exercises grows no faste
           `name: w${index}\non: push\njobs:\n  t:\n    runs-on: ubuntu-latest\n    steps:\n      - run: ${unit.repeat(Math.floor(length / unit.length))}&& pytest\n`,
         ]),
       );
-    const texts = new Map([SCALING_LENGTH, 2 * SCALING_LENGTH].map((length) => [length, textsFor(length)]));
+    const texts = scalingInputs(textsFor);
     const { ratio, timing, atSmall, atLarge } = scalingRatio((length) =>
-      readPytestInvocations(files, (file) => texts.get(length)?.get(file)),
+      readPytestInvocations(files, (file) => texts(length).get(file)),
     );
     // The root default, then the `pytest` at the end of each line: every line was read to its end.
     expect(atSmall).toHaveLength(1 + CI_LINE_UNITS.length);
@@ -777,15 +795,27 @@ describe('scaling: the v27 A1 gap readers grow no faster than linearly', () => {
   // a way to reach builtins (the review of #655, blocker 3); here one helper module of L bytes holds
   // only near misses of each alternative (`builtin_s`, `getattrs`, `re.compile`, an uncalled-looking
   // `.list_`, `. ` before a call) and names builtins only at its end.
-  it('the builtins search, on a helper module of L and 2L bytes naming builtins at its end', () => {
+  //
+  // cejel #678: each read first lists the tracked files with `git ls-files`, a fixed cost in this
+  // process about three times the sweep of the one helper module, so the ratio measured the listing
+  // rather than the sweep (1.25 at L and 2L on main; 1.43 at L/2 and 2L, below the floor of 2). So
+  // L/7,500 further modules of 6,000 near-miss lines each, which sort before tests/helpers.py and are
+  // swept first, put the sweep, which grows with L, well above the listing, which does not.
+  it('the builtins search, on L/7,500 modules of near misses and a helper module of L bytes naming builtins at its end', () => {
+    const nearMiss = (index: number): string => `v${index} = re.compile(x.list_, getattrs, "builtin_s") . list()`;
+    const nearMissModule = Array.from({ length: 6_000 }, (_, index) => nearMiss(index)).join('\n') + '\n';
     const repos = new Map<number, string>();
     const repoFor = (length: number): string => {
       const existing = repos.get(length);
       if (existing) return existing;
       const count = Math.floor(length / 80);
-      const helper = `${Array.from({ length: count }, (_, index) => `v${index} = re.compile(x.list_, getattrs, "builtin_s") . list()`).join('\n')}\nimport builtins\n`;
+      const helper = `${Array.from({ length: count }, (_, index) => nearMiss(index)).join('\n')}\nimport builtins\n`;
+      const modules = Object.fromEntries(
+        Array.from({ length: Math.floor(length / 7_500) }, (_, index) => [`tests/h${String(index).padStart(4, '0')}.py`, nearMissModule]),
+      );
       const repo = makeRepo({
         'tests/test_lines.py': 'def test_value():\n    assert 1 == 1\n',
+        ...modules,
         'tests/helpers.py': helper,
         'tests/conftest.py': 'def pytest_collection_modifyitems(config, items):\n    saved = list(items)\n    items.clear()\n    items.extend(saved)\n',
       });
@@ -813,8 +843,8 @@ describe('scaling: the v27 A1 gap readers grow no faster than linearly', () => {
       ]);
     };
     const files = ['.github/workflows/ci.yml', 'noxfile.py'];
-    const texts = new Map([SCALING_LENGTH, 2 * SCALING_LENGTH].map((length) => [length, textsFor(length)]));
-    const { ratio, timing, atSmall, atLarge } = scalingRatio((length) => readPytestInvocations(files, (file) => texts.get(length)?.get(file)));
+    const texts = scalingInputs(textsFor);
+    const { ratio, timing, atSmall, atLarge } = scalingRatio((length) => readPytestInvocations(files, (file) => texts(length).get(file)));
     // Past the budget the remaining calls are named as not read, at both lengths.
     expect(atSmall.some(({ unread }) => unread === 'session.run("pytest", *session.posargs)')).toBe(true);
     expect(atLarge.some(({ unread }) => unread === 'session.run("pytest", *session.posargs)')).toBe(true);
@@ -846,9 +876,9 @@ describe('scaling: the v27 A1 gap readers grow no faster than linearly', () => {
   }, 60_000);
 
   it('the nox reader, on L/2,000 noxfiles taking posargs and L/2,000 CI steps passing a variable', () => {
-    const inputs = new Map([SCALING_LENGTH, 2 * SCALING_LENGTH].map((length) => [length, unreadNoxTexts(length / 2000, length / 2000)]));
+    const inputs = scalingInputs((length) => unreadNoxTexts(length / 2000, length / 2000));
     const { ratio, timing, atSmall, atLarge } = scalingRatio((length) => {
-      const { files, texts } = inputs.get(length) ?? { files: [], texts: new Map<string, string>() };
+      const { files, texts } = inputs(length);
       return readPytestInvocations(files, (file) => texts.get(file));
     });
     expect(atSmall.filter(({ unread }) => unread === 'nox -- $X0').length).toBe(1);
@@ -872,8 +902,8 @@ describe('scaling: the v27 A1 gap readers grow no faster than linearly', () => {
       ]);
     };
     const files = ['noxfile.py', 'scripts/ci.sh', 'scripts/long.sh'];
-    const texts = new Map([SCALING_LENGTH, 2 * SCALING_LENGTH].map((length) => [length, textsFor(length)]));
-    const { ratio, timing, atSmall, atLarge } = scalingRatio((length) => readPytestInvocations(files, (file) => texts.get(length)?.get(file)));
+    const texts = scalingInputs(textsFor);
+    const { ratio, timing, atSmall, atLarge } = scalingRatio((length) => readPytestInvocations(files, (file) => texts(length).get(file)));
     expect(atSmall.filter(({ unread }) => unread === 'nox -s tests -- -x').length).toBe(1);
     expect(atLarge.filter(({ unread }) => unread === 'nox -s tests -- -x').length).toBe(1);
     expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
@@ -897,11 +927,12 @@ describe('scaling: the v27 A1 gap readers grow no faster than linearly', () => {
       ]);
     };
     const files = ['a/conftest.py', 'b/conftest.py', 'conftest.py', 'tests/conftest.py'];
-    const texts = new Map([SCALING_LENGTH, 2 * SCALING_LENGTH].map((length) => [length, textsFor(length)]));
-    const { ratio, timing, atSmall, atLarge } = scalingRatio((length) => readPytestDeclaredOptions(files, (file) => texts.get(length)?.get(file)));
+    const texts = scalingInputs(textsFor);
+    const { ratio, timing, atSmall, atLarge } = scalingRatio((length) => readPytestDeclaredOptions(files, (file) => texts(length).get(file)));
     expect(atSmall.options.get('--opt-0')).toBe('flag');
     expect(atLarge.options.get('--opt-0')).toBe('flag');
-    expect(atSmall.options.get(`--l${Math.floor(SCALING_LENGTH / 50) - 1}`)).toBe('flag');
+    expect(atSmall.options.get(`--l${Math.floor(SCALING_SMALL / 50) - 1}`)).toBe('flag');
+    expect(atLarge.options.get(`--l${Math.floor(SCALING_LARGE / 50) - 1}`)).toBe('flag');
     expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
   }, 60_000);
 });
@@ -925,12 +956,13 @@ describe('scaling: the v27 A1 make environment and class hook readers grow no fa
       ]);
     };
     const files = ['.github/workflows/ci.yml', 'Makefile'];
-    const texts = new Map([SCALING_LENGTH, 2 * SCALING_LENGTH].map((length) => [length, textsFor(length)]));
-    const { ratio, timing, atSmall, atLarge } = scalingRatio((length) => readPytestInvocations(files, (file) => texts.get(length)?.get(file)));
+    const texts = scalingInputs(textsFor);
+    const { ratio, timing, atSmall, atLarge } = scalingRatio((length) => readPytestInvocations(files, (file) => texts(length).get(file)));
     // The first 16 environments are read with their own value; the rest are named as not read.
     expect(atSmall.filter(({ addoptsAt }) => addoptsAt !== undefined)).toHaveLength(16);
     expect(atLarge.filter(({ addoptsAt }) => addoptsAt !== undefined)).toHaveLength(16);
-    expect(atSmall.filter(({ unread }) => unread === 'PYTEST_ADDOPTS').length).toBe(Math.floor(SCALING_LENGTH / 400) - 16);
+    expect(atSmall.filter(({ unread }) => unread === 'PYTEST_ADDOPTS').length).toBe(Math.floor(SCALING_SMALL / 400) - 16);
+    expect(atLarge.filter(({ unread }) => unread === 'PYTEST_ADDOPTS').length).toBe(Math.floor(SCALING_LARGE / 400) - 16);
     expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
   }, 120_000);
 
@@ -956,8 +988,8 @@ describe('scaling: the v27 A1 make environment and class hook readers grow no fa
     };
     const files = ['tests/conftest.py', 'tests/test_lines.py'];
     const { ratio, timing, atSmall, atLarge } = scalingRatio((length) => findPytestRunWideSkips(repoFor(length), files));
-    expect(atSmall).toHaveLength(Math.floor(SCALING_LENGTH / 120));
-    expect(atLarge).toHaveLength(Math.floor((2 * SCALING_LENGTH) / 120));
+    expect(atSmall).toHaveLength(Math.floor(SCALING_SMALL / 120));
+    expect(atLarge).toHaveLength(Math.floor(SCALING_LARGE / 120));
     expect(atSmall[0]?.withheld).toBe('hook not read: `K0.pytest_collection_modifyitems` in tests/conftest.py');
     expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
   }, 60_000);
@@ -987,8 +1019,8 @@ describe('scaling: the v27 A1 PYTEST_ADDOPTS mention count grows no faster than 
   const files = ['.github/workflows/ci.yml', 'Makefile'];
 
   it('every mention read: the ?= default keeps #670 reading at L and at 2L, in linear time', () => {
-    const texts = new Map([SCALING_LENGTH, 2 * SCALING_LENGTH].map((length) => [length, textsFor(length, '')]));
-    const { ratio, timing, atSmall, atLarge } = scalingRatio((length) => readPytestInvocations(files, (file) => texts.get(length)?.get(file)));
+    const texts = scalingInputs((length) => textsFor(length, ''));
+    const { ratio, timing, atSmall, atLarge } = scalingRatio((length) => readPytestInvocations(files, (file) => texts(length).get(file)));
     // The CI make environments are read against the default (the make environment reader reads 16
     // with their own value and names the rest not read); the `end` variant below reads none.
     expect(atSmall.filter(({ addoptsAt }) => addoptsAt !== undefined).length).toBeGreaterThan(0);
@@ -997,8 +1029,8 @@ describe('scaling: the v27 A1 PYTEST_ADDOPTS mention count grows no faster than 
   }, 120_000);
 
   it('one mention not read, on the last line: the ?= default is not known at L and at 2L, in linear time', () => {
-    const texts = new Map([SCALING_LENGTH, 2 * SCALING_LENGTH].map((length) => [length, textsFor(length, '# PYTEST_ADDOPTS is set per step\n')]));
-    const { ratio, timing, atSmall, atLarge } = scalingRatio((length) => readPytestInvocations(files, (file) => texts.get(length)?.get(file)));
+    const texts = scalingInputs((length) => textsFor(length, '# PYTEST_ADDOPTS is set per step\n'));
+    const { ratio, timing, atSmall, atLarge } = scalingRatio((length) => readPytestInvocations(files, (file) => texts(length).get(file)));
     // The default is not known, so make's environments are not read against it and every target's
     // run is named not read.
     for (const read of [atSmall, atLarge]) {
