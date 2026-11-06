@@ -8,6 +8,8 @@ import { describe, expect, it } from 'vitest';
 import {
   analyzeCoverageConfiguration,
   b3TaskRunnerReadingsForScaling,
+  b3TestPathReadingForScaling,
+  b3UvProjectReadingForScaling,
   findPytestRunWideSkips,
   isShellWhitespaceCode,
   readPytestDeclaredOptions,
@@ -570,6 +572,79 @@ describe('scaling: the v27 B3 justfile, tox.ini and hatch environment readers gr
     const { ratio, timing, atL, at2L } = scalingRatio(read);
     expect(atL).toBe(false);
     expect(at2L).toBe(atL);
+    expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
+  }, 120_000);
+});
+
+// v27 B3 eighth pass (#659, #660): the positional test-path reader and the uv project reader, each on
+// the input that maximises its work. The test-path reader builds a trie of v17's test-file list,
+// hashing each part once, and walks a word's parts once: its worst inputs are many listed files
+// (L/24 paths of three parts) and one deep path (L/2 parts, which a reader joining every prefix of a
+// path would read in time growing with the square of its depth), each with a lookup that walks to
+// the end. A glob spends a fixed budget of part comparisons (TEST_PATH_GLOB_BUDGET), so its worst
+// case is that budget, timed once below. The uv reader reads each pyproject.toml line once; its
+// worst input is a `tool.uv` dev-dependencies list of L/12 and 2L/12 lines beside a build system.
+describe('scaling: the v27 B3 eighth pass readers grow no faster than linearly', () => {
+  it('the test-path reader, on L/24 and 2L/24 listed files, looking up the last one\'s directory', () => {
+    const lists = new Map<number, string[]>();
+    const read = (length: number) => {
+      let files = lists.get(length);
+      if (files === undefined) {
+        files = Array.from({ length: Math.floor(length / 24) }, (_, index) => `d${index}/pkg/test_${index}.py`);
+        lists.set(length, files);
+      }
+      return b3TestPathReadingForScaling(files, `d${files.length - 1}/pkg`, 'path');
+    };
+    const { ratio, timing, atL, at2L } = scalingRatio(read);
+    expect(atL).toBe('test');
+    expect(at2L).toBe(atL);
+    process.stdout.write(`eighth pass, test-path reader, many files: ${timing}\n`);
+    expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
+  }, 120_000);
+
+  it('the test-path reader, on one listed file L/2 and 2L/2 directories deep, looking up its directory and a dotted module', () => {
+    const lists = new Map<number, { files: string[]; directory: string; module: string }>();
+    const read = (length: number) => {
+      let input = lists.get(length);
+      if (input === undefined) {
+        const parts = Array.from({ length: Math.floor(length / 2) }, () => 'a');
+        input = { files: [`${parts.join('/')}/test_x.py`], directory: parts.join('/'), module: `${parts.join('.')}.test_x` };
+        lists.set(length, input);
+      }
+      return `${b3TestPathReadingForScaling(input.files, input.directory, 'path')} ${b3TestPathReadingForScaling(input.files, input.module, 'module')}`;
+    };
+    const { ratio, timing, atL, at2L } = scalingRatio(read);
+    expect(atL).toBe('test test');
+    expect(at2L).toBe(atL);
+    process.stdout.write(`eighth pass, test-path reader, one deep path: ${timing}\n`);
+    expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
+  }, 120_000);
+
+  it('a glob spends at most its fixed budget: one that matches none of 2L/24 listed files stops as not read', () => {
+    const files = Array.from({ length: Math.floor((2 * SCALING_LENGTH) / 24) }, (_, index) => `d${index}/pkg/test_${index}.py`);
+    const started = process.cpuUsage();
+    const reading = b3TestPathReadingForScaling(files, `**/${'*a'.repeat(40)}*zz*`, 'path');
+    const used = process.cpuUsage(started);
+    const ms = (used.user + used.system) / 1000;
+    expect(reading).toBe('unread');
+    process.stdout.write(`eighth pass, glob at its budget: ${ms.toFixed(1)} ms of CPU\n`);
+    expect(ms, `${ms.toFixed(1)} ms of CPU`).toBeLessThan(2_000);
+  }, 60_000);
+
+  it('the uv project reader, on a tool.uv dev-dependencies list of L/12 and 2L/12 lines', () => {
+    const texts = new Map<number, string>();
+    const read = (length: number) => {
+      let text = texts.get(length);
+      if (text === undefined) {
+        text = `[project]\nname = "signer"\n\n[build-system]\nrequires = ["setuptools"]\n\n[tool.uv]\ndev-dependencies = [\n${'  "pytest",\n'.repeat(Math.floor(length / 12))}]\n`;
+        texts.set(length, text);
+      }
+      return b3UvProjectReadingForScaling(text);
+    };
+    const { ratio, timing, atL, at2L } = scalingRatio(read);
+    expect(atL).toBe('builds');
+    expect(at2L).toBe(atL);
+    process.stdout.write(`eighth pass, uv project reader: ${timing}\n`);
     expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
   }, 120_000);
 });

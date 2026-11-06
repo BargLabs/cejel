@@ -1,0 +1,26 @@
+[
+  {
+    "statement": "On cejel #659, two counted controls from #657's item F, `go test ./...` on the check line and as the test script, were checks that cannot fail: the fixture held no `_test.go` file, so go prints \"no test files\" and exits 0. They were the passing side of the `-count=0` mutation pair, so the pair showed only that a flag was refused, never that the control could fail; ctest's control had the same flaw. Rule: a counted control is evidence only where the fixture holds what the check needs to fail. Give each control the smallest real test it runs; a control with nothing to run is a candidate exclusion, not a baseline. The same session also put a red count taken before a fixture edit into a commit message (the error of the 2026-11-02 seed on stating a result only after re-running it); the records give the re-run count.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "evidence-discipline",
+      "testing"
+    ],
+    "tags": [
+      "mutation-testing",
+      "counted-control",
+      "check-that-cannot-fail",
+      "red-first",
+      "own-error"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-11-05T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 672
+    }
+  }
+]

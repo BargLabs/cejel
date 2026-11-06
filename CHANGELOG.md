@@ -57,6 +57,34 @@ pinned. v27 carries no precision or recall claim.
     environment; a hook class in a module that is not a `conftest.py`; and a direct pytest step
     whose `env:` sets `PYTEST_ADDOPTS` by an expression, which is still read as setting nothing
     (cejel #669).
+- **Prospective v27: B3 credits a runner pointed at a path only where the path holds a test file
+  Cejel counts, and a check `uv run` launches only where uv does not build the project first
+  (#659, #660).** Under `witan-rubric-v27-prospective-2026-10-19` only, on the check-before-publish
+  reading of B3's earlier passes. The operator ruled on both on 2026-11-05 (option A for each).
+  - **A path must hold a counted test (#659).** `mocha index.js` runs 0 tests and exits 0, and
+    `go test ./pkg` on a package with no `_test.go` prints "no test files" and exits 0; both were
+    credited. For pytest, mocha, `node --test`, `tsx --test`, `deno test`, rspec, phpunit,
+    `dotnet test`, ava, tap, tape, jasmine, qunit, lab, ts-mocha, uvu, `go test` and unittest, a
+    positional word now counts only where, resolved from the root, it is a file on v17's test-file
+    list (the one A1 counts), a directory holding one at any depth, or a glob matching one; for
+    `go test`, a package directory holding a `_test.go` directly, or with `/...` below it. A pytest
+    node id (`file::test`) is read as its file. Otherwise B3's note says "the check points at
+    `<word>`, where Cejel finds no test file". A word Cejel cannot resolve (a substitution, quote or
+    brace, a directory it does not know, a go import path, uvu's second, pattern, positional) is
+    named as an argument Cejel does not read. `uvu test`, where `test/` holds a test file, still
+    counts. jest, `bun test`, `playwright test`, karma and pyright keep their earlier rule.
+  - **`uv run` builds the project first (#660).** uv builds and installs the project before the
+    command where pyproject.toml defines `[build-system]` or sets `tool.uv.package = true`, running
+    its build code. Such a check, on the check line or in a script or recipe, is not credited (on
+    the check line with the project-install reason hatch already gives), unless it carries
+    `--no-project`, or `--no-sync` with no earlier `uv sync` in its job that installs the project.
+    `tool.uv.package = false`, or no build system, keeps the credit. Where Cejel cannot tell (no
+    root pyproject.toml, a committed uv.toml, a uv workspace or sources table, `--package`,
+    `--project` or `--directory`, a directory it does not know) the check is named as not read.
+    `uv run --no-project pytest`, and `uv run --no-sync pytest` after
+    `uv sync --no-install-project`, are now credited where they were not.
+  - v17 and every other rubric are unchanged. No holdout or calibration ran, and no published score
+    moved.
 
 ## [0.6.10] — 2026-11-04
 

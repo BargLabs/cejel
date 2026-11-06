@@ -1958,7 +1958,9 @@ export const V7_COUNTED: readonly Shape[] = [
   ...SCRIPT_ALIAS_COUNTED,
   ...RUNNER_FLAG_COUNTED,
   ...REPOSITORY_MODULE_COUNTED,
-  ...MUTATION_CONTROLS_COUNTED,
+  // Eighth pass (#659): go-test-all and test-script-go-test run `go test ./...` in a module with no
+  // test file, which runs no test and exits 0; they are excluded below (EIGHTH_PASS_FORMER_CONTROLS).
+  ...MUTATION_CONTROLS_COUNTED.filter(([name]) => name !== 'go-test-all' && name !== 'test-script-go-test'),
 ];
 export const V7_EXCLUDED: readonly Shape[] = [
   ...TASK_RUNNER_EXCLUDED,
@@ -1970,6 +1972,61 @@ export const V7_EXCLUDED: readonly Shape[] = [
   ...MUTATION_REST_EXCLUDED,
   ...REVIEW_657_EXCLUDED,
 ];
+
+// ---- Eighth pass: #659 and #660 (goal_cejel_v27_b3_positional_tests_and_uv_run) ------------------
+//
+// Operator rulings of 5 November 2026, option A for each. #659: a runner pointed at a path is
+// credited only where that path holds a test file Cejel counts (v17's test-file list). #660: `uv
+// run` withholds the credit where uv builds the project before the command. Every V8_EXCLUDED
+// fixture marked red was counted by main 4efc8f5b8, or (marked red, note) excluded there with no
+// reason given; every V8_COUNTED fixture is counted, those marked new being excluded by main.
+// Synthetic files only.
+
+const GO_PACKAGE = 'package pkg\n\nfunc Double(n int) int { return n * 2 }\n';
+const GO_PACKAGE_TEST = 'package pkg\n\nimport "testing"\n\nfunc TestDouble(t *testing.T) {\n\tif Double(2) != 4 {\n\t\tt.Fatal("Double(2) != 4")\n\t}\n}\n';
+/** The base Python package with a go.mod and a Go package `pkg/` with no test file. */
+const goPackageRelease = (check: string, files: Record<string, string> = {}): Record<string, string> => ({
+  ...goRelease(check),
+  'pkg/pkg.go': GO_PACKAGE,
+  ...files,
+});
+const BUILD_SYSTEM = '\n[build-system]\nrequires = ["setuptools"]\nbuild-backend = "setuptools.build_meta"\n';
+/** The base Python package, its pyproject.toml extended by `extra`, whose release installs uv by name and runs `check`. */
+const uvRelease = (extra: string, check: string): Record<string, string> => ({
+  ...PY_BASE,
+  'pyproject.toml': `${PY_PROJECT}${extra}`,
+  [PUBLISH]: pythonReleaseWith('pip install uv build twine', check),
+});
+
+/** #659 and #660: a check pointed at no test, or one uv runs after building the project. */
+export const EIGHTH_PASS_EXCLUDED: readonly Shape[] = [
+  ['mocha-index-js-no-tests', 'Excluded (red): `mocha index.js`, where index.js holds no test, so mocha runs 0 tests and exits 0.', jsLine(MOCHA_PACKAGE, 'mocha index.js')],
+  ['go-test-package-no-test-files', 'Excluded (red): `go test ./pkg`, where pkg holds no `_test.go` file, so go prints "no test files" and exits 0.', goPackageRelease('go test ./pkg')],
+  ['pytest-path-missing', 'Excluded (red): `pytest tests/test_missing.py`, a path that does not exist.', pyLine('pytest tests/test_missing.py')],
+  ['uv-run-pytest-build-system', 'Excluded (red): `uv run pytest`, where pyproject.toml defines `[build-system]`, so uv builds and installs the project first.', uvRelease(BUILD_SYSTEM, 'uv run pytest')],
+  ['uv-run-pytest-package-true', 'Excluded (red): `uv run pytest`, where pyproject.toml sets `tool.uv.package = true`, so uv builds and installs the project first.', uvRelease('\n[tool.uv]\npackage = true\n', 'uv run pytest')],
+  ['uv-run-no-sync-after-uv-sync', 'Excluded (red, note): `uv run --no-sync pytest` after a `uv sync` that installs the project, which has already run its build code.', uvRelease(BUILD_SYSTEM, 'uv sync\n      - run: uv run --no-sync pytest')],
+];
+
+/** The two counted controls of item F that run `go test ./...` where no package holds a test file. */
+export const EIGHTH_PASS_FORMER_CONTROLS: readonly Shape[] = MUTATION_CONTROLS_COUNTED.filter(
+  ([name]) => name === 'go-test-all' || name === 'test-script-go-test',
+).map(([name, purpose, files]) => [name, `Excluded (was a counted control): ${purpose.replace(/^Counted: /, '')} No package holds a \`_test.go\` file, so go runs no test and exits 0.`, files]);
+
+/** #659 and #660, the admitted forms. */
+export const EIGHTH_PASS_COUNTED: readonly Shape[] = [
+  ['uvu-test-directory-script', 'Counted: the test script `uvu test`, where test/ holds a test file, run as `npm test`.', jsTestScript('uvu test', { uvu: '0.5.6' })],
+  ['go-test-all-with-tests', 'Counted: `go test ./...`, where pkg holds `pkg_test.go`.', goPackageRelease('go test ./...', { 'pkg/pkg_test.go': GO_PACKAGE_TEST })],
+  ['go-test-package-with-tests', 'Counted: `go test ./pkg`, where pkg holds `pkg_test.go`.', goPackageRelease('go test ./pkg', { 'pkg/pkg_test.go': GO_PACKAGE_TEST })],
+  ['pytest-node-id', 'Counted: `pytest tests/test_signer.py::test_roundtrip`.', pyLine('pytest tests/test_signer.py::test_roundtrip')],
+  ['uv-run-pytest-no-build-system', 'Counted: `uv run pytest`, where pyproject.toml defines no build system, so uv installs only the dependencies.', uvRelease('', 'uv run pytest')],
+  ['uv-run-no-project-pytest', 'Counted (new): `uv run --no-project pytest` beside a `[build-system]`, which uv then does not build.', uvRelease(BUILD_SYSTEM, 'uv run --no-project pytest')],
+  ['uv-run-pytest-package-false', 'Counted: `uv run pytest`, where pyproject.toml defines `[build-system]` and sets `tool.uv.package = false`.', uvRelease(`${BUILD_SYSTEM}\n[tool.uv]\npackage = false\n`, 'uv run pytest')],
+  ['uv-run-no-sync-after-sync-no-install-project', 'Counted (new): `uv run --no-sync pytest` after `uv sync --no-install-project`, beside a `[build-system]`.', uvRelease(BUILD_SYSTEM, 'uv sync --no-install-project\n      - run: uv run --no-sync pytest')],
+];
+
+export const V8_COUNTED: readonly Shape[] = [...EIGHTH_PASS_COUNTED];
+export const V8_EXCLUDED: readonly Shape[] = [...EIGHTH_PASS_EXCLUDED, ...EIGHTH_PASS_FORMER_CONTROLS];
 
 function fixture(name: string, purpose: string, files: Record<string, string>): FalseAssuranceFixture {
   return { name, issue: '#517', purpose, commits: [files] };
@@ -2007,9 +2064,15 @@ export const V7_FIXTURES: readonly FalseAssuranceFixture[] = [...V7_COUNTED, ...
   fixture(name, purpose, files),
 );
 
+export const V8_FIXTURES: readonly FalseAssuranceFixture[] = [...V8_COUNTED, ...V8_EXCLUDED].map(([name, purpose, files]) =>
+  fixture(name, purpose, files),
+);
+
 /** The publishing workflow each fixture adds. */
 export const publishingFile = (name: string): string => {
   const shape = [
+    ...V8_COUNTED,
+    ...V8_EXCLUDED,
     ...V7_COUNTED,
     ...V7_EXCLUDED,
     ...V6_COUNTED,

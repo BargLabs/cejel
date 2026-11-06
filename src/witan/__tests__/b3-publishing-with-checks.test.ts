@@ -36,6 +36,9 @@ import {
   V7_COUNTED,
   V7_EXCLUDED,
   V7_FIXTURES,
+  V8_COUNTED,
+  V8_EXCLUDED,
+  V8_FIXTURES,
   publishingFile,
 } from './fixtures/b3-publishing-with-checks-fixtures.js';
 import { buildFalseAssuranceFixture } from './fixtures/false-assurance-fixtures.js';
@@ -52,7 +55,7 @@ import { checkNoRise, lostFindings } from './v27-no-rise.js';
 const V17 = WITAN_RUBRIC_VERSION_V17;
 const V27 = WITAN_RUBRIC_VERSION_V27;
 
-const ALL = [...PUBLISHING_WITH_CHECKS_FIXTURES, ...EDGE_FIXTURES, ...V2_FIXTURES, ...V3_FIXTURES, ...V4_FIXTURES, ...V5_FIXTURES, ...V6_FIXTURES, ...V7_FIXTURES];
+const ALL = [...PUBLISHING_WITH_CHECKS_FIXTURES, ...EDGE_FIXTURES, ...V2_FIXTURES, ...V3_FIXTURES, ...V4_FIXTURES, ...V5_FIXTURES, ...V6_FIXTURES, ...V7_FIXTURES, ...V8_FIXTURES];
 
 const repos = new Map<string, string>();
 const reports = new Map<string, WitanReport>();
@@ -111,11 +114,11 @@ const COUNTED_DETAILS: Readonly<Record<string, string>> = {
   'npmrc-registry-only': 'is triggered by push to main, and its publishing job declares no environment.',
   'poetry-install-no-root-before-check': 'is triggered by push to main, and its publishing job declares no environment.',
   'job-level-keys-written-plainly': 'is triggered by push to main, and its publishing job declares no environment.',
-  ...Object.fromEntries([...V4_COUNTED, ...V5_COUNTED, ...V6_COUNTED, ...V7_COUNTED].map(([name]) => [name, 'is triggered by push to main, and its publishing job declares no environment.'])),
+  ...Object.fromEntries([...V4_COUNTED, ...V5_COUNTED, ...V6_COUNTED, ...V7_COUNTED, ...V8_COUNTED].map(([name]) => [name, 'is triggered by push to main, and its publishing job declares no environment.'])),
 };
 
 describe('v27 (#517 correction) — a publishing workflow that checks before it publishes is counted', () => {
-  for (const [name] of [...COUNTED, ...EDGE_COUNTED, ...V2_COUNTED, ...V3_COUNTED, ...V4_COUNTED, ...V5_COUNTED, ...V6_COUNTED, ...V7_COUNTED]) {
+  for (const [name] of [...COUNTED, ...EDGE_COUNTED, ...V2_COUNTED, ...V3_COUNTED, ...V4_COUNTED, ...V5_COUNTED, ...V6_COUNTED, ...V7_COUNTED, ...V8_COUNTED]) {
     it(`v27 counts ${name}, as v17 does`, () => {
       const file = publishingFile(name);
       const b3 = criterion(name, V27, 'B3');
@@ -138,7 +141,7 @@ describe('v27 (#517 correction) — a publishing workflow that checks before it 
 const TAG_TRIGGERED_ONLY: ReadonlySet<string> = new Set(['pytest-before-twine-on-tag']);
 
 describe('v27 (#517 correction) — a publishing workflow with no check before its publish step is still excluded', () => {
-  for (const [name] of [...EXCLUDED, ...EDGE_EXCLUDED, ...V2_EXCLUDED, ...V3_EXCLUDED, ...V4_EXCLUDED, ...V5_EXCLUDED, ...V6_EXCLUDED, ...V7_EXCLUDED]) {
+  for (const [name] of [...EXCLUDED, ...EDGE_EXCLUDED, ...V2_EXCLUDED, ...V3_EXCLUDED, ...V4_EXCLUDED, ...V5_EXCLUDED, ...V6_EXCLUDED, ...V7_EXCLUDED, ...V8_EXCLUDED]) {
     it(`v27 excludes ${name}, with the note and disclosure unchanged`, () => {
       const file = publishingFile(name);
       const b3 = criterion(name, V27, 'B3');
@@ -170,7 +173,7 @@ describe('B2 and B3 agree about every workflow here (#527)', () => {
   });
 
   it('a workflow B3 counts under this correction is one B2 credits: neither leaves it uncredited', () => {
-    for (const [name] of [...COUNTED, ...EDGE_COUNTED, ...V2_COUNTED, ...V3_COUNTED, ...V4_COUNTED, ...V5_COUNTED, ...V6_COUNTED, ...V7_COUNTED]) {
+    for (const [name] of [...COUNTED, ...EDGE_COUNTED, ...V2_COUNTED, ...V3_COUNTED, ...V4_COUNTED, ...V5_COUNTED, ...V6_COUNTED, ...V7_COUNTED, ...V8_COUNTED]) {
       const file = publishingFile(name);
       for (const id of ['B2', 'B3']) {
         const score = criterion(name, V27, id);
@@ -195,6 +198,12 @@ const REPOSITORY_MODULE_REASON =
   'the check runs a Python module by name, and the repository holds a module of that name, or one it or the standard library imports, which Python imports first';
 // Item F, completed: hatch run in an environment that installs the project.
 const HATCH_INSTALLS_PROJECT_REASON = 'the check runs hatch run in an environment that does not set skip-install, so hatch first installs the project, running its build code';
+// Eighth pass (#659): a runner pointed at a path that holds no test file Cejel counts. (#660): uv
+// run in a project uv builds, the same project-install reason as hatch's.
+const POINTS_AT_NO_TEST = (word: string) => `the check points at \`${word}\`, where Cejel finds no test file`;
+const UV_INSTALLS_PROJECT_REASON = 'the check runs uv run in a project uv builds, so uv first installs the project, running its build code';
+const UV_SYNCED_PROJECT_REASON =
+  'the check runs uv run --no-sync after a uv sync of a project uv builds, so uv first installs the project, running its build code';
 
 // Fourth pass (#627 item A, #628 item B): where a check is not credited because its test script or
 // make target runs no test runner Cejel recognises, or because an environment key on its path may
@@ -346,6 +355,15 @@ const NOT_CREDITED_REASONS: Readonly<Record<string, string>> = {
   'python-m-pytest-repo-underscore-pytest': REPOSITORY_MODULE_REASON,
   'python-m-pytest-repo-stdlib-module': REPOSITORY_MODULE_REASON,
   'ctest-output-on-failure': CONFIGURATION_UNREAD('ctest'),
+  // Eighth pass (#659, #660; operator rulings of 5 November 2026).
+  'mocha-index-js-no-tests': POINTS_AT_NO_TEST('index.js'),
+  'go-test-package-no-test-files': POINTS_AT_NO_TEST('./pkg'),
+  'pytest-path-missing': POINTS_AT_NO_TEST('tests/test_missing.py'),
+  'go-test-all': POINTS_AT_NO_TEST('./...'),
+  'test-script-go-test': 'the test script in package.json does not run a test runner Cejel recognises',
+  'uv-run-pytest-build-system': UV_INSTALLS_PROJECT_REASON,
+  'uv-run-pytest-package-true': UV_INSTALLS_PROJECT_REASON,
+  'uv-run-no-sync-after-uv-sync': UV_SYNCED_PROJECT_REASON,
 };
 
 describe('fourth pass — B3 names why a check was not credited', () => {
@@ -359,7 +377,7 @@ describe('fourth pass — B3 names why a check was not credited', () => {
   }
 
   it('no counted fixture carries a not-credited reason', () => {
-    for (const [name] of [...COUNTED, ...EDGE_COUNTED, ...V2_COUNTED, ...V3_COUNTED, ...V4_COUNTED, ...V5_COUNTED, ...V6_COUNTED, ...V7_COUNTED]) {
+    for (const [name] of [...COUNTED, ...EDGE_COUNTED, ...V2_COUNTED, ...V3_COUNTED, ...V4_COUNTED, ...V5_COUNTED, ...V6_COUNTED, ...V7_COUNTED, ...V8_COUNTED]) {
       expect(criterion(name, V27, 'B3').notes ?? '', name).not.toContain('was not counted:');
     }
   });
@@ -376,7 +394,7 @@ describe('sixth pass — B3 says a lint or format check is counted without readi
   }
 
   it('no counted fixture whose check is a test carries the clause', () => {
-    for (const [name] of [...COUNTED, ...EDGE_COUNTED, ...V2_COUNTED, ...V3_COUNTED, ...V4_COUNTED, ...V5_COUNTED, ...V6_COUNTED, ...V7_COUNTED]) {
+    for (const [name] of [...COUNTED, ...EDGE_COUNTED, ...V2_COUNTED, ...V3_COUNTED, ...V4_COUNTED, ...V5_COUNTED, ...V6_COUNTED, ...V7_COUNTED, ...V8_COUNTED]) {
       if (LINT_CREDITED.includes(name)) continue;
       expect(criterion(name, V27, 'B3').notes ?? '', name).not.toContain(LINT_CONFIGURATION_CLAUSE);
     }
