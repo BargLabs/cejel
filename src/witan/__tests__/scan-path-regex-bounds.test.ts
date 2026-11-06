@@ -399,21 +399,35 @@ describe('timing guards: the real scan finishes on pathological repository input
 // goal_cejel_v27_conftest_timing_guard_2026-11-02, item C. The whole-scan budget above is absolute,
 // so a reader whose cost grows faster than its input can sit just under it on a fast machine and
 // fail on a slower runner (the v27 guard on CI_LINE_FIXTURE did, after #626). This check times each
-// v27 A1 reader the guard exercises, on its own, at an input length L and at 2L, and refuses a
-// ratio above 3: a linear reader roughly doubles, one that grows with the square quadruples. The
-// fastest of seven samples at each length, taken alternately after a warm-up, is compared, so a
-// single stall on a loaded runner does not decide it (cejel #642). Each reader must return the same answer at both lengths, so a reader that
+// reader on its own at two input lengths, SCALING_SMALL (L/2) and SCALING_LARGE (2L), four times
+// apart, and refuses a ratio above SCALING_RATIO_LIMIT. The fastest of seven samples at each length,
+// taken alternately after a warm-up, is compared, so a single stall on a loaded runner does not
+// decide it (cejel #642). Each reader must return the same answer at both lengths, so a reader that
 // stops early cannot pass by being fast.
+//
+// cejel #678: why the lengths are four times apart and the limit is 8. Until #678 the lengths were
+// L and 2L and the limit 3, where a linear reader gives 2 and one that grows with the square gives
+// 4. The same unchanged code then measured from 1.9 to 3.2 on CI (the deep-path test-path reader:
+// 2.43, 2.42, 3.06, 3.17, 2.45 and 1.94 in six runs), a spread wider than the gap between linear and
+// the limit, so the runner, not the reader, decided some runs. At a step of four, linear gives about
+// 4, n log n about 4.5 and the square 16, and 8 sits a factor of two from both linear and the square.
+// The step is taken from L/2 to 2L rather than from L to 4L, so the largest input, and with it most
+// of this file's run time, stays as it was; the smaller length reads faster, so the calibration
+// below takes more reads per sample.
 const SCALING_LENGTH = 240_000;
-const SCALING_RATIO_LIMIT = 3;
+const SCALING_SMALL = SCALING_LENGTH / 2;
+const SCALING_LARGE = 2 * SCALING_LENGTH;
+const SCALING_LENGTHS = [SCALING_SMALL, SCALING_LARGE] as const;
+const SCALING_FACTOR = SCALING_LARGE / SCALING_SMALL;
+const SCALING_RATIO_LIMIT = 8;
 const CI_LINE_UNITS = ['yarn ', 'uv run ', 'cargo b ', 'pnpm i ', 'npm npm ', 'poetry check '];
 
 // A reader can take well under a millisecond once optimised, where a timer and a stray pause
-// decide the ratio. Each timed sample therefore repeats the read enough times that, at L, it takes
-// at least SCALING_SAMPLE_MS; 2L is read the same number of times. cejel #642: the samples at L and
-// at 2L are taken in alternation, so a burst of load on the host falls on both lengths alike rather
-// than on one phase, and the floor is well above one read (about 20 ms for the run reader), so a
-// sample is never decided by one or two reads.
+// decide the ratio. Each timed sample therefore repeats the read enough times that, at the smaller
+// length, it takes at least SCALING_SAMPLE_MS; the larger length is read the same number of times.
+// cejel #642: the samples at the two lengths are taken in alternation, so a burst of load on the
+// host falls on both lengths alike rather than on one phase, and the floor is well above one read,
+// so a sample is never decided by one or two reads.
 const SCALING_SAMPLE_MS = 80;
 const SCALING_PAIRS = 7;
 
@@ -426,30 +440,38 @@ function timeMs(read: () => unknown, repetitions: number): number {
   return (used.user + used.system) / 1000;
 }
 
-/** cejel #642: the fastest timed sample at L and at 2L, from samples taken alternately, and their ratio. */
-function interleavedRatio(readL: () => unknown, read2L: () => unknown, repetitions: number): { msL: number; ms2L: number; ratio: number } {
-  let msL = Number.POSITIVE_INFINITY;
-  let ms2L = Number.POSITIVE_INFINITY;
+/** cejel #642: the fastest timed sample at each length, from samples taken alternately, and their ratio. */
+function interleavedRatio(readSmall: () => unknown, readLarge: () => unknown, repetitions: number): { msSmall: number; msLarge: number; ratio: number } {
+  let msSmall = Number.POSITIVE_INFINITY;
+  let msLarge = Number.POSITIVE_INFINITY;
   for (let pair = 0; pair < SCALING_PAIRS; pair += 1) {
-    msL = Math.min(msL, timeMs(readL, repetitions));
-    ms2L = Math.min(ms2L, timeMs(read2L, repetitions));
+    msSmall = Math.min(msSmall, timeMs(readSmall, repetitions));
+    msLarge = Math.min(msLarge, timeMs(readLarge, repetitions));
   }
-  return { msL, ms2L, ratio: ms2L / msL };
+  return { msSmall, msLarge, ratio: msLarge / msSmall };
 }
 
-function scalingRatio<T>(read: (length: number) => T, length = SCALING_LENGTH): { ratio: number; timing: string; atL: T; at2L: T } {
-  const atL = read(length);
-  const at2L = read(2 * length);
-  // Warm both lengths, then find how many reads at L fill a sample.
+/**
+ * The reader's CPU time at SCALING_LARGE over its CPU time at SCALING_SMALL, and its answer at each
+ * (cejel #678). `timing` names both lengths and the factor between them, so a CI log says what was
+ * compared; it is also written to stdout under the test's name, so every run records each ratio.
+ */
+function scalingRatio<T>(read: (length: number) => T): { ratio: number; timing: string; atSmall: T; atLarge: T } {
+  const atSmall = read(SCALING_SMALL);
+  const atLarge = read(SCALING_LARGE);
+  // Warm both lengths, then find how many reads at the smaller length fill a sample.
   for (let warm = 0; warm < 3; warm += 1) {
-    read(length);
-    read(2 * length);
+    read(SCALING_SMALL);
+    read(SCALING_LARGE);
   }
   let repetitions = 1;
-  while (repetitions < 65_536 && timeMs(() => read(length), repetitions) < SCALING_SAMPLE_MS) repetitions *= 2;
-  const { msL, ms2L, ratio } = interleavedRatio(() => read(length), () => read(2 * length), repetitions);
-  const timing = `${repetitions} reads per sample, ${SCALING_PAIRS} alternating pairs, CPU time: L ${msL.toFixed(1)} ms, 2L ${ms2L.toFixed(1)} ms, ratio ${ratio.toFixed(2)}`;
-  return { ratio, timing, atL, at2L };
+  while (repetitions < 65_536 && timeMs(() => read(SCALING_SMALL), repetitions) < SCALING_SAMPLE_MS) repetitions *= 2;
+  const { msSmall, msLarge, ratio } = interleavedRatio(() => read(SCALING_SMALL), () => read(SCALING_LARGE), repetitions);
+  const timing =
+    `L/2 = ${SCALING_SMALL} against 2L = ${SCALING_LARGE} (x${SCALING_FACTOR}), ${repetitions} reads per sample, ${SCALING_PAIRS} alternating pairs, ` +
+    `CPU time: L/2 ${msSmall.toFixed(1)} ms, 2L ${msLarge.toFixed(1)} ms, ratio ${ratio.toFixed(2)} (limit ${SCALING_RATIO_LIMIT})`;
+  process.stdout.write(`scaling, ${expect.getState().currentTestName ?? 'unnamed'}: ${timing}\n`);
+  return { ratio, timing, atSmall, atLarge };
 }
 
 describe('timing guards: the relative budget itself (cejel #561)', () => {
@@ -481,11 +503,11 @@ describe('scaling: the ratio check itself (cejel #642)', () => {
     return total;
   };
   it('refuses a stand-in reader whose work grows with the square of its input', () => {
-    const { ratio, timing } = scalingRatio((length) => work((length / 400) ** 2), SCALING_LENGTH);
+    const { ratio, timing } = scalingRatio((length) => work((length / 400) ** 2));
     expect(ratio, timing).toBeGreaterThan(SCALING_RATIO_LIMIT);
   }, 60_000);
   it('admits a stand-in reader whose work grows with its input', () => {
-    const { ratio, timing } = scalingRatio((length) => work(length * 4), SCALING_LENGTH);
+    const { ratio, timing } = scalingRatio((length) => work(length * 4));
     expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
   }, 60_000);
 });
@@ -515,9 +537,9 @@ describe('scaling: the v27 B3 justfile, tox.ini and hatch environment readers gr
       return b3TaskRunnerReadingsForScaling(repo, files).just;
     };
     expect(justfile(2 * SCALING_LENGTH).length).toBeLessThan(512_000);
-    const { ratio, timing, atL, at2L } = scalingRatio(read);
-    expect(atL).toBe('runner');
-    expect(at2L).toBe(atL);
+    const { ratio, timing, atSmall, atLarge } = scalingRatio(read);
+    expect(atSmall).toBe('runner');
+    expect(atLarge).toBe(atSmall);
     expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
   }, 120_000);
 
@@ -532,9 +554,9 @@ describe('scaling: the v27 B3 justfile, tox.ini and hatch environment readers gr
       return b3TaskRunnerReadingsForScaling(repo, files).tox;
     };
     expect(toxIni(2 * SCALING_LENGTH).length).toBeLessThan(512_000);
-    const { ratio, timing, atL, at2L } = scalingRatio(read);
-    expect(atL).toBe('runner');
-    expect(at2L).toBe(atL);
+    const { ratio, timing, atSmall, atLarge } = scalingRatio(read);
+    expect(atSmall).toBe('runner');
+    expect(atLarge).toBe(atSmall);
     expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
   }, 120_000);
   // Item F (finishing pass): the hatch environment reader reads every line once; the input that
@@ -548,9 +570,9 @@ describe('scaling: the v27 B3 justfile, tox.ini and hatch environment readers gr
       return b3TaskRunnerReadingsForScaling(repo, files).hatch;
     };
     expect(hatchToml(2 * SCALING_LENGTH).length).toBeLessThan(512_000);
-    const { ratio, timing, atL, at2L } = scalingRatio(read);
-    expect(atL).toBe('script runner');
-    expect(at2L).toBe(atL);
+    const { ratio, timing, atSmall, atLarge } = scalingRatio(read);
+    expect(atSmall).toBe('script runner');
+    expect(atLarge).toBe(atSmall);
     expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
   }, 120_000);
 
@@ -569,9 +591,9 @@ describe('scaling: the v27 B3 justfile, tox.ini and hatch environment readers gr
       }
       return b3TaskRunnerReadingsForScaling(repo, paths).module;
     };
-    const { ratio, timing, atL, at2L } = scalingRatio(read);
-    expect(atL).toBe(false);
-    expect(at2L).toBe(atL);
+    const { ratio, timing, atSmall, atLarge } = scalingRatio(read);
+    expect(atSmall).toBe(false);
+    expect(atLarge).toBe(atSmall);
     expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
   }, 120_000);
 });
@@ -595,10 +617,9 @@ describe('scaling: the v27 B3 eighth pass readers grow no faster than linearly',
       }
       return b3TestPathReadingForScaling(files, `d${files.length - 1}/pkg`, 'path');
     };
-    const { ratio, timing, atL, at2L } = scalingRatio(read);
-    expect(atL).toBe('test');
-    expect(at2L).toBe(atL);
-    process.stdout.write(`eighth pass, test-path reader, many files: ${timing}\n`);
+    const { ratio, timing, atSmall, atLarge } = scalingRatio(read);
+    expect(atSmall).toBe('test');
+    expect(atLarge).toBe(atSmall);
     expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
   }, 120_000);
 
@@ -613,10 +634,9 @@ describe('scaling: the v27 B3 eighth pass readers grow no faster than linearly',
       }
       return `${b3TestPathReadingForScaling(input.files, input.directory, 'path')} ${b3TestPathReadingForScaling(input.files, input.module, 'module')}`;
     };
-    const { ratio, timing, atL, at2L } = scalingRatio(read);
-    expect(atL).toBe('test test');
-    expect(at2L).toBe(atL);
-    process.stdout.write(`eighth pass, test-path reader, one deep path: ${timing}\n`);
+    const { ratio, timing, atSmall, atLarge } = scalingRatio(read);
+    expect(atSmall).toBe('test test');
+    expect(atLarge).toBe(atSmall);
     expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
   }, 120_000);
 
@@ -641,10 +661,9 @@ describe('scaling: the v27 B3 eighth pass readers grow no faster than linearly',
       }
       return b3UvProjectReadingForScaling(text);
     };
-    const { ratio, timing, atL, at2L } = scalingRatio(read);
-    expect(atL).toBe('builds');
-    expect(at2L).toBe(atL);
-    process.stdout.write(`eighth pass, uv project reader: ${timing}\n`);
+    const { ratio, timing, atSmall, atLarge } = scalingRatio(read);
+    expect(atSmall).toBe('builds');
+    expect(atLarge).toBe(atSmall);
     expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
   }, 120_000);
 });
@@ -663,9 +682,9 @@ describe('scaling: each v27 A1 reader the CI-line guard exercises grows no faste
       return repo;
     };
     const files = ['tests/conftest.py', 'tests/test_lines.py'];
-    const { ratio, timing, atL, at2L } = scalingRatio((length) => findPytestRunWideSkips(repoFor(length), files));
-    expect(atL.map((skip) => skip.kind)).toEqual(['skip']);
-    expect(at2L).toEqual(atL);
+    const { ratio, timing, atSmall, atLarge } = scalingRatio((length) => findPytestRunWideSkips(repoFor(length), files));
+    expect(atSmall.map((skip) => skip.kind)).toEqual(['skip']);
+    expect(atLarge).toEqual(atSmall);
     expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
   }, 60_000);
 
@@ -688,9 +707,9 @@ describe('scaling: each v27 A1 reader the CI-line guard exercises grows no faste
       return repo;
     };
     const files = ['tests/conftest.py', 'tests/test_lines.py'];
-    const { ratio, timing, atL, at2L } = scalingRatio((length) => findPytestRunWideSkips(repoFor(length), files));
-    expect(atL.map((skip) => skip.kind)).toEqual(['clear']);
-    expect(at2L).toEqual(atL);
+    const { ratio, timing, atSmall, atLarge } = scalingRatio((length) => findPytestRunWideSkips(repoFor(length), files));
+    expect(atSmall.map((skip) => skip.kind)).toEqual(['clear']);
+    expect(atLarge).toEqual(atSmall);
     expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
   }, 60_000);
 
@@ -713,11 +732,11 @@ describe('scaling: each v27 A1 reader the CI-line guard exercises grows no faste
       return repo;
     };
     const files = ['tests/conftest.py', 'tests/test_lines.py'];
-    const { ratio, timing, atL, at2L } = scalingRatio((length) => findPytestRunWideSkips(repoFor(length), files));
+    const { ratio, timing, atSmall, atLarge } = scalingRatio((length) => findPytestRunWideSkips(repoFor(length), files));
     // The hook's def line moves with the module's length; everything else must agree.
-    const shape = (skips: typeof atL) => skips.map(({ line: _line, ...rest }) => rest);
-    expect(atL.map((skip) => [skip.kind, skip.withheld !== undefined, skip.unread])).toEqual([['clear', true, undefined]]);
-    expect(shape(at2L)).toEqual(shape(atL));
+    const shape = (skips: typeof atSmall) => skips.map(({ line: _line, ...rest }) => rest);
+    expect(atSmall.map((skip) => [skip.kind, skip.withheld !== undefined, skip.unread])).toEqual([['clear', true, undefined]]);
+    expect(shape(atLarge)).toEqual(shape(atSmall));
     expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
   }, 60_000);
 
@@ -731,12 +750,12 @@ describe('scaling: each v27 A1 reader the CI-line guard exercises grows no faste
         ]),
       );
     const texts = new Map([SCALING_LENGTH, 2 * SCALING_LENGTH].map((length) => [length, textsFor(length)]));
-    const { ratio, timing, atL, at2L } = scalingRatio((length) =>
+    const { ratio, timing, atSmall, atLarge } = scalingRatio((length) =>
       readPytestInvocations(files, (file) => texts.get(length)?.get(file)),
     );
     // The root default, then the `pytest` at the end of each line: every line was read to its end.
-    expect(atL).toHaveLength(1 + CI_LINE_UNITS.length);
-    expect(at2L).toEqual(atL);
+    expect(atSmall).toHaveLength(1 + CI_LINE_UNITS.length);
+    expect(atLarge).toEqual(atSmall);
     expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
   }, 60_000);
 });
@@ -763,9 +782,9 @@ describe('scaling: the v27 A1 gap readers grow no faster than linearly', () => {
       return repo;
     };
     const files = ['tests/conftest.py', 'tests/helpers.py', 'tests/test_lines.py'];
-    const { ratio, timing, atL, at2L } = scalingRatio((length) => findPytestRunWideSkips(repoFor(length), files));
-    expect(atL.map((skip) => skip.withheld)).toEqual(['hook not read: `saved = list(items)` in tests/conftest.py calls a builtin, which tests/helpers.py may replace']);
-    expect(at2L).toEqual(atL);
+    const { ratio, timing, atSmall, atLarge } = scalingRatio((length) => findPytestRunWideSkips(repoFor(length), files));
+    expect(atSmall.map((skip) => skip.withheld)).toEqual(['hook not read: `saved = list(items)` in tests/conftest.py calls a builtin, which tests/helpers.py may replace']);
+    expect(atLarge).toEqual(atSmall);
     expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
   }, 60_000);
 
@@ -784,10 +803,10 @@ describe('scaling: the v27 A1 gap readers grow no faster than linearly', () => {
     };
     const files = ['.github/workflows/ci.yml', 'noxfile.py'];
     const texts = new Map([SCALING_LENGTH, 2 * SCALING_LENGTH].map((length) => [length, textsFor(length)]));
-    const { ratio, timing, atL, at2L } = scalingRatio((length) => readPytestInvocations(files, (file) => texts.get(length)?.get(file)));
+    const { ratio, timing, atSmall, atLarge } = scalingRatio((length) => readPytestInvocations(files, (file) => texts.get(length)?.get(file)));
     // Past the budget the remaining calls are named as not read, at both lengths.
-    expect(atL.some(({ unread }) => unread === 'session.run("pytest", *session.posargs)')).toBe(true);
-    expect(at2L.some(({ unread }) => unread === 'session.run("pytest", *session.posargs)')).toBe(true);
+    expect(atSmall.some(({ unread }) => unread === 'session.run("pytest", *session.posargs)')).toBe(true);
+    expect(atLarge.some(({ unread }) => unread === 'session.run("pytest", *session.posargs)')).toBe(true);
     expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
   }, 60_000);
 
@@ -817,12 +836,12 @@ describe('scaling: the v27 A1 gap readers grow no faster than linearly', () => {
 
   it('the nox reader, on L/2,000 noxfiles taking posargs and L/2,000 CI steps passing a variable', () => {
     const inputs = new Map([SCALING_LENGTH, 2 * SCALING_LENGTH].map((length) => [length, unreadNoxTexts(length / 2000, length / 2000)]));
-    const { ratio, timing, atL, at2L } = scalingRatio((length) => {
+    const { ratio, timing, atSmall, atLarge } = scalingRatio((length) => {
       const { files, texts } = inputs.get(length) ?? { files: [], texts: new Map<string, string>() };
       return readPytestInvocations(files, (file) => texts.get(file));
     });
-    expect(atL.filter(({ unread }) => unread === 'nox -- $X0').length).toBe(1);
-    expect(at2L.filter(({ unread }) => unread === 'nox -- $X0').length).toBe(1);
+    expect(atSmall.filter(({ unread }) => unread === 'nox -- $X0').length).toBe(1);
+    expect(atLarge.filter(({ unread }) => unread === 'nox -- $X0').length).toBe(1);
     expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
   }, 120_000);
 
@@ -843,9 +862,9 @@ describe('scaling: the v27 A1 gap readers grow no faster than linearly', () => {
     };
     const files = ['noxfile.py', 'scripts/ci.sh', 'scripts/long.sh'];
     const texts = new Map([SCALING_LENGTH, 2 * SCALING_LENGTH].map((length) => [length, textsFor(length)]));
-    const { ratio, timing, atL, at2L } = scalingRatio((length) => readPytestInvocations(files, (file) => texts.get(length)?.get(file)));
-    expect(atL.filter(({ unread }) => unread === 'nox -s tests -- -x').length).toBe(1);
-    expect(at2L.filter(({ unread }) => unread === 'nox -s tests -- -x').length).toBe(1);
+    const { ratio, timing, atSmall, atLarge } = scalingRatio((length) => readPytestInvocations(files, (file) => texts.get(length)?.get(file)));
+    expect(atSmall.filter(({ unread }) => unread === 'nox -s tests -- -x').length).toBe(1);
+    expect(atLarge.filter(({ unread }) => unread === 'nox -s tests -- -x').length).toBe(1);
     expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
   }, 60_000);
 
@@ -868,10 +887,10 @@ describe('scaling: the v27 A1 gap readers grow no faster than linearly', () => {
     };
     const files = ['a/conftest.py', 'b/conftest.py', 'conftest.py', 'tests/conftest.py'];
     const texts = new Map([SCALING_LENGTH, 2 * SCALING_LENGTH].map((length) => [length, textsFor(length)]));
-    const { ratio, timing, atL, at2L } = scalingRatio((length) => readPytestDeclaredOptions(files, (file) => texts.get(length)?.get(file)));
-    expect(atL.options.get('--opt-0')).toBe('flag');
-    expect(at2L.options.get('--opt-0')).toBe('flag');
-    expect(atL.options.get(`--l${Math.floor(SCALING_LENGTH / 50) - 1}`)).toBe('flag');
+    const { ratio, timing, atSmall, atLarge } = scalingRatio((length) => readPytestDeclaredOptions(files, (file) => texts.get(length)?.get(file)));
+    expect(atSmall.options.get('--opt-0')).toBe('flag');
+    expect(atLarge.options.get('--opt-0')).toBe('flag');
+    expect(atSmall.options.get(`--l${Math.floor(SCALING_LENGTH / 50) - 1}`)).toBe('flag');
     expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
   }, 60_000);
 });
@@ -896,11 +915,11 @@ describe('scaling: the v27 A1 make environment and class hook readers grow no fa
     };
     const files = ['.github/workflows/ci.yml', 'Makefile'];
     const texts = new Map([SCALING_LENGTH, 2 * SCALING_LENGTH].map((length) => [length, textsFor(length)]));
-    const { ratio, timing, atL, at2L } = scalingRatio((length) => readPytestInvocations(files, (file) => texts.get(length)?.get(file)));
+    const { ratio, timing, atSmall, atLarge } = scalingRatio((length) => readPytestInvocations(files, (file) => texts.get(length)?.get(file)));
     // The first 16 environments are read with their own value; the rest are named as not read.
-    expect(atL.filter(({ addoptsAt }) => addoptsAt !== undefined)).toHaveLength(16);
-    expect(at2L.filter(({ addoptsAt }) => addoptsAt !== undefined)).toHaveLength(16);
-    expect(atL.filter(({ unread }) => unread === 'PYTEST_ADDOPTS').length).toBe(Math.floor(SCALING_LENGTH / 400) - 16);
+    expect(atSmall.filter(({ addoptsAt }) => addoptsAt !== undefined)).toHaveLength(16);
+    expect(atLarge.filter(({ addoptsAt }) => addoptsAt !== undefined)).toHaveLength(16);
+    expect(atSmall.filter(({ unread }) => unread === 'PYTEST_ADDOPTS').length).toBe(Math.floor(SCALING_LENGTH / 400) - 16);
     expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
   }, 120_000);
 
@@ -925,10 +944,10 @@ describe('scaling: the v27 A1 make environment and class hook readers grow no fa
       return repo;
     };
     const files = ['tests/conftest.py', 'tests/test_lines.py'];
-    const { ratio, timing, atL, at2L } = scalingRatio((length) => findPytestRunWideSkips(repoFor(length), files));
-    expect(atL).toHaveLength(Math.floor(SCALING_LENGTH / 120));
-    expect(at2L).toHaveLength(Math.floor((2 * SCALING_LENGTH) / 120));
-    expect(atL[0]?.withheld).toBe('hook not read: `K0.pytest_collection_modifyitems` in tests/conftest.py');
+    const { ratio, timing, atSmall, atLarge } = scalingRatio((length) => findPytestRunWideSkips(repoFor(length), files));
+    expect(atSmall).toHaveLength(Math.floor(SCALING_LENGTH / 120));
+    expect(atLarge).toHaveLength(Math.floor((2 * SCALING_LENGTH) / 120));
+    expect(atSmall[0]?.withheld).toBe('hook not read: `K0.pytest_collection_modifyitems` in tests/conftest.py');
     expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
   }, 60_000);
 });
@@ -958,20 +977,20 @@ describe('scaling: the v27 A1 PYTEST_ADDOPTS mention count grows no faster than 
 
   it('every mention read: the ?= default keeps #670 reading at L and at 2L, in linear time', () => {
     const texts = new Map([SCALING_LENGTH, 2 * SCALING_LENGTH].map((length) => [length, textsFor(length, '')]));
-    const { ratio, timing, atL, at2L } = scalingRatio((length) => readPytestInvocations(files, (file) => texts.get(length)?.get(file)));
+    const { ratio, timing, atSmall, atLarge } = scalingRatio((length) => readPytestInvocations(files, (file) => texts.get(length)?.get(file)));
     // The CI make environments are read against the default (the make environment reader reads 16
     // with their own value and names the rest not read); the `end` variant below reads none.
-    expect(atL.filter(({ addoptsAt }) => addoptsAt !== undefined).length).toBeGreaterThan(0);
-    expect(at2L.filter(({ addoptsAt }) => addoptsAt !== undefined).length).toBeGreaterThan(0);
+    expect(atSmall.filter(({ addoptsAt }) => addoptsAt !== undefined).length).toBeGreaterThan(0);
+    expect(atLarge.filter(({ addoptsAt }) => addoptsAt !== undefined).length).toBeGreaterThan(0);
     expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
   }, 120_000);
 
   it('one mention not read, on the last line: the ?= default is not known at L and at 2L, in linear time', () => {
     const texts = new Map([SCALING_LENGTH, 2 * SCALING_LENGTH].map((length) => [length, textsFor(length, '# PYTEST_ADDOPTS is set per step\n')]));
-    const { ratio, timing, atL, at2L } = scalingRatio((length) => readPytestInvocations(files, (file) => texts.get(length)?.get(file)));
+    const { ratio, timing, atSmall, atLarge } = scalingRatio((length) => readPytestInvocations(files, (file) => texts.get(length)?.get(file)));
     // The default is not known, so make's environments are not read against it and every target's
     // run is named not read.
-    for (const read of [atL, at2L]) {
+    for (const read of [atSmall, atLarge]) {
       expect(read.filter(({ addoptsAt }) => addoptsAt !== undefined)).toHaveLength(0);
       expect(read.some(({ unread, file }) => unread !== undefined && file === 'Makefile')).toBe(true);
     }
