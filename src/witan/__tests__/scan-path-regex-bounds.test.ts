@@ -933,6 +933,52 @@ describe('scaling: the v27 A1 make environment and class hook readers grow no fa
   }, 60_000);
 });
 
+// goal_cejel_v27_a1_addopts_not_known_2026-11-05, item B (#673). The mention count reads each CI
+// file's text once for whole-word PYTEST_ADDOPTS, and counts the mentions the readers read while
+// they read: one per env: entry line, one per export word, and the leading and env-prefix
+// assignments of a make command (makeCommandOf once per such command). The input that maximises
+// its work: L/200 run steps, each with a step env: entry and a run: line holding every counted form
+// (an export, a leading assignment and an env prefix on make) and a pytest run, against a Makefile
+// with a `?=` default and L/400 targets. The `end` variant adds one mention the readers do not read,
+// in a comment on the file's last line, so the count is shown to reach the end of the file.
+describe('scaling: the v27 A1 PYTEST_ADDOPTS mention count grows no faster than linearly', () => {
+  const textsFor = (length: number, end: string): Map<string, string> => {
+    const steps = Array.from(
+      { length: Math.floor(length / 200) },
+      (_, index) =>
+        `      - run: export PYTEST_ADDOPTS=-q && PYTEST_ADDOPTS=-q env PYTEST_ADDOPTS=-ke${index} make t${index % 64} && pytest tests\n        env:\n          PYTEST_ADDOPTS: "-k e${index}"`,
+    ).join('\n');
+    const recipes = Array.from({ length: Math.floor(length / 400) }, (_, index) => `t${index}:\n\tpytest tests/test_${index}.py`).join('\n');
+    return new Map([
+      ['.github/workflows/ci.yml', `name: ci\non: push\njobs:\n  t:\n    runs-on: ubuntu-latest\n    steps:\n${steps}\n${end}`],
+      ['Makefile', `PYTEST_ADDOPTS ?= -x\n\n${recipes}\n`],
+    ]);
+  };
+  const files = ['.github/workflows/ci.yml', 'Makefile'];
+
+  it('every mention read: the ?= default keeps #670 reading at L and at 2L, in linear time', () => {
+    const texts = new Map([SCALING_LENGTH, 2 * SCALING_LENGTH].map((length) => [length, textsFor(length, '')]));
+    const { ratio, timing, atL, at2L } = scalingRatio((length) => readPytestInvocations(files, (file) => texts.get(length)?.get(file)));
+    // The CI make environments are read against the default (the make environment reader reads 16
+    // with their own value and names the rest not read); the `end` variant below reads none.
+    expect(atL.filter(({ addoptsAt }) => addoptsAt !== undefined).length).toBeGreaterThan(0);
+    expect(at2L.filter(({ addoptsAt }) => addoptsAt !== undefined).length).toBeGreaterThan(0);
+    expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
+  }, 120_000);
+
+  it('one mention not read, on the last line: the ?= default is not known at L and at 2L, in linear time', () => {
+    const texts = new Map([SCALING_LENGTH, 2 * SCALING_LENGTH].map((length) => [length, textsFor(length, '# PYTEST_ADDOPTS is set per step\n')]));
+    const { ratio, timing, atL, at2L } = scalingRatio((length) => readPytestInvocations(files, (file) => texts.get(length)?.get(file)));
+    // The default is not known, so make's environments are not read against it and every target's
+    // run is named not read.
+    for (const read of [atL, at2L]) {
+      expect(read.filter(({ addoptsAt }) => addoptsAt !== undefined)).toHaveLength(0);
+      expect(read.some(({ unread, file }) => unread !== undefined && file === 'Makefile')).toBe(true);
+    }
+    expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
+  }, 120_000);
+});
+
 // goal_cejel_v27_conftest_timing_guard_2026-11-02, item B. The shell word scanner every reader
 // shares now tests white space by character code and copies kept characters a run at a time. It must
 // return the same words as the scanner it replaced, kept here verbatim as the specification.

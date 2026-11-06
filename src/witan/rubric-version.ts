@@ -443,7 +443,21 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     value holding $ or a backtick) leaves the pytest runs its targets reach not read; a value on
 //     make's command line stays not read, as before. At most 16 distinct environments are read per
 //     Makefile; the rest are read as one not known. A ?= default of PYTEST_ADDOPTS is no longer
-//     not known because a CI file names it. MAKEFLAGS in the environment and a justfile run with
+//     not known because a CI file names it, where every mention of PYTEST_ADDOPTS in the CI files is
+//     one these readers read: an env: entry read for a run step, an export word, a leading
+//     assignment or env prefix on a make command, a non-GitHub CI file's first variables or env key
+//     (as a key, not a shell assignment), or, in a workflow the $GITHUB_ENV rule covers, a mention on
+//     a line naming GITHUB_ENV. From 2026-11-05 (goal_cejel_v27_a1_addopts_not_known_2026-11-05,
+//     item B, #673), where a CI file names PYTEST_ADDOPTS anywhere else (a script a step runs with it
+//     set, bash -c, a comment, an expression elsewhere in the file), a ?= default of it is not known
+//     again, and the pytest runs its targets reach are named not read, as before 2026-11-04; an =,
+//     := or += assignment keeps the reading above. From 2026-11-05 (item A, #669) a pytest run on a
+//     GitHub Actions step whose step, job or workflow env: sets PYTEST_ADDOPTS by an expression (the
+//     most specific level that sets it decides, so a step literal over a job expression is read),
+//     run directly, as a module or through a launcher A1 follows (a hatch script takes the step's
+//     environment), and with no PYTEST_ADDOPTS set on the command itself, is named "pytest run not
+//     read: `PYTEST_ADDOPTS: <value as written>` in <workflow>", pointed at the entry's line.
+//     MAKEFLAGS in the environment and a justfile run with
 //     PYTEST_ADDOPTS in its environment are not read. Each setting, command-line and not-read clause
 //     carries an evidence pointer at its line, sharing the eight with the hooks, the rest counted; a
 //     CI environment's value reaching a recipe points at the CI line that sets it.
