@@ -415,6 +415,17 @@ describe('timing guards: the real scan finishes on pathological repository input
 // same factor at any step, about 1.3 to 1.6 on CI. A limit of 8 left the slowest of them a factor
 // of 1.1 to 1.15 of room. 11 sits about halfway, on a ratio scale, between the highest reader seen
 // (7.26, under full-suite load) and the square (16.0): a factor of about 1.5 from each.
+//
+// cejel #680: where the readers' extra cost comes from. None of them is superlinear by algorithm.
+// Each reader's cost per character is flat at small inputs and steps up 1.3 to 2.2 times between
+// L/8 and 4L, while garbage collection and system time stay a small share. The steps come from the
+// working set (hash maps, sets, and the strings keyed into them) outgrowing the CPU caches, so each
+// access costs more as the input grows. A stand-in that is linear by construction and does only
+// that, a Map of string keys set and then read, measured 6.10 to 6.41 at this step in this file (8
+// reads per sample), and 8.57 in a standalone script with one read per sample, on one quiet host.
+// That is the readers' own range, 5.2 to 7.3, where the arithmetic-only stand-in measured 3.84 to
+// 4.04. The memory-bound stand-in below records that baseline in every run's log beside the
+// readers. A reader that fails the limit is superlinear only if it also fails against that baseline.
 // The step is taken from L/2 to 2L rather than from L to 4L, so the largest input, and with it most
 // of this file's run time, stays as it was (the sample floor below is halved to match).
 //
@@ -540,7 +551,9 @@ describe('scaling: the ratio check itself (cejel #642)', () => {
   // The check must still tell a reader whose cost grows with the square from a linear one, admit
   // one that grows with n log n, and (cejel #678) refuse one that does the same work at both
   // lengths as not having read its input. The stand-ins do arithmetic only, sized so a sample fills
-  // the floor quickly.
+  // the floor quickly. The arithmetic stand-ins touch no memory, so they give the ideal ratios;
+  // cejel #680: the readers are bound by memory, and the Map stand-in gives the baseline they
+  // actually sit against.
   const work = (iterations: number): number => {
     let total = 0;
     for (let index = 0; index < iterations; index += 1) total = (total + index * 31) % 1_000_003;
@@ -560,6 +573,20 @@ describe('scaling: the ratio check itself (cejel #642)', () => {
   }, 60_000);
   it('refuses a stand-in reader that does the same work at both lengths: it did not read the length it was given', () => {
     expect(() => scalingRatio(() => work(SCALING_LARGE * 4))).toThrow(/the reader did not read the length it was given/);
+  }, 60_000);
+  // cejel #680: linear by construction, and bound by memory as the readers are. It is held only
+  // below the square, not below SCALING_RATIO_LIMIT: it measured up to 8.57 on a quiet host, and
+  // the noise between CI runs could carry it past 11. It is here as the baseline each run logs.
+  it('records the ratio of a linear stand-in bound by memory: a Map of string keys, set and then read (cejel #680)', () => {
+    const mapped = (keys: number): number => {
+      const map = new Map<string, number>();
+      for (let index = 0; index < keys; index += 1) map.set(`${index}/a`, index + 1);
+      let total = 0;
+      for (let index = 0; index < keys; index += 1) total += map.get(`${index}/a`) ?? 0;
+      return total;
+    };
+    const { ratio, timing } = scalingRatio((length) => mapped(length / 2));
+    expect(ratio, timing).toBeLessThan(16);
   }, 60_000);
 });
 

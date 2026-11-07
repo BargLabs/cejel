@@ -143,7 +143,25 @@ pinned. v27 carries no precision or recall claim.
     smallest margin under 8, a factor of 1.15. In one run of the whole suite, under parallel load,
     the two test-path readers reached 7.20 and 7.26. CI on this change gave 7.02 at most. Those
     margins were measured against 8; against 11 they are about 1.5. Where the test-path readers'
-    superlinear cost comes from is not found here (#680).
+    superlinear cost comes from is in the next entry (#680).
+- **None of the six readers above 4 is superlinear by algorithm; their cost per character grows
+  with the memory they touch (#680).** Test only; no reader, rubric or report changes.
+  - **Measured.** Each reader was timed alone at lengths from L/8 up to 2L, and the deep-path and
+    module-shadow readers up to 4L. The three file readers do not read a file over 512 KB. Their cost per character is flat at
+    small inputs and then flat or stepping up, never by more than 2.2 times: the deep-path
+    test-path reader 75 to 161 ns, the module-shadow reader 36 to 75, the many-files test-path
+    reader 17 to 24, the hatch reader 28 to 36, the justfile reader 18 to 29, and the tox.ini
+    reader 24 to 22. A quadratic reader's cost per character would grow 32 times from L/8 to 4L.
+    Garbage collection and system time stay a small share.
+  - **The cause.** The readers' hash maps, sets and the strings keyed into them outgrow the CPU
+    caches, so each access costs more as the input grows. A stand-in that is linear by construction
+    and only sets and reads a Map of string keys measured 6.10 to 6.41 in the scaling check (and
+    8.57 alone with one read per sample). That is the readers' own range. The arithmetic-only
+    stand-in, which touches no memory, measured 3.84 to 4.04.
+  - **What changed.** The scaling self-test now includes that memory-bound stand-in. It is held
+    only below the square, 16, and logs its ratio on every run beside the readers, so a reader that
+    fails the limit of 11 can be compared with the platform's own baseline before it is called
+    superlinear. The limit stays 11.
 
 ## [0.6.10] — 2026-11-04
 

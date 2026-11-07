@@ -1,0 +1,25 @@
+[
+  {
+    "statement": "A timing guard's stand-ins must spend the resource the readers spend, or the limit is calibrated against a reader that does not exist. Incident: cejel's scaling check (scan-path-regex-bounds.test.ts) set its limit from an arithmetic-only linear stand-in, 3.84 to 4.04 at a 4x step, so six real readers at 5.2 to 7.3 read as superlinear (#680). Timed alone from L/8 to 2L or 4L, each reader's cost per character was flat or rose at most 2.2 times, where quadratic is 32; a Map of string keys, linear by construction, measured 6.10 to 6.41 in the same check. The extra cost was the working set outgrowing the CPU caches, not the algorithm. Fix (#681): a memory-bound linear stand-in logs that baseline on every run beside the readers. Rule: build the control from the readers' own operations, and compare a failing reader with it before calling it superlinear.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "testing",
+      "performance"
+    ],
+    "tags": [
+      "timing-guard",
+      "scaling-check",
+      "control-matches-workload",
+      "memory-hierarchy"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-11-07T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 681
+    }
+  }
+]
