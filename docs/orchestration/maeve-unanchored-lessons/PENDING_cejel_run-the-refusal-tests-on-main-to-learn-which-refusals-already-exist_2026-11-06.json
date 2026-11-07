@@ -1,0 +1,24 @@
+[
+  {
+    "statement": "Before claiming a change adds a refusal, run its refusal tests against main and record which already pass. Incident: cejel's audit C4 card asked `cejel issue` to refuse an attested generatedAt that is missing, malformed, or later than the issuer's clock. Run red on main, the missing and malformed cases already refused: the attestation schema requires an ISO 8601 generatedAt, and verifyWitanAttestationBinding runs before the reproduction. Only the future-time case was new. The new reader repeats the first two refusals as a second guard, behind a check that already refuses them, so a CLI test cannot reach it; a unit test covers it. Rule: commit the red run's per-test result, and in the CHANGELOG and hand-back name the refusals that existed before, rather than presenting every refusal as the change's own.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "testing"
+    ],
+    "tags": [
+      "red-first",
+      "pass-by-upstream-guard",
+      "claim-scope",
+      "issuance"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-11-06T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 682
+    }
+  }
+]

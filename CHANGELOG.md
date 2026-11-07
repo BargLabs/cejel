@@ -16,8 +16,8 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
-v17 remains the default rubric. Every change below applies only when the prospective v27 rubric is
-pinned. v27 carries no precision or recall claim.
+v17 remains the default rubric. Every scoring change below applies only when the prospective v27
+rubric is pinned. v27 carries no precision or recall claim.
 
 ### Changed
 
@@ -113,6 +113,25 @@ pinned. v27 carries no precision or recall claim.
     moved.
 
 ### Fixed
+
+- **`cejel issue` reproduces with the attested scan's own date, so a certificate from an earlier
+  year can be issued (audit C4; operator ruling of 5 Nov, option A).** v17's B4 freshness check
+  matches the scan's calendar year. The re-run used the issuer's clock, so an issuance in a later
+  year than the scan always refused. The re-run now uses `predicate.generatedAt`, read from the
+  attestation that has already been accepted as bound to `report.json`, and never from a flag.
+  - **No score moves.** B4, `referenceYear` and every rubric are unchanged. A normal scan passes no
+    date and scans at the current time, as before, so its `report.json` is byte-identical to main
+    under every rubric.
+  - **Refused with a named reason:** a `predicate.generatedAt` that is missing, is not an ISO 8601
+    time, or is later than the issuer's clock. The attestation schema already refused the first
+    two at the binding check; the third is new.
+  - **A failed reproduction near a new year names the likely cause.** Where the scan time is within
+    24 hours of a new year in UTC, the refusal adds one line: v17's freshness year is read in the
+    scan host's local time, so an issuer in another time zone may need to re-run with the `TZ`
+    environment variable set to the scan host's.
+  - **`issuance.json` records the date it reproduced with,** as `reproduction.generatedAt`. The
+    field is additive and optional, so the issuance format takes a minor step, from 1.0 to 1.1. A
+    1.0 issuance still verifies.
 
 - **The scaling check in `scan-path-regex-bounds.test.ts` steps by 4, from L/2 to 2L, and refuses
   above 11 (#678).** Test only; no reader, rubric or report changes. At L and 2L with a limit of 3,
