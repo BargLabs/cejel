@@ -85,6 +85,65 @@ pinned. v27 carries no precision or recall claim.
     `uv sync --no-install-project`, are now credited where they were not.
   - v17 and every other rubric are unchanged. No holdout or calibration ran, and no published score
     moved.
+- **Prospective v27: A1 names a pytest run whose `PYTEST_ADDOPTS` Cejel cannot know as not read, in
+  two more places (#669, #673).** Under `witan-rubric-v27-prospective-2026-10-19` only.
+  - **An `env:` expression on a step that runs pytest itself (#669).** Where a GitHub Actions step,
+    its job or its workflow sets `PYTEST_ADDOPTS` by an expression (`${{ matrix.pytest-options }}`),
+    a pytest run on that step was read with no `PYTEST_ADDOPTS` at all, so a file whose every test
+    is skipped was rated "runs no test", though the expression may set `-p no:skipping`. It is now
+    named "pytest run not read: `PYTEST_ADDOPTS: <value as written>` in <workflow>", with a pointer
+    at the entry's line, whether pytest runs directly, as a Python module, or through a launcher A1
+    follows. The most specific level that sets it decides, so a literal on the step over an
+    expression on its job is read as before; a `PYTEST_ADDOPTS` set on the command itself is read
+    over the expression.
+  - **A `?=` default where CI sets the variable somewhere the reader does not follow (#673).** The
+    2026-11-04 change read a Makefile's `PYTEST_ADDOPTS ?= ...` against the environment of each CI
+    make command. Where CI set `PYTEST_ADDOPTS` somewhere that reader does not follow (a script a
+    step runs with it set, `bash -c`), the default was read as in force. It is now read that way only
+    where every mention of `PYTEST_ADDOPTS` in the CI files is one the readers read: an `env:`
+    entry, a leading assignment or `env` prefix on a make command, an earlier `export` in the same
+    `run:`, the `$GITHUB_ENV` rule, or a non-GitHub CI variables key. Where a CI file names it
+    anywhere else, the default is not known again, and the runs its targets reach are named
+    "pytest run not read", as before 2026-11-04. An `=`, `:=` or `+=` assignment keeps the
+    2026-11-04 reading.
+  - **Not read, stated limits:** a script that sets `PYTEST_ADDOPTS` itself, where no CI file names
+    it; a script run after a read `env:` entry or `export`, which inherits it; and an unexported
+    `PYTEST_ADDOPTS = ...` that a script's environment would make make pass on (cejel #674).
+  - v17 and every other rubric are unchanged. No holdout or calibration ran, and no published score
+    moved.
+
+### Fixed
+
+- **The scaling check in `scan-path-regex-bounds.test.ts` steps by 4, from L/2 to 2L, and refuses
+  above 11 (#678).** Test only; no reader, rubric or report changes. At L and 2L with a limit of 3,
+  a linear reader gives 2, and the same unchanged code measured from 1.9 to 3.2 on CI, so the
+  runner decided some runs. On a quiet host it failed 3 of 5 runs on main (the test-path reader on
+  many listed files: 3.15, 3.03, 3.10). At a step of 4, linear is about 4, n log n about 4.5 and the
+  square 16. The largest input stays 2L, and the sample floor is 40 ms at L/2 (it was 80 ms at L),
+  so each sample at 2L costs what it did before.
+  - **A ratio below 2 is refused:** "the reader did not read the length it was given". Inputs built
+    ahead of time are built for exactly the two lengths the check reads, and a lookup at any other
+    length throws, so a reader can no longer get nothing at one length and pass.
+  - **Two inputs changed, not their assertions.** The builtins search had measured the fixed cost of
+    listing the tracked files, not the sweep (1.21 to 1.27 on main). It now sweeps near misses in
+    further modules, and gives 3.6 to 3.8. The module-shadow reader's expected answer had been the
+    empty answer; one shadowing module, last, now makes it true.
+  - **A reader handed nothing at L/2 fails at once.** One read at 2L caps the reads per sample.
+    Without the cap, a reader whose L/2 input was missing while its 2L input was present ran for
+    hours instead of failing.
+  - A self-test admits an n log n stand-in, and refuses one that does the same work at both lengths.
+  - **Why 11 and not 8.** Six readers grow faster than linearly, and the noise between runs
+    multiplies a ratio by the same factor at any step. A limit of 8 left the slowest of them 1.10 to
+    1.15 of room, about what a limit of 3 had left at a step of 2. 11 sits about halfway, on a ratio
+    scale, between the highest reader seen (7.26) and the square stand-in (16.0), about 1.5 from each.
+  - **Measured on five runs of the file alone, on one quiet host:** every test passed. Across the
+    20 readers the highest ratio was 6.94 and the lowest 3.12. The file ran in 77.0 to 82.2 s,
+    against 95.9 to 104.1 s on main. Six readers grow faster than linearly, 5.2 to 6.9 at the step
+    of 4 where linear is about 4. The test-path reader on many listed files (6.14 to 6.94) has the
+    smallest margin under 8, a factor of 1.15. In one run of the whole suite, under parallel load,
+    the two test-path readers reached 7.20 and 7.26. CI on this change gave 7.02 at most. Those
+    margins were measured against 8; against 11 they are about 1.5. Where the test-path readers'
+    superlinear cost comes from is not found here (#680).
 
 ## [0.6.10] — 2026-11-04
 

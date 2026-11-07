@@ -22,6 +22,133 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
+## 2026-11-05 (A1 addopts not known) — v27 A1 names a pytest run whose `PYTEST_ADDOPTS` Cejel cannot know as not read: an `env:` expression on a step that runs pytest itself, and a Makefile `?=` default where CI names the variable somewhere the readers do not follow (#669, #673); v17-v26 byte-identical; v27 never above v17; no published score moved
+
+**Status.** A scoring change under `witan-rubric-v27-prospective-2026-10-19` only, with no
+identifier change (goal_cejel_v27_a1_addopts_not_known_2026-11-05). No holdout or calibration ran
+for it, and this entry makes no precision or recall claim. The default stays v17.
+
+**Why.** Two places still read a `PYTEST_ADDOPTS` Cejel cannot know as known, each a possible false
+"runs no test". (#669, found while doing the 2026-11-04 entry below.) A GitHub Actions step, job or
+workflow `env:` that sets `PYTEST_ADDOPTS` by an expression (`${{ matrix.pytest-options }}`), on a
+step that runs pytest itself: `readGithubRunSteps` dropped the value, so the run was read with no
+`PYTEST_ADDOPTS`, and a file whose every test is skipped was rated hollow, though the expression may
+set `-p no:skipping`. The 2026-11-04 change named such an environment as not read for a make command
+only. (#673, found in the review of #670.) That change stopped reading a Makefile `?=` default of
+`PYTEST_ADDOPTS` as not known wherever a CI file names the variable, and read each CI make command's
+environment instead. Where CI sets the variable somewhere that reader does not follow (a script a
+step runs with it set), the default was read as in force.
+
+**Change.**
+
+- **A — an `env:` expression on a direct pytest step (#669).** Where the step, its job or its
+  workflow sets `PYTEST_ADDOPTS` by an expression, a pytest run on that step, with no
+  `PYTEST_ADDOPTS` set on the command itself, is named with #644's clause: "pytest run not read:
+  `PYTEST_ADDOPTS: <value as written>` in <workflow>", with a pointer at the entry's line. It holds
+  whether pytest runs directly, as a Python module, or through a launcher A1 already follows; a hatch
+  script run from the step takes the step's environment. The most specific level that sets it
+  decides (step, then job, then workflow), so a literal at a more specific level overrides an
+  expression at a less specific one and is read as before. The reason comes from the same
+  `addoptsNotKnown` field the make reader uses, which now keeps the value as written (quotes kept)
+  so the pointer finds its line; for an unquoted value, the only form the 2026-11-04 fixtures hold,
+  the make clause is unchanged. No second clause, counter or environment reader was added.
+- **B — a `?=` default where CI sets the variable elsewhere (#673).** The 2026-11-04 reading is kept
+  wherever every whole-word mention of `PYTEST_ADDOPTS` in the CI files is one the readers read,
+  counted while they read: each `env:` entry read for a run step (workflow, job or step level),
+  once; an `export PYTEST_ADDOPTS=...` word; a leading `PYTEST_ADDOPTS=...` or `env` prefix on a
+  make command; a non-GitHub CI file's first variables or env key, where that line is a key (`:` or
+  a blank before `=`), never a shell assignment; and, in a workflow the `$GITHUB_ENV` rule covers,
+  every mention on a line naming `GITHUB_ENV` (the rule is by name, so the shell forms are not
+  counted in that file, and a mention elsewhere in it is not read). Where a CI file names
+  `PYTEST_ADDOPTS` anywhere else (a script a step runs with it set, `bash -c`, a comment, an `if:`
+  or another expression), a Makefile `?=` default of it is not known again, and the pytest runs its
+  targets reach are named "pytest run not read: `PYTEST_ADDOPTS` in Makefile", as before 2026-11-04.
+  The count compares the mentions read with the whole-word count in each file's text; a mention
+  cannot be counted twice, since a key line is never a shell assignment word, and any difference
+  either way leaves the default not known. Only `?=` changes. An `=`, `:=` or `+=` assignment keeps
+  the 2026-11-04 reading.
+- **Not read, stated limits.** A script that sets `PYTEST_ADDOPTS` itself, where no CI file names it
+  (the literal shape in #673's text), is still read as make run by hand: the card's rule reads the CI
+  files. A script run after a read `env:` entry or `export` inherits the variable and is not
+  followed either. An unexported `PYTEST_ADDOPTS = ...` that a script's environment makes make pass
+  on is read as not applied (cejel #674, below). A leading `PYTEST_ADDOPTS=...` on a pytest command,
+  which the card's list does not name, leaves a `?=` default not known: a false withhold.
+
+**GNU make, checked.** GNU Make 3.81 on this host, run from a throwaway test (the session's shell
+refused `make` directly), with a recipe that prints `$$PYTEST_ADDOPTS`:
+
+- `PYTEST_ADDOPTS ?= -q`: nothing in make's environment gives an empty value (an unexported default
+  reaches no recipe); `-p no:skipping` or `-x` in the environment gives that value.
+- `PYTEST_ADDOPTS = -p no:skipping`, unexported: empty with nothing in the environment; the
+  Makefile's value with anything in it.
+- `export PYTEST_ADDOPTS = -p no:skipping`: the Makefile's value in every case; `export ... +=`
+  gives the environment's value followed by the Makefile's.
+- `PYTEST_ADDOPTS="-p no:skipping" sh ./test.sh`, where `test.sh` runs `make test` with a `?=`
+  default, and `bash -c "PYTEST_ADDOPTS='-p no:skipping' make test"`: both give `-p no:skipping`,
+  the value item B's two red fixtures name as not known.
+
+The second row is why the card's reason for keeping `=` ("make passes the Makefile's value whatever
+the environment holds") holds only where the variable is exported or already in make's environment.
+The `=` pin uses `export PYTEST_ADDOPTS = ...`, which the run supports; the unexported case is filed
+as cejel #674 for a ruling, not changed here. pytest is not installed on this host (`python3 -m pytest`
+failed), so no pytest version is claimed; the pytest claims (`-p no:skipping` runs skipped tests'
+bodies) rest on the earlier entries.
+
+**Bounds.** No new regular expression is quadratic: one anchored key pattern
+(`^[ \t]*PYTEST_ADDOPTS(?:[ \t]*:|[ \t]+[:?+]?=)`), tested once per CI file. The mention count reads
+each CI file's text once (`wordCount`, one `indexOf` per match), each GitHub file once more for lines
+naming `GITHUB_ENV` where the rule holds, and calls `makeCommandOf` once per command with a leading
+`PYTEST_ADDOPTS` assignment or an `env` prefix. Item A adds a constant check per pytest run and one
+pass over the entry's value. The input that maximises the count's work, timed by the new scaling
+checks in `scan-path-regex-bounds.test.ts` (L = 240,000, CPU time, limit 3): L/200 run steps, each
+with a step `env:` entry and a `run:` line holding every counted form (an export, a leading
+assignment and an `env` prefix on make) and a pytest run, against a Makefile with a `?=` default and
+L/400 targets:
+
+- every mention read: L 129.0 ms, 2L 269.9 ms, ratio 2.09;
+- the same with one mention not read, in a comment on the file's last line: L 104.0 ms, 2L 222.5 ms,
+  ratio 2.14.
+
+The ReDoS guard (1,260 regex literals across 31 production witan files, 16 adversarial families
+each, 0 failures) passed, as did the timing guards of `scan-path-regex-bounds.test.ts`.
+
+**The no-rise property.** Item A only adds a run not read, and item B only makes a `?=` default not
+known, so that the runs its targets reach are not read; both withhold, and a withhold falls back to
+v17's reading. Neither reads a setting in force that was not read before. v27 cannot score A1 above
+v17 on the same commit.
+
+**Measured** (at `67db52e7c`, whose last code commit is `50636a081`; the commits after it change
+the v27 declaration's comment, the CHANGELOG and the lesson seed only). The set the 2026-11-04 entry names, from this
+branch's fixture files: the false-assurance (269), CI-claims (71) and B3 (361; 347 on 4 Nov, the
+B3 eighth pass added 14) sets and every v27 A1 set (removal 39, hook outcome 38, allowlist 86,
+withhold 96, run 58), 1,018 synthetic repositories. Each was built once and scored in one process
+by main `084ed9942` (imported by path from an ignored worktree at main) and by this branch, under
+all eleven selectable rubrics, and report JSON, HTML and Markdown certificates were compared by
+hash: 11,198 reports each side, 0 errors.
+
+- v17 to v26: 10,180 of 10,180 reports, HTML and Markdown certificates byte-identical to main.
+- v27: 1,018 of 1,018 byte-identical, HTML and Markdown too. None of the 1,018 holds an `env:`
+  expression on a pytest step or a Makefile `?=` default of `PYTEST_ADDOPTS`, so none moves.
+- v27 A1 above v17 A1 on the same repository: 0 of 1,018. Overall score above v17: 0 of 1,015
+  compared (the others carry no headline score).
+- No v27 fixture pin and no behaviour-fingerprint pin moved; no v17 pin moved.
+
+**Fixtures and tests.** `src/witan/__tests__/v27-a1-addopts-not-known.test.ts`, committed red first
+at `01565986c` and run with main `084ed9942`'s code: 6 of 15 failed, each rated hollow on main. They
+are item A's job `env:` expression on a `pytest` step, the workflow-level expression, the step-level
+expression on `python -m pytest` and a quoted expression on `uv run pytest`, all now named not read
+with a pointer at the entry's line; and item B's `?=` with a script CI runs with `PYTEST_ADDOPTS`
+set, which runs `make test`, and with a `bash -c` mention, both now named "pytest run not read:
+`PYTEST_ADDOPTS` in Makefile". Each moves to v17's A1 score. The 9 that passed on main are pins
+and controls, kept: a step literal overriding a job expression (in force, and inert), a leading
+assignment on the pytest command over a job expression, `?=` with only a job `env:` literal (in
+force, and inert), `?=` with an earlier `export`, `?=` with a leading assignment and an `env` prefix
+on make, and `export ... =` and `export ... +=` with a script mention. The 32 tests of
+`v27-a1-make-environment.test.ts` (the 2026-11-04 fixtures) pass unchanged. The full suite, the
+typecheck and `pnpm run build` ran at the branch's head (see the pull request).
+
+No published score moved: the board is scored under v17.
+
 ## 2026-11-05 (B3 eighth pass) — under v27 a runner pointed at a path is credited only where that path holds a test file Cejel counts, and a check `uv run` launches only where uv does not build the project first (#659, #660); v17-v26 byte-identical; v27 never above v17; no published score moved
 
 **Status.** A scoring change under `witan-rubric-v27-prospective-2026-10-19` only, with no
