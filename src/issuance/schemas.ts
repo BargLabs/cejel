@@ -10,7 +10,8 @@ export const WITAN_ISSUANCE_PREDICATE_TYPE =
 // Versioned SEPARATELY from WITAN_REPORT_FORMAT_VERSION on purpose. Issuance is a third artifact
 // written beside report.json and attestation.json; it never modifies either, so the report format
 // does not move when issuance does. See docs/format-stability.md and docs/issuance.md.
-export const WITAN_ISSUANCE_FORMAT_VERSION = '1.0' as const;
+// 1.1 adds the optional reproduction.generatedAt (goal_cejel_issue_reproduces_scan_year_2026-11-05).
+export const WITAN_ISSUANCE_FORMAT_VERSION = '1.1' as const;
 
 // Namespace for `ssh-keygen -Y sign -n`. Deliberately distinct from any calibration-authority
 // namespace so a calibration signature can never be replayed as an issuance signature.
@@ -63,6 +64,9 @@ export const WitanIssuanceStatementSchema = z
               .string()
               .regex(/^sha256:[a-f0-9]{64}$/)
               .optional(),
+            // The scan time the reproduction replayed: the attested scan's predicate.generatedAt
+            // (issuance format 1.1 and later). Optional on read, so a 1.0 issuance still verifies.
+            generatedAt: z.string().datetime({ offset: true }).optional(),
             reportByteIdentical: z.literal(true),
           })
           .strict(),

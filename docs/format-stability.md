@@ -11,7 +11,7 @@ never be converted into a default pass or fail.
 | Generic ingest JSON | root `version`, currently `1.1` | Read major first; reject unknown majors. |
 | `report.json` | paired `attestation.json` field `predicate.reportFormatVersion`, currently `1.9` | Verify the digest binding, then route by report-format major. Legacy scan/v1 attestations without this additive field are report format 1.0. |
 | `attestation.json` | `_type` and `predicateType`; Cejel currently emits `https://in-toto.io/Statement/v1` and `https://cejel.dev/attestations/scan/v1` | Require exact supported identifiers. An unknown predicate major is unsupported. |
-| `issuance.json` | `predicate.issuanceFormatVersion`, currently `1.0` | Optional artifact. Verify the signature and the subject digests, then route by issuance-format major. Absent for every certificate that has no issuance, which is most of them. |
+| `issuance.json` | `predicate.issuanceFormatVersion`, currently `1.1` | Optional artifact. Verify the signature and the subject digests, then route by issuance-format major. Absent for every certificate that has no issuance, which is most of them. |
 | `certificate.html` | `<meta name="cejel-certificate-format" content="1.0">` | The meta value identifies the human format. Gates should consume the bound JSON pair, not scrape HTML. |
 
 `rubricVersion` versions the evidence and scoring rubric, not the JSON container. The attestation's
@@ -268,6 +268,10 @@ digests and their `artifact` discriminators, `issuer.name`, `issuer.keyFingerpri
 `reproduction` block including `reportByteIdentical`, `issuedAt`, and `engagementRef`.
 `reportByteIdentical` is the literal `true` and has no false value: a reproduction that did not
 reproduce is a refusal to issue.
+
+`reproduction.generatedAt` (issuance format 1.1 and later) is an additive-optional field: the scan
+time the reproduction replayed, copied from the attested scan's `predicate.generatedAt`. A 1.0
+issuance does not carry it and still verifies.
 
 Human wording in `limitations[]` is experimental prose, exactly as it is for the attestation.
 Consumers may display it but should gate on the structured fields.

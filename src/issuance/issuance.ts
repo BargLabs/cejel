@@ -76,6 +76,8 @@ export interface CreateWitanIssuanceOptions {
   toolVersion: string;
   /** UTC timestamp for this issuance. */
   issuedAt: string;
+  /** The scan time the reproduction replayed: the attested scan's predicate.generatedAt. */
+  reproductionGeneratedAt?: string;
   /** Opaque issuer-chosen identifier. Never a counterparty name. */
   engagementRef: string;
 }
@@ -122,6 +124,9 @@ export function createWitanIssuanceStatement(
         ...(report.rubricBehaviourFingerprint
           ? { rubricBehaviourFingerprint: report.rubricBehaviourFingerprint }
           : {}),
+        ...(options.reproductionGeneratedAt
+          ? { generatedAt: options.reproductionGeneratedAt }
+          : {}),
         reportByteIdentical: true,
       },
       issuedAt: options.issuedAt,
@@ -129,6 +134,76 @@ export function createWitanIssuanceStatement(
       limitations: [...WITAN_ISSUANCE_LIMITATIONS],
     },
   });
+}
+
+// ---------------------------------------------------------------------------
+// The scan time a reproduction replays
+// ---------------------------------------------------------------------------
+
+// A full ISO 8601 date-time with an explicit zone: `Z` or a numeric offset. A bare date or a
+// zone-less local time is refused, since it names no single instant.
+const ISO_8601_INSTANT =
+  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})$/;
+
+export type ReproductionGeneratedAt =
+  | { ok: true; generatedAt: string }
+  | { ok: false; reason: string };
+
+/**
+ * Reads the scan time a `cejel issue` reproduction replays: `predicate.generatedAt` of an
+ * attestation the caller has ALREADY accepted with verifyWitanAttestationBinding. It is never read
+ * from a flag. The attestation schema already refuses a missing or malformed value; this check
+ * repeats that refusal with a named reason, and adds the one the schema cannot make: a scan time
+ * later than the issuer's clock.
+ */
+export function readReproductionGeneratedAt(
+  attestation: unknown,
+  now: Date,
+): ReproductionGeneratedAt {
+  const predicate =
+    typeof attestation === 'object' && attestation !== null
+      ? (attestation as { predicate?: unknown }).predicate
+      : undefined;
+  const value =
+    typeof predicate === 'object' && predicate !== null
+      ? (predicate as { generatedAt?: unknown }).generatedAt
+      : undefined;
+  if (value === undefined || value === null) {
+    return {
+      ok: false,
+      reason:
+        "the attestation's predicate.generatedAt is missing, so the reproduction has no scan time to replay",
+    };
+  }
+  const instant = typeof value === 'string' ? Date.parse(value) : Number.NaN;
+  if (typeof value !== 'string' || !ISO_8601_INSTANT.test(value) || !Number.isFinite(instant)) {
+    return {
+      ok: false,
+      reason: `the attestation's predicate.generatedAt is not a valid ISO 8601 time: ${JSON.stringify(value)}`,
+    };
+  }
+  if (instant > now.getTime()) {
+    return {
+      ok: false,
+      reason: `the attestation's predicate.generatedAt (${value}) is later than this issuer's clock (${now.toISOString()})`,
+    };
+  }
+  return { ok: true, generatedAt: value };
+}
+
+const NEW_YEAR_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * True when `generatedAt` is within 24 hours of a new year in UTC: the window in which the scan
+ * host's local calendar year and the issuer's can differ for the same instant.
+ */
+export function isWithinDayOfNewYearUtc(generatedAt: string): boolean {
+  const instant = Date.parse(generatedAt);
+  if (!Number.isFinite(instant)) return false;
+  const year = new Date(instant).getUTCFullYear();
+  const sinceNewYear = instant - Date.UTC(year, 0, 1);
+  const untilNewYear = Date.UTC(year + 1, 0, 1) - instant;
+  return sinceNewYear <= NEW_YEAR_WINDOW_MS || untilNewYear <= NEW_YEAR_WINDOW_MS;
 }
 
 // ---------------------------------------------------------------------------

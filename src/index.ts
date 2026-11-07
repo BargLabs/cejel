@@ -17,8 +17,10 @@ import {
   WITAN_ISSUANCE_SIGNATURE_NAMESPACE,
   createWitanIssuanceStatement,
   findIssuerRevocation,
+  isWithinDayOfNewYearUtc,
   parseIssuerPublicKey,
   parseIssuerRevocations,
+  readReproductionGeneratedAt,
   serializeWitanIssuance,
   verifyWitanIssuanceBinding,
   verifyWitanIssuanceSignature,
@@ -959,6 +961,15 @@ function runIssue(options: CejelIssueOptions): number {
     return 1;
   }
 
+  // The reproduction replays the attested scan's own time, read only from the attestation just
+  // accepted as bound to report.json. v17's B4 matches the scan's calendar year, so the issuer's
+  // clock would make a certificate from an earlier year irreproducible (audit C4, ruling of 5 Nov).
+  const scanTime = readReproductionGeneratedAt(attestationArtifact.value, new Date());
+  if (!scanTime.ok) {
+    process.stderr.write(`Cejel: refusing to issue — ${scanTime.reason}.\n`);
+    return 1;
+  }
+
   let keyContents: string;
   try {
     keyContents = readFileSync(options.keyPath, 'utf8');
@@ -990,6 +1001,7 @@ function runIssue(options: CejelIssueOptions): number {
       ? { subjectRepository: suppliedReport.inputBinding.scannedSubject.repository }
       : {}),
     toolVersion: cliVersion(),
+    generatedAt: scanTime.generatedAt,
   });
   const reproducedBytes = serializeWitanReport(reproduction.report);
   const reproducedSha256 = createHash('sha256').update(reproducedBytes, 'utf8').digest('hex');
@@ -1003,6 +1015,14 @@ function runIssue(options: CejelIssueOptions): number {
         '  Check that the checkout is at the certificate revision, that the @cejel/cejel version matches',
         '  report.json\'s toolVersion, and that --product-name/--name/--rubric-pin/--ingest match the',
         '  original invocation. An issuance that cannot reproduce is not issued.',
+        // The reproduction replays the scan's instant, but v17's B4 reads that instant's year in
+        // the local time zone. Near a new year two hosts can disagree on it; name the setting,
+        // never guess a zone.
+        ...(isWithinDayOfNewYearUtc(scanTime.generatedAt)
+          ? [
+              `  The scan's generatedAt (${scanTime.generatedAt}) is within 24 hours of a new year in UTC, and v17's B4 freshness year is read in the scan host's local time: an issuer in another time zone may need to re-run with the TZ environment variable set to the scan host's.`,
+            ]
+          : []),
         '',
       ].join('\n'),
     );
@@ -1015,6 +1035,7 @@ function runIssue(options: CejelIssueOptions): number {
     issuerKeyFingerprint: issuerKey.fingerprint,
     toolVersion: cliVersion(),
     issuedAt: new Date().toISOString(),
+    reproductionGeneratedAt: scanTime.generatedAt,
     engagementRef: options.engagementRef,
   });
 
