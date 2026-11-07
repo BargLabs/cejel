@@ -121,7 +121,10 @@ rubric is pinned. v27 carries no precision or recall claim.
   attestation that has already been accepted as bound to `report.json`, and never from a flag.
   - **No score moves.** B4, `referenceYear` and every rubric are unchanged. A normal scan passes no
     date and scans at the current time, as before, so its `report.json` is byte-identical to main
-    under every rubric.
+    under every rubric. Measured by scanning two synthetic fixtures with main's build (`bb6828641`)
+    and this change's build, under the default and each of the 11 rubrics the CLI accepts (v17 to
+    v27). Their CHANGELOGs named this year and last year. All 24 `report.json` pairs were
+    byte-identical.
   - **Refused with a named reason:** a `predicate.generatedAt` that is missing, is not an ISO 8601
     time, or is later than the issuer's clock. The attestation schema already refused the first
     two at the binding check; the third is new.
