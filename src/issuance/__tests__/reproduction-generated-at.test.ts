@@ -4,7 +4,28 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { readReproductionGeneratedAt } from '../issuance.js';
+import { isWithinDayOfNewYearUtc, readReproductionGeneratedAt } from '../issuance.js';
+
+describe('isWithinDayOfNewYearUtc (item B)', () => {
+  it('holds from 24 hours before to 24 hours after midnight UTC on 1 January, inclusive', () => {
+    expect(isWithinDayOfNewYearUtc('2025-12-31T00:00:00.000Z')).toBe(true);
+    expect(isWithinDayOfNewYearUtc('2025-12-31T23:59:59.999Z')).toBe(true);
+    expect(isWithinDayOfNewYearUtc('2026-01-01T00:00:00.000Z')).toBe(true);
+    expect(isWithinDayOfNewYearUtc('2026-01-02T00:00:00.000Z')).toBe(true);
+  });
+
+  it('does not hold one millisecond outside that window, or mid-year', () => {
+    expect(isWithinDayOfNewYearUtc('2025-12-30T23:59:59.999Z')).toBe(false);
+    expect(isWithinDayOfNewYearUtc('2026-01-02T00:00:00.001Z')).toBe(false);
+    expect(isWithinDayOfNewYearUtc('2025-06-15T12:00:00.000Z')).toBe(false);
+  });
+
+  it('reads the window in UTC, whatever offset the time is written with', () => {
+    expect(isWithinDayOfNewYearUtc('2025-12-30T20:00:00-05:00')).toBe(true);
+    expect(isWithinDayOfNewYearUtc('2026-01-02T08:00:00+09:00')).toBe(true);
+    expect(isWithinDayOfNewYearUtc('2026-01-02T10:00:00+09:00')).toBe(false);
+  });
+});
 
 describe('readReproductionGeneratedAt', () => {
   const now = new Date('2026-02-01T12:00:00.000Z');

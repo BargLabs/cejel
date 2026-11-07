@@ -186,6 +186,21 @@ export function readReproductionGeneratedAt(
   return { ok: true, generatedAt: value };
 }
 
+const NEW_YEAR_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * True when `generatedAt` is within 24 hours of a new year in UTC: the window in which the scan
+ * host's local calendar year and the issuer's can differ for the same instant.
+ */
+export function isWithinDayOfNewYearUtc(generatedAt: string): boolean {
+  const instant = Date.parse(generatedAt);
+  if (!Number.isFinite(instant)) return false;
+  const year = new Date(instant).getUTCFullYear();
+  const sinceNewYear = instant - Date.UTC(year, 0, 1);
+  const untilNewYear = Date.UTC(year + 1, 0, 1) - instant;
+  return sinceNewYear <= NEW_YEAR_WINDOW_MS || untilNewYear <= NEW_YEAR_WINDOW_MS;
+}
+
 // ---------------------------------------------------------------------------
 // Binding verification
 // ---------------------------------------------------------------------------

@@ -4,6 +4,7 @@ export {
   WITAN_ISSUANCE_SUPPORTED_KEY_TYPES,
   createWitanIssuanceStatement,
   findIssuerRevocation,
+  isWithinDayOfNewYearUtc,
   parseAllowedSigners,
   parseIssuerPublicKey,
   parseIssuerRevocations,

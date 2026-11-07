@@ -17,6 +17,7 @@ import {
   WITAN_ISSUANCE_SIGNATURE_NAMESPACE,
   createWitanIssuanceStatement,
   findIssuerRevocation,
+  isWithinDayOfNewYearUtc,
   parseIssuerPublicKey,
   parseIssuerRevocations,
   readReproductionGeneratedAt,
@@ -1014,6 +1015,14 @@ function runIssue(options: CejelIssueOptions): number {
         '  Check that the checkout is at the certificate revision, that the @cejel/cejel version matches',
         '  report.json\'s toolVersion, and that --product-name/--name/--rubric-pin/--ingest match the',
         '  original invocation. An issuance that cannot reproduce is not issued.',
+        // The reproduction replays the scan's instant, but v17's B4 reads that instant's year in
+        // the local time zone. Near a new year two hosts can disagree on it; name the setting,
+        // never guess a zone.
+        ...(isWithinDayOfNewYearUtc(scanTime.generatedAt)
+          ? [
+              `  The scan's generatedAt (${scanTime.generatedAt}) is within 24 hours of a new year in UTC, and v17's B4 freshness year is read in the scan host's local time: an issuer in another time zone may need to re-run with the TZ environment variable set to the scan host's.`,
+            ]
+          : []),
         '',
       ].join('\n'),
     );
