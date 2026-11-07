@@ -26,6 +26,12 @@ export interface CejelScanOptions {
   strictIngest?: boolean;
   /** The scanned repository's identity, compared with the repository each ingested input declares. */
   subjectRepository?: string;
+  /**
+   * The scan time to use in place of the current time. Only `cejel issue` passes it, with the
+   * attested scan's own `predicate.generatedAt`, so its reproduction reads the same calendar year
+   * the original scan did (v17's B4). Every other caller omits it and scans at the current time.
+   */
+  generatedAt?: string;
 }
 
 export interface CejelScanResult {
@@ -44,7 +50,7 @@ export interface CejelScanResult {
  */
 export function runCejelScan(options: CejelScanOptions): CejelScanResult {
   const identity = deriveProductIdentity(options.repoPath, options.productName);
-  const generatedAt = new Date().toISOString();
+  const generatedAt = options.generatedAt ?? new Date().toISOString();
   const report = scoreRepoWithPublicCejel({
     productSlug: identity.productSlug,
     productDisplayName: options.productDisplayName ?? identity.productDisplayName,

@@ -19,6 +19,7 @@ import {
   findIssuerRevocation,
   parseIssuerPublicKey,
   parseIssuerRevocations,
+  readReproductionGeneratedAt,
   serializeWitanIssuance,
   verifyWitanIssuanceBinding,
   verifyWitanIssuanceSignature,
@@ -959,6 +960,15 @@ function runIssue(options: CejelIssueOptions): number {
     return 1;
   }
 
+  // The reproduction replays the attested scan's own time, read only from the attestation just
+  // accepted as bound to report.json. v17's B4 matches the scan's calendar year, so the issuer's
+  // clock would make a certificate from an earlier year irreproducible (audit C4, ruling of 5 Nov).
+  const scanTime = readReproductionGeneratedAt(attestationArtifact.value, new Date());
+  if (!scanTime.ok) {
+    process.stderr.write(`Cejel: refusing to issue — ${scanTime.reason}.\n`);
+    return 1;
+  }
+
   let keyContents: string;
   try {
     keyContents = readFileSync(options.keyPath, 'utf8');
@@ -990,6 +1000,7 @@ function runIssue(options: CejelIssueOptions): number {
       ? { subjectRepository: suppliedReport.inputBinding.scannedSubject.repository }
       : {}),
     toolVersion: cliVersion(),
+    generatedAt: scanTime.generatedAt,
   });
   const reproducedBytes = serializeWitanReport(reproduction.report);
   const reproducedSha256 = createHash('sha256').update(reproducedBytes, 'utf8').digest('hex');
