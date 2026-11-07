@@ -38,6 +38,6 @@ describe('format-stability.md report-format version stays in sync with the code 
   // every existing consumer, and it is cheap to state mechanically.
   it('keeps the report format and the issuance format independent constants', () => {
     expect(WITAN_REPORT_FORMAT_VERSION).toBe('1.9');
-    expect(WITAN_ISSUANCE_FORMAT_VERSION).toBe('1.0');
+    expect(WITAN_ISSUANCE_FORMAT_VERSION).toBe('1.1');
   });
 });

@@ -154,6 +154,6 @@ signed supersession. It lands once the window closes.
 
 ## Format and stability
 
-`issuance.json` carries `issuanceFormatVersion`, currently `1.0`, versioned separately from the
+`issuance.json` carries `issuanceFormatVersion`, currently `1.1`, versioned separately from the
 report format. See [format stability](format-stability.md#issuancejson) for the additive-optional
 rules and for the guarantee that issuance never modifies `report.json` or `attestation.json`.

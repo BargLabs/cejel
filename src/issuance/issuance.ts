@@ -76,6 +76,8 @@ export interface CreateWitanIssuanceOptions {
   toolVersion: string;
   /** UTC timestamp for this issuance. */
   issuedAt: string;
+  /** The scan time the reproduction replayed: the attested scan's predicate.generatedAt. */
+  reproductionGeneratedAt?: string;
   /** Opaque issuer-chosen identifier. Never a counterparty name. */
   engagementRef: string;
 }
@@ -121,6 +123,9 @@ export function createWitanIssuanceStatement(
         rubricVersion: report.rubricVersion,
         ...(report.rubricBehaviourFingerprint
           ? { rubricBehaviourFingerprint: report.rubricBehaviourFingerprint }
+          : {}),
+        ...(options.reproductionGeneratedAt
+          ? { generatedAt: options.reproductionGeneratedAt }
           : {}),
         reportByteIdentical: true,
       },

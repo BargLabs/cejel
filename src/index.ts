@@ -1035,6 +1035,7 @@ function runIssue(options: CejelIssueOptions): number {
     issuerKeyFingerprint: issuerKey.fingerprint,
     toolVersion: cliVersion(),
     issuedAt: new Date().toISOString(),
+    reproductionGeneratedAt: scanTime.generatedAt,
     engagementRef: options.engagementRef,
   });
 
