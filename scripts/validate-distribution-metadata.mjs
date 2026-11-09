@@ -152,19 +152,31 @@ for (const [workflowName, workflow] of workflows) {
   requirePermissionsBlock(workflowName, workflow);
 }
 
-// The Action manifests run in the CALLER's workspace, where pnpm/action-setup reads packageManager
-// from the caller's package.json. A hardcoded version there failed every caller that pins a different
-// pnpm ("Multiple versions of pnpm specified"). Both manifests must leave the version to
-// packageManager and point package_json_file at this action's own package.json.
+// The Action manifests run inside the CALLER's job. pnpm/action-setup there read the caller's
+// package.json (so a caller pinning another pnpm failed, #685) and prepended its pnpm to the
+// job-wide PATH (so the caller's later pnpm steps ran this action's version, #686). Both manifests
+// must run pnpm only through npm exec at the version read from their own package.json, and must not
+// interpolate the action path expression into a shell step (use $GITHUB_ACTION_PATH).
 for (const [manifestName, manifest] of [
   ['action.yml', rootAction],
   ['action/action.yml', nestedAction],
 ]) {
-  requirePnpmVersionDerived(manifestName, manifest, pnpmVersion);
+  if (/^\s*(?:-\s*)?uses:\s*pnpm\/action-setup@/m.test(manifest)) {
+    throw new Error(
+      `${manifestName} uses pnpm/action-setup, which changes the calling job's PATH; run pnpm through npm exec instead.`,
+    );
+  }
+  if (manifest.includes('github.action_path')) {
+    throw new Error(
+      `${manifestName} interpolates github.action_path; read $GITHUB_ACTION_PATH in the shell step instead.`,
+    );
+  }
+  requireIncludes(manifest, 'require(process.argv[1]).packageManager', `${manifestName} pnpm version step`);
+  requireIncludes(manifest, 'CEJEL_PNPM: ${{ steps.cejel-pnpm.outputs.spec }}', `${manifestName} pnpm steps`);
   requireIncludes(
     manifest,
-    'package_json_file: ${{ steps.cejel-package.outputs.path }}',
-    `${manifestName} pnpm/action-setup`,
+    'npm exec --yes --package="$CEJEL_PNPM" -- pnpm --dir "$cejel_dir" install --frozen-lockfile',
+    `${manifestName} install step`,
   );
 }
 
@@ -729,12 +741,12 @@ requireIncludes(ciWorkflow, 'if-no-files-found: error', 'CI missing-artifact fai
 
 requireIncludes(
   rootAction,
-  'cd "${{ github.action_path }}"',
-  'root Action repository working directory',
+  'cejel_dir="$GITHUB_ACTION_PATH"',
+  'root Action repository directory',
 );
 requireIncludes(
   rootAction,
-  'node "${{ github.action_path }}/action/run.mjs"',
+  'node "$GITHUB_ACTION_PATH/action/run.mjs"',
   'root Action runner path',
 );
 requireIncludes(
@@ -754,12 +766,12 @@ requireIncludes(
 );
 requireIncludes(
   nestedAction,
-  'cd "$(dirname "${{ github.action_path }}")"',
-  'nested Action repository working directory',
+  'cejel_dir="$(dirname "$GITHUB_ACTION_PATH")"',
+  'nested Action repository directory',
 );
 requireIncludes(
   nestedAction,
-  'node "${{ github.action_path }}/run.mjs"',
+  'node "$GITHUB_ACTION_PATH/run.mjs"',
   'nested Action runner path',
 );
 requireIncludes(
