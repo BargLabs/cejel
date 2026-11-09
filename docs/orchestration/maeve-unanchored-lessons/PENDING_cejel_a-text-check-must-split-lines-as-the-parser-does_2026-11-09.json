@@ -1,0 +1,25 @@
+[
+  {
+    "statement": "A line-based check over a parsed format is sound only if it splits lines exactly as the parser does. Refuse any input where the two could disagree, before skipping lines as comments. 2026-11-09, #687, my own error: to compare an Action's runs: section byte for byte, I made the validator split on \\n and skip lines starting with #. GitHub's runner parses action.yml with YamlDotNet 5.3.0, whose IsBreak also treats a lone CR, NEL (U+0085), LS (U+2028) and PS (U+2029) as line breaks. Text after one of them inside an apparent comment was live YAML. Round-4 review hid a whole step, a shell line, an env PATH and an if: false that way, and the validator passed all of them. Fix (#687): before any comparison, refuse those characters, other control characters, a document marker and a second runs: key. All eleven hiding variants are now refused.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "agent-error",
+      "validation-design"
+    ],
+    "tags": [
+      "yaml-line-breaks",
+      "parser-differential",
+      "validator-bypass",
+      "own-error"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-11-09T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 687
+    }
+  }
+]

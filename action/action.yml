@@ -78,10 +78,13 @@ runs:
     # never read. pnpm/action-setup did all three: a caller pinning a different pnpm first failed
     # ("Multiple versions of pnpm specified"), and once that was fixed every later pnpm step in the
     # caller's job ran this action's pnpm (#686).
-    # Still shared with the caller's job: Node 22 first on PATH and setup-node's problem matchers (as
-    # before); whichever node is first on PATH runs pnpm (as before); npm's cache under ~/.npm;
-    # pnpm's default store, metadata cache and global rc file; the user, global and environment npm
-    # configuration, including the registry; and two empty cejel-pnpm.* directories in $RUNNER_TEMP.
+    # Still shared with the caller's job, as before this change: Node 22 first on PATH and
+    # setup-node's problem matchers; whichever node is first on PATH runs pnpm; the rest of the job's
+    # PATH and environment (NODE_OPTIONS, for example) reaches pnpm and the build. Also shared: npm's
+    # cache under ~/.npm; pnpm's default store, metadata cache and global rc file; the user, global and
+    # environment npm configuration, including the registry; and two cejel-pnpm.* directories left in
+    # $RUNNER_TEMP, each holding the installed pnpm (about 18 MB).
+    # A +hash suffix on packageManager is accepted and dropped here, not verified (#686 item 6).
     - name: Read the pnpm version this action pins
       id: cejel-pnpm
       shell: bash

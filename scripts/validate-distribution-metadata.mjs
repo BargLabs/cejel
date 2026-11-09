@@ -160,7 +160,31 @@ for (const [workflowName, workflow] of workflows) {
 // step's isolation removed, and per-step script checks passed an added flow-style step, an if:-first
 // step, a new input feeding CEJEL_PNPM, a literal CEJEL_PNPM, and step env: blocks setting PATH,
 // RUNNER_TEMP or npm configuration. Change the Action and this text together.
+// Comment lines are skipped below, which is safe only if a line here is a line to the YAML parser.
+// The runner's YamlDotNet (5.3.0, CharacterAnalyzer.IsBreak) also breaks lines at a lone CR, NEL
+// (U+0085), LS (U+2028) and PS (U+2029), so text after one of them inside an apparent comment is
+// live YAML. Review of #687 hid whole steps that way. Refuse every such character, other control
+// characters, and YAML document markers outright, before any comparison.
+function refuseHiddenYamlStructure(manifestName, manifest) {
+  const offending =
+    /\r(?!\n)|[\u{0}-\u{8}\u{B}\u{C}\u{E}-\u{1F}\u{7F}\u{85}\u{2028}\u{2029}\u{FEFF}]/u.exec(manifest);
+  if (offending) {
+    const codePoint = offending[0].codePointAt(0).toString(16).toUpperCase().padStart(4, '0');
+    throw new Error(
+      `${manifestName} contains U+${codePoint} at offset ${offending.index}: a YAML line break or control character that line-by-line validation cannot see.`,
+    );
+  }
+  if (/^(?:---|\.\.\.)(?:\s|$)/m.test(manifest)) {
+    throw new Error(`${manifestName} contains a YAML document marker; the manifest must be one document.`);
+  }
+  const runsKeys = manifest.split(/\r?\n/).filter((line) => /^["']?runs["']?\s*:/.test(line));
+  if (runsKeys.length !== 1 || runsKeys[0] !== 'runs:') {
+    throw new Error(`${manifestName} must have exactly one top-level runs: key, written as "runs:".`);
+  }
+}
+
 function actionRunsSection(manifestName, manifest) {
+  refuseHiddenYamlStructure(manifestName, manifest);
   const lines = manifest.split(/\r?\n/);
   const start = lines.indexOf('runs:');
   if (start < 0) throw new Error(`${manifestName} has no top-level runs: section.`);
@@ -248,7 +272,9 @@ for (const [manifestName, manifest, directoryExpression, runnerPath] of [
   ['action.yml', rootAction, '"$GITHUB_ACTION_PATH"', 'action/run.mjs'],
   ['action/action.yml', nestedAction, '"$(dirname "$GITHUB_ACTION_PATH")"', 'run.mjs'],
 ]) {
-  // The refusals read the manifest without full-line comments, which explain these very things.
+  // The refusals read the manifest without full-line comments, which explain these very things;
+  // that is safe only once hidden line breaks are refused.
+  refuseHiddenYamlStructure(manifestName, manifest);
   const code = manifest
     .split(/\r?\n/)
     .filter((line) => !/^\s*#/.test(line))
