@@ -1,0 +1,25 @@
+[
+  {
+    "statement": "In zsh, brace any variable followed by a colon, and check each command that writes a file before using the file. zsh reads $ref:a as $ref with the :a modifier, which resolves the value as a path, so 'git show $ref:action.yml' named a path, not a revision:path. 2026-11-09, #687, my own error: a red check of the distribution validator ran 'git show $ref:action.yml > action.yml' for two old refs. Both git show calls failed, the redirect left both action manifests empty, and the validator's errors described empty files, not the old manifests. The current manifests were restored from copies saved beforehand. Fix: write ${ref}:action.yml, write the old version to a temp file first, require it to be non-empty before copying it into place, and keep a restore copy. Rerun, the validator refused both old manifests for using pnpm/action-setup.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "agent-error"
+    ],
+    "tags": [
+      "zsh-modifier",
+      "shell-quoting",
+      "red-check",
+      "own-error",
+      "near-miss"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-11-09T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 687
+    }
+  }
+]
