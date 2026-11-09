@@ -93,3 +93,40 @@ jobs:
           test "$(docker run --rm --entrypoint cejel cejel:ci --version)" = "$(node -p "require('./package.json').version")"
           docker run --rm cejel:ci
           test "$(docker inspect cejel:ci --format '{{ index .Config.Labels "io.modelcontextprotocol.server.name" }}')" = "io.github.BargLabs/cejel"
+
+  # Runs both Action manifests the way a consumer does: from a workspace whose own package.json pins a
+  # different pnpm. The smoke steps in build-test run in this repository, whose packageManager matches
+  # the Action's, so they never saw the failure this job guards against. pnpm/action-setup read the
+  # CALLER's packageManager and refused it beside the Action's hardcoded version ("Multiple versions of
+  # pnpm specified").
+  action-from-another-caller:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          path: cejel
+          fetch-depth: 0
+
+      - name: Make the workspace a caller that pins a different pnpm
+        run: |
+          printf '{\n  "name": "caller",\n  "private": true,\n  "packageManager": "pnpm@10.0.0"\n}\n' > package.json
+          cat package.json
+
+      - name: Root Action from the caller workspace
+        uses: ./cejel
+        with:
+          repo-path: cejel
+          out-dir: .cejel-caller
+
+      - name: Nested Action from the caller workspace
+        uses: ./cejel/action
+        with:
+          repo-path: cejel
+          out-dir: .cejel-caller-nested
+
+      - name: Verify both produced a certificate
+        run: |
+          test -s .cejel-caller/report.json
+          test -s .cejel-caller/certificate.html
+          test -s .cejel-caller-nested/report.json
+          test -s .cejel-caller-nested/certificate.html

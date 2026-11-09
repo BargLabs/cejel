@@ -62,15 +62,28 @@ outputs:
 runs:
   using: 'composite'
   steps:
-    - name: Setup pnpm
-      uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
-      with:
-        version: 9.0.0
-
     - name: Setup Node
       uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
       with:
         node-version: '22'
+
+    # pnpm/action-setup reads packageManager from a package.json it resolves under
+    # $GITHUB_WORKSPACE, which is the CALLING repository. With a hardcoded version, a caller whose
+    # package.json pins a different pnpm failed this step ("Multiple versions of pnpm specified");
+    # without one it would install the caller's pnpm. So point it at this action's own package.json,
+    # as a path relative to the workspace, and let that file's packageManager set the version.
+    - name: Locate this action's package.json
+      id: cejel-package
+      shell: bash
+      run: >-
+        node -e 'const p = require("path");
+        process.stdout.write("path=" + p.relative(process.env.GITHUB_WORKSPACE, p.join(process.argv[1], "..", "package.json")) + "\n")'
+        "${{ github.action_path }}" >> "$GITHUB_OUTPUT"
+
+    - name: Setup pnpm
+      uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+      with:
+        package_json_file: ${{ steps.cejel-package.outputs.path }}
 
     - name: Install dependencies
       shell: bash
