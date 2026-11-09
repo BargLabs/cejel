@@ -114,6 +114,17 @@ rubric is pinned. v27 carries no precision or recall claim.
 
 ### Fixed
 
+- **The GitHub Action no longer reads the calling repository's `package.json` and no longer changes
+  the calling job's pnpm (#685, #686).** Both `action.yml` and `action/action.yml` ran
+  `pnpm/action-setup`, which reads `packageManager` from the caller's workspace and prepends its pnpm
+  to the job-wide `PATH`. A caller pinning a pnpm other than 9.0.0 failed with "Multiple versions of
+  pnpm specified". After #685, such callers passed, but every later `pnpm` step in their job ran
+  the Action's 9.0.0. The Action now reads the exact version from its own `package.json` and runs
+  pnpm only through `npm exec`, scoped to its own steps. It refuses to run if the pnpm it gets is
+  any other version, and it adds nothing to the caller's `PATH` or environment. The
+  `action-from-another-caller` CI job checks that a caller pinning pnpm 10.0.0 keeps its own
+  pnpm and `PNPM_HOME` after both Actions.
+
 - **`cejel issue` reproduces with the attested scan's own date, so a certificate from an earlier
   year can be issued (audit C4; operator ruling of 5 Nov, option A).** v17's B4 freshness check
   matches the scan's calendar year. The re-run used the issuer's clock, so an issuance in a later
