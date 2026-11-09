@@ -152,6 +152,22 @@ for (const [workflowName, workflow] of workflows) {
   requirePermissionsBlock(workflowName, workflow);
 }
 
+// The Action manifests run in the CALLER's workspace, where pnpm/action-setup reads packageManager
+// from the caller's package.json. A hardcoded version there failed every caller that pins a different
+// pnpm ("Multiple versions of pnpm specified"). Both manifests must leave the version to
+// packageManager and point package_json_file at this action's own package.json.
+for (const [manifestName, manifest] of [
+  ['action.yml', rootAction],
+  ['action/action.yml', nestedAction],
+]) {
+  requirePnpmVersionDerived(manifestName, manifest, pnpmVersion);
+  requireIncludes(
+    manifest,
+    'package_json_file: ${{ steps.cejel-package.outputs.path }}',
+    `${manifestName} pnpm/action-setup`,
+  );
+}
+
 requireEqual(
   hasPermissionsBlock('name: fixture\npermissions:\n  contents: read\njobs: {}'),
   true,
