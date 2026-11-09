@@ -120,10 +120,11 @@ rubric is pinned. v27 carries no precision or recall claim.
   to the job-wide `PATH`. A caller pinning a pnpm other than 9.0.0 failed with "Multiple versions of
   pnpm specified". After #685, such callers passed, but every later `pnpm` step in their job ran
   the Action's 9.0.0. The Action now reads the exact version from its own `package.json` and runs
-  pnpm only through `npm exec`, scoped to its own steps. It refuses to run if the pnpm it gets is
-  any other version, and it adds nothing to the caller's `PATH` or environment. The
-  `action-from-another-caller` CI job checks that a caller pinning pnpm 10.0.0 keeps its own
-  pnpm and `PNPM_HOME` after both Actions.
+  pnpm only through `npm exec`, from a fresh temporary directory, scoped to its own steps. It
+  refuses to run if the pnpm it gets is any other version. It adds no pnpm to the caller's `PATH`
+  and does not set `PNPM_HOME`. As before, its `actions/setup-node` step still puts Node 22 first
+  on the caller's `PATH`. The `action-from-another-caller` CI job checks that a caller pinning
+  pnpm 10.0.0 keeps its own pnpm and `PNPM_HOME` after both Actions.
 
 - **`cejel issue` reproduces with the attested scan's own date, so a certificate from an earlier
   year can be issued (audit C4; operator ruling of 5 Nov, option A).** v17's B4 freshness check

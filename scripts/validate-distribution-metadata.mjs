@@ -178,6 +178,25 @@ for (const [manifestName, manifest] of [
     'npm exec --yes --package="$CEJEL_PNPM" -- pnpm --dir "$cejel_dir" install --frozen-lockfile',
     `${manifestName} install step`,
   );
+  requireIncludes(
+    manifest,
+    'npm exec --yes --package="$CEJEL_PNPM" -- pnpm --dir "$cejel_dir" run build',
+    `${manifestName} build step`,
+  );
+  // npm exec runs from a fresh directory of its own: in the caller's workspace it would read that
+  // workspace's .npmrc and node_modules, and the shared $RUNNER_TEMP can hold either too.
+  requireIncludes(
+    manifest,
+    'cd "$(mktemp -d "$RUNNER_TEMP/cejel-pnpm.XXXXXX")"',
+    `${manifestName} pnpm working directory`,
+  );
+  if (/GITHUB_PATH|GITHUB_ENV/.test(manifest)) {
+    throw new Error(`${manifestName} writes to the calling job's PATH or environment.`);
+  }
+  // A bare pnpm command would run whichever pnpm the caller has on PATH.
+  if (/(^[ \t]*|[;&|][ \t]*)pnpm[ \t]/m.test(manifest)) {
+    throw new Error(`${manifestName} runs pnpm directly; run it through npm exec at the pinned version.`);
+  }
 }
 
 requireEqual(
