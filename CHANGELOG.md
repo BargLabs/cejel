@@ -120,19 +120,25 @@ rubric is pinned. v27 carries no precision or recall claim.
   to the job-wide `PATH`. A caller pinning a pnpm other than 9.0.0 failed with "Multiple versions of
   pnpm specified". After #685 such callers passed, but every later `pnpm` step in their job ran the
   Action's 9.0.0.
-  - The Action now reads the exact pnpm version from its own `package.json`. It runs pnpm only
-    through `npm exec`, from a fresh directory holding an empty `package.json`, so that npm cannot
-    take a parent such as `$RUNNER_TEMP`, with its `.npmrc` or `node_modules`, as its project. It
-    stops if the pnpm it ran is any other version.
+  - The Action now reads the exact pnpm version from its own `package.json`. It installs that pnpm
+    with `npm install --prefix` into a fresh directory holding an empty `package.json`, then runs it
+    from there by path. It stops if the installed pnpm is any other version.
+  - Nothing runs through `npm exec`, which puts every parent directory's `node_modules/.bin` ahead
+    of `PATH`. The explicit `--prefix` keeps npm from adopting a parent directory as its project,
+    for example one whose `package.json` declares workspaces.
   - Its `actions/setup-node` step runs with `package-manager-cache: false`, so it no longer reads the
     caller's `package.json` either.
   - It adds no pnpm to the caller's `PATH` and does not set `PNPM_HOME`.
-  - Still shared with the caller's job: Node 22 first on `PATH` (as before), npm's cache under
-    `~/.npm`, pnpm's default store, and the caller's user, global and environment npm
-    configuration, including its registry.
+  - Still shared with the caller's job:
+    - Node 22 first on `PATH` and setup-node's problem matchers, as before.
+    - Whichever `node` is first on `PATH` runs pnpm, as before.
+    - npm's cache under `~/.npm`.
+    - pnpm's default store, metadata cache and global rc file.
+    - The user, global and environment npm configuration, including the registry.
+    - Two empty `cejel-pnpm.*` directories in `$RUNNER_TEMP`.
   - The `action-from-another-caller` CI job checks that a caller pinning pnpm 10.0.0 keeps its own
-    pnpm and `PNPM_HOME` after both Actions. The distribution validator requires the Action's step
-    list and its pnpm steps to match their canonical scripts exactly.
+    pnpm and `PNPM_HOME` after both Actions. The distribution validator requires each manifest's whole
+    `runs:` section, full-line comments aside, to equal its canonical text byte for byte.
 
 - **`cejel issue` reproduces with the attested scan's own date, so a certificate from an earlier
   year can be issued (audit C4; operator ruling of 5 Nov, option A).** v17's B4 freshness check

@@ -154,127 +154,133 @@ for (const [workflowName, workflow] of workflows) {
 
 // The Action manifests run inside the CALLER's job. pnpm/action-setup there read the caller's
 // package.json (so a caller pinning another pnpm failed, #685) and prepended its pnpm to the
-// job-wide PATH (so the caller's later pnpm steps ran this action's version, #686). The install and
-// build steps of both manifests must therefore be exactly the canonical scripts below: pnpm only
-// through npm exec at the version read from the action's own package.json, from a fresh directory
-// holding an empty package.json (npm otherwise walks up to a parent such as $RUNNER_TEMP and reads
-// its .npmrc and node_modules), with the version checked in each step. A whole-script comparison per
-// step, not substring checks per manifest: review of #687 found substring checks passed with one
-// step's isolation removed while the other step still carried it.
-function actionStepRun(manifestName, manifest, stepName) {
+// job-wide PATH (so the caller's later pnpm steps ran this action's version, #686). Each manifest's
+// whole runs: section, full-line comments aside, must equal the canonical text below byte for byte.
+// Review of #687 showed why nothing narrower holds: substring checks per manifest passed with one
+// step's isolation removed, and per-step script checks passed an added flow-style step, an if:-first
+// step, a new input feeding CEJEL_PNPM, a literal CEJEL_PNPM, and step env: blocks setting PATH,
+// RUNNER_TEMP or npm configuration. Change the Action and this text together.
+function actionRunsSection(manifestName, manifest) {
   const lines = manifest.split(/\r?\n/);
-  const nameIndex = lines.indexOf(`    - name: ${stepName}`);
-  if (nameIndex < 0) throw new Error(`${manifestName} has no "${stepName}" step.`);
-  const runIndex = lines.findIndex((line, index) => index > nameIndex && line === '      run: |');
-  const nextStep = lines.findIndex((line, index) => index > nameIndex && /^    - /.test(line));
-  if (runIndex < 0 || (nextStep >= 0 && runIndex > nextStep)) {
-    throw new Error(`${manifestName} "${stepName}" step has no block run script.`);
-  }
-  const body = [];
-  for (let index = runIndex + 1; index < lines.length; index += 1) {
+  const start = lines.indexOf('runs:');
+  if (start < 0) throw new Error(`${manifestName} has no top-level runs: section.`);
+  const section = [];
+  for (let index = start; index < lines.length; index += 1) {
     const line = lines[index];
-    if (line !== '' && !line.startsWith('        ')) break;
-    body.push(line.slice(8));
+    if (index > start && line !== '' && !/^\s/.test(line)) {
+      throw new Error(`${manifestName} has a top-level key after runs: (${line}); runs: must be the last section.`);
+    }
+    if (/^\s*#/.test(line)) continue;
+    section.push(line);
   }
-  while (body.length > 0 && body[body.length - 1] === '') body.pop();
-  return body.join('\n');
+  while (section.length > 0 && section[section.length - 1] === '') section.pop();
+  return section.join('\n');
 }
 
-function canonicalPnpmStep(directoryExpression, pnpmArguments) {
+function canonicalPnpmStep(stepName, directoryExpression, pnpmArguments) {
   return [
-    'set -euo pipefail',
-    `cejel_dir=${directoryExpression}`,
-    'work="$(mktemp -d "$RUNNER_TEMP/cejel-pnpm.XXXXXX")"',
-    'cd "$work"',
-    "printf '{}\\n' > package.json",
-    'ran="pnpm@$(npm exec --yes --package="$CEJEL_PNPM" -- pnpm --version)"',
-    'if [ "$ran" != "$CEJEL_PNPM" ]; then',
-    `  echo "::error::expected $CEJEL_PNPM from this action's package.json, npm exec ran $ran"`,
-    '  exit 1',
-    'fi',
-    `npm exec --yes --package="$CEJEL_PNPM" -- pnpm --dir "$cejel_dir" ${pnpmArguments}`,
+    `    - name: ${stepName}`,
+    '      shell: bash',
+    '      env:',
+    '        CEJEL_PNPM: ${{ steps.cejel-pnpm.outputs.spec }}',
+    '      run: |',
+    '        set -euo pipefail',
+    `        cejel_dir=${directoryExpression}`,
+    '        work="$(mktemp -d "$RUNNER_TEMP/cejel-pnpm.XXXXXX")"',
+    '        cd "$work"',
+    "        printf '{}\\n' > package.json",
+    '        npm install --prefix "$work" --no-save --no-package-lock --ignore-scripts --no-audit --no-fund "$CEJEL_PNPM"',
+    '        pnpm="$work/node_modules/.bin/pnpm"',
+    '        ran="pnpm@$("$pnpm" --version)"',
+    '        if [ "$ran" != "$CEJEL_PNPM" ]; then',
+    `          echo "::error::expected $CEJEL_PNPM from this action's package.json, installed $ran"`,
+    '          exit 1',
+    '        fi',
+    `        "$pnpm" --dir "$cejel_dir" ${pnpmArguments}`,
+  ];
+}
+
+function canonicalActionRuns(directoryExpression, runnerPath) {
+  return [
+    'runs:',
+    "  using: 'composite'",
+    '  steps:',
+    '    - name: Setup Node',
+    '      uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6',
+    '      with:',
+    "        node-version: '22'",
+    '        package-manager-cache: false',
+    '',
+    '    - name: Read the pnpm version this action pins',
+    '      id: cejel-pnpm',
+    '      shell: bash',
+    '      run: |',
+    '        set -euo pipefail',
+    `        cejel_dir=${directoryExpression}`,
+    `        spec="$(node -e '`,
+    '          const pm = require(process.argv[1]).packageManager ?? "";',
+    '          const match = /^(pnpm@\\d+\\.\\d+\\.\\d+)(\\+.+)?$/.exec(pm);',
+    '          if (!match) {',
+    '            console.error("package.json packageManager must pin pnpm to an exact version, got: " + pm);',
+    '            process.exit(1);',
+    '          }',
+    '          process.stdout.write(match[1]);',
+    `        ' "$cejel_dir/package.json")"`,
+    '        echo "spec=$spec" >> "$GITHUB_OUTPUT"',
+    '',
+    ...canonicalPnpmStep('Install dependencies', directoryExpression, 'install --frozen-lockfile'),
+    '',
+    ...canonicalPnpmStep('Build the Cejel CLI', directoryExpression, 'run build'),
+    '',
+    '    - name: Run Cejel (offline scoring — no network calls, no signup)',
+    '      id: witan-run',
+    '      shell: bash',
+    `      run: node "$GITHUB_ACTION_PATH/${runnerPath}"`,
+    '      env:',
+    '        WITAN_REPO_PATH: ${{ inputs.repo-path }}',
+    '        WITAN_MIN_SCORE: ${{ inputs.min-score }}',
+    '        WITAN_EXPORT_DIR: ${{ inputs.out-dir }}',
+    '        WITAN_RUBRIC_PIN: ${{ inputs.rubric-pin }}',
   ].join('\n');
 }
 
-function canonicalVersionStep(directoryExpression) {
-  return [
-    'set -euo pipefail',
-    `cejel_dir=${directoryExpression}`,
-    `spec="$(node -e '`,
-    '  const pm = require(process.argv[1]).packageManager ?? "";',
-    '  const match = /^(pnpm@\\d+\\.\\d+\\.\\d+)(\\+.+)?$/.exec(pm);',
-    '  if (!match) {',
-    '    console.error("package.json packageManager must pin pnpm to an exact version, got: " + pm);',
-    '    process.exit(1);',
-    '  }',
-    '  process.stdout.write(match[1]);',
-    `' "$cejel_dir/package.json")"`,
-    'echo "spec=$spec" >> "$GITHUB_OUTPUT"',
-  ].join('\n');
-}
-
-// The step list is pinned too: a canonical install and build say nothing about an added step that
-// runs a bare pnpm (which would be the caller's).
-const ACTION_STEP_NAMES = [
-  'Setup Node',
-  'Read the pnpm version this action pins',
-  'Install dependencies',
-  'Build the Cejel CLI',
-  'Run Cejel (offline scoring — no network calls, no signup)',
-];
-
-for (const [manifestName, manifest, directoryExpression, runnerLine] of [
-  ['action.yml', rootAction, '"$GITHUB_ACTION_PATH"', '      run: node "$GITHUB_ACTION_PATH/action/run.mjs"'],
-  [
-    'action/action.yml',
-    nestedAction,
-    '"$(dirname "$GITHUB_ACTION_PATH")"',
-    '      run: node "$GITHUB_ACTION_PATH/run.mjs"',
-  ],
+for (const [manifestName, manifest, directoryExpression, runnerPath] of [
+  ['action.yml', rootAction, '"$GITHUB_ACTION_PATH"', 'action/run.mjs'],
+  ['action/action.yml', nestedAction, '"$(dirname "$GITHUB_ACTION_PATH")"', 'run.mjs'],
 ]) {
-  const stepNames = manifest
+  // The refusals read the manifest without full-line comments, which explain these very things.
+  const code = manifest
     .split(/\r?\n/)
-    .filter((line) => /^    - (?:name|uses|run|id|shell):/.test(line))
-    .map((line) => line.replace(/^    - name: /, ''));
-  requireEqual(JSON.stringify(stepNames), JSON.stringify(ACTION_STEP_NAMES), `${manifestName} step list`);
-  const runLines = manifest.split(/\r?\n/).filter((line) => /^\s+run:/.test(line));
-  requireEqual(
-    JSON.stringify(runLines),
-    JSON.stringify(['      run: |', '      run: |', '      run: |', runnerLine]),
-    `${manifestName} run scripts (three block scripts, then the runner)`,
-  );
-  const versionStep = actionStepRun(manifestName, manifest, 'Read the pnpm version this action pins');
-  requireEqual(versionStep, canonicalVersionStep(directoryExpression), `${manifestName} pnpm version step`);
-  if (/^\s*(?:-\s*)?uses:\s*["']?pnpm\/action-setup@/m.test(manifest)) {
+    .filter((line) => !/^\s*#/.test(line))
+    .join('\n');
+  if (/^\s*(?:-\s*)?uses:\s*["']?pnpm\/action-setup@/m.test(code)) {
     throw new Error(
-      `${manifestName} uses pnpm/action-setup, which changes the calling job's PATH; run pnpm through npm exec instead.`,
+      `${manifestName} uses pnpm/action-setup, which changes the calling job's PATH; install pnpm with npm install --prefix instead.`,
     );
   }
-  if (manifest.includes('github.action_path')) {
+  if (code.includes('github.action_path')) {
     throw new Error(
       `${manifestName} interpolates github.action_path; read $GITHUB_ACTION_PATH in the shell step instead.`,
     );
   }
-  if (/GITHUB_PATH|GITHUB_ENV/.test(manifest)) {
+  if (/GITHUB_PATH|GITHUB_ENV/.test(code)) {
     throw new Error(`${manifestName} writes to the calling job's PATH or environment.`);
   }
-  requireIncludes(manifest, 'require(process.argv[1]).packageManager', `${manifestName} pnpm version step`);
-  requireIncludes(
-    manifest,
-    'package-manager-cache: false',
-    `${manifestName} setup-node (must not read the caller's package.json)`,
-  );
-  for (const [stepName, pnpmArguments] of [
-    ['Install dependencies', 'install --frozen-lockfile'],
-    ['Build the Cejel CLI', 'run build'],
-  ]) {
-    const actual = actionStepRun(manifestName, manifest, stepName);
-    const expected = canonicalPnpmStep(directoryExpression, pnpmArguments);
-    if (actual !== expected) {
-      throw new Error(
-        `${manifestName} "${stepName}" step differs from the canonical scoped-pnpm script; update both together.\n--- expected\n${expected}\n--- actual\n${actual}`,
-      );
-    }
+  if (/\bnpm exec\b|\bnpx\b/.test(code)) {
+    throw new Error(
+      `${manifestName} runs npm exec or npx, which puts every parent directory's node_modules/.bin ahead of PATH.`,
+    );
+  }
+  const actual = actionRunsSection(manifestName, manifest);
+  const expected = canonicalActionRuns(directoryExpression, runnerPath);
+  if (actual !== expected) {
+    const actualLines = actual.split('\n');
+    const expectedLines = expected.split('\n');
+    const first = expectedLines.findIndex((line, index) => line !== actualLines[index]);
+    const at = first < 0 ? expectedLines.length : first;
+    throw new Error(
+      `${manifestName} runs: section differs from the canonical scoped-pnpm Action at line ${at + 1} of the section; update the Action and the validator together.\n--- expected\n${expectedLines[at] ?? '(end)'}\n--- actual\n${actualLines[at] ?? '(end)'}`,
+    );
   }
 }
 

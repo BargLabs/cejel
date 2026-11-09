@@ -69,15 +69,19 @@ runs:
         # Off, or setup-node reads the CALLING repository's package.json to decide on npm caching.
         package-manager-cache: false
 
-    # pnpm runs only through `npm exec`, at the exact version this action's own package.json pins in
-    # packageManager, from a fresh directory holding an empty package.json, so npm takes that
-    # directory as its project root instead of walking up to a parent (such as $RUNNER_TEMP) that
-    # may hold an .npmrc or a node_modules. No pnpm is added to the job's PATH, PNPM_HOME is not set,
-    # and the calling repository's package.json is never read. pnpm/action-setup did all three: a
-    # caller pinning a different pnpm first failed ("Multiple versions of pnpm specified"), and once
-    # that was fixed every later pnpm step in the caller's job ran this action's pnpm (#686).
-    # Still shared with the caller's job: Node 22 on PATH (actions/setup-node, as before), npm's cache
-    # under ~/.npm, pnpm's default store, and user, global and environment npm configuration.
+    # pnpm is installed with `npm install --prefix` into a fresh directory holding an empty
+    # package.json, at the exact version this action's own package.json pins in packageManager, and
+    # run from there by path. Nothing runs through `npm exec`, which puts the node_modules/.bin of
+    # every parent directory ahead of PATH, and the explicit --prefix keeps npm from adopting a parent
+    # directory (for example one whose package.json declares workspaces) as its project. No pnpm is
+    # added to the job's PATH, PNPM_HOME is not set, and the calling repository's package.json is
+    # never read. pnpm/action-setup did all three: a caller pinning a different pnpm first failed
+    # ("Multiple versions of pnpm specified"), and once that was fixed every later pnpm step in the
+    # caller's job ran this action's pnpm (#686).
+    # Still shared with the caller's job: Node 22 first on PATH and setup-node's problem matchers (as
+    # before); whichever node is first on PATH runs pnpm (as before); npm's cache under ~/.npm;
+    # pnpm's default store, metadata cache and global rc file; the user, global and environment npm
+    # configuration, including the registry; and two empty cejel-pnpm.* directories in $RUNNER_TEMP.
     - name: Read the pnpm version this action pins
       id: cejel-pnpm
       shell: bash
@@ -105,12 +109,14 @@ runs:
         work="$(mktemp -d "$RUNNER_TEMP/cejel-pnpm.XXXXXX")"
         cd "$work"
         printf '{}\n' > package.json
-        ran="pnpm@$(npm exec --yes --package="$CEJEL_PNPM" -- pnpm --version)"
+        npm install --prefix "$work" --no-save --no-package-lock --ignore-scripts --no-audit --no-fund "$CEJEL_PNPM"
+        pnpm="$work/node_modules/.bin/pnpm"
+        ran="pnpm@$("$pnpm" --version)"
         if [ "$ran" != "$CEJEL_PNPM" ]; then
-          echo "::error::expected $CEJEL_PNPM from this action's package.json, npm exec ran $ran"
+          echo "::error::expected $CEJEL_PNPM from this action's package.json, installed $ran"
           exit 1
         fi
-        npm exec --yes --package="$CEJEL_PNPM" -- pnpm --dir "$cejel_dir" install --frozen-lockfile
+        "$pnpm" --dir "$cejel_dir" install --frozen-lockfile
 
     - name: Build the Cejel CLI
       shell: bash
@@ -122,12 +128,14 @@ runs:
         work="$(mktemp -d "$RUNNER_TEMP/cejel-pnpm.XXXXXX")"
         cd "$work"
         printf '{}\n' > package.json
-        ran="pnpm@$(npm exec --yes --package="$CEJEL_PNPM" -- pnpm --version)"
+        npm install --prefix "$work" --no-save --no-package-lock --ignore-scripts --no-audit --no-fund "$CEJEL_PNPM"
+        pnpm="$work/node_modules/.bin/pnpm"
+        ran="pnpm@$("$pnpm" --version)"
         if [ "$ran" != "$CEJEL_PNPM" ]; then
-          echo "::error::expected $CEJEL_PNPM from this action's package.json, npm exec ran $ran"
+          echo "::error::expected $CEJEL_PNPM from this action's package.json, installed $ran"
           exit 1
         fi
-        npm exec --yes --package="$CEJEL_PNPM" -- pnpm --dir "$cejel_dir" run build
+        "$pnpm" --dir "$cejel_dir" run build
 
     # Deliberately does NOT cd into this action's own checkout — repo-path and the
     # write-only export destination stay relative to the CALLING workflow's workspace.
