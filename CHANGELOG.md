@@ -118,13 +118,21 @@ rubric is pinned. v27 carries no precision or recall claim.
   the calling job's pnpm (#685, #686).** Both `action.yml` and `action/action.yml` ran
   `pnpm/action-setup`, which reads `packageManager` from the caller's workspace and prepends its pnpm
   to the job-wide `PATH`. A caller pinning a pnpm other than 9.0.0 failed with "Multiple versions of
-  pnpm specified". After #685, such callers passed, but every later `pnpm` step in their job ran
-  the Action's 9.0.0. The Action now reads the exact version from its own `package.json` and runs
-  pnpm only through `npm exec`, from a fresh temporary directory, scoped to its own steps. It
-  refuses to run if the pnpm it gets is any other version. It adds no pnpm to the caller's `PATH`
-  and does not set `PNPM_HOME`. As before, its `actions/setup-node` step still puts Node 22 first
-  on the caller's `PATH`. The `action-from-another-caller` CI job checks that a caller pinning
-  pnpm 10.0.0 keeps its own pnpm and `PNPM_HOME` after both Actions.
+  pnpm specified". After #685 such callers passed, but every later `pnpm` step in their job ran the
+  Action's 9.0.0.
+  - The Action now reads the exact pnpm version from its own `package.json`. It runs pnpm only
+    through `npm exec`, from a fresh directory holding an empty `package.json`, so that npm cannot
+    take a parent such as `$RUNNER_TEMP`, with its `.npmrc` or `node_modules`, as its project. It
+    stops if the pnpm it ran is any other version.
+  - Its `actions/setup-node` step runs with `package-manager-cache: false`, so it no longer reads the
+    caller's `package.json` either.
+  - It adds no pnpm to the caller's `PATH` and does not set `PNPM_HOME`.
+  - Still shared with the caller's job: Node 22 first on `PATH` (as before), npm's cache under
+    `~/.npm`, pnpm's default store, and the caller's user, global and environment npm
+    configuration, including its registry.
+  - The `action-from-another-caller` CI job checks that a caller pinning pnpm 10.0.0 keeps its own
+    pnpm and `PNPM_HOME` after both Actions. The distribution validator requires the Action's step
+    list and its pnpm steps to match their canonical scripts exactly.
 
 - **`cejel issue` reproduces with the attested scan's own date, so a certificate from an earlier
   year can be issued (audit C4; operator ruling of 5 Nov, option A).** v17's B4 freshness check

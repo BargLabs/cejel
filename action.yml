@@ -65,13 +65,18 @@ runs:
       uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
       with:
         node-version: '22'
+        # Off, or setup-node reads the CALLING repository's package.json to decide on npm caching.
+        package-manager-cache: false
 
-    # pnpm runs only through `npm exec`, from a fresh temporary directory, at the exact version this
-    # action's own package.json pins in packageManager. No pnpm is added to the job's PATH, PNPM_HOME
-    # is not set, and the calling repository's package.json is never read. pnpm/action-setup did all
-    # three: a caller pinning a different pnpm first failed ("Multiple versions of pnpm specified"),
-    # and once that was fixed every later pnpm step in the caller's job ran this action's pnpm (#686).
-    # actions/setup-node above still prepends Node 22 to the job's PATH, as it always has.
+    # pnpm runs only through `npm exec`, at the exact version this action's own package.json pins in
+    # packageManager, from a fresh directory holding an empty package.json, so npm takes that
+    # directory as its project root instead of walking up to a parent (such as $RUNNER_TEMP) that
+    # may hold an .npmrc or a node_modules. No pnpm is added to the job's PATH, PNPM_HOME is not set,
+    # and the calling repository's package.json is never read. pnpm/action-setup did all three: a
+    # caller pinning a different pnpm first failed ("Multiple versions of pnpm specified"), and once
+    # that was fixed every later pnpm step in the caller's job ran this action's pnpm (#686).
+    # Still shared with the caller's job: Node 22 on PATH (actions/setup-node, as before), npm's cache
+    # under ~/.npm, pnpm's default store, and user, global and environment npm configuration.
     - name: Read the pnpm version this action pins
       id: cejel-pnpm
       shell: bash
@@ -96,7 +101,9 @@ runs:
       run: |
         set -euo pipefail
         cejel_dir="$GITHUB_ACTION_PATH"
-        cd "$(mktemp -d "$RUNNER_TEMP/cejel-pnpm.XXXXXX")"
+        work="$(mktemp -d "$RUNNER_TEMP/cejel-pnpm.XXXXXX")"
+        cd "$work"
+        printf '{}\n' > package.json
         ran="pnpm@$(npm exec --yes --package="$CEJEL_PNPM" -- pnpm --version)"
         if [ "$ran" != "$CEJEL_PNPM" ]; then
           echo "::error::expected $CEJEL_PNPM from this action's package.json, npm exec ran $ran"
@@ -111,7 +118,9 @@ runs:
       run: |
         set -euo pipefail
         cejel_dir="$GITHUB_ACTION_PATH"
-        cd "$(mktemp -d "$RUNNER_TEMP/cejel-pnpm.XXXXXX")"
+        work="$(mktemp -d "$RUNNER_TEMP/cejel-pnpm.XXXXXX")"
+        cd "$work"
+        printf '{}\n' > package.json
         ran="pnpm@$(npm exec --yes --package="$CEJEL_PNPM" -- pnpm --version)"
         if [ "$ran" != "$CEJEL_PNPM" ]; then
           echo "::error::expected $CEJEL_PNPM from this action's package.json, npm exec ran $ran"
