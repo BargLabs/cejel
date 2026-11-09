@@ -141,11 +141,16 @@ rubric is pinned. v27 carries no precision or recall claim.
       (about 18 MB).
   - The `action-from-another-caller` CI job checks that a caller pinning pnpm 10.0.0 keeps its own
     pnpm and `PNPM_HOME` after both Actions.
-  - The distribution validator requires each manifest's whole `runs:` section, full-line comments
-    aside, to equal its canonical text. First it refuses any line break YAML recognises other than
-    `\n` (a lone CR, NEL, LS or PS), any other control character, a document marker, and a second
-    `runs:` key. Without that, text after such a character inside an apparent comment would be live
-    YAML that the comparison never sees.
+  - The distribution validator requires each manifest to end with exactly its canonical `runs:`
+    text, byte for byte. No line is skipped: the manifests keep their explanatory comments above
+    `runs:`. Before comparing, the validator also refuses anywhere in the file:
+    - any line break YAML recognises other than `\n` (a lone CR, NEL, LS or PS);
+    - every character JavaScript counts as white space but YAML does not, such as U+00A0;
+    - other control characters and a BOM;
+    - YAML document markers and a second literal `runs:` key.
+
+    Other spellings of a duplicate key are left to the runner, which refuses them when it loads the
+    Action. Outside `runs:`, input defaults and output values are not pinned (#689).
 
 - **`cejel issue` reproduces with the attested scan's own date, so a certificate from an earlier
   year can be issued (audit C4; operator ruling of 5 Nov, option A).** v17's B4 freshness check

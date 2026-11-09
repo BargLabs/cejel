@@ -154,30 +154,38 @@ for (const [workflowName, workflow] of workflows) {
 
 // The Action manifests run inside the CALLER's job. pnpm/action-setup there read the caller's
 // package.json (so a caller pinning another pnpm failed, #685) and prepended its pnpm to the
-// job-wide PATH (so the caller's later pnpm steps ran this action's version, #686). Each manifest's
-// whole runs: section, full-line comments aside, must equal the canonical text below byte for byte.
-// Review of #687 showed why nothing narrower holds: substring checks per manifest passed with one
-// step's isolation removed, and per-step script checks passed an added flow-style step, an if:-first
-// step, a new input feeding CEJEL_PNPM, a literal CEJEL_PNPM, and step env: blocks setting PATH,
-// RUNNER_TEMP or npm configuration. Change the Action and this text together.
-// Comment lines are skipped below, which is safe only if a line here is a line to the YAML parser.
-// The runner's YamlDotNet (5.3.0, CharacterAnalyzer.IsBreak) also breaks lines at a lone CR, NEL
-// (U+0085), LS (U+2028) and PS (U+2029), so text after one of them inside an apparent comment is
-// live YAML. Review of #687 hid whole steps that way. Refuse every such character, other control
-// characters, and YAML document markers outright, before any comparison.
+// job-wide PATH (so the caller's later pnpm steps ran this action's version, #686). Each manifest
+// must therefore END with exactly the canonical runs: text below, byte for byte, with no line of
+// runs: skipped or normalised (CRLF aside). The manifests keep their explanatory comments above
+// runs:. Change the Action and this text together.
+//
+// Why nothing weaker holds, from five review rounds of #687:
+// - substring checks per manifest passed with one step's isolation removed;
+// - per-step script checks passed an added flow-style step, an if:-first step, a new input or a
+//   literal feeding CEJEL_PNPM, and step env: blocks setting PATH, RUNNER_TEMP or npm config;
+// - skipping "comment" lines let text that YAML reads as live through: text after a lone CR, NEL,
+//   LS or PS (YamlDotNet 5.3.0 CharacterAnalyzer.IsBreak); a '#' line inside a run: | block, which
+//   is script; and a line led by a character JavaScript's \s matches but YAML does not treat as
+//   white space (IsWhite is space and tab only), such as U+00A0, which folds into the scalar.
+// So nothing is skipped, and every character in that last class is refused anywhere in the file,
+// together with control characters, a BOM and YAML document markers.
+const YAML_INVISIBLE_CHARACTER =
+  /\r(?!\n)|[\u{0}-\u{8}\u{B}\u{C}\u{E}-\u{1F}\u{7F}\u{85}\u{A0}\u{1680}\u{2000}-\u{200A}\u{2028}\u{2029}\u{202F}\u{205F}\u{3000}\u{FEFF}]/u;
+
 function refuseHiddenYamlStructure(manifestName, manifest) {
-  const offending =
-    /\r(?!\n)|[\u{0}-\u{8}\u{B}\u{C}\u{E}-\u{1F}\u{7F}\u{85}\u{2028}\u{2029}\u{FEFF}]/u.exec(manifest);
+  const offending = YAML_INVISIBLE_CHARACTER.exec(manifest);
   if (offending) {
     const codePoint = offending[0].codePointAt(0).toString(16).toUpperCase().padStart(4, '0');
     throw new Error(
-      `${manifestName} contains U+${codePoint} at offset ${offending.index}: a YAML line break or control character that line-by-line validation cannot see.`,
+      `${manifestName} contains U+${codePoint} at offset ${offending.index}: a YAML line break, white-space lookalike or control character that a text check and the runner's parser read differently.`,
     );
   }
-  if (/^(?:---|\.\.\.)(?:\s|$)/m.test(manifest)) {
+  if (/^(?:---|\.\.\.)(?:[ \t]|$)/m.test(manifest)) {
     throw new Error(`${manifestName} contains a YAML document marker; the manifest must be one document.`);
   }
-  const runsKeys = manifest.split(/\r?\n/).filter((line) => /^["']?runs["']?\s*:/.test(line));
+  // Textual and best effort: other spellings of a second runs key ("\x72uns", ? runs, a tag) pass
+  // here, and the runner's TemplateReader refuses them as duplicate keys, so they fail at load.
+  const runsKeys = manifest.split(/\r?\n/).filter((line) => /^["']?runs["']?[ \t]*:/.test(line));
   if (runsKeys.length !== 1 || runsKeys[0] !== 'runs:') {
     throw new Error(`${manifestName} must have exactly one top-level runs: key, written as "runs:".`);
   }
@@ -185,20 +193,12 @@ function refuseHiddenYamlStructure(manifestName, manifest) {
 
 function actionRunsSection(manifestName, manifest) {
   refuseHiddenYamlStructure(manifestName, manifest);
-  const lines = manifest.split(/\r?\n/);
-  const start = lines.indexOf('runs:');
-  if (start < 0) throw new Error(`${manifestName} has no top-level runs: section.`);
-  const section = [];
-  for (let index = start; index < lines.length; index += 1) {
-    const line = lines[index];
-    if (index > start && line !== '' && !/^\s/.test(line)) {
-      throw new Error(`${manifestName} has a top-level key after runs: (${line}); runs: must be the last section.`);
-    }
-    if (/^\s*#/.test(line)) continue;
-    section.push(line);
+  const text = manifest.replace(/\r\n/g, '\n');
+  const start = text.startsWith('runs:\n') ? 0 : text.indexOf('\nruns:\n') + 1;
+  if (start <= 0 && !text.startsWith('runs:\n')) {
+    throw new Error(`${manifestName} has no top-level runs: section.`);
   }
-  while (section.length > 0 && section[section.length - 1] === '') section.pop();
-  return section.join('\n');
+  return text.slice(start).replace(/\n+$/, '');
 }
 
 function canonicalPnpmStep(stepName, directoryExpression, pnpmArguments) {
@@ -272,13 +272,8 @@ for (const [manifestName, manifest, directoryExpression, runnerPath] of [
   ['action.yml', rootAction, '"$GITHUB_ACTION_PATH"', 'action/run.mjs'],
   ['action/action.yml', nestedAction, '"$(dirname "$GITHUB_ACTION_PATH")"', 'run.mjs'],
 ]) {
-  // The refusals read the manifest without full-line comments, which explain these very things;
-  // that is safe only once hidden line breaks are refused.
-  refuseHiddenYamlStructure(manifestName, manifest);
-  const code = manifest
-    .split(/\r?\n/)
-    .filter((line) => !/^\s*#/.test(line))
-    .join('\n');
+  // The refusals read the raw runs: section: it holds no comments, and nothing is skipped.
+  const code = actionRunsSection(manifestName, manifest);
   if (/^\s*(?:-\s*)?uses:\s*["']?pnpm\/action-setup@/m.test(code)) {
     throw new Error(
       `${manifestName} uses pnpm/action-setup, which changes the calling job's PATH; install pnpm with npm install --prefix instead.`,
