@@ -19,7 +19,33 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 v17 remains the default rubric. Every scoring change below applies only when the prospective v27
 rubric is pinned. v27 carries no precision or recall claim.
 
+### Added
+
+- **GitLab: Cejel's scores as a metrics report, so a merge request shows the scores that changed.**
+  `cejel export gitlab-metrics <report.json> [-o metrics.txt]` writes one `<name> <value>` line
+  each for the overall score, process trust, code trust and every criterion
+  (`cejel_criterion_a4_score`), to one decimal as the terminal prints them. A value Cejel did not
+  measure gets no line, never a 0; an abstained report writes an empty file and the footer says why.
+  The GitLab template runs it after the Code Quality export and publishes `metrics.txt` as
+  `artifacts:reports:metrics`; a failed metrics export keeps the scan's exit status and the Code
+  Quality upload. GitLab shows metrics reports on Premium and Ultimate only. Since 0.6.11 a score
+  change on the same line no longer shows in the Code Quality widget; this report is where it shows.
+  No scoring change: every `report.json` is unchanged. The gitlab.com component gains the step in
+  its release after this one. See [`docs/gitlab-ci.md`](docs/gitlab-ci.md#metrics-report).
+
 ### Changed
+
+- **GitLab: the CI/CD Catalog component stays on the npm release.** The release bump now moves
+  every component mention for a final release (`gitlab.com/barglabs/cejel/cejel@<version>` in
+  `docs/gitlab-ci.md` and the README, the inputs table's `version` default and the `spec:`
+  default), and a release candidate moves none of them, since the Catalog carries only final
+  releases. A node test pins each mention to `package.json`'s version, or for a release candidate
+  to the newest final release. The release-currency check now also reads the Catalog anonymously,
+  every 6 hours as well as weekly. It passes when the Catalog's newest version equals the release,
+  reports pending while the Catalog is less than 3 hours behind the npm publish, and fails at 3
+  hours or more, or when the Catalog cannot be read. The Catalog is reported on its own lines,
+  outside the 14 surfaces the release driver counts, because a job on gitlab.com tags it, not the
+  driver.
 
 - **Prospective v27: A1 names the pytest runs an unexported Makefile assignment of
   `PYTEST_ADDOPTS` reaches as not read where a CI mention of the variable does not reach only make

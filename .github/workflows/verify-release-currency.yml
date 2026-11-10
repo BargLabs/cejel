@@ -11,8 +11,13 @@ on:
         description: Full release commit SHA; defaults to the remote version tag target
         required: false
         type: string
+  # The weekly run reads every surface. The 6-hour run is for the GitLab CI/CD Catalog's lag window:
+  # a job on gitlab.com tags the component after each npm release, and the check fails once the
+  # Catalog is 3 hours or more behind npm. A run every 6 hours fails on a lag about 9 hours after
+  # the npm publish at the latest (GitHub can start a scheduled run late).
   schedule:
     - cron: '17 16 * * 1'
+    - cron: '41 */6 * * *'
   workflow_run:
     workflows:
       - Publish npm package with provenance
