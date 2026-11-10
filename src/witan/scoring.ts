@@ -35,7 +35,6 @@ import {
   dropMarkedCitations,
   isCitablePointer,
   markOverLimitPaths,
-  overLimitWithheldPathsLimitation,
   withDropLimitations,
 } from './path-limits.js';
 import { rubricBehaviourFingerprint } from './rubric-fingerprint.js';
@@ -112,7 +111,7 @@ export function createWitanReport(
 ): WitanReport {
   // #612: an evidence or withheld path over the schema's 700 characters is marked (evidence) or
   // left out (withheld) here, so the parse below cannot fail on it; marked pointers still count in
-  // scoring and are dropped from the output below. An input with no such path passes unchanged.
+  // scoring and are not cited in the output below. An input with no such path passes unchanged.
   const marked = markOverLimitPaths(input);
   const parsedInput = WitanReportInputSchema.parse(marked.input);
   const signalsByCriterion = mergeSignalsByCriterion(parsedInput.signals);
@@ -201,14 +200,15 @@ export function createWitanReport(
     } satisfies WitanCriterionScore;
   });
   // #612: scores, statuses and metrics above were computed with every pointer; only the citations
-  // of over-limit paths are removed here, and each criterion that lost one says how many.
-  const { criteria, overflowLimitations } = dropMarkedCitations(scoredCriteria);
-  const scanLimitations = withDropLimitations(parsedInput.scanLimitations, [
-    ...overflowLimitations,
-    ...(marked.droppedWithheldPaths > 0
-      ? [overLimitWithheldPathsLimitation(marked.droppedWithheldPaths)]
-      : []),
-  ]);
+  // of over-limit paths are removed here. A finding that cited one keeps its place with a stated
+  // anchor, each criterion that lost a citation says how many distinct paths, and withheld paths
+  // left out of withheldPaths are stated on a criterion, not as a scan limitation. A statement
+  // becomes a scan limitation only where no criterion can hold it (path-limits.ts).
+  const { criteria, overflowLimitations } = dropMarkedCitations(
+    scoredCriteria,
+    marked.droppedWithheldPaths,
+  );
+  const scanLimitations = withDropLimitations(parsedInput.scanLimitations, overflowLimitations);
 
   // Category buckets in rubric-declared order (dedup, first-seen). The default rubric
   // always yields exactly ['code_trust', 'process_trust'], so codeTrustScore/processTrustScore
@@ -1145,8 +1145,8 @@ function ensureFindingsExplainStatus(
   }
 
   // #612: anchored on the first pointer the report can cite, so the finding that explains the
-  // status is not dropped with an over-limit path. Where no pointer is over the limit, that is
-  // evidence[0], as before.
+  // status cites a real file where one is citable, rather than the stated anchor an over-limit
+  // path is replaced with. Where no pointer is over the limit, that is evidence[0], as before.
   const anchor: WitanEvidencePointer = evidence.find(isCitablePointer) ?? {
     kind: 'repository',
     label: `${criterionId} metric-derived score`,
