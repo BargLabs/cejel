@@ -5,9 +5,11 @@ import { dirname, join } from 'node:path';
 
 import { afterAll, describe, expect, it } from 'vitest';
 
+import { overLimitCitationDisclosure, overLimitWithheldPathsLimitation } from '../path-limits.js';
 import { scoreRepoWithPublicCejel } from '../public-scan.js';
 import { WITAN_RUBRIC_VERSION_V17, WITAN_RUBRIC_VERSION_V27 } from '../rubric-version.js';
 import { type WitanReport, WitanReportSchema } from '../schemas.js';
+import { createWitanReport } from '../scoring.js';
 
 import { HERMETIC_GIT_ENV } from './fixtures/behaviour-corpus.js';
 
@@ -98,17 +100,21 @@ function outcome(report: WitanReport) {
   };
 }
 
-/** The report with every pointer naming `path` removed, for comparing everything but citations. */
+/**
+ * Each criterion's evidence without the pointers naming `path`, and its findings without their
+ * anchors: everything a report cites except where it points. A finding anchored on the test file
+ * stays, re-anchored, so its severity and summary are compared.
+ */
 function withoutCitationsOf(report: WitanReport, path: string): unknown {
   return report.criteria.map((criterion) => ({
     id: criterion.id,
     evidence: criterion.evidence.filter((pointer) => pointer.path !== path),
-    findings: criterion.findings.filter((finding) => finding.evidence.path !== path),
+    findings: criterion.findings.map(({ severity, summary }) => ({ severity, summary })),
   }));
 }
 
 const OVER_LIMIT_DISCLOSURE =
-  /^Cejel did not cite 1 evidence item for this criterion because its repository path is longer than the report's 700-character path limit\./;
+  /^Cejel did not cite 1 evidence item here because its repository path is longer than the report's 700-character path limit\./;
 
 describe.each([
   ['v17', WITAN_RUBRIC_VERSION_V17],
@@ -179,5 +185,107 @@ describe.each([
     for (const criterion of report.criteria) {
       expect((criterion.disclosures ?? []).some((sentence) => OVER_LIMIT_DISCLOSURE.test(sentence))).toBe(false);
     }
+  });
+});
+
+// Unit cases on createWitanReport, each built so the property fails if the fix is removed or
+// placed differently.
+describe('#612 createWitanReport: an over-limit path is dropped after scoring and stated', () => {
+  const OVER = `src/${'p'.repeat(697)}/x.ts`;
+  const SHORT = 'src/x.ts';
+  const base = {
+    productSlug: 'deep-path-fixture',
+    productDisplayName: 'Deep path fixture',
+    repo: {},
+    generatedAt: GENERATED_AT,
+    rubricVersion: WITAN_RUBRIC_VERSION_V17,
+  };
+  const pointer = (path: string) => ({ kind: 'repository' as const, label: 'test file', path });
+
+  it('builds paths of the intended lengths', () => {
+    expect(OVER.length).toBe(706);
+  });
+
+  it('scores a criterion whose only evidence is the dropped pointer as if it were cited', () => {
+    // Dropped before scoring, this criterion would hold no evidence and no metric and score as
+    // insufficient_data; scoring reads how many pointers there are.
+    const make = (path: string) =>
+      createWitanReport({ ...base, signals: [{ criterionId: 'A3', positiveEvidence: [pointer(path)] }] });
+    const over = make(OVER).criteria.find(({ id }) => id === 'A3');
+    const short = make(SHORT).criteria.find(({ id }) => id === 'A3');
+    expect(short?.status).not.toBe('insufficient_data');
+    expect({ score: over?.score, status: over?.status, metrics: over?.metrics }).toEqual({
+      score: short?.score,
+      status: short?.status,
+      metrics: short?.metrics,
+    });
+    expect(over?.evidence).toEqual([]);
+    expect(over?.disclosures).toEqual([overLimitCitationDisclosure(1)]);
+  });
+
+  it('keeps the status a dropped finding set, and the criterion keeps its other evidence', () => {
+    const report = createWitanReport({
+      ...base,
+      signals: [
+        {
+          criterionId: 'A2',
+          positiveEvidence: [pointer(SHORT)],
+          findings: [{ severity: 'critical', summary: 'a planted finding', evidence: pointer(OVER) }],
+        },
+      ],
+    });
+    const a2 = report.criteria.find(({ id }) => id === 'A2');
+    expect(a2?.status).toBe('critical');
+    expect(a2?.evidence).toEqual([pointer(SHORT)]);
+    expect(a2?.findings.some(({ summary }) => summary === 'a planted finding')).toBe(false);
+    expect(a2?.disclosures).toEqual([overLimitCitationDisclosure(1)]);
+  });
+
+  it('leaves an over-limit withheld path out of withheldPaths and says so as a scan limitation', () => {
+    const report = createWitanReport({
+      ...base,
+      withheldPaths: [
+        { path: OVER, reason: 'too_large', signalsAdmitting: [], actedOn: false },
+        { path: SHORT, reason: 'too_large', signalsAdmitting: [], actedOn: false },
+      ],
+    });
+    expect(report.withheldPaths?.map(({ path }) => path)).toEqual([SHORT]);
+    expect(report.scanLimitations).toEqual([overLimitWithheldPathsLimitation(1)]);
+  });
+
+  it('states the drop as a scan limitation naming the criterion when its four disclosures are used', () => {
+    const disclosures = ['one.', 'two.', 'three.', 'four.'];
+    const report = createWitanReport({
+      ...base,
+      signals: [{ criterionId: 'A3', positiveEvidence: [pointer(OVER), pointer(OVER)], disclosures }],
+    });
+    expect(report.criteria.find(({ id }) => id === 'A3')?.disclosures).toEqual(disclosures);
+    expect(report.scanLimitations).toEqual([`A3: ${overLimitCitationDisclosure(2)}`]);
+  });
+
+  it('refuses to drop without saying so when the sixteen scan limitations are used', () => {
+    const scanLimitations = Array.from({ length: 16 }, (_, index) => `limitation ${index}.`);
+    expect(() =>
+      createWitanReport({
+        ...base,
+        scanLimitations,
+        withheldPaths: [{ path: OVER, reason: 'too_large', signalsAdmitting: [], actedOn: false }],
+      }),
+    ).toThrow(/refusing to drop them without saying so/);
+  });
+
+  it('cites a 700-character path and states nothing', () => {
+    const exact = `src/${'p'.repeat(691)}/x.ts`;
+    expect(exact.length).toBe(700);
+    const report = createWitanReport({
+      ...base,
+      signals: [{ criterionId: 'A3', positiveEvidence: [pointer(exact)] }],
+      withheldPaths: [{ path: exact, reason: 'too_large', signalsAdmitting: [], actedOn: false }],
+    });
+    const a3 = report.criteria.find(({ id }) => id === 'A3');
+    expect(a3?.evidence).toEqual([pointer(exact)]);
+    expect(a3?.disclosures).toBeUndefined();
+    expect(report.withheldPaths?.map(({ path }) => path)).toEqual([exact]);
+    expect(report.scanLimitations).toBeUndefined();
   });
 });

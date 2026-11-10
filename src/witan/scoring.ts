@@ -31,6 +31,13 @@ import {
   WITAN_LEGACY_AUTHENTICATED_A1_ABSENCE_SUMMARY,
   WITAN_NO_MEASUREMENT_REASON,
 } from './abstention.js';
+import {
+  dropMarkedCitations,
+  isCitablePointer,
+  markOverLimitPaths,
+  overLimitWithheldPathsLimitation,
+  withDropLimitations,
+} from './path-limits.js';
 import { rubricBehaviourFingerprint } from './rubric-fingerprint.js';
 import {
   WITAN_RUBRIC_VERSION_V9,
@@ -103,7 +110,11 @@ export function createWitanReport(
   // versions, which is what it exists for (goal_cejel_0_4_8_abstention_scoring_fix_2026-09-08).
   toolVersion?: string,
 ): WitanReport {
-  const parsedInput = WitanReportInputSchema.parse(input);
+  // #612: an evidence or withheld path over the schema's 700 characters is marked (evidence) or
+  // left out (withheld) here, so the parse below cannot fail on it; marked pointers still count in
+  // scoring and are dropped from the output below. An input with no such path passes unchanged.
+  const marked = markOverLimitPaths(input);
+  const parsedInput = WitanReportInputSchema.parse(marked.input);
   const signalsByCriterion = mergeSignalsByCriterion(parsedInput.signals);
   // A read-failure abstention (Cejel expected to read a file and the filesystem refused — reason
   // 'unreadable'/'denied_path', or no reason recorded at all, which is the same conservative
@@ -134,7 +145,7 @@ export function createWitanReport(
 
   const consumedSignals: WitanConsumedSignalSummary[] = [];
 
-  const criteria = rubric.map((rubricCriterion) => {
+  const scoredCriteria = rubric.map((rubricCriterion) => {
     const id = rubricCriterion.id;
     const signal = signalsByCriterion.get(id);
     const scored = scoreCriterion(signal, parsedInput.rubricVersion);
@@ -189,6 +200,15 @@ export function createWitanReport(
       ...(signal?.disclosures ? { disclosures: signal.disclosures } : {}),
     } satisfies WitanCriterionScore;
   });
+  // #612: scores, statuses and metrics above were computed with every pointer; only the citations
+  // of over-limit paths are removed here, and each criterion that lost one says how many.
+  const { criteria, overflowLimitations } = dropMarkedCitations(scoredCriteria);
+  const scanLimitations = withDropLimitations(parsedInput.scanLimitations, [
+    ...overflowLimitations,
+    ...(marked.droppedWithheldPaths > 0
+      ? [overLimitWithheldPathsLimitation(marked.droppedWithheldPaths)]
+      : []),
+  ]);
 
   // Category buckets in rubric-declared order (dedup, first-seen). The default rubric
   // always yields exactly ['code_trust', 'process_trust'], so codeTrustScore/processTrustScore
@@ -279,9 +299,7 @@ export function createWitanReport(
     overallScore: abstained ? null : overallScore,
     criteria,
     ...(consumedSignals.length > 0 ? { consumedSignals } : {}),
-    ...(parsedInput.scanLimitations.length > 0
-      ? { scanLimitations: parsedInput.scanLimitations }
-      : {}),
+    ...(scanLimitations.length > 0 ? { scanLimitations } : {}),
     ...(parsedInput.contentReadSummary
       ? { contentReadSummary: parsedInput.contentReadSummary }
       : {}),
@@ -1122,7 +1140,10 @@ function ensureFindingsExplainStatus(
     return [...findings];
   }
 
-  const anchor: WitanEvidencePointer = evidence[0] ?? {
+  // #612: anchored on the first pointer the report can cite, so the finding that explains the
+  // status is not dropped with an over-limit path. Where no pointer is over the limit, that is
+  // evidence[0], as before.
+  const anchor: WitanEvidencePointer = evidence.find(isCitablePointer) ?? {
     kind: 'repository',
     label: `${criterionId} metric-derived score`,
     path: '.',
