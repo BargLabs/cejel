@@ -30,6 +30,20 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   No scoring change: every `report.json` is unchanged. The gitlab.com component gains the step in
   its release after this one. See [`docs/gitlab-ci.md`](docs/gitlab-ci.md#metrics-report).
 
+### Changed
+
+- **GitLab: the CI/CD Catalog component stays on the npm release.** The release bump now moves
+  every component mention for a final release (`gitlab.com/barglabs/cejel/cejel@<version>` in
+  `docs/gitlab-ci.md` and the README, the inputs table's `version` default and the `spec:`
+  default), and a release candidate moves none of them, since the Catalog carries only final
+  releases. A node test pins each mention to `package.json`'s version, or for a release candidate
+  to the newest final release. The release-currency check now also reads the Catalog anonymously,
+  every 6 hours as well as weekly. It passes when the Catalog's newest version equals the release,
+  reports pending while the Catalog is less than 3 hours behind the npm publish, and fails at 3
+  hours or more, or when the Catalog cannot be read. The Catalog is reported on its own lines,
+  outside the 14 surfaces the release driver counts, because a job on gitlab.com tags it, not the
+  driver.
+
 ## [0.6.11] — 2026-11-09
 
 v17 remains the default rubric. Every scoring change below applies only when the prospective v27

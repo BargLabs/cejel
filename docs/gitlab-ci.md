@@ -204,5 +204,10 @@ spec:
 ```
 
 Its pipeline runs the component on itself and publishes a release for each semantic-version tag
-that matches an `@cejel/cejel` release. That tag is pushed to the GitLab project by hand after each
-Cejel release, so until it is, the newest component version is the previous release.
+that matches an `@cejel/cejel` release.
+
+The component's version follows the npm release. A scheduled job in the GitLab project tags each
+new `@cejel/cejel` release; until it has, the newest component version is the previous release.
+This repository's release-currency check (`scripts/verify-release-currency.mjs`, every 6 hours)
+reads the Catalog's newest version: it reports pending while the Catalog is less than 3 hours
+behind npm and fails once it is 3 hours or more behind. Release candidates are never tagged here.

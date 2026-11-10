@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  CATALOG_PENDING_HOURS,
+  CATALOG_SURFACE,
   createLiveReaders,
   latestReleaseVersion,
   LEADERBOARD_URL,
@@ -113,6 +115,7 @@ function goodReaders() {
     'published-versions.json': async () => ({ mcpRegistry: version, oci: version }),
     leaderboard: async () => ({ declaredVersion: version, pinVersion: null, markdown: goodLeaderboardMarkdown }),
     'Claude plugin': async () => ({ tag: `v${version}`, fields: pluginFields() }),
+    'GitLab CI/CD Catalog': async () => ({ newest: version, createdAt: '2026-11-10T12:30:00Z', npmPublishedAt: null }),
   };
 }
 
@@ -512,4 +515,166 @@ test('with no final release to pick, the default refuses rather than verifying a
     { tag_name: 'v0.7.0', draft: true, prerelease: false },
   ];
   await assert.rejects(latestReleaseVersion({ readReleases: async () => releases }), /no published final release/);
+});
+
+// ------------------------------------------------------------ the GitLab CI/CD Catalog
+// The Catalog is read after the counted surfaces and reported on its own [CATALOG ...] lines.
+// scripts/release.sh counts [PASS] and [FAIL] lines against CURRENCY_SURFACES (the SURFACES list),
+// and the Catalog is tagged by a job on gitlab.com, not by the release driver, so it is not one of
+// them: a Catalog line never carries [PASS] or [FAIL], and the run still fails when it lags.
+const HOUR = 60 * 60 * 1000;
+const npmPublishedAt = '2026-11-10T12:00:00.000Z';
+const hoursAfterPublish = (hours) => () => Date.parse(npmPublishedAt) + hours * HOUR;
+
+function catalogReaders(catalog) {
+  const calls = [];
+  const readers = goodReaders();
+  readers[CATALOG_SURFACE] = async (requested) => {
+    calls.push(requested);
+    if (catalog instanceof Error) throw catalog;
+    return catalog;
+  };
+  return { calls, readers };
+}
+
+const catalogLine = (lines) => lines.find((line) => line.includes(`${CATALOG_SURFACE}:`));
+
+test('the Catalog surface is named, and the counted surfaces stay the 14 release.sh requires', () => {
+  assert.equal(CATALOG_SURFACE, 'GitLab CI/CD Catalog');
+  assert.equal(CATALOG_PENDING_HOURS, 3);
+  assert.ok(!surfaces.includes(CATALOG_SURFACE));
+});
+
+test('Catalog: equal to the release passes', async () => {
+  const { calls, readers } = catalogReaders({ newest: version, createdAt: '2026-11-10T12:30:00Z', npmPublishedAt: null });
+  const lines = [];
+  await verifyReleaseCurrency({ version, readers, write: (line) => lines.push(line), now: hoursAfterPublish(1) });
+  assert.deepEqual(calls, [version]);
+  assert.match(catalogLine(lines), /^\[CATALOG PASS\] GitLab CI\/CD Catalog: observed=newest=1\.2\.3/);
+});
+
+test('Catalog: behind, 1 hour after the npm publish, is pending and does not fail', async () => {
+  const { readers } = catalogReaders({ newest: '1.2.2', createdAt: '2026-11-01T00:00:00Z', npmPublishedAt });
+  const lines = [];
+  await verifyReleaseCurrency({ version, readers, write: (line) => lines.push(line), now: hoursAfterPublish(1) });
+  const line = catalogLine(lines);
+  assert.match(line, /^\[CATALOG PENDING\] GitLab CI\/CD Catalog:/);
+  assert.ok(line.includes('1.2.2') && line.includes(`npm has had ${version} since ${npmPublishedAt}`), line);
+  assert.ok(line.includes('fails at 3 hours'), line);
+});
+
+test('Catalog: behind, 4 hours after the npm publish, fails with both versions and since when', async () => {
+  const { readers } = catalogReaders({ newest: '1.2.2', createdAt: '2026-11-01T00:00:00Z', npmPublishedAt });
+  const lines = [];
+  let failure;
+  try {
+    await verifyReleaseCurrency({ version, readers, write: (line) => lines.push(line), now: hoursAfterPublish(4) });
+  } catch (error) {
+    failure = error;
+  }
+  assert.ok(failure instanceof ReleaseCurrencyError);
+  assert.match(failure.message, /GitLab CI\/CD Catalog/);
+  const line = catalogLine(lines);
+  assert.match(line, /^\[CATALOG FAIL\] GitLab CI\/CD Catalog:/);
+  assert.ok(line.includes("the Catalog's newest version is 1.2.2 (created 2026-11-01T00:00:00Z)"), line);
+  assert.ok(line.includes(`npm has had ${version} since ${npmPublishedAt}`) && line.includes('3 hours'), line);
+});
+
+test('Catalog: an unreadable Catalog fails with the reason, never a pass', async () => {
+  const { readers } = catalogReaders(new Error('GitLab CI/CD Catalog query failed: HTTP 503 Service Unavailable'));
+  const lines = [];
+  await assert.rejects(
+    verifyReleaseCurrency({ version, readers, write: (line) => lines.push(line), now: hoursAfterPublish(0) }),
+    (error) => error instanceof ReleaseCurrencyError && /GitLab CI\/CD Catalog/.test(error.message),
+  );
+  assert.match(catalogLine(lines), /^\[CATALOG FAIL\] GitLab CI\/CD Catalog: observed=<unreachable>; reason=.*HTTP 503/);
+});
+
+test('Catalog: a Catalog ahead of the release under check fails rather than passing', async () => {
+  const { readers } = catalogReaders({ newest: '1.2.4', createdAt: '2026-11-10T12:30:00Z', npmPublishedAt: null });
+  await assert.rejects(
+    verifyReleaseCurrency({ version, readers, write: () => {}, now: hoursAfterPublish(1) }),
+    ReleaseCurrencyError,
+  );
+});
+
+test('Catalog: a release candidate is not checked against the Catalog', async () => {
+  const candidate = '1.2.4-rc.1';
+  const { calls, readers } = catalogReaders({ newest: version, createdAt: '2026-11-10T12:30:00Z', npmPublishedAt: null });
+  const lines = [];
+  await assert.rejects(verifyReleaseCurrency({ version: candidate, readers, write: (line) => lines.push(line) }));
+  assert.deepEqual(calls, []);
+  assert.match(catalogLine(lines), /^\[CATALOG NOT CHECKED\] GitLab CI\/CD Catalog: .*release candidate/);
+});
+
+test('Catalog: no Catalog line reads as a counted [PASS] or [FAIL] line', async () => {
+  for (const [catalog, hours] of [
+    [{ newest: version, createdAt: '2026-11-10T12:30:00Z', npmPublishedAt: null }, 1],
+    [{ newest: '1.2.2', createdAt: '2026-11-01T00:00:00Z', npmPublishedAt }, 1],
+    [{ newest: '1.2.2', createdAt: '2026-11-01T00:00:00Z', npmPublishedAt }, 4],
+    [new Error('unreadable'), 0],
+  ]) {
+    const { readers } = catalogReaders(catalog);
+    const lines = [];
+    await verifyReleaseCurrency({ version, readers, write: (line) => lines.push(line), now: hoursAfterPublish(hours) })
+      .catch(() => {});
+    assert.equal(lines.filter((line) => line.includes('[PASS]') || line.includes('[FAIL]')).length, surfaces.length);
+    assert.ok(!/\[(PASS|FAIL)\]/.test(catalogLine(lines)), catalogLine(lines));
+  }
+});
+
+// The live reader, against recorded responses. The GraphQL body's shape and its values (0.6.10,
+// created 2026-11-10T04:47:03Z) are the ones measured anonymously on 10 Nov 2026 and recorded in
+// the goal card; the npm publish times are constructed for the test.
+const RECORDED_CATALOG = JSON.stringify({
+  data: { ciCatalogResource: { versions: { nodes: [{ name: '0.6.10', createdAt: '2026-11-10T04:47:03Z' }] } } },
+});
+const CONSTRUCTED_NPM = JSON.stringify({
+  name: '@cejel/cejel',
+  time: { '0.6.10': '2026-11-04T18:00:00.000Z', '0.6.11': '2026-11-10T12:00:00.000Z' },
+});
+
+function catalogFetch(catalogBody = RECORDED_CATALOG, npmBody = CONSTRUCTED_NPM) {
+  const requests = [];
+  const fetchImpl = async (url, options = {}) => {
+    requests.push({ url: String(url), options });
+    const body = String(url).startsWith('https://gitlab.com/') ? catalogBody : npmBody;
+    if (typeof body === 'number') return { ok: false, status: body, statusText: 'Error', text: async () => '' };
+    return { ok: true, status: 200, statusText: 'OK', text: async () => body };
+  };
+  return { requests, read: createLiveReaders({ fetchImpl })[CATALOG_SURFACE] };
+}
+
+test('Catalog reader: reads the newest version anonymously, and the npm publish time only when behind', async () => {
+  const equal = catalogFetch();
+  assert.deepEqual(await equal.read('0.6.10'), { newest: '0.6.10', createdAt: '2026-11-10T04:47:03Z', npmPublishedAt: null });
+  assert.equal(equal.requests.length, 1);
+  const [request] = equal.requests;
+  assert.equal(request.url, 'https://gitlab.com/api/graphql');
+  assert.equal(request.options.method, 'POST');
+  assert.match(JSON.parse(request.options.body).query, /ciCatalogResource\(fullPath: ?"barglabs\/cejel"\)/);
+  const headerNames = Object.keys(request.options.headers ?? {}).map((name) => name.toLowerCase());
+  assert.ok(!headerNames.some((name) => ['authorization', 'private-token', 'job-token'].includes(name)), headerNames.join(','));
+
+  const behind = catalogFetch();
+  assert.deepEqual(await behind.read('0.6.11'), {
+    newest: '0.6.10',
+    createdAt: '2026-11-10T04:47:03Z',
+    npmPublishedAt: '2026-11-10T12:00:00.000Z',
+  });
+  assert.equal(behind.requests[1].url, 'https://registry.npmjs.org/@cejel%2fcejel');
+  assert.equal(behind.requests[1].options.headers?.authorization, undefined);
+});
+
+test('Catalog reader: a GraphQL error, an empty Catalog, an HTTP failure or a missing npm time is unreadable', async () => {
+  const cases = [
+    [JSON.stringify({ errors: [{ message: 'boom' }] }), CONSTRUCTED_NPM, /boom/],
+    [JSON.stringify({ data: { ciCatalogResource: null } }), CONSTRUCTED_NPM, /no published version/],
+    [JSON.stringify({ data: { ciCatalogResource: { versions: { nodes: [] } } } }), CONSTRUCTED_NPM, /no published version/],
+    [503, CONSTRUCTED_NPM, /HTTP 503/],
+    [RECORDED_CATALOG, JSON.stringify({ time: {} }), /npm lists no publish time for @cejel\/cejel@0\.6\.11/],
+  ];
+  for (const [catalogBody, npmBody, reason] of cases) {
+    await assert.rejects(catalogFetch(catalogBody, npmBody).read('0.6.11'), reason);
+  }
 });
