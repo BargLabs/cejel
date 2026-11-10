@@ -114,6 +114,26 @@ rubric is pinned. v27 carries no precision or recall claim.
 
 ### Fixed
 
+- **A repository path longer than 700 characters no longer stops the scan, under every rubric
+  (#612).** The report schema caps every `path` at 700 characters. A file with a longer relative
+  path, cited as evidence or listed as withheld, failed validation, and the scan wrote no report.
+  - Such an evidence pointer is now left out of the report, and so is any finding that cites it.
+    The criterion keeps its other evidence. Its `disclosures` state how many items were left out
+    and why. Where the criterion already has the four disclosures the schema allows, a scan
+    limitation naming the criterion states it instead.
+  - Such a withheld path is left out of `withheldPaths`, and a scan limitation states how many.
+    `contentReadSummary` still counts it.
+  - No path is shortened. A shortened path would name a file that does not exist.
+  - Scores, statuses, metrics and verdicts are computed with every pointer, as before. Only the
+    citation is dropped. Scoring reads how many pointers a criterion holds, so the pointer is
+    dropped after scoring, not before.
+  - The finding that explains a metric-derived warning or critical status cites the first pointer
+    the report can carry. Before, it always cited the first pointer.
+  - If the sixteen scan limitations are already used and a drop needs one, the scan stops with an
+    error and writes no report. It never drops a path without saying so.
+  - A report with no path over the limit is byte-identical to before. The scoring-surface and
+    fingerprint pins did not move. A path of exactly 700 characters is cited as before.
+
 - **The GitHub Action no longer reads the calling repository's `package.json` to set up pnpm, and no
   longer changes the calling job's pnpm (#685, #686).** Both `action.yml` and `action/action.yml` ran
   `pnpm/action-setup`, which reads `packageManager` from the caller's workspace and prepends its pnpm
