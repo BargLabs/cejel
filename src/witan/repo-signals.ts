@@ -16799,8 +16799,8 @@ export function readPytestInvocations(
     // goal_cejel_v27_a1_makefile_addopts_environment_2026-11-04: not PYTEST_ADDOPTS, whose value in
     // the environment of each CI make command is read below.
     // Item B of goal_cejel_v27_a1_addopts_not_known_2026-11-05 (#673): PYTEST_ADDOPTS too, where a
-    // CI file names it somewhere those readers do not read; this changes only a `?=` default, since
-    // make passes the Makefile's value of an `=`, `:=` or `+=` whatever the environment holds.
+    // CI file names it somewhere those readers do not read. That leaves a `?=` default not known here;
+    // an unexported `=`, `:=`, `::=` or `+=` is read below (goal_cejel_v27_a1_addopts_assignment_not_known_2026-11-10, item A).
     const setByEnvironment = (name: string) =>
       name === 'PYTEST_ADDOPTS' ? addoptsMentionNotRead : environmentTexts.some((ciText) => containsWord(ciText, name));
     const justVariables = just ? readJustVariables(text) : undefined;
@@ -16819,6 +16819,9 @@ export function readPytestInvocations(
     // of #648: a just file's `set export` exports every assignment.
     let addoptsUnknown = false;
     let addoptsText: string | undefined;
+    // goal_cejel_v27_a1_addopts_assignment_not_known_2026-11-10, item A (#674): the unexported
+    // assignment that leaves PYTEST_ADDOPTS not known, named as the reason and pointed at.
+    let addoptsNotKnownAt: { readonly text: string; readonly line: number } | undefined;
     if (justVariables !== undefined) {
       const exportsAll = /^set[ \t]+export(?:[ \t]*:=[ \t]*true)?[ \t]*$/m.test(text);
       const assigned = /^(?:export[ \t]+)?PYTEST_ADDOPTS[ \t]*:=/m.test(text);
@@ -16829,8 +16832,17 @@ export function readPytestInvocations(
       }
     } else {
       const exported = /^(?:export[ \t]*|\.EXPORT_ALL_VARIABLES[ \t]*:.*|(?:override[ \t]+)?export[ \t]+PYTEST_ADDOPTS\b.*)$/m.test(text);
+      // Item A (#674; the operator's ruling of 10 Nov reverses the 5 Nov text for this case): GNU make
+      // passes an unexported variable to a recipe only where it is already in make's environment, and
+      // then with the Makefile's value. Where a CI file names PYTEST_ADDOPTS somewhere the readers do
+      // not read, that environment is not known, so neither is the value the recipe sees. Where every
+      // mention is read, each CI make command's environment is read below, as before.
+      const unexportedAssignment = exported || !addoptsMentionNotRead ? undefined : make?.assigned.get('PYTEST_ADDOPTS');
       if (isUnknown('PYTEST_ADDOPTS')) addoptsUnknown = true;
-      else if (exported && make?.values.has('PYTEST_ADDOPTS')) {
+      else if (unexportedAssignment !== undefined) {
+        addoptsUnknown = true;
+        addoptsNotKnownAt = unexportedAssignment;
+      } else if (exported && make?.values.has('PYTEST_ADDOPTS')) {
         const expanded = expand(make.values.get('PYTEST_ADDOPTS') ?? '');
         if (expanded.unknown) addoptsUnknown = true;
         else addoptsText = expanded.text;
@@ -16852,6 +16864,9 @@ export function readPytestInvocations(
       inForceAddopts: readonly string[] | undefined,
       notKnown: string | undefined,
       addoptsAt?: { readonly words: readonly string[]; readonly source: string; readonly file: string; readonly line: number },
+      // Item A of goal_cejel_v27_a1_addopts_assignment_not_known_2026-11-10: the 0-based line a run
+      // not known is pointed at (the assignment), in place of its target's header.
+      notKnownLine?: number,
     ): void => {
       const expandHere = variables === make ? expand : expandWith(variables);
       const reached = new Set<string>();
@@ -16872,7 +16887,7 @@ export function readPytestInvocations(
           }
           readShellCommands(expanded.text, repoDirectory(file), inForceAddopts, (words, directory, inForce, why) => {
             queue.push(...recipeTargetsNamed(words).filter((named) => targets.has(named)));
-            const visit = visitor(a1NotePath(file), file, headers.get(name) ?? 0, 0, undefined, undefined, addoptsAt);
+            const visit = visitor(a1NotePath(file), file, (notKnown === undefined ? undefined : notKnownLine) ?? headers.get(name) ?? 0, 0, undefined, undefined, addoptsAt);
             if (notKnown !== undefined) visit(words, null, inForce, notKnown);
             else visit(words, directory, inForce, why);
           });
@@ -16880,7 +16895,14 @@ export function readPytestInvocations(
       }
     };
     // make run by hand, or by a CI command with no PYTEST_ADDOPTS in its environment.
-    readRecipes([firstTarget, 'test', 'tests', 'check', ...namedTargets], make, addopts, addoptsUnknown ? 'PYTEST_ADDOPTS' : undefined);
+    readRecipes(
+      [firstTarget, 'test', 'tests', 'check', ...namedTargets],
+      make,
+      addopts,
+      addoptsUnknown ? (addoptsNotKnownAt?.text ?? 'PYTEST_ADDOPTS') : undefined,
+      undefined,
+      addoptsNotKnownAt?.line,
+    );
     // Item A of goal_cejel_v27_a1_makefile_addopts_environment_2026-11-04: each CI make command run
     // in this Makefile's directory (or one not known) with PYTEST_ADDOPTS in its environment. make
     // then passes PYTEST_ADDOPTS to every recipe, exported or not: with the Makefile's value where it
@@ -17336,6 +17358,12 @@ interface MakeVariables {
    * the environment set it.
    */
   readonly fromEnvironment: boolean;
+  /**
+   * goal_cejel_v27_a1_addopts_assignment_not_known_2026-11-10, item A (#674): for each name, its
+   * first assignment read with `=`, `:=`, `::=` or `+=` (not `?=`, and not one that leaves the name
+   * not known), as written (trimmed), and its 0-based line.
+   */
+  readonly assigned: ReadonlyMap<string, { readonly text: string; readonly line: number }>;
 }
 
 // The review of #648: at most this many variable substitutions per Makefile, so a chain of
@@ -17364,6 +17392,7 @@ function readMakeVariables(
   const simple = new Set<string>();
   const unknown = new Set<string>();
   const pytestNames = new Set<string>();
+  const assigned = new Map<string, { readonly text: string; readonly line: number }>();
   const budget = { left: MAKE_EXPANSION_BUDGET };
   let fromEnvironment = environment !== undefined;
   if (environment !== undefined) values.set(environment.name, environment.value);
@@ -17373,7 +17402,9 @@ function readMakeVariables(
   };
   let conditional = 0;
   let defining: string | undefined;
+  let lineIndex = -1;
   for (const line of text.split(/\r?\n/)) {
+    lineIndex += 1;
     const trimmed = line.trim();
     if (defining !== undefined) {
       if (/^endef\b/.test(trimmed)) defining = undefined;
@@ -17418,6 +17449,7 @@ function readMakeVariables(
     }
     // Item A: a `?=` keeps the environment's value; any other assignment replaces or extends it.
     if (fromTheEnvironment && operator !== '?=') fromEnvironment = false;
+    if (operator !== '?=' && !assigned.has(name)) assigned.set(name, { text: line.trim(), line: lineIndex });
     if (operator === '?=') {
       if (!values.has(name)) {
         values.set(name, value);
@@ -17441,7 +17473,7 @@ function readMakeVariables(
       simple.delete(name);
     }
   }
-  return { values, unknown, pytestNames, fromEnvironment };
+  return { values, unknown, pytestNames, fromEnvironment, assigned };
 }
 
 /**
