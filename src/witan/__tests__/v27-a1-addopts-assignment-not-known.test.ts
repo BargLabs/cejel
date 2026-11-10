@@ -112,15 +112,16 @@ describe('v27 A1, item A (#674): an unexported =, := or += of PYTEST_ADDOPTS whe
     [':=', 'colon-eq'],
     ['+=', 'plus-eq'],
   ] as const) {
-    it(`unexported ${operator} with a script CI runs with PYTEST_ADDOPTS set, which runs make test: not known, pointed at the assignment`, () => {
+    // The review of #698, item A: named with the CI mention not read and pointed at its line (it was
+    // the assignment at 46d7cbe27).
+    it(`unexported ${operator} with a script CI runs with PYTEST_ADDOPTS set, which runs make test: not known, pointed at the mention`, () => {
       const name = `a1asgn-script-sets-addopts-${slug}`;
-      // A comment line first, so the pointer is shown to be at the assignment's own line, not line 1.
       const v27 = expectWithheld(
         name,
         { Makefile: recipe('# test options', `PYTEST_ADDOPTS ${operator} -p no:skipping`), ...CI_SCRIPT, [CI]: SCRIPT_STEP },
-        `pytest run not read: \`PYTEST_ADDOPTS ${operator} -p no:skipping\` in Makefile`,
+        `pytest run not read: \`- run: PYTEST_ADDOPTS=-q ./ci/test.sh\` in ${CI}`,
       );
-      expectPointerAt(name, v27, 'Makefile', 2);
+      expectPointerAt(name, v27, CI, 10);
     });
   }
 
