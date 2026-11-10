@@ -16,6 +16,20 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **GitLab: Cejel's scores as a metrics report, so a merge request shows the scores that changed.**
+  `cejel export gitlab-metrics <report.json> [-o metrics.txt]` writes one `<name> <value>` line
+  each for the overall score, process trust, code trust and every criterion
+  (`cejel_criterion_a4_score`), to one decimal as the terminal prints them. A value Cejel did not
+  measure gets no line, never a 0; an abstained report writes an empty file and the footer says why.
+  The GitLab template runs it after the Code Quality export and publishes `metrics.txt` as
+  `artifacts:reports:metrics`; a failed metrics export keeps the scan's exit status and the Code
+  Quality upload. GitLab shows metrics reports on Premium and Ultimate only. Since 0.6.11 a score
+  change on the same line no longer shows in the Code Quality widget; this report is where it shows.
+  No scoring change: every `report.json` is unchanged. The gitlab.com component gains the step in
+  its release after this one. See [`docs/gitlab-ci.md`](docs/gitlab-ci.md#metrics-report).
+
 ## [0.6.11] — 2026-11-09
 
 v17 remains the default rubric. Every scoring change below applies only when the prospective v27

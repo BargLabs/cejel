@@ -1,8 +1,9 @@
 # Cejel on GitLab CI
 
-A GitLab CI job template and a GitLab Code Quality export. Scoring is unchanged: the job runs
-the same offline scan as every other Cejel entry point, and the export only re-presents the
-findings already in `report.json`.
+A GitLab CI job template, a GitLab Code Quality export and a GitLab metrics export. Scoring is
+unchanged: the job runs the same offline scan as every other Cejel entry point, and the exports
+only re-present the findings and scores already in `report.json`. Code Quality says which problems
+exist and where; the metrics report says how the scores moved; `CEJEL_MIN_SCORE` stays the gate.
 
 ## Component (recommended)
 
@@ -39,10 +40,17 @@ The job is named `cejel`, runs in the `test` stage on `node:22`, and:
 
 1. runs `npx @cejel/cejel@$CEJEL_VERSION scan . --out .cejel`;
 2. runs `npx @cejel/cejel@$CEJEL_VERSION export gitlab-codequality .cejel/report.json -o gl-code-quality-report.json`;
-3. publishes `gl-code-quality-report.json` as `artifacts:reports:codequality` and keeps `.cejel/`
-   as a job artifact (`when: always`, so both survive a failed score gate).
+3. runs `npx @cejel/cejel@$CEJEL_VERSION export gitlab-metrics .cejel/report.json -o metrics.txt`.
+   If this step fails, the job prints a line saying so and still exits with the scan's status;
+4. publishes `gl-code-quality-report.json` as `artifacts:reports:codequality` and `metrics.txt`
+   as `artifacts:reports:metrics`, and keeps `.cejel/` as a job artifact (`when: always`, so all
+   three survive a failed score gate).
 
-The scan and the export make no network calls. The only network use is the `npx` fetch of the
+The component on gitlab.com gains step 3 and the metrics report in the component release that
+follows the `@cejel/cejel` release carrying `export gitlab-metrics`. Until then, only the remote
+include runs it.
+
+The scan and the exports make no network calls. The only network use is the `npx` fetch of the
 pinned package. The template is not itself a lint-checked file in CI here: see Limits.
 
 ### Variables
@@ -50,7 +58,7 @@ pinned package. The template is not itself a lint-checked file in CI here: see L
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `CEJEL_VERSION` | the release the include tag names | `@cejel/cejel` version `npx` runs. Keep it equal to the tag in the include URL. |
-| `CEJEL_MIN_SCORE` | empty | When set (0-4), the job fails below that overall score, when Cejel abstains, or when measurement coverage is too thin. This is the CLI's `--min-score`, as with the GitHub Action's `min-score`. The export still runs before the job exits. |
+| `CEJEL_MIN_SCORE` | empty | When set (0-4), the job fails below that overall score, when Cejel abstains, or when measurement coverage is too thin. This is the CLI's `--min-score`, as with the GitHub Action's `min-score`. Both exports still run before the job exits. |
 | `GIT_DEPTH` | `"0"` | Full history: A2 and B2 read commit history. See Full history below. |
 
 These are job variables. Override one under the `variables:` of your own `cejel:` job, which
@@ -93,7 +101,8 @@ Reads a validated `report.json` and writes a JSON array of Code Quality entries
   at one place that would share an identity each get their ordinal there, in report order, so
   neither is dropped. GitLab's merge request widget lists only new and resolved findings, so a score
   change on the same line does not appear there; the score is in the entry's `description` and in
-  Cejel's report.
+  Cejel's report. A score change is shown by the metrics report (see Metrics report below), not by
+  the Code Quality widget.
 - Only findings with both a file and a measured line are exported. A finding scoped to a file or
   to the repository, with no measured line, is counted in the footer and left out. Cejel does not
   put a stand-in line such as `1` on a position it did not measure.
@@ -114,6 +123,42 @@ Fixed, not inferred per run.
 | `info` | `info` |
 
 Cejel has no tier that maps to `minor` or `blocker`, so neither is emitted.
+
+## Metrics report
+
+```
+cejel export gitlab-metrics <report.json> [-o metrics.txt]
+```
+
+Reads a validated `report.json`, with the same validation and refusal as the Code Quality export,
+and writes a GitLab metrics report: a text file with one `<name> <value>` line per score, in this
+order:
+
+| Line | Value |
+| --- | --- |
+| `cejel_overall_score` | the overall score |
+| `cejel_process_trust_score` | process trust |
+| `cejel_code_trust_score` | code trust |
+| `cejel_criterion_<id>_score` | one per criterion, in report order; the id lower-cased, with `-` written as `_` (for example `cejel_criterion_a4_score`) |
+
+- Each value is printed to one decimal, as the terminal certificate prints it, so a difference
+  below that precision never reads as a change.
+- A value Cejel did not measure is left out, never written as 0: a criterion that is
+  `insufficient_data` or `not_applicable`, a trust score whose category has no measured criterion,
+  and the overall score when no criterion was measured. A criterion scored 0 (for example
+  `unverified`) is written, because 0 is its score. A rubric with no code-trust or process-trust
+  criteria writes no line under that name.
+- An abstained report (`verdict: "insufficient_source"`) writes an empty file, and the footer
+  states the abstention reason.
+- A footer on stderr says how many metrics were written and how many values were left out because
+  Cejel did not measure them, naming each one.
+
+In a merge request, GitLab compares the file with the one from the target branch's baseline pipeline and lists the
+scores that were added, removed or changed. A value left out on one side therefore shows as added or
+removed, not as a change to or from 0. Metrics reports need GitLab Premium or Ultimate; on Free,
+GitLab ignores the file. This was written from the goal's summary of GitLab's metrics reports page
+(docs.gitlab.com/ci/testing/metrics_reports/), not re-read against it, and has not been run on a
+GitLab runner here.
 
 ## What appears in merge requests
 

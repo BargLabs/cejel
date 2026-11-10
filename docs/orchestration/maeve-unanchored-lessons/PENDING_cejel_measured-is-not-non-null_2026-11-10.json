@@ -1,0 +1,24 @@
+[
+  {
+    "statement": "When an export re-presents a scorer's numbers, test whether any input behind each number was measured, not only whether the number is non-null. 2026-11-10, #709: the GitLab metrics export had to write no line for a value Cejel did not measure. The schema's nulls covered only an abstained report, but the scorer averages a category whose criteria are all insufficient_data or not_applicable to 0, and the overall score is 0 when nothing was measured, so a null check alone would have published real-looking zeros that GitLab then shows as score changes. The trading rubric added a second case: its codeTrustScore and processTrustScore are its first two categories under other names. Fix: write a trust line only when its named category has a measured criterion, and the overall line only when some criterion was measured; a criterion actually scored 0 is still written.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "abstention"
+    ],
+    "tags": [
+      "stand-in-zero",
+      "export",
+      "gitlab-metrics",
+      "abstain-rather-than-guess"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-11-10T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 709
+    }
+  }
+]

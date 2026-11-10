@@ -31,6 +31,7 @@ cejel:
         exit "${status:-1}"
       fi
       npx --yes "@cejel/cejel@${CEJEL_VERSION}" export gitlab-codequality .cejel/report.json -o gl-code-quality-report.json
+      npx --yes "@cejel/cejel@${CEJEL_VERSION}" export gitlab-metrics .cejel/report.json -o metrics.txt || echo "Cejel: the metrics export failed; the job keeps the scan's exit status ${status}" >&2
       exit "$status"
   artifacts:
     when: always
@@ -38,3 +39,4 @@ cejel:
       - .cejel/
     reports:
       codequality: gl-code-quality-report.json
+      metrics: metrics.txt
