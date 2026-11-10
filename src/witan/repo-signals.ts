@@ -17024,7 +17024,7 @@ export function readPytestInvocations(
   for (const name of toxenv.names) namedToxEnvironments.add(name);
   // goal_cejel_v27_a1_addopts_assignment_not_known_2026-11-10, item B (#653): one posargs budget
   // across every tox.ini of the read, as the nox reader's is across every noxfile.
-  const toxBudget = { left: POSARGS_BUDGET };
+  const toxBudget = { left: POSARGS_BUDGET, characters: POSARGS_CHARACTER_BUDGET };
   for (const file of usable.filter((candidate) => basename(candidate) === 'tox.ini')) {
     const text = readText(file);
     if (text === undefined) continue;
@@ -17824,6 +17824,17 @@ const NOX_POSARGS_WORD = '\u0000session.posargs';
  * holding {posargs} and 16 distinct CI sets of W words. The nox and tox reads each have their own.
  */
 const POSARGS_BUDGET = 4096;
+/**
+ * goal_cejel_v27_a1_addopts_review_fixes_698_2026-11-10, item C (blocker 3 of the review of #698):
+ * the count above charges a tox.ini line one unit per run read plus the words put in, but each
+ * {posargs} on the line takes the whole set's text, so the line's work is its {posargs} count times
+ * the characters put in: L/20 {posargs} and one word of L/2 characters cost 3 units and L²/40
+ * characters. The tox reader also charges each line that product (a word's characters and one
+ * separator, per {posargs}, per set), against this many characters across every tox.ini of a read.
+ * The nox reader puts a passed word in place of *session.posargs by reference and copies no text, so
+ * its work is the call's words plus the sets' words, and it takes no such charge.
+ */
+const POSARGS_CHARACTER_BUDGET = 262_144;
 
 /**
  * item A: a noxfile's `session.run(...)` calls: the literal string arguments before the first
@@ -17939,8 +17950,9 @@ function readToxCommands(
   notRead: (entry: { readonly text: string; readonly source: string; readonly file: string; readonly anchor: number }) => void = () => undefined,
   factorsUnknown = false,
   // goal_cejel_v27_a1_addopts_assignment_not_known_2026-11-10, item B (#653): the posargs budget
-  // shared across the read's tox.ini files (POSARGS_BUDGET).
-  budget: { left: number } = { left: POSARGS_BUDGET },
+  // shared across the read's tox.ini files (POSARGS_BUDGET). The review of #698, item C: and the
+  // characters left (POSARGS_CHARACTER_BUDGET).
+  budget: { left: number; characters: number } = { left: POSARGS_BUDGET, characters: POSARGS_CHARACTER_BUDGET },
 ): void {
   const sections = readIniSections(text);
   const toxDirectory = repoDirectory(file);
@@ -17969,7 +17981,14 @@ function readToxCommands(
   // Item B of goal_cejel_v27_a1_addopts_assignment_not_known_2026-11-10 (#653): a line holding
   // {posargs} is read once with none and once per literal set, so its work is one per run read plus
   // the words put in, the nox reader's count. The 16-set limit caps the sets, not their length.
-  const posargsLineCost = literalPosargs.reduce((sum, entry) => sum + 1 + entry.words.length, 1);
+  // The review of #698, item C: per {posargs} on the line, the sets' words and their characters (a
+  // word's characters and one separator each); a line with one {posargs} costs what it did.
+  let posargsWords = 0;
+  let posargsCharacters = 0;
+  for (const entry of literalPosargs) {
+    posargsWords += entry.words.length;
+    for (const word of entry.words) posargsCharacters += word.length + 1;
+  }
   let unreadSaid = false;
   const seen = new Set<Map<string, string>>();
   for (const { section, names } of environments) {
@@ -18008,8 +18027,11 @@ function readToxCommands(
         // Item B (#653): past the shared budget the line is named as a run not read, as the nox
         // reader names a call; none of its runs is read.
         if (line.includes('{posargs')) {
-          budget.left -= posargsLineCost;
-          if (budget.left < 0) {
+          let occurrences = 0;
+          for (let at = line.indexOf('{posargs'); at !== -1; at = line.indexOf('{posargs', at + 1)) occurrences += 1;
+          budget.left -= 1 + literalPosargs.length + occurrences * posargsWords;
+          budget.characters -= occurrences * posargsCharacters;
+          if (budget.left < 0 || budget.characters < 0) {
             notRead({ text: line, source: a1NotePath(file), file, anchor });
             continue;
           }

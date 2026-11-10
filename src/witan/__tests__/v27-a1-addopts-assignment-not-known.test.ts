@@ -314,6 +314,24 @@ describe('v27 A1, item B (#653): tox posargs past the shared budget', () => {
     expect(read.filter(({ unread }) => unread !== undefined).map(({ file, unread }) => `${file}: ${unread}`)).toEqual(['sub/tox.ini: pytest {posargs} tests/c']);
   });
 
+  // goal_cejel_v27_a1_addopts_review_fixes_698_2026-11-10, item C: each {posargs} on a line takes the
+  // set's characters, counted against 262,144 across the read. One word of 140,000 characters costs a
+  // line with one {posargs} 140,001, read; a line with two costs 280,002, named not read.
+  it('the character count: one {posargs} with a 140,000-character word is read; two on one line are not', () => {
+    const word = `-k${'x'.repeat(139_998)}`;
+    const readWith = (command: string) => {
+      const texts = new Map([
+        ['tox.ini', lines('[tox]', 'envlist = py', '', '[testenv]', `commands = ${command}`)],
+        [CI, workflow([`      - run: tox -e py -- ${word}`])],
+      ]);
+      return readPytestInvocations([...texts.keys()], (file) => texts.get(file));
+    };
+    const once = readWith('pytest {posargs}');
+    expect(once.some(({ file, unread, args }) => file === 'tox.ini' && unread === undefined && args.includes(word))).toBe(true);
+    const twice = readWith('pytest {posargs} {posargs}');
+    expect(twice.filter(({ unread }) => unread !== undefined).map(({ file, unread }) => `${file}: ${unread}`)).toEqual(['tox.ini: pytest {posargs} {posargs}']);
+  });
+
   it('control: the same line with a CI set inside the budget is read, and rated hollow', () => {
     expectHollow('a1tox-posargs-within-budget', {
       'tox.ini': lines('[tox]', 'envlist = py', '', '[testenv]', 'deps = pytest', 'commands = pytest {posargs}'),
