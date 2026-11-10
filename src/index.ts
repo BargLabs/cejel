@@ -33,6 +33,11 @@ import {
   exportGitLabCodeQuality,
   renderGitLabCodeQualityFooter,
 } from './export/gitlab-codequality.js';
+import {
+  exportGitLabMetrics,
+  renderGitLabMetricsFile,
+  renderGitLabMetricsFooter,
+} from './export/gitlab-metrics.js';
 
 export { WitanReportSchema, verifyWitanAttestationBinding };
 
@@ -113,7 +118,7 @@ export interface CejelVerifyInvocation {
 
 export interface CejelExportInvocation {
   command: 'export';
-  format: 'gitlab-codequality';
+  format: CejelExportFormat;
   reportPath: string;
   outPath: string;
 }
@@ -319,6 +324,7 @@ Usage:
   npx ${NPX_PACKAGE_NAME} scan [path] [options]
   npx ${NPX_PACKAGE_NAME} verify <report.json> <attestation.json> [issuance.json issuance.json.sig]
   npx ${NPX_PACKAGE_NAME} export gitlab-codequality <report.json> [-o gl-code-quality-report.json]
+  npx ${NPX_PACKAGE_NAME} export gitlab-metrics <report.json> [-o metrics.txt]
   npx ${NPX_PACKAGE_NAME} mcp
   npx ${NPX_PACKAGE_NAME} issue [path] --report <report.json> --attestation <attestation.json> --key <key.pub> --engagement-ref <ref>
 
@@ -326,7 +332,8 @@ Commands:
   scan    score a repository (default when the command is omitted)
   verify  verify the report/attestation binding; with an issuance pair, also check the issuer
           signature against docs/security/${ISSUER_SIGNERS_FILE} and docs/security/${ISSUER_REVOCATIONS_FILE}
-  export  write report.json's located findings as a GitLab Code Quality report (offline)
+  export  write report.json's located findings as a GitLab Code Quality report, or its scores
+          as a GitLab metrics report (offline)
   mcp     serve the MCP server over stdio (the same server as the cejel-mcp bin)
   issue   re-run this version at the certificate's revision and, only if report.json reproduces
           byte for byte, write an unsigned issuance.json for the issuer to sign through ssh-agent
@@ -563,14 +570,28 @@ export function parseCliInvocation(args: readonly string[]): CejelCliInvocation 
   return { command: 'scan', options: parseArgs(args) };
 }
 
+/** Each export format and the file it writes when `-o` is not given. */
+const EXPORT_DEFAULT_OUT = {
+  'gitlab-codequality': 'gl-code-quality-report.json',
+  'gitlab-metrics': 'metrics.txt',
+} as const;
+export type CejelExportFormat = keyof typeof EXPORT_DEFAULT_OUT;
+
+function isExportFormat(value: string | undefined): value is CejelExportFormat {
+  return value !== undefined && Object.hasOwn(EXPORT_DEFAULT_OUT, value);
+}
+
 const EXPORT_USAGE = () =>
-  `Usage: npx ${NPX_PACKAGE_NAME} export gitlab-codequality <report.json> [-o gl-code-quality-report.json]`;
+  [
+    `Usage: npx ${NPX_PACKAGE_NAME} export gitlab-codequality <report.json> [-o gl-code-quality-report.json]`,
+    `       npx ${NPX_PACKAGE_NAME} export gitlab-metrics <report.json> [-o metrics.txt]`,
+  ].join('\n');
 
 export function parseExportArgs(args: readonly string[]): CejelExportInvocation {
   const [format, ...rest] = args;
-  if (format !== 'gitlab-codequality') throw new Error(EXPORT_USAGE());
+  if (!isExportFormat(format)) throw new Error(EXPORT_USAGE());
   const positionals: string[] = [];
-  let outPath = 'gl-code-quality-report.json';
+  let outPath: string = EXPORT_DEFAULT_OUT[format];
   for (let index = 0; index < rest.length; index += 1) {
     const arg = rest[index];
     if (arg === undefined) continue;
@@ -605,6 +626,12 @@ function runExport(invocation: CejelExportInvocation): number {
       `Cejel: report validation failed:\n${members.map((member) => `  - ${member}`).join('\n')}\n`,
     );
     return 1;
+  }
+  if (invocation.format === 'gitlab-metrics') {
+    const metrics = exportGitLabMetrics(reportResult.data);
+    writeOutputFile(invocation.outPath, renderGitLabMetricsFile(metrics), 'export output');
+    process.stderr.write(renderGitLabMetricsFooter(metrics));
+    return 0;
   }
   const result = exportGitLabCodeQuality(reportResult.data);
   writeOutputFile(
