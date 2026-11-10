@@ -726,8 +726,9 @@ export const WITAN_ATTESTATION_PREDICATE_TYPE = 'https://cejel.dev/attestations/
 // not cited; a finding anchored on it keeps its place on a stated anchor (path '.'), and the
 // criterion's disclosures say how many distinct paths it did not cite. A withheld path over the
 // limit is left out of withheldPaths and stated in one criterion's disclosures. Where four
-// disclosures are used the statement goes in the notes; only where those are full too is it a scan
-// limitation (path-limits.ts). A report with no such path is byte-identical.
+// disclosures are used the statement goes in the notes, shortened to a count, with the notes' own
+// tail cut where needed; it is never a scan limitation (path-limits.ts). A report with no such path
+// is byte-identical.
 export const WITAN_REPORT_FORMAT_VERSION = '1.9' as const;
 
 export const WitanAttestationOutcomeSchema = z.discriminatedUnion('status', [

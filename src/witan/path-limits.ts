@@ -1,3 +1,4 @@
+import { clamp } from './finding-limits.js';
 import type {
   WitanCriterionScore,
   WitanEvidencePointer,
@@ -24,7 +25,8 @@ import type {
 //   by OVER_LIMIT_ANCHOR, a stated anchor that is not a file (review of #697, item A).
 // - Each criterion states how many distinct paths it did not cite, however many pointers or
 //   findings cited each one (item B), in its disclosures, or in its notes where the four
-//   disclosures the schema allows are used.
+//   disclosures the schema allows are used. In the notes it is shortened to a count, and the notes'
+//   own tail is cut where even that does not fit (stateOn); it is never a scan limitation.
 // - A withheld path over the limit is left out of withheldPaths and stated the same way, on one
 //   criterion, never as a scan limitation: scan limitations move the badge and the --min-score gate,
 //   and a path's length must not (item C).
@@ -172,28 +174,57 @@ const DISCLOSURES_MAX = 4;
 const STATEMENT_MAX = 1000;
 
 /**
- * Put a statement on a criterion: in its disclosures, or, where the four the schema allows are
- * used, appended to its notes. Neither moves a score, status, badge or gate. Only where the notes
- * cannot hold it either is it returned as a scan limitation naming the criterion, so that it is
- * never left unstated.
+ * The count-only form of overLimitCitationDisclosure, for a criterion's notes where the long form
+ * does not fit. At most 92 characters for any count below 10^9.
  */
-function stateOn(
-  criterion: WitanCriterionScore,
-  sentence: string,
-): { criterion: WitanCriterionScore; limitation?: string } {
-  const disclosures = criterion.disclosures ?? [];
-  if (disclosures.length < DISCLOSURES_MAX) {
-    return { criterion: { ...criterion, disclosures: [...disclosures, sentence] } };
-  }
-  const notes = criterion.notes ? `${criterion.notes} ${sentence}` : sentence;
-  if (notes.length <= STATEMENT_MAX) return { criterion: { ...criterion, notes } };
-  return { criterion, limitation: `${criterion.id}: ${sentence}` };
+export function overLimitCitationNote(count: number): string {
+  const one = count === 1;
+  return `${count} ${one ? 'path' : 'paths'} over the report's ${REPORT_PATH_MAX}-character limit ${one ? 'is' : 'are'} not cited; scoring counted ${one ? 'it' : 'them'}.`;
 }
 
-export interface DroppedCitations {
-  readonly criteria: WitanCriterionScore[];
-  /** Statements that fit on no criterion: four disclosures used and no room left in the notes. */
-  readonly overflowLimitations: string[];
+/**
+ * The count-only form of overLimitWithheldPathsDisclosure, for a criterion's notes where the long
+ * form does not fit. It carries OVER_LIMIT_WITHHELD_MARK, so the certificate still reads it.
+ */
+export function overLimitWithheldPathsNote(count: number): string {
+  const one = count === 1;
+  return `${count} withheld ${one ? 'path is' : 'paths are'} ${OVER_LIMIT_WITHHELD_MARK} ${one ? 'it is' : 'they are'} over the report's ${REPORT_PATH_MAX}-character limit.`;
+}
+
+interface Statement {
+  /** The sentence for a disclosure, or for the notes where it fits whole. */
+  readonly full: string;
+  /** The count-only sentence, for the notes where `full` does not fit. */
+  readonly countOnly: string;
+}
+
+/**
+ * Put a criterion's statements on it: each in a disclosure while the four the schema allows are
+ * not used, the rest at the end of its notes. In the notes, each rest statement is written whole
+ * where all of them fit, else in its count-only form; where even those do not fit, the notes' own
+ * tail is cut to make room, by the "..." rule clampFinding uses for an over-long field
+ * (finding-limits.ts), keeping the notes' head. The count-only forms of both statements together
+ * are under 300 characters, so at least 700 characters of the notes always stay and every
+ * statement always fits. None of this is a scan limitation, so none moves a score, status, badge
+ * or gate.
+ */
+function stateOn(criterion: WitanCriterionScore, statements: readonly Statement[]): WitanCriterionScore {
+  const disclosures = criterion.disclosures ?? [];
+  const room = Math.max(0, DISCLOSURES_MAX - disclosures.length);
+  const disclosed = statements.slice(0, room).map(({ full }) => full);
+  const rest = statements.slice(room);
+  const withDisclosures =
+    disclosed.length > 0 ? { ...criterion, disclosures: [...disclosures, ...disclosed] } : criterion;
+  if (rest.length === 0) return withDisclosures;
+  const join = (notes: string | undefined, sentences: string) => (notes ? `${notes} ${sentences}` : sentences);
+  const whole = join(criterion.notes, rest.map(({ full }) => full).join(' '));
+  if (whole.length <= STATEMENT_MAX) return { ...withDisclosures, notes: whole };
+  const countOnly = rest.map(({ countOnly: sentence }) => sentence).join(' ');
+  const counted = join(criterion.notes, countOnly);
+  if (counted.length <= STATEMENT_MAX) return { ...withDisclosures, notes: counted };
+  // Only reached with notes present: countOnly alone is far under STATEMENT_MAX.
+  const kept = clamp(criterion.notes as string, STATEMENT_MAX - countOnly.length - 1);
+  return { ...withDisclosures, notes: `${kept} ${countOnly}` };
 }
 
 /**
@@ -201,15 +232,15 @@ export interface DroppedCitations {
  * finding that cited one on OVER_LIMIT_ANCHOR, and state on that criterion how many distinct paths
  * it did not cite. Then state the withheld paths left out of withheldPaths on one criterion: the
  * first, in report order, that a check reading them belongs to, else the report's first criterion.
- * Score, status and metrics are returned exactly as scored; a criterion with nothing to state is
- * returned unchanged.
+ * Every statement goes on a criterion (stateOn), never in the scan limitations. Score, status and
+ * metrics are returned exactly as scored; a criterion with nothing to state is returned unchanged.
  */
 export function dropMarkedCitations(
   criteria: readonly WitanCriterionScore[],
   droppedWithheldPaths: readonly InputWithheldPath[] = [],
-): DroppedCitations {
-  const overflowLimitations: string[] = [];
-  const fitted = criteria.map((criterion) => {
+): WitanCriterionScore[] {
+  const statements: Statement[][] = criteria.map(() => []);
+  const cited = criteria.map((criterion, index) => {
     const dropped = new Set<string>();
     const evidence = criterion.evidence.filter((pointer) => {
       if (!isMarked(pointer)) return true;
@@ -222,45 +253,30 @@ export function dropMarkedCitations(
       return { ...finding, evidence: { ...OVER_LIMIT_ANCHOR } };
     });
     if (dropped.size === 0) return criterion;
-    const stated = stateOn({ ...criterion, evidence, findings }, overLimitCitationDisclosure(dropped.size));
-    if (stated.limitation !== undefined) overflowLimitations.push(stated.limitation);
-    return stated.criterion;
+    statements[index]?.push({
+      full: overLimitCitationDisclosure(dropped.size),
+      countOnly: overLimitCitationNote(dropped.size),
+    });
+    return { ...criterion, evidence, findings };
   });
   if (droppedWithheldPaths.length > 0) {
+    if (cited.length === 0) {
+      // The report schema requires at least one criterion, so no report reaches this.
+      throw new Error('Cejel invariant: a report with withheld paths has at least one criterion');
+    }
     const signals = [...new Set(droppedWithheldPaths.flatMap(({ signalsAdmitting }) => signalsAdmitting))].sort();
     const admitting = new Set(signals.map((signal) => signal.split('.')[0]));
     const index = Math.max(
       0,
-      fitted.findIndex(({ id }) => admitting.has(id)),
+      cited.findIndex(({ id }) => admitting.has(id)),
     );
-    const sentence = overLimitWithheldPathsDisclosure(droppedWithheldPaths.length, signals);
-    const target = fitted[index];
-    if (target === undefined) {
-      overflowLimitations.push(sentence);
-    } else {
-      const stated = stateOn(target, sentence);
-      if (stated.limitation !== undefined) overflowLimitations.push(stated.limitation);
-      fitted[index] = stated.criterion;
-    }
+    statements[index]?.push({
+      full: overLimitWithheldPathsDisclosure(droppedWithheldPaths.length, signals),
+      countOnly: overLimitWithheldPathsNote(droppedWithheldPaths.length),
+    });
   }
-  return { criteria: fitted, overflowLimitations };
-}
-
-const SCAN_LIMITATIONS_MAX = 16;
-
-/**
- * Append the statements that fit on no criterion to the scan limitations. Throws, and so writes no
- * report, only where the schema's sixteen entries are already used; a drop is never left unstated.
- */
-export function withDropLimitations(
-  scanLimitations: readonly string[],
-  statements: readonly string[],
-): string[] {
-  if (statements.length === 0) return [...scanLimitations];
-  if (scanLimitations.length + statements.length > SCAN_LIMITATIONS_MAX) {
-    throw new Error(
-      `Cejel: ${statements.length} statement(s) of items dropped for a path over the report's ${REPORT_PATH_MAX}-character limit do not fit beside ${scanLimitations.length} scan limitations (at most ${SCAN_LIMITATIONS_MAX}); refusing to drop them without saying so.`,
-    );
-  }
-  return [...scanLimitations, ...statements];
+  return cited.map((criterion, index) => {
+    const own = statements[index] ?? [];
+    return own.length === 0 ? criterion : stateOn(criterion, own);
+  });
 }

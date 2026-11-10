@@ -31,12 +31,7 @@ import {
   WITAN_LEGACY_AUTHENTICATED_A1_ABSENCE_SUMMARY,
   WITAN_NO_MEASUREMENT_REASON,
 } from './abstention.js';
-import {
-  dropMarkedCitations,
-  isCitablePointer,
-  markOverLimitPaths,
-  withDropLimitations,
-} from './path-limits.js';
+import { dropMarkedCitations, isCitablePointer, markOverLimitPaths } from './path-limits.js';
 import { rubricBehaviourFingerprint } from './rubric-fingerprint.js';
 import {
   WITAN_RUBRIC_VERSION_V9,
@@ -202,13 +197,9 @@ export function createWitanReport(
   // #612: scores, statuses and metrics above were computed with every pointer; only the citations
   // of over-limit paths are removed here. A finding that cited one keeps its place with a stated
   // anchor, each criterion that lost a citation says how many distinct paths, and withheld paths
-  // left out of withheldPaths are stated on a criterion, not as a scan limitation. A statement
-  // becomes a scan limitation only where no criterion can hold it (path-limits.ts).
-  const { criteria, overflowLimitations } = dropMarkedCitations(
-    scoredCriteria,
-    marked.droppedWithheldPaths,
-  );
-  const scanLimitations = withDropLimitations(parsedInput.scanLimitations, overflowLimitations);
+  // left out of withheldPaths are stated on a criterion. No statement is ever a scan limitation,
+  // so none moves the badge or the --min-score gate (path-limits.ts).
+  const criteria = dropMarkedCitations(scoredCriteria, marked.droppedWithheldPaths);
 
   // Category buckets in rubric-declared order (dedup, first-seen). The default rubric
   // always yields exactly ['code_trust', 'process_trust'], so codeTrustScore/processTrustScore
@@ -299,7 +290,9 @@ export function createWitanReport(
     overallScore: abstained ? null : overallScore,
     criteria,
     ...(consumedSignals.length > 0 ? { consumedSignals } : {}),
-    ...(scanLimitations.length > 0 ? { scanLimitations } : {}),
+    ...(parsedInput.scanLimitations.length > 0
+      ? { scanLimitations: parsedInput.scanLimitations }
+      : {}),
     ...(parsedInput.contentReadSummary
       ? { contentReadSummary: parsedInput.contentReadSummary }
       : {}),

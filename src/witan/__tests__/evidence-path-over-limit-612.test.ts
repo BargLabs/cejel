@@ -7,11 +7,15 @@ import { afterAll, describe, expect, it, vi } from 'vitest';
 
 import { runWitanFreeCli } from '../../index.js';
 import { buildPlainSummary } from '../../plain-summary.js';
+import { renderWitanBadgeEndpoint } from '../badge.js';
 import { buildRelyingPartySummary } from '../certificate-presentation.js';
 import {
   OVER_LIMIT_ANCHOR,
   overLimitCitationDisclosure,
+  overLimitCitationNote,
   overLimitWithheldPathsDisclosure,
+  overLimitWithheldPathsNote,
+  statesUnlistedWithheldPaths,
 } from '../path-limits.js';
 import { scoreRepoWithPublicCejel } from '../public-scan.js';
 import { WITAN_RUBRIC_VERSION_V17, WITAN_RUBRIC_VERSION_V27 } from '../rubric-version.js';
@@ -513,17 +517,73 @@ describe('#612 createWitanReport: an over-limit path is dropped after scoring an
     expect(report.scanLimitations).toBeUndefined();
   });
 
-  it('uses a scan limitation only where disclosures and notes are both full, and refuses where the sixteen are used too', () => {
+  // Operator ruling of 10 Nov (re-review of #706 at bca7e2b20): where four disclosures are used,
+  // the statement goes in the notes whatever their length, shortened to a count and with the notes'
+  // own tail cut where needed. It never becomes a scan limitation, so the badge and the gate are the
+  // short-path copy's, and a scan whose sixteen scan limitations are used still writes its report.
+  describe.each([10, 600, 720, 1000])('with four disclosures and %i characters of notes', (notesLength) => {
     const disclosures = ['one.', 'two.', 'three.', 'four.'];
-    const notes = 'n'.repeat(1000);
-    const signals = [{ criterionId: 'A3' as const, positiveEvidence: [pointer(OVER)], disclosures, notes }];
-    expect(createWitanReport({ ...base, signals }).scanLimitations).toEqual([
-      `A3: ${overLimitCitationDisclosure(1)}`,
-    ]);
-    const scanLimitations = Array.from({ length: 16 }, (_, index) => `limitation ${index}.`);
-    expect(() => createWitanReport({ ...base, scanLimitations, signals })).toThrow(
-      /refusing to drop them without saying so/,
-    );
+    const notes = `${'n'.repeat(notesLength - 1)}.`;
+    const SIXTEEN = Array.from({ length: 16 }, (_, index) => `limitation ${index}.`);
+    const make = (path: string, scanLimitations: readonly string[], withheld = false) =>
+      createWitanReport({
+        ...base,
+        scanLimitations: [...scanLimitations],
+        signals: [{ criterionId: 'A3', positiveEvidence: [pointer(path), pointer(SHORT)], disclosures, notes }],
+        ...(withheld
+          ? { withheldPaths: [{ path, reason: 'too_large' as const, signalsAdmitting: ['A3.build_script'], actedOn: false }] }
+          : {}),
+      });
+
+    it.each([
+      ['no scan limitations', [] as string[]],
+      ['all sixteen scan limitations used', SIXTEEN],
+    ])('states the drop in the notes, with the badge and limitations of the short-path copy (%s)', (_label, scanLimitations) => {
+      const short = make(SHORT, scanLimitations);
+      const over = make(OVER, scanLimitations);
+      expect(() => WitanReportSchema.parse(over)).not.toThrow();
+      expect(over.scanLimitations).toEqual(short.scanLimitations);
+      expect(over.scanLimitations?.length ?? 0).toBe(scanLimitations.length);
+      expect(renderWitanBadgeEndpoint(over)).toEqual(renderWitanBadgeEndpoint(short));
+      if (scanLimitations.length === 0) {
+        expect(renderWitanBadgeEndpoint(over).message).not.toBe('unrated: limited evidence');
+      }
+      expect(outcome(over)).toEqual(outcome(short));
+      const a3 = over.criteria.find(({ id }) => id === 'A3');
+      expect(a3?.disclosures).toEqual(disclosures);
+      expect(a3?.evidence).toEqual([pointer(SHORT)]);
+      expect(a3?.notes?.length).toBeLessThanOrEqual(1000);
+      const stated = a3?.notes?.endsWith(overLimitCitationDisclosure(1)) || a3?.notes?.endsWith(overLimitCitationNote(1));
+      expect(stated).toBe(true);
+      // The notes' head is kept: whole where the statement fits after them, else cut by the "..." rule.
+      const kept = a3?.notes?.startsWith(notes) || a3?.notes?.startsWith(`${notes.slice(0, 700)}`);
+      expect(kept).toBe(true);
+      expect(a3?.notes?.includes('...') ?? false).toBe(notesLength + 1 + overLimitCitationNote(1).length > 1000);
+    });
+
+    it('states a dropped citation and a dropped withheld path on the same full criterion, with no scan limitation', () => {
+      const short = make(SHORT, SIXTEEN, true);
+      const over = make(OVER, SIXTEEN, true);
+      expect(() => WitanReportSchema.parse(over)).not.toThrow();
+      expect(over.scanLimitations).toEqual(short.scanLimitations);
+      expect(renderWitanBadgeEndpoint(over)).toEqual(renderWitanBadgeEndpoint(short));
+      expect(outcome(over)).toEqual(outcome(short));
+      const a3 = over.criteria.find(({ id }) => id === 'A3');
+      expect(a3?.notes?.length).toBeLessThanOrEqual(1000);
+      const both = [
+        `${overLimitCitationDisclosure(1)} ${overLimitWithheldPathsDisclosure(1, ['A3.build_script'])}`,
+        `${overLimitCitationNote(1)} ${overLimitWithheldPathsNote(1)}`,
+      ];
+      expect(both.some((statements) => a3?.notes?.endsWith(statements))).toBe(true);
+      expect(statesUnlistedWithheldPaths(over.criteria)).toBe(true);
+    });
+  });
+
+  it('keeps both count-only forms short enough that at least 700 characters of notes always stay', () => {
+    const longest = `${overLimitCitationNote(999_999_999)} ${overLimitWithheldPathsNote(999_999_999)}`;
+    expect(overLimitCitationNote(999_999_999).length).toBeLessThanOrEqual(92);
+    expect(longest.length).toBeLessThan(300);
+    expect(1000 - longest.length - 1).toBeGreaterThanOrEqual(700);
   });
 
   it('cites a 700-character path and states nothing', () => {
