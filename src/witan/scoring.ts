@@ -610,6 +610,10 @@ function scoreCriterion(
   const evidence = signal.positiveEvidence;
   const findings = signal.findings;
   const metrics = signal.metrics ?? [];
+  // This count, and fallbackMetricsForEvidence below, read how many pointers the signal holds, so
+  // a criterion with no metrics is scored from its pointer count. That is why a pointer whose path
+  // is over the report's limit is dropped only after scoring (path-limits.ts, #612): here it is
+  // still present, marked, and counts exactly as it would at a short path.
   const evidenceCount = evidence.length + findings.length;
 
   if (evidenceCount === 0) {
