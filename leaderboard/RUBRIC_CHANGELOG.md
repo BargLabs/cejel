@@ -105,12 +105,13 @@ item B only names a line's runs not read. A run not read switches off every remo
 falls back to v17's reading. Neither reads a setting in force that was not read before, so v27 cannot
 score A1 above v17 on the same commit.
 
-**Measured** (the branch at `055102ed7`, whose last code commit is `6b91d9f97`; `405a783cd` changes
-tests only, `055102ed7` the declaration's comment and the CHANGELOG). The set the 2026-11-05 entry
+**Measured** (re-measured after the review of #698, at `ae0587f58`, whose last code commit is
+`104187464`; `e512a34b9` after it changes a test only. The first measurement, at `055102ed7` against
+main `3d6874108`, gave the same counts). The set the 2026-11-05 entry
 names, from this branch's fixture files: the false-assurance (269), CI-claims (71) and B3 (361) sets
 and every v27 A1 set (removal 39, hook outcome 38, allowlist 86, withhold 96, run 58), 1,018
-synthetic repositories. Each was built once and scored in one process by main `3d6874108` (imported
-by path from an ignored worktree at main) and by this branch, under all eleven selectable rubrics
+synthetic repositories. Each was built once and scored in one process by main `0177ca6c1` (extracted
+by `git archive` into an ignored directory) and by this branch, under all eleven selectable rubrics
 (v17 to v27); report JSON, HTML and Markdown certificates were compared by hash: 11,198 reports each
 side, 0 errors.
 
@@ -120,6 +121,11 @@ side, 0 errors.
   moves.
 - v27 A1 above v17 A1 on the same repository: 0 of 1,018. Overall score above v17: 0 of 1,015
   compared (the others carry no headline score).
+- The review round's new shapes (a mention that reaches a script, an indented assignment, the tox
+  posargs work input) are not in these sets. Their own tests pin them.
+- GNU make claims rest on GNU Make 3.81, run on the dev host on 2026-11-10: an unexported `=` or `:=`
+  reaches the recipe only when the variable is in make's environment; `+=` gives the environment's
+  value and then the Makefile's; `::=` is a parse error before make 4.0. No pytest claim was run.
 - No v27 fixture pin and no behaviour-fingerprint pin moved; no v17 pin moved.
 
 **Fixtures and tests.** `src/witan/__tests__/v27-a1-addopts-assignment-not-known.test.ts` and the
