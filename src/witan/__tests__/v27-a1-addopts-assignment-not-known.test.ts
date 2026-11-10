@@ -161,6 +161,128 @@ describe('v27 A1, item A (#674): an unexported =, := or += of PYTEST_ADDOPTS whe
   });
 });
 
+// goal_cejel_v27_a1_addopts_review_fixes_698_2026-11-10, item A (blocker 1 of the review of #698 at
+// 46d7cbe27; operator ruling of 10 Nov): an `env:` entry (step, job or workflow), a `$GITHUB_ENV`
+// write or an `export` counts as read only where every command it reaches is a CI make command the
+// reader reads. Where it reaches a script, a launcher or anything else, it is a mention not read, and
+// an unexported ?=, =, :=, ::= or += of PYTEST_ADDOPTS leaves the runs its targets reach not read,
+// named with the first mention not read and pointed at its line.
+describe('v27 A1, review of #698, item A: a mention is read only where it reaches a make command the reader reads', () => {
+  const STEP_ENV_SCRIPT = workflow(['      - run: ./ci/test.sh', '        env:', '          PYTEST_ADDOPTS: -q']);
+  for (const [operator, slug] of [
+    ['=', 'eq'],
+    ['?=', 'default'],
+  ] as const) {
+    it(`a step-level env: entry on a step that runs a script, which runs make test, with an unexported ${operator}: not known`, () => {
+      const name = `a1rev-step-env-script-${slug}`;
+      const v27 = expectWithheld(
+        name,
+        { Makefile: recipe(`PYTEST_ADDOPTS ${operator} -p no:skipping`), ...CI_SCRIPT, [CI]: STEP_ENV_SCRIPT },
+        `pytest run not read: \`PYTEST_ADDOPTS: -q\` in ${CI}`,
+      );
+      expectPointerAt(name, v27, CI, 12);
+    });
+  }
+
+  it('a job-level env: entry over a step that runs a script, with an unexported =: not known', () => {
+    const name = 'a1rev-job-env-script-eq';
+    const jobEnv = lines(
+      'name: ci',
+      'on:',
+      '  push:',
+      'jobs:',
+      '  test:',
+      '    runs-on: ubuntu-latest',
+      '    env:',
+      '      PYTEST_ADDOPTS: -q',
+      '    steps:',
+      '      - uses: actions/checkout@v4',
+      '      - run: ./ci/test.sh',
+    );
+    const v27 = expectWithheld(
+      name,
+      { Makefile: recipe('PYTEST_ADDOPTS = -p no:skipping'), ...CI_SCRIPT, [CI]: jobEnv },
+      `pytest run not read: \`PYTEST_ADDOPTS: -q\` in ${CI}`,
+    );
+    expectPointerAt(name, v27, CI, 8);
+  });
+
+  it('a $GITHUB_ENV write, then a step that runs a script, with an unexported =: not known', () => {
+    const name = 'a1rev-github-env-script-eq';
+    const v27 = expectWithheld(
+      name,
+      {
+        Makefile: recipe('PYTEST_ADDOPTS = -p no:skipping'),
+        ...CI_SCRIPT,
+        [CI]: workflow(['      - run: echo "PYTEST_ADDOPTS=-q" >> "$GITHUB_ENV"', '      - run: ./ci/test.sh']),
+      },
+      `pytest run not read: \`- run: echo "PYTEST_ADDOPTS=-q" >> "$GITHUB_ENV"\` in ${CI}`,
+    );
+    expectPointerAt(name, v27, CI, 10);
+  });
+
+  it('an export in a step that then runs a script, with an unexported =: not known', () => {
+    const name = 'a1rev-export-script-eq';
+    const v27 = expectWithheld(
+      name,
+      { Makefile: recipe('PYTEST_ADDOPTS = -p no:skipping'), ...CI_SCRIPT, [CI]: workflow(['      - run: export PYTEST_ADDOPTS=-q; ./ci/test.sh']) },
+      `pytest run not read: \`- run: export PYTEST_ADDOPTS=-q; ./ci/test.sh\` in ${CI}`,
+    );
+    expectPointerAt(name, v27, CI, 10);
+  });
+
+  it('a GitLab variables: entry over a script that runs make test, with an unexported =: not known', () => {
+    const name = 'a1rev-gitlab-variables-script-eq';
+    const gitlab = lines('variables:', '  PYTEST_ADDOPTS: -q', '', 'test:', '  script:', '    - ./ci/test.sh');
+    const v27 = expectWithheld(
+      name,
+      { Makefile: recipe('PYTEST_ADDOPTS = -p no:skipping'), ...CI_SCRIPT, '.gitlab-ci.yml': gitlab },
+      'pytest run not read: `PYTEST_ADDOPTS: -q` in .gitlab-ci.yml',
+    );
+    expectPointerAt(name, v27, '.gitlab-ci.yml', 2);
+  });
+
+  it('pin: a step-level env: entry on a step that runs make test itself is read: make passes the Makefile value, as before', () => {
+    expectWithheld(
+      'a1rev-pin-step-env-make',
+      {
+        Makefile: recipe('PYTEST_ADDOPTS = -p no:skipping'),
+        [CI]: workflow(['      - run: make test', '        env:', '          PYTEST_ADDOPTS: -q']),
+      },
+      MAKEFILE_VALUE,
+    );
+  });
+});
+
+// goal_cejel_v27_a1_addopts_review_fixes_698_2026-11-10, item B (blocker 2): a Makefile assignment
+// with leading spaces is read; a tab-led line in a rule stays a recipe line, as GNU make reads it.
+describe('v27 A1, review of #698, item B: an indented Makefile assignment is read', () => {
+  it('an unexported = with leading spaces, with a script CI runs with PYTEST_ADDOPTS set: not known', () => {
+    const name = 'a1rev-indented-unexported-eq';
+    const v27 = expectWithheld(
+      name,
+      { Makefile: recipe('  PYTEST_ADDOPTS = -p no:skipping'), ...CI_SCRIPT, [CI]: SCRIPT_STEP },
+      `pytest run not read: \`- run: PYTEST_ADDOPTS=-q ./ci/test.sh\` in ${CI}`,
+    );
+    expectPointerAt(name, v27, CI, 10);
+  });
+
+  it('an exported = with leading spaces reaches the recipe', () => {
+    expectWithheld(
+      'a1rev-indented-export-eq',
+      { Makefile: recipe('  export PYTEST_ADDOPTS = -p no:skipping'), [CI]: workflow(['      - run: make test']) },
+      MAKEFILE_VALUE,
+    );
+  });
+
+  it('pin: a tab-led line in a rule that looks like an assignment is a recipe line, not an assignment', () => {
+    expectHollow('a1rev-pin-tab-recipe-line', {
+      Makefile: lines('test:', '\texport PYTEST_ADDOPTS = -p no:skipping', '\tpytest'),
+      [CI]: workflow(['      - run: make test']),
+    });
+  });
+});
+
 describe('v27 A1, item B (#653): tox posargs past the shared budget', () => {
   it('a tox.ini {posargs} line whose CI posargs exceed the budget: the run is named not read', () => {
     // One CI set of 4,100 words: reading the line costs one unit per run read plus the words put in,

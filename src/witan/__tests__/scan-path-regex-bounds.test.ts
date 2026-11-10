@@ -938,6 +938,54 @@ describe('scaling: the v27 A1 gap readers grow no faster than linearly', () => {
     }
   }, 180_000);
 
+  // goal_cejel_v27_a1_addopts_review_fixes_698_2026-11-10, item C (blocker 3 of the review of #698):
+  // the word count above charges a line 1 + 16 x (W + 1) whatever it holds, but each {posargs} on the
+  // line takes the whole set's text, so the work is the occurrences times the characters put in. The
+  // input that maximises it: one tox.ini line holding K {posargs} and one CI word of C characters,
+  // K x C, charged 3 by the word count. Here K = L/400 and C = L/100, so a reader charged by words
+  // grows with the square of L (#698's measured 16 or more); charged by characters, the line is past
+  // the budget at L/2 already, and is named not read at both lengths.
+  it('the tox posargs reader, on one tox.ini line of L/400 {posargs} and one CI word of L/100 characters', () => {
+    const textsFor = (length: number): Map<string, string> => {
+      const line = `pytest ${Array.from({ length: Math.floor(length / 400) }, () => '{posargs}').join(' ')}`;
+      const word = `-k${'x'.repeat(Math.floor(length / 100))}`;
+      return new Map([
+        ['tox.ini', `[tox]\nenvlist = py\n\n[testenv]\ndeps = pytest\ncommands = ${line}\n`],
+        ['.github/workflows/ci.yml', `name: ci\non: push\njobs:\n  t:\n    runs-on: ubuntu-latest\n    steps:\n      - run: tox -e py -- ${word}\n`],
+      ]);
+    };
+    const files = ['.github/workflows/ci.yml', 'tox.ini'];
+    const texts = scalingInputs(textsFor);
+    const { ratio, timing, atSmall, atLarge } = scalingRatio((length) => readPytestInvocations(files, (file) => texts(length).get(file)));
+    expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
+    for (const read of [atSmall, atLarge]) {
+      expect(read.some(({ file, unread }) => file === 'tox.ini' && unread !== undefined && unread.startsWith('pytest {posargs} {posargs}'))).toBe(true);
+    }
+  }, 180_000);
+
+  // Item C: the nox reader, checked on the same shape: one session.run call holding K
+  // *session.posargs and one CI word of C characters, K = L/400 and C = L/100. It does not have the
+  // blind spot: it puts each passed word in place of *session.posargs as a reference to the same
+  // string, so no text is copied and its work is K + C, not K x C. On #698's reader this measured
+  // 3.54, and a whole v27 scan of the shape took the same time at both lengths. The call is read.
+  it('the nox posargs reader, on one call of L/400 *session.posargs and one CI word of L/100 characters', () => {
+    const textsFor = (length: number): Map<string, string> => {
+      const call = `    session.run("pytest", ${Array.from({ length: Math.floor(length / 400) }, () => '*session.posargs').join(', ')})`;
+      const word = `-k${'x'.repeat(Math.floor(length / 100))}`;
+      return new Map([
+        ['noxfile.py', `import nox\n\n\n@nox.session\ndef tests(session):\n${call}\n`],
+        ['.github/workflows/ci.yml', `name: ci\non: push\njobs:\n  t:\n    runs-on: ubuntu-latest\n    steps:\n      - run: nox -s tests -- ${word}\n`],
+      ]);
+    };
+    const files = ['.github/workflows/ci.yml', 'noxfile.py'];
+    const texts = scalingInputs(textsFor);
+    const { ratio, timing, atSmall, atLarge } = scalingRatio((length) => readPytestInvocations(files, (file) => texts(length).get(file)));
+    expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
+    for (const read of [atSmall, atLarge]) {
+      expect(read.some(({ file, unread, args }) => file === 'noxfile.py' && unread === undefined && args.length > 0)).toBe(true);
+    }
+  }, 180_000);
+
   // The review of #655, blocker 2: the unread posargs entries were said once per noxfile, so M
   // noxfiles and U unread CI entries gave M x U runs, and spreading them into one call overflowed
   // the stack (400 and 400 threw RangeError). They are said once per read and count against the
