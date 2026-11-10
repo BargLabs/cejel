@@ -16,6 +16,7 @@ interface Guard {
   checkActionManifest(manifestName: string, manifest: string, form: Form): void;
   computeInputsOutputsSha256(manifestName: string, manifest: string): string;
   readonly ACTION_INPUTS_OUTPUTS_SHA256: Readonly<Record<Form, string>>;
+  readonly PNPM_PACKAGE_MANAGER_PIN: RegExp;
 }
 
 const GUARD_URL = pathToFileURL(fileURLToPath(new URL('../../scripts/action-manifest-guard.mjs', import.meta.url))).href;
@@ -260,6 +261,30 @@ describe('action-manifest-guard', () => {
   let guard: Guard;
   beforeAll(async () => {
     guard = (await import(GUARD_URL)) as Guard;
+  });
+
+  // The validator requires package.json packageManager to match this pattern, and the read step in
+  // both manifests applies the same one (the canonical runs: text holds it).
+  describe('PNPM_PACKAGE_MANAGER_PIN', () => {
+    const hex = 'b4106707c7225b1748b61595953ccbebff97b54ad05d002aa3635f633b9c53cd666f7ce9b8bc44704f1fa048b9a49b55371ab2d9e9d667d1efe2ef1514bcd513';
+    it("accepts this repository's packageManager", () => {
+      const pin = JSON.parse(readFileSync(fileURLToPath(new URL('../../package.json', import.meta.url)), 'utf8')).packageManager;
+      expect(pin).toMatch(guard.PNPM_PACKAGE_MANAGER_PIN);
+    });
+    for (const [label, value] of [
+      ['no hash', 'pnpm@9.0.0'],
+      ['a sha256', `pnpm@9.0.0+sha256.${hex.slice(0, 64)}`],
+      ['uppercase hex', `pnpm@9.0.0+sha512.${hex.toUpperCase()}`],
+      ['127 hex digits', `pnpm@9.0.0+sha512.${hex.slice(1)}`],
+      ['129 hex digits', `pnpm@9.0.0+sha512.${hex}0`],
+      ['a range', `pnpm@^9.0.0+sha512.${hex}`],
+      ['a trailing line', `pnpm@9.0.0+sha512.${hex}\nx=y`],
+      ['another package manager', `yarn@9.0.0+sha512.${hex}`],
+    ] as const) {
+      it(`refuses ${label}`, () => {
+        expect(value).not.toMatch(guard.PNPM_PACKAGE_MANAGER_PIN);
+      });
+    }
   });
 
   for (const [form, name, manifest] of MANIFESTS) {

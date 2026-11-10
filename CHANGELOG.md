@@ -138,8 +138,8 @@ rubric is pinned. v27 carries no precision or recall claim.
     - npm's cache under `~/.npm`.
     - pnpm's default store, metadata cache and global rc file.
     - The user, global and environment npm configuration, including the registry.
-    - Two `cejel-pnpm.*` directories left in `$RUNNER_TEMP`, each holding the installed pnpm
-      (about 18 MB).
+    - Two `cejel-pnpm.*` directories left in `$RUNNER_TEMP`, each holding the pnpm tarball and
+      the installed pnpm (about 22 MB, 4 MB of it the tarball).
   - The `action-from-another-caller` CI job checks that a caller pinning pnpm 10.0.0 keeps its own
     pnpm and `PNPM_HOME` after both Actions.
   - The distribution validator, through `scripts/action-manifest-guard.mjs`, requires each manifest

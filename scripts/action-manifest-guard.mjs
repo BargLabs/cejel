@@ -50,6 +50,10 @@ export const ACTION_INPUTS_OUTPUTS_SHA256 = Object.freeze({
   nested: '8a681ad2af70bbe1da66504717fde1645d0e734067354699bc60a181cfe86a90',
 });
 
+// package.json packageManager as the Action's read step requires it: an exact pnpm version and the
+// hex sha512 of its registry tarball, corepack's form (#686 item 6). The validator reads it from here.
+export const PNPM_PACKAGE_MANAGER_PIN = /^pnpm@(\d+\.\d+\.\d+)\+sha512\.([0-9a-f]{128})$/;
+
 const YAML_INVISIBLE_CHARACTER =
   /\r(?!\n)|[\u{0}-\u{8}\u{B}\u{C}\u{E}-\u{1F}\u{7F}\u{85}\u{A0}\u{1680}\u{2000}-\u{200A}\u{2028}\u{2029}\u{202F}\u{205F}\u{3000}\u{FEFF}]/u;
 

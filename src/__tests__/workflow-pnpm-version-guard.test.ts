@@ -29,6 +29,10 @@ const SET: ReadonlyArray<readonly [string, string, string]> = [
   ['name: first, then with:, then uses:', `      - name: pnpm\n        with:\n          version: 10.0.0\n        uses: ${SETUP}\n`, '10.0.0'],
   ['a quoted version key', `      - uses: ${SETUP}\n        with:\n          "version": 10.0.0\n`, '10.0.0'],
   ['a quoted uses value', `      - uses: "${SETUP}"\n        with:\n          version: 10.0.0\n`, '10.0.0'],
+  ['after a blank line and a comment between uses: and with:', `      - uses: ${SETUP}\n\n        # pinned below\n        with:\n          version: 10.0.0\n`, '10.0.0'],
+  ['flow-style with: with no space after the brace', `      - uses: ${SETUP}\n        with: {version: 10.0.0}\n`, '10.0.0'],
+  ['flow-style with: with no space after a comma', `      - uses: ${SETUP}\n        with: { run_install: false,version: 10.0.0 }\n`, '10.0.0'],
+  ['a quoted uses key', `      - "uses": ${SETUP}\n        with:\n          version: 10.0.0\n`, '10.0.0'],
   ['CRLF line endings', `      - uses: ${SETUP}\r\n        with:\r\n          version: 10.0.0\r\n`, '10.0.0'],
 ];
 
@@ -40,6 +44,11 @@ const NOT_SET: ReadonlyArray<readonly [string, string]> = [
     `      - uses: ${SETUP}\n      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38\n        with:\n          version: 22\n`,
   ],
   ['node-version on setup-node', `      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38\n        with:\n          node-version: 22\n      - uses: ${SETUP}\n`],
+  ['a column-0 comment naming a version after the step', `      - uses: ${SETUP}\n# the pnpm version: 10 comes from packageManager\n      - run: pnpm -v\n`],
+  [
+    'a comment on another step that names pnpm/action-setup',
+    '      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # replaces uses: pnpm/action-setup@v2\n        with:\n          version: 1\n',
+  ],
   ['a version: only in a comment', `      - uses: ${SETUP}\n        # with:\n        #   version: 9.0.0\n`],
 ];
 

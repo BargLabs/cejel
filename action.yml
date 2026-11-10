@@ -29,7 +29,7 @@ branding:
 # environment (NODE_OPTIONS, for example) reaches pnpm and the build. Also shared: npm's cache under
 # ~/.npm; pnpm's default store, metadata cache and global rc file; the user, global and environment
 # npm configuration, including the registry; and two cejel-pnpm.* directories left in $RUNNER_TEMP,
-# each holding the installed pnpm (about 18 MB).
+# each holding the pnpm tarball and the installed pnpm (about 22 MB, 4 MB of it the tarball).
 #
 # packageManager must carry the sha512 of the pnpm tarball, in corepack's form
 # pnpm@X.Y.Z+sha512.<hex>. Each pnpm step fetches the tarball with `npm pack`, moves it to the

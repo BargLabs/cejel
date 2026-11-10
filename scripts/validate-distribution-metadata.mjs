@@ -2,7 +2,7 @@
 
 import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { checkActionManifest } from './action-manifest-guard.mjs';
+import { checkActionManifest, PNPM_PACKAGE_MANAGER_PIN } from './action-manifest-guard.mjs';
 import { compareActionManifestOutputs, readActionManifestOutputs } from './action-manifest-outputs.mjs';
 import { requirePnpmVersionDerived } from './workflow-pnpm-version-guard.mjs';
 import { assertSiteOnly } from './verify-board-surfaces.mjs';
@@ -120,7 +120,7 @@ function requirePermissionsBlock(workflowName, workflow) {
 // and refuses a packageManager without one, so the pin is required here too. The value is the hex
 // sha512 of the registry tarball, corepack's form; npm view pnpm@X.Y.Z dist.integrity gives the
 // same digest in base64.
-const packageManagerMatch = packageManifest.packageManager?.match(/^pnpm@(\d+\.\d+\.\d+)\+sha512\.[0-9a-f]{128}$/);
+const packageManagerMatch = packageManifest.packageManager?.match(PNPM_PACKAGE_MANAGER_PIN);
 if (!packageManagerMatch) {
   throw new Error(
     'package.json packageManager must pin pnpm to an exact semantic version and its tarball sha512, as pnpm@X.Y.Z+sha512.<hex>.',

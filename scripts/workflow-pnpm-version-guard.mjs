@@ -36,7 +36,7 @@ export function pnpmActionSetupVersionPins(workflow) {
     const step = lines.slice(start, end);
     if (!step.some((stepLine) => USES_PNPM_ACTION_SETUP.test(stepLine.replace(/#.*$/, '')))) continue;
     for (const [offset, stepLine] of step.entries()) {
-      const version = VERSION_KEY.exec(stepLine.replace(/\s#.*$/, ''));
+      const version = VERSION_KEY.exec(stepLine.replace(/(?:^|\s)#.*$/, ''));
       if (version) pins.push({ line: start + offset + 1, version: version[1] });
     }
   }
