@@ -108,7 +108,32 @@ rubric is pinned. v27 carries no precision or recall claim.
     2026-11-04 reading.
   - **Not read, stated limits:** a script that sets `PYTEST_ADDOPTS` itself, where no CI file names
     it; a script run after a read `env:` entry or `export`, which inherits it; and an unexported
-    `PYTEST_ADDOPTS = ...` that a script's environment would make make pass on (cejel #674).
+    `PYTEST_ADDOPTS = ...` that a script's environment would make make pass on (cejel #674, read
+    from 2026-11-10 as below).
+  - v17 and every other rubric are unchanged. No holdout or calibration ran, and no published score
+    moved.
+- **Prospective v27: A1 names the pytest runs an unexported Makefile `=`, `:=` or `+=` of
+  `PYTEST_ADDOPTS` reaches as not read where CI names the variable somewhere the readers do not
+  follow (#674); the tox posargs reader shares a budget (#653).** Under
+  `witan-rubric-v27-prospective-2026-10-19` only.
+  - **An unexported assignment (#674).** GNU make passes a Makefile variable it does not export to
+    a recipe only where the variable is already in make's environment, and then with the Makefile's
+    value. A CI step such as `PYTEST_ADDOPTS=-q ./ci/test.sh`, whose script runs `make test`, puts
+    it there, but the reader does not follow the script: it read the value as not applied, and could
+    rate a file whose every test is skipped "runs no test" under `PYTEST_ADDOPTS = -p no:skipping`,
+    where pytest runs its tests. Such an assignment (`=`, `:=`, `::=` or `+=`, with no `export` on
+    the line, no `export PYTEST_ADDOPTS`, no bare `export` and no `.EXPORT_ALL_VARIABLES`) is now
+    read the way #673 reads a `?=` default: where a CI file names `PYTEST_ADDOPTS` anywhere the
+    readers do not read, the runs its targets reach are named "pytest run not read: `<the
+    assignment as written>` in Makefile", with a pointer at the assignment's line. Where every CI
+    mention is one the readers read, and wherever the assignment is exported, the reading is
+    unchanged. This reverses, by the operator's ruling of 10 Nov, the 5 Nov text that an `=`, `:=`
+    or `+=` keeps its reading.
+  - **The tox posargs budget (#653).** A `tox.ini` line holding `{posargs}` was read once per
+    literal CI posargs set, at most 16, so its work was the lines times the sets' words. The tox
+    reader now takes the nox reader's kind of budget, 4,096 units: one per run read plus the words
+    put in, counted across every `tox.ini` of a scan. Past it, the line is named "pytest run not
+    read: `<the line>` in tox.ini", with a pointer at its line, and none of its runs is read.
   - v17 and every other rubric are unchanged. No holdout or calibration ran, and no published score
     moved.
 

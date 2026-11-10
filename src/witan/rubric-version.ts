@@ -450,8 +450,17 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     a line naming GITHUB_ENV. From 2026-11-05 (goal_cejel_v27_a1_addopts_not_known_2026-11-05,
 //     item B, #673), where a CI file names PYTEST_ADDOPTS anywhere else (a script a step runs with it
 //     set, bash -c, a comment, an expression elsewhere in the file), a ?= default of it is not known
-//     again, and the pytest runs its targets reach are named not read, as before 2026-11-04; an =,
-//     := or += assignment keeps the reading above. From 2026-11-05 (item A, #669) a pytest run on a
+//     again, and the pytest runs its targets reach are named not read, as before 2026-11-04; an
+//     exported =, := or += assignment keeps the reading above. From 2026-11-10
+//     (goal_cejel_v27_a1_addopts_assignment_not_known_2026-11-10, item A, #674; the operator's ruling
+//     of 10 Nov reverses the 2026-11-05 text for this case), an =, :=, ::= or += assignment of
+//     PYTEST_ADDOPTS the Makefile does not export (no export on the line, no export PYTEST_ADDOPTS
+//     line, no bare export, no .EXPORT_ALL_VARIABLES) is read the way a ?= default is: make passes
+//     it to a recipe only where the variable is already in make's environment, so where a CI file
+//     names PYTEST_ADDOPTS anywhere those readers do not read, the value is not known, and the
+//     pytest runs its targets reach are named "pytest run not read: `<the assignment as written>` in
+//     <Makefile>", pointed at the assignment's line; where every mention is read, each CI make
+//     command's environment is read as above. From 2026-11-05 (item A, #669) a pytest run on a
 //     GitHub Actions step whose step, job or workflow env: sets PYTEST_ADDOPTS by an expression (the
 //     most specific level that sets it decides, so a step literal over a job expression is read),
 //     run directly, as a module or through a launcher A1 follows (a hatch script takes the step's
@@ -478,7 +487,12 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     noxfile, tox.ini, a CI file, a Makefile or justfile, or a read local action) naming nox as it
 //     would be run (not import nox or from nox in Python; elsewhere not a dependency, a key or a
 //     bare nox at the end of its line; not after install or add in the same command) is a run not
-//     read, named with that command, once per read and counted against the nox budget. A long option the reader does not
+//     read, named with that command, once per read and counted against the nox budget. From
+//     2026-11-10 (goal_cejel_v27_a1_addopts_assignment_not_known_2026-11-10, item B, #653) the tox
+//     reader takes a budget of the same kind and size (4,096, one unit per run read plus the words
+//     put in, counted across every tox.ini of the read, apart from the nox count): a tox.ini line
+//     holding {posargs} past it is named "pytest run not read: `<the line>` in <tox.ini>", and none
+//     of its runs is read. A long option the reader does not
 //     know, before a word, is looked up in the repository's conftest.py files, CRLF read as LF and
 //     every call on a line: declared by .addoption("--name", ...) with action store_true,
 //     store_false, count, store_const or append_const it takes no value and the word is a path;
