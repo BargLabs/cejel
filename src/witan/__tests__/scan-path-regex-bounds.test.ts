@@ -1138,12 +1138,16 @@ describe('scaling: the v27 A1 make environment and class hook readers grow no fa
 // (an export, a leading assignment and an env prefix on make) and a pytest run, against a Makefile
 // with a `?=` default and L/400 targets. The `end` variant adds one mention the readers do not read,
 // in a comment on the file's last line, so the count is shown to reach the end of the file.
+// goal_cejel_v27_a1_addopts_review_fixes_698_2026-11-10, item A: a mention is read only where every
+// command it reaches is a make command the reader reads, so the run: line no longer ends with a
+// pytest run (which made its export and env: entry mentions not read); the counted forms are kept,
+// and the readers also test each command for make once (makeCommandOf, linear in its words).
 describe('scaling: the v27 A1 PYTEST_ADDOPTS mention count grows no faster than linearly', () => {
   const textsFor = (length: number, end: string): Map<string, string> => {
     const steps = Array.from(
       { length: Math.floor(length / 200) },
       (_, index) =>
-        `      - run: export PYTEST_ADDOPTS=-q && PYTEST_ADDOPTS=-q env PYTEST_ADDOPTS=-ke${index} make t${index % 64} && pytest tests\n        env:\n          PYTEST_ADDOPTS: "-k e${index}"`,
+        `      - run: export PYTEST_ADDOPTS=-q && PYTEST_ADDOPTS=-q env PYTEST_ADDOPTS=-ke${index} make t${index % 64} && make t${(index + 1) % 64}\n        env:\n          PYTEST_ADDOPTS: "-k e${index}"`,
     ).join('\n');
     const recipes = Array.from({ length: Math.floor(length / 400) }, (_, index) => `t${index}:\n\tpytest tests/test_${index}.py`).join('\n');
     return new Map([
@@ -1167,10 +1171,10 @@ describe('scaling: the v27 A1 PYTEST_ADDOPTS mention count grows no faster than 
     const texts = scalingInputs((length) => textsFor(length, '# PYTEST_ADDOPTS is set per step\n'));
     const { ratio, timing, atSmall, atLarge } = scalingRatio((length) => readPytestInvocations(files, (file) => texts(length).get(file)));
     // The default is not known, so make's environments are not read against it and every target's
-    // run is named not read.
+    // run is named not read, pointed at the mention (the review of #698, item A: the comment line).
     for (const read of [atSmall, atLarge]) {
       expect(read.filter(({ addoptsAt }) => addoptsAt !== undefined)).toHaveLength(0);
-      expect(read.some(({ unread, file }) => unread !== undefined && file === 'Makefile')).toBe(true);
+      expect(read.some(({ unread, file }) => unread === '# PYTEST_ADDOPTS is set per step' && file === '.github/workflows/ci.yml')).toBe(true);
     }
     expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
   }, 120_000);
