@@ -143,9 +143,15 @@ function requirePermissionsBlock(workflowName, workflow) {
   }
 }
 
-const packageManagerMatch = packageManifest.packageManager?.match(/^pnpm@(\d+\.\d+\.\d+)$/);
+// The Action installs pnpm only after checking the tarball's sha512 against this pin (#686 item 6),
+// and refuses a packageManager without one, so the pin is required here too. The value is the hex
+// sha512 of the registry tarball, corepack's form; npm view pnpm@X.Y.Z dist.integrity gives the
+// same digest in base64.
+const packageManagerMatch = packageManifest.packageManager?.match(/^pnpm@(\d+\.\d+\.\d+)\+sha512\.[0-9a-f]{128}$/);
 if (!packageManagerMatch) {
-  throw new Error('package.json packageManager must pin pnpm to an exact semantic version.');
+  throw new Error(
+    'package.json packageManager must pin pnpm to an exact semantic version and its tarball sha512, as pnpm@X.Y.Z+sha512.<hex>.',
+  );
 }
 const pnpmVersion = packageManagerMatch[1];
 for (const [workflowName, workflow] of workflows) {

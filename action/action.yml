@@ -32,8 +32,10 @@ branding:
 # npm configuration, including the registry; and two cejel-pnpm.* directories left in $RUNNER_TEMP,
 # each holding the installed pnpm (about 18 MB).
 #
-# A +hash suffix on packageManager is accepted and dropped, not verified (#686 item 6); this
-# repository's distribution validator also refuses a +hash in its own package.json today.
+# packageManager must carry the sha512 of the pnpm tarball, in corepack's form
+# pnpm@X.Y.Z+sha512.<hex>. Each pnpm step fetches the tarball with `npm pack`, checks its sha512
+# against that pin, and installs from the checked file, so neither the registry nor a restored
+# ~/.npm cache can substitute another tarball (#686 items 6 and 7).
 #
 # The last step deliberately does NOT cd into this action's own checkout: repo-path and the
 # write-only export destination stay relative to the CALLING workflow's workspace. The report used
@@ -98,34 +100,41 @@ runs:
         node-version: '22'
         package-manager-cache: false
 
-    - name: Read the pnpm version this action pins
+    - name: Read the pnpm version and sha512 this action pins
       id: cejel-pnpm
       shell: bash
       run: |
         set -euo pipefail
         cejel_dir="$(dirname "$GITHUB_ACTION_PATH")"
-        spec="$(node -e '
+        pin="$(node -e '
           const pm = require(process.argv[1]).packageManager ?? "";
-          const match = /^(pnpm@\d+\.\d+\.\d+)(\+.+)?$/.exec(pm);
+          const match = /^(pnpm@\d+\.\d+\.\d+)\+sha512\.([0-9a-f]{128})$/.exec(pm);
           if (!match) {
-            console.error("package.json packageManager must pin pnpm to an exact version, got: " + pm);
+            console.error("package.json packageManager must pin pnpm to an exact version and its tarball sha512, as pnpm@X.Y.Z+sha512.<hex>; got: " + pm);
             process.exit(1);
           }
-          process.stdout.write(match[1]);
+          process.stdout.write("spec=" + match[1] + "\nsha512=" + match[2]);
         ' "$cejel_dir/package.json")"
-        echo "spec=$spec" >> "$GITHUB_OUTPUT"
+        echo "$pin" >> "$GITHUB_OUTPUT"
 
     - name: Install dependencies
       shell: bash
       env:
         CEJEL_PNPM: ${{ steps.cejel-pnpm.outputs.spec }}
+        CEJEL_PNPM_SHA512: ${{ steps.cejel-pnpm.outputs.sha512 }}
       run: |
         set -euo pipefail
         cejel_dir="$(dirname "$GITHUB_ACTION_PATH")"
         work="$(mktemp -d "$RUNNER_TEMP/cejel-pnpm.XXXXXX")"
         cd "$work"
         printf '{}\n' > package.json
-        npm install --prefix "$work" --no-save --no-package-lock --ignore-scripts --no-audit --no-fund "$CEJEL_PNPM"
+        tarball="$(npm pack --ignore-scripts --silent "$CEJEL_PNPM")"
+        sha512="$(node -e 'process.stdout.write(require("crypto").createHash("sha512").update(require("fs").readFileSync(process.argv[1])).digest("hex"))' "$tarball")"
+        if [ "$sha512" != "$CEJEL_PNPM_SHA512" ]; then
+          echo "::error::$CEJEL_PNPM tarball has sha512 $sha512, not the $CEJEL_PNPM_SHA512 this action's package.json pins"
+          exit 1
+        fi
+        npm install --prefix "$work" --no-save --no-package-lock --ignore-scripts --no-audit --no-fund "./$tarball"
         pnpm="$work/node_modules/.bin/pnpm"
         ran="pnpm@$("$pnpm" --version)"
         if [ "$ran" != "$CEJEL_PNPM" ]; then
@@ -138,13 +147,20 @@ runs:
       shell: bash
       env:
         CEJEL_PNPM: ${{ steps.cejel-pnpm.outputs.spec }}
+        CEJEL_PNPM_SHA512: ${{ steps.cejel-pnpm.outputs.sha512 }}
       run: |
         set -euo pipefail
         cejel_dir="$(dirname "$GITHUB_ACTION_PATH")"
         work="$(mktemp -d "$RUNNER_TEMP/cejel-pnpm.XXXXXX")"
         cd "$work"
         printf '{}\n' > package.json
-        npm install --prefix "$work" --no-save --no-package-lock --ignore-scripts --no-audit --no-fund "$CEJEL_PNPM"
+        tarball="$(npm pack --ignore-scripts --silent "$CEJEL_PNPM")"
+        sha512="$(node -e 'process.stdout.write(require("crypto").createHash("sha512").update(require("fs").readFileSync(process.argv[1])).digest("hex"))' "$tarball")"
+        if [ "$sha512" != "$CEJEL_PNPM_SHA512" ]; then
+          echo "::error::$CEJEL_PNPM tarball has sha512 $sha512, not the $CEJEL_PNPM_SHA512 this action's package.json pins"
+          exit 1
+        fi
+        npm install --prefix "$work" --no-save --no-package-lock --ignore-scripts --no-audit --no-fund "./$tarball"
         pnpm="$work/node_modules/.bin/pnpm"
         ran="pnpm@$("$pnpm" --version)"
         if [ "$ran" != "$CEJEL_PNPM" ]; then
