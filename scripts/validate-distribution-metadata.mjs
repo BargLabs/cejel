@@ -786,7 +786,9 @@ for (const output of ['limited', 'limitation-count', 'limitations']) {
 }
 // The optional rubric-pin input: both manifests declare it empty by default and pass it to
 // run.mjs through WITAN_RUBRIC_PIN, which forwards --rubric-pin only when it is non-empty
-// (exercised end to end in src/__tests__/action-runner.test.ts).
+// (exercised end to end in src/__tests__/action-runner.test.ts). These substring checks name the
+// contract; a decoy elsewhere in the file could satisfy them, so the default itself is pinned with
+// the rest of inputs: by checkActionManifest above (#689).
 for (const [name, manifest] of [
   ['root', rootAction],
   ['nested', nestedAction],

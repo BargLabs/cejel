@@ -144,14 +144,23 @@ rubric is pinned. v27 carries no precision or recall claim.
     pnpm and `PNPM_HOME` after both Actions.
   - The distribution validator requires each manifest to end with exactly its canonical `runs:`
     text, byte for byte. No line is skipped: the manifests keep their explanatory comments above
-    `runs:`. Before comparing, the validator also refuses anywhere in the file:
+    `inputs:`. Before comparing, the validator also refuses anywhere in the file:
     - any line break YAML recognises other than `\n` (a lone CR, NEL, LS or PS);
     - every character JavaScript counts as white space but YAML does not, such as U+00A0;
     - C0 control characters other than tab, LF and CR, DEL, and a BOM;
     - YAML document markers and a second literal `runs:` key.
 
     Other spellings of a duplicate key are left to the runner, which refuses them when it loads the
-    Action. Outside `runs:`, input defaults and output values are not pinned (#689).
+    Action.
+  - **The inputs and outputs are pinned too (#689).** Everything from `inputs:` up to `runs:`, so
+    every input default and every output value and description, must match a SHA-256 recorded per
+    manifest in `scripts/action-manifest-guard.mjs`. Before, only the `rubric-pin` default was
+    checked, as a substring that a decoy elsewhere in the file could supply, so changing `out-dir`
+    to `.`, `repo-path` to `/`, the `rubric-pin` default to a prospective rubric, or an output
+    value to `${{ github.token }}` passed. The checks moved out of the distribution validator into
+    that module, and `src/__tests__/action-manifest-guard.test.ts` runs the 81 cases found in the
+    reviews of #687 and #689 against both manifests, with the edits that must still pass: the
+    description, branding, and comments above `inputs:`.
 
 - **`cejel issue` reproduces with the attested scan's own date, so a certificate from an earlier
   year can be issued (audit C4; operator ruling of 5 Nov, option A).** v17's B4 freshness check
