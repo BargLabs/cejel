@@ -21,6 +21,15 @@ rubric is pinned. v27 carries no precision or recall claim.
 
 ### Changed
 
+- **GitLab: the template has now run on a GitLab runner, and Cejel is a CI/CD Catalog component.**
+  On 2026-11-10 the `v0.6.10` remote include ran on a GitLab.com instance runner
+  ([pipeline 3048076526](https://gitlab.com/barglabs/cejel-gitlab-demo/-/pipelines/3048076526)), with full history in the `cejel` job and the Code
+  Quality report shown on a merge request. The same job is published in the GitLab CI/CD Catalog as
+  `gitlab.com/barglabs/cejel/cejel@0.6.10` ([pipeline 3048107004](https://gitlab.com/barglabs/cejel-gitlab-demo/-/pipelines/3048107004)).
+  `docs/gitlab-ci.md` and the README now give the component first and keep the remote include as
+  the fallback. This supersedes the statement in the 0.6.4 entry that the template had not been run
+  on a GitLab runner. No scoring change.
+
 - **Prospective v27: A1 reads `PYTEST_ADDOPTS` in the environment of the CI command that runs
   make, and names a collection hook defined in a plugin class (#633 item D, #634 item 3).** Under
   `witan-rubric-v27-prospective-2026-10-19` only.
