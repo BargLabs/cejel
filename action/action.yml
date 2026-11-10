@@ -68,8 +68,9 @@ outputs:
 # path. Nothing runs through `npm exec`, which puts the node_modules/.bin of every parent directory
 # ahead of PATH, and the explicit --prefix keeps npm from adopting a parent directory (for example one
 # whose package.json declares workspaces) as its project. No pnpm is added to the job's PATH,
-# PNPM_HOME is not set, and the calling repository's package.json is never read: setup-node runs with
-# package-manager-cache off, the only path on which it reads that file. pnpm/action-setup did all
+# PNPM_HOME is not set, and setting up the toolchain never reads the calling repository's package.json:
+# setup-node runs with package-manager-cache off, the only path on which it reads that file. (The scan
+# itself still reads the repository it scores, by default the caller's checkout.) pnpm/action-setup did all
 # three: a caller pinning a different pnpm first failed ("Multiple versions of pnpm specified"), and
 # once that was fixed every later pnpm step in the caller's job ran this action's pnpm (#686).
 #
@@ -80,7 +81,8 @@ outputs:
 # npm configuration, including the registry; and two cejel-pnpm.* directories left in $RUNNER_TEMP,
 # each holding the installed pnpm (about 18 MB).
 #
-# A +hash suffix on packageManager is accepted and dropped, not verified (#686 item 6).
+# A +hash suffix on packageManager is accepted and dropped, not verified (#686 item 6); this
+# repository's distribution validator also refuses a +hash in its own package.json today.
 #
 # The last step deliberately does NOT cd into this action's own checkout: repo-path and the
 # write-only export destination stay relative to the CALLING workflow's workspace. The report used

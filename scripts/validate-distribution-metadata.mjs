@@ -168,7 +168,9 @@ for (const [workflowName, workflow] of workflows) {
 //   is script; and a line led by a character JavaScript's \s matches but YAML does not treat as
 //   white space (IsWhite is space and tab only), such as U+00A0, which folds into the scalar.
 // So nothing is skipped, and every character in that last class is refused anywhere in the file,
-// together with control characters, a BOM and YAML document markers.
+// together with C0 control characters other than tab, LF and CR, DEL, a BOM and YAML document
+// markers. C1 controls other than NEL are not refused: YamlDotNet reads them as plain content, and
+// inside runs: the byte comparison catches them.
 const YAML_INVISIBLE_CHARACTER =
   /\r(?!\n)|[\u{0}-\u{8}\u{B}\u{C}\u{E}-\u{1F}\u{7F}\u{85}\u{A0}\u{1680}\u{2000}-\u{200A}\u{2028}\u{2029}\u{202F}\u{205F}\u{3000}\u{FEFF}]/u;
 
@@ -183,8 +185,9 @@ function refuseHiddenYamlStructure(manifestName, manifest) {
   if (/^(?:---|\.\.\.)(?:[ \t]|$)/m.test(manifest)) {
     throw new Error(`${manifestName} contains a YAML document marker; the manifest must be one document.`);
   }
-  // Textual and best effort: other spellings of a second runs key ("\x72uns", ? runs, a tag) pass
-  // here, and the runner's TemplateReader refuses them as duplicate keys, so they fail at load.
+  // Textual and best effort: other spellings of a second runs key ("\x72uns", Runs, ? runs, a tag)
+  // pass here, and the runner refuses them at load: TemplateReader as duplicate keys (compared
+  // case-insensitively), YamlObjectReader for a !!str tag.
   const runsKeys = manifest.split(/\r?\n/).filter((line) => /^["']?runs["']?[ \t]*:/.test(line));
   if (runsKeys.length !== 1 || runsKeys[0] !== 'runs:') {
     throw new Error(`${manifestName} must have exactly one top-level runs: key, written as "runs:".`);

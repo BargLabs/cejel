@@ -114,8 +114,8 @@ rubric is pinned. v27 carries no precision or recall claim.
 
 ### Fixed
 
-- **The GitHub Action no longer reads the calling repository's `package.json` and no longer changes
-  the calling job's pnpm (#685, #686).** Both `action.yml` and `action/action.yml` ran
+- **The GitHub Action no longer reads the calling repository's `package.json` to set up pnpm, and no
+  longer changes the calling job's pnpm (#685, #686).** Both `action.yml` and `action/action.yml` ran
   `pnpm/action-setup`, which reads `packageManager` from the caller's workspace and prepends its pnpm
   to the job-wide `PATH`. A caller pinning a pnpm other than 9.0.0 failed with "Multiple versions of
   pnpm specified". After #685 such callers passed, but every later `pnpm` step in their job ran the
@@ -126,8 +126,9 @@ rubric is pinned. v27 carries no precision or recall claim.
   - Nothing runs through `npm exec`, which puts every parent directory's `node_modules/.bin` ahead
     of `PATH`. The explicit `--prefix` keeps npm from adopting a parent directory as its project,
     for example one whose `package.json` declares workspaces.
-  - Its `actions/setup-node` step runs with `package-manager-cache: false`, so it no longer reads the
-    caller's `package.json` either.
+  - Its `actions/setup-node` step runs with `package-manager-cache: false`, so setting up the
+    toolchain no longer reads the caller's `package.json` either. The scan itself still reads the
+    repository it scores, which is the caller's checkout by default.
   - It adds no pnpm to the caller's `PATH` and does not set `PNPM_HOME`.
   - Still shared with the caller's job:
     - Node 22 first on `PATH` and setup-node's problem matchers, as before.
@@ -146,7 +147,7 @@ rubric is pinned. v27 carries no precision or recall claim.
     `runs:`. Before comparing, the validator also refuses anywhere in the file:
     - any line break YAML recognises other than `\n` (a lone CR, NEL, LS or PS);
     - every character JavaScript counts as white space but YAML does not, such as U+00A0;
-    - other control characters and a BOM;
+    - C0 control characters other than tab, LF and CR, DEL, and a BOM;
     - YAML document markers and a second literal `runs:` key.
 
     Other spellings of a duplicate key are left to the runner, which refuses them when it loads the
