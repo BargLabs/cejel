@@ -153,6 +153,133 @@ describe('exportGitLabCodeQuality', () => {
   });
 });
 
+// #700: the fingerprint is the identity of a finding, so a measured value that moves between
+// runs (a score, a band, a count) must not change it, and a narrower key must not drop a finding.
+describe('exportGitLabCodeQuality fingerprint identity (#700)', () => {
+  function metricSummary(id: string, score: string, band: 'critical' | 'warning'): string {
+    return (
+      `${id} metric-derived score is ${score}/4.0, in the ${band} band — no single finding ` +
+      'drove this; it reflects the combined metric weighting below.'
+    );
+  }
+
+  function reportOf(
+    criteria: Array<{ id: string; findings: ReturnType<typeof finding>[] }>,
+  ): WitanReport {
+    return { verdict: 'conditional', criteria } as unknown as WitanReport;
+  }
+
+  function fingerprints(report: WitanReport): string[] {
+    return exportGitLabCodeQuality(report).entries.map((entry) => entry.fingerprint);
+  }
+
+  it('keeps the fingerprint when a metric-derived score and its band move (MR !1 shape)', () => {
+    const before = reportOf([
+      {
+        id: 'A4',
+        findings: [finding('critical', metricSummary('A4', '0.5', 'critical'), { path: 'package.json', line: 1 })],
+      },
+      {
+        id: 'B3',
+        findings: [finding('warning', metricSummary('B3', '0.9', 'warning'), { path: 'package.json', line: 1 })],
+      },
+    ]);
+    const after = reportOf([
+      {
+        id: 'A4',
+        findings: [finding('warning', metricSummary('A4', '1.4', 'warning'), { path: 'package.json', line: 1 })],
+      },
+      {
+        id: 'B3',
+        findings: [finding('warning', metricSummary('B3', '1.4', 'warning'), { path: 'package.json', line: 1 })],
+      },
+    ]);
+    expect(fingerprints(before)).toHaveLength(2);
+    expect(fingerprints(after)).toEqual(fingerprints(before));
+    const afterEntries = exportGitLabCodeQuality(after).entries;
+    expect(afterEntries[0]?.description).toBe(metricSummary('A4', '1.4', 'warning'));
+    expect(afterEntries[0]?.severity).toBe('major');
+  });
+
+  it('keeps the fingerprint of a non-metric finding whose summary differs only in a number', () => {
+    const at = { path: 'src/a.test.ts', line: 7 };
+    const count = (n: string) =>
+      reportOf([{ id: 'test-discipline', findings: [finding('warning', `${n} skipped tests in this file.`, at)] }]);
+    expect(fingerprints(count('3'))).toEqual(fingerprints(count('12')));
+    const ratio = (r: string) =>
+      reportOf([{ id: 'test-discipline', findings: [finding('warning', `Assertion ratio is ${r} here.`, at)] }]);
+    expect(fingerprints(ratio('3/10'))).toEqual(fingerprints(ratio('1.4/4.0')));
+    const result = exportGitLabCodeQuality(count('12'));
+    expect(result.entries[0]?.description).toBe('12 skipped tests in this file.');
+  });
+
+  it('gives different fingerprints to findings at the same place whose summaries differ in words', () => {
+    const at = { path: 'src/a.ts', line: 3 };
+    const report = reportOf([
+      {
+        id: 'secrets-hygiene',
+        findings: [
+          finding('warning', 'Credential-shaped literal in source.', at),
+          finding('warning', 'Token-shaped literal in source.', at),
+        ],
+      },
+    ]);
+    const prints = fingerprints(report);
+    expect(prints).toHaveLength(2);
+    expect(new Set(prints).size).toBe(2);
+  });
+
+  it('exports both findings at the same place whose summaries differ only in numbers', () => {
+    const at = { path: 'src/a.ts', line: 3 };
+    const build = () =>
+      reportOf([
+        {
+          id: 'test-discipline',
+          findings: [
+            finding('warning', '3 skipped tests in this file.', at),
+            finding('warning', '5 skipped tests in this file.', at),
+            finding('warning', '3 skipped tests in this file.', at),
+          ],
+        },
+      ]);
+    const first = exportGitLabCodeQuality(build());
+    expect(first.entries.map((entry) => entry.description)).toEqual([
+      '3 skipped tests in this file.',
+      '5 skipped tests in this file.',
+    ]);
+    expect(new Set(first.entries.map((entry) => entry.fingerprint)).size).toBe(2);
+    expect(fingerprints(build())).toEqual(first.entries.map((entry) => entry.fingerprint));
+  });
+
+  it('exports one entry per distinct criterion, path, line and summary, as before', () => {
+    const at = { path: 'src/a.ts', line: 3 };
+    const report = reportOf([
+      {
+        id: 'A4',
+        findings: [
+          finding('critical', metricSummary('A4', '0.5', 'critical'), at),
+          finding('critical', metricSummary('A4', '0.7', 'critical'), at),
+          finding('critical', metricSummary('A4', '0.5', 'critical'), at),
+          finding('info', 'Ratio 1/2 here.', at),
+          finding('info', 'Ratio 2/3 here.', at),
+          finding('info', 'Ratio 1/2 here.', { path: 'src/a.ts', line: 4 }),
+        ],
+      },
+      { id: 'B3', findings: [finding('info', 'Ratio 1/2 here.', at)] },
+    ]);
+    const distinct = new Set(
+      report.criteria.flatMap((criterion) =>
+        criterion.findings.map((f) =>
+          JSON.stringify([criterion.id, f.evidence.path, f.evidence.line, f.summary]),
+        ),
+      ),
+    );
+    const prints = fingerprints(report);
+    expect(prints).toHaveLength(distinct.size);
+    expect(new Set(prints).size).toBe(prints.length);
+  });
+});
+
 describe('cejel export gitlab-codequality', () => {
   it('parses the command', () => {
     const invocation = parseCliInvocation(['export', 'gitlab-codequality', 'r.json', '-o', 'o.json']);
