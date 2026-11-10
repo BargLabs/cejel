@@ -1,0 +1,26 @@
+[
+  {
+    "statement": "Before dropping an item a schema cannot carry, check whether anything counts the items or builds other items from them. If so, mark it so it validates, let the scorer count it, then drop it from the output. 2026-11-10, cejel #612: a cited path over 700 characters failed the report schema and the scan wrote nothing. scoreCriterion scores from evidence.length + findings.length, so dropping first would turn a criterion whose only evidence was that path into insufficient_data. Own near miss: the first run dropped 2 items, not 1. The finding explaining a metric-derived warning was anchored on evidence[0] and went too, so the warning lost its explanation. Fix: anchor it on the first citable pointer. Two temporary mutations, dropping before scoring and anchoring on a marked pointer, each failed the tests.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "agent-error",
+      "schema-limits"
+    ],
+    "tags": [
+      "schema-cap",
+      "drop-after-scoring",
+      "derived-items",
+      "count-sensitive-scoring",
+      "own-error"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-11-10T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 697
+    }
+  }
+]
