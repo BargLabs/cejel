@@ -1,0 +1,25 @@
+[
+  {
+    "statement": "A committed test for a guard proves each check only if disabling that check makes the test fail; run that mutation for every check before claiming coverage. 2026-11-09, cejel #694 (issue 689), my own near miss: the new action-manifest-guard refused a second or reformatted inputs:/outputs: key, and the first committed mutation test (176 cases, all passing) still passed with that check removed, because every key case also changed the hashed region or broke its search. Disabling each check in turn with a throwaway script found it. Fix (#694): two cases that only the key check refuses, a quoted duplicate \"inputs\": and \"outputs\": above the real inputs:, outside the hashed region; each of the five checks now fails 2 to 68 cases when disabled.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "agent-error",
+      "test-design"
+    ],
+    "tags": [
+      "mutation-testing",
+      "untested-check",
+      "guard-coverage",
+      "own-error"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-11-09T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 694
+    }
+  }
+]
