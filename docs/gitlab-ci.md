@@ -12,12 +12,12 @@ Cejel is published in the GitLab CI/CD Catalog as
 
 ```yaml
 include:
-  - component: gitlab.com/barglabs/cejel/cejel@0.6.10
+  - component: gitlab.com/barglabs/cejel/cejel@0.6.11
 ```
 
 | Input | Default | Meaning |
 | --- | --- | --- |
-| `version` | `0.6.10` | The `@cejel/cejel` version `npx` runs. Keep it equal to the component version. |
+| `version` | `0.6.11` | The `@cejel/cejel` version `npx` runs. Keep it equal to the component version. |
 | `min_score` | empty | Same as `CEJEL_MIN_SCORE` below. |
 | `stage` | `test` | The stage the `cejel` job runs in. |
 | `git_depth` | `"0"` | Same as `GIT_DEPTH` below. |
@@ -32,7 +32,7 @@ to a release tag, never a branch:
 
 ```yaml
 include:
-  - remote: 'https://raw.githubusercontent.com/BargLabs/cejel/v0.6.10/ci/gitlab/cejel.gitlab-ci.yml'
+  - remote: 'https://raw.githubusercontent.com/BargLabs/cejel/v0.6.11/ci/gitlab/cejel.gitlab-ci.yml'
 ```
 
 The job is named `cejel`, runs in the `test` stage on `node:22`, and:
@@ -149,7 +149,7 @@ page documents:
 spec:
   inputs:
     version:
-      default: '0.6.10'
+      default: '0.6.11'
 ```
 
 Its pipeline runs the component on itself and publishes a release for each semantic-version tag
