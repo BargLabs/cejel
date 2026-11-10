@@ -16735,7 +16735,7 @@ export function readPytestInvocations(
     // Each call taking posargs is read once per set, so the work is the noxfile's calls times the
     // sets' words: a product of two inputs. A shared budget bounds it; past it the call is not read.
     const callCost = passedSets.reduce((sum, words) => sum + 1 + words.length, 0);
-    let noxLeft = NOX_POSARGS_BUDGET;
+    let noxLeft = POSARGS_BUDGET;
     // The review of #655, blocker 2: the posargs Cejel cannot read are said once per read, not once
     // per noxfile (M noxfiles and U such entries made M x U runs), and each counts against the budget.
     let unreadSaid = false;
@@ -16945,12 +16945,15 @@ export function readPytestInvocations(
   // resolve leaves every factor-conditional pytest line not read.
   const toxenv = readToxenvValues(environmentTexts);
   for (const name of toxenv.names) namedToxEnvironments.add(name);
+  // goal_cejel_v27_a1_addopts_assignment_not_known_2026-11-10, item B (#653): one posargs budget
+  // across every tox.ini of the read, as the nox reader's is across every noxfile.
+  const toxBudget = { left: POSARGS_BUDGET };
   for (const file of usable.filter((candidate) => basename(candidate) === 'tox.ini')) {
     const text = readText(file);
     if (text === undefined) continue;
     const notRead = (entry: { readonly text: string; readonly source: string; readonly file: string; readonly anchor: number }) =>
       invocations.push({ source: entry.source, file: entry.file, anchor: entry.anchor, directory: '', args: [], text: entry.text, unread: entry.text });
-    readToxCommands(file, text, namedToxEnvironments, (anchor) => visitor(a1NotePath(file), file, anchor), toxPosargs, notRead, toxenv.unknown);
+    readToxCommands(file, text, namedToxEnvironments, (anchor) => visitor(a1NotePath(file), file, anchor), toxPosargs, notRead, toxenv.unknown, toxBudget);
   }
   // The review of #655, blocker 1: the noxfiles are read last, once tox's commands have named
   // their nox commands too; their runs still go where the recipes' runs began. The review of #655,
@@ -17724,8 +17727,12 @@ const NOX_POSARGS_WORD = '\u0000session.posargs';
  * item B: the posargs substitutions per read, counted as one per run read plus the words put in;
  * past it a call taking posargs is not read. The input that maximises the work without it: a
  * noxfile of N calls taking posargs and a CI file passing 16 distinct sets of W words, N x 16 x W.
+ * goal_cejel_v27_a1_addopts_assignment_not_known_2026-11-10, item B (#653): the tox reader takes
+ * the same budget, counted the same way across every tox.ini of the read; past it a line holding
+ * {posargs} is named as a run not read. Its worst input is the same shape: a tox.ini of N lines
+ * holding {posargs} and 16 distinct CI sets of W words. The nox and tox reads each have their own.
  */
-const NOX_POSARGS_BUDGET = 4096;
+const POSARGS_BUDGET = 4096;
 
 /**
  * item A: a noxfile's `session.run(...)` calls: the literal string arguments before the first
@@ -17840,6 +17847,9 @@ function readToxCommands(
   posargs: readonly { readonly words: readonly string[]; readonly text: string; readonly source: string; readonly file: string; readonly anchor: number }[] = [],
   notRead: (entry: { readonly text: string; readonly source: string; readonly file: string; readonly anchor: number }) => void = () => undefined,
   factorsUnknown = false,
+  // goal_cejel_v27_a1_addopts_assignment_not_known_2026-11-10, item B (#653): the posargs budget
+  // shared across the read's tox.ini files (POSARGS_BUDGET).
+  budget: { left: number } = { left: POSARGS_BUDGET },
 ): void {
   const sections = readIniSections(text);
   const toxDirectory = repoDirectory(file);
@@ -17865,6 +17875,10 @@ function readToxCommands(
   // Distinct literal posargs, at most 16, so CI lines times tox lines stays bounded; past 16 the
   // run is named as not read rather than read in part.
   const { literal: literalPosargs, unread: unreadPosargs } = partitionPosargs(posargs);
+  // Item B of goal_cejel_v27_a1_addopts_assignment_not_known_2026-11-10 (#653): a line holding
+  // {posargs} is read once with none and once per literal set, so its work is one per run read plus
+  // the words put in, the nox reader's count. The 16-set limit caps the sets, not their length.
+  const posargsLineCost = literalPosargs.reduce((sum, entry) => sum + 1 + entry.words.length, 1);
   let unreadSaid = false;
   const seen = new Set<Map<string, string>>();
   for (const { section, names } of environments) {
@@ -17900,6 +17914,15 @@ function readToxCommands(
             .replace(/\{posargs\}/g, passed === undefined ? '' : passed.map((word) => (/\s/.test(word) ? `'${word}'` : word)).join(' '))
             .replace(/\{posargs:([^}]*)\}/g, (_, fallback: string) => (passed === undefined ? fallback : passed.join(' ')))
             .replace(/\{(?:toxinidir|tox_root)\}/g, relative);
+        // Item B (#653): past the shared budget the line is named as a run not read, as the nox
+        // reader names a call; none of its runs is read.
+        if (line.includes('{posargs')) {
+          budget.left -= posargsLineCost;
+          if (budget.left < 0) {
+            notRead({ text: line, source: a1NotePath(file), file, anchor });
+            continue;
+          }
+        }
         readShellCommands(substitute(undefined), directory, addopts, visitAt(anchor));
         if (!line.includes('{posargs')) continue;
         for (const entry of literalPosargs) readShellCommands(substitute(entry.words), directory, addopts, visitAt(anchor));

@@ -909,13 +909,17 @@ describe('scaling: the v27 A1 gap readers grow no faster than linearly', () => {
   // each tox.ini line holding {posargs} once per literal CI posargs set (at most 16), so without a
   // budget its work is the tox lines times the sets' words, a product of two inputs. The input that
   // maximises it: a tox.ini of N lines each holding {posargs}, and a CI file passing 16 distinct
-  // sets of W words, N x 16 x W. Both grow with L here, N = L/400 lines and W = L/2,000 words, so an
+  // sets of W words, N x 16 x W. Both grow with L here, N = L/25 lines and W = L/4,000 words, so an
   // unbounded reader's work grows with the square of L. With the budget, past it each remaining line
-  // is named as a run not read, at both lengths.
-  it('the tox posargs reader, on a tox.ini of L/400 {posargs} lines and 16 CI sets of L/2,000 words', () => {
+  // is named as a run not read, at both lengths. The budgeted reads are about the same work at both
+  // lengths, so the lines past it must carry the read's linear part: N = L/400 and W = L/2,000 gave
+  // 1.84 (1.74 with each line padded to 400 bytes), under the floor of 2; N = L/100 gave 2.41 and
+  // N = L/50 with W = L/4,000 gave 2.59, too near it for a loaded host.
+  it('the tox posargs reader, on a tox.ini of L/25 {posargs} lines and 16 CI sets of L/4,000 words', () => {
+    const directory = 'tests/unit';
     const textsFor = (length: number): Map<string, string> => {
-      const commands = Array.from({ length: Math.floor(length / 400) }, (_, index) => `    pytest {posargs} tests/test_${index}.py`).join('\n');
-      const words = Math.floor(length / 2000);
+      const commands = Array.from({ length: Math.floor(length / 25) }, (_, index) => `    pytest {posargs} ${directory}/test_${index}.py`).join('\n');
+      const words = Math.floor(length / 4000);
       const steps = Array.from({ length: 16 }, (_, set) => `      - run: tox -e py -- ${Array.from({ length: words }, (_, word) => `-ks${set}w${word}`).join(' ')}`).join('\n');
       return new Map([
         ['tox.ini', `[tox]\nenvlist = py\n\n[testenv]\ndeps = pytest\ncommands =\n${commands}\n`],
@@ -925,10 +929,9 @@ describe('scaling: the v27 A1 gap readers grow no faster than linearly', () => {
     const files = ['.github/workflows/ci.yml', 'tox.ini'];
     const texts = scalingInputs(textsFor);
     const { ratio, timing, atSmall, atLarge } = scalingRatio((length) => readPytestInvocations(files, (file) => texts(length).get(file)));
-    // Main's reader, with no budget, measured 14.67 here (L/2 64.8 ms, 2L 951.2 ms).
     expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
     for (const read of [atSmall, atLarge]) {
-      expect(read.some(({ file, unread }) => file === 'tox.ini' && unread !== undefined && unread.startsWith('pytest {posargs} tests/test_'))).toBe(true);
+      expect(read.some(({ file, unread }) => file === 'tox.ini' && unread !== undefined && unread.startsWith(`pytest {posargs} ${directory}/test_`))).toBe(true);
     }
   }, 180_000);
 
