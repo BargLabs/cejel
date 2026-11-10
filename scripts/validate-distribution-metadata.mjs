@@ -152,20 +152,160 @@ for (const [workflowName, workflow] of workflows) {
   requirePermissionsBlock(workflowName, workflow);
 }
 
-// The Action manifests run in the CALLER's workspace, where pnpm/action-setup reads packageManager
-// from the caller's package.json. A hardcoded version there failed every caller that pins a different
-// pnpm ("Multiple versions of pnpm specified"). Both manifests must leave the version to
-// packageManager and point package_json_file at this action's own package.json.
-for (const [manifestName, manifest] of [
-  ['action.yml', rootAction],
-  ['action/action.yml', nestedAction],
+// The Action manifests run inside the CALLER's job. pnpm/action-setup there read the caller's
+// package.json (so a caller pinning another pnpm failed, #685) and prepended its pnpm to the
+// job-wide PATH (so the caller's later pnpm steps ran this action's version, #686). Each manifest
+// must therefore END with exactly the canonical runs: text below, byte for byte, with no line of
+// runs: skipped or normalised (CRLF aside). The manifests keep their explanatory comments above
+// runs:. Change the Action and this text together.
+//
+// Why nothing weaker holds, from five review rounds of #687:
+// - substring checks per manifest passed with one step's isolation removed;
+// - per-step script checks passed an added flow-style step, an if:-first step, a new input or a
+//   literal feeding CEJEL_PNPM, and step env: blocks setting PATH, RUNNER_TEMP or npm config;
+// - skipping "comment" lines let text that YAML reads as live through: text after a lone CR, NEL,
+//   LS or PS (YamlDotNet 5.3.0 CharacterAnalyzer.IsBreak); a '#' line inside a run: | block, which
+//   is script; and a line led by a character JavaScript's \s matches but YAML does not treat as
+//   white space (IsWhite is space and tab only), such as U+00A0, which folds into the scalar.
+// So nothing is skipped, and every character in that last class is refused anywhere in the file,
+// together with C0 control characters other than tab, LF and CR, DEL, a BOM and YAML document
+// markers. C1 controls other than NEL are not refused: YamlDotNet reads them as plain content, and
+// inside runs: the byte comparison catches them.
+const YAML_INVISIBLE_CHARACTER =
+  /\r(?!\n)|[\u{0}-\u{8}\u{B}\u{C}\u{E}-\u{1F}\u{7F}\u{85}\u{A0}\u{1680}\u{2000}-\u{200A}\u{2028}\u{2029}\u{202F}\u{205F}\u{3000}\u{FEFF}]/u;
+
+function refuseHiddenYamlStructure(manifestName, manifest) {
+  const offending = YAML_INVISIBLE_CHARACTER.exec(manifest);
+  if (offending) {
+    const codePoint = offending[0].codePointAt(0).toString(16).toUpperCase().padStart(4, '0');
+    throw new Error(
+      `${manifestName} contains U+${codePoint} at offset ${offending.index}: a YAML line break, white-space lookalike or control character that a text check and the runner's parser read differently.`,
+    );
+  }
+  if (/^(?:---|\.\.\.)(?:[ \t]|$)/m.test(manifest)) {
+    throw new Error(`${manifestName} contains a YAML document marker; the manifest must be one document.`);
+  }
+  // Textual and best effort: other spellings of a second runs key ("\x72uns", Runs, ? runs, a tag)
+  // pass here, and the runner refuses them at load: TemplateReader as duplicate keys (compared
+  // case-insensitively), YamlObjectReader for a !!str tag.
+  const runsKeys = manifest.split(/\r?\n/).filter((line) => /^["']?runs["']?[ \t]*:/.test(line));
+  if (runsKeys.length !== 1 || runsKeys[0] !== 'runs:') {
+    throw new Error(`${manifestName} must have exactly one top-level runs: key, written as "runs:".`);
+  }
+}
+
+function actionRunsSection(manifestName, manifest) {
+  refuseHiddenYamlStructure(manifestName, manifest);
+  const text = manifest.replace(/\r\n/g, '\n');
+  const start = text.startsWith('runs:\n') ? 0 : text.indexOf('\nruns:\n') + 1;
+  if (start <= 0 && !text.startsWith('runs:\n')) {
+    throw new Error(`${manifestName} has no top-level runs: section.`);
+  }
+  return text.slice(start).replace(/\n+$/, '');
+}
+
+function canonicalPnpmStep(stepName, directoryExpression, pnpmArguments) {
+  return [
+    `    - name: ${stepName}`,
+    '      shell: bash',
+    '      env:',
+    '        CEJEL_PNPM: ${{ steps.cejel-pnpm.outputs.spec }}',
+    '      run: |',
+    '        set -euo pipefail',
+    `        cejel_dir=${directoryExpression}`,
+    '        work="$(mktemp -d "$RUNNER_TEMP/cejel-pnpm.XXXXXX")"',
+    '        cd "$work"',
+    "        printf '{}\\n' > package.json",
+    '        npm install --prefix "$work" --no-save --no-package-lock --ignore-scripts --no-audit --no-fund "$CEJEL_PNPM"',
+    '        pnpm="$work/node_modules/.bin/pnpm"',
+    '        ran="pnpm@$("$pnpm" --version)"',
+    '        if [ "$ran" != "$CEJEL_PNPM" ]; then',
+    `          echo "::error::expected $CEJEL_PNPM from this action's package.json, installed $ran"`,
+    '          exit 1',
+    '        fi',
+    `        "$pnpm" --dir "$cejel_dir" ${pnpmArguments}`,
+  ];
+}
+
+function canonicalActionRuns(directoryExpression, runnerPath) {
+  return [
+    'runs:',
+    "  using: 'composite'",
+    '  steps:',
+    '    - name: Setup Node',
+    '      uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6',
+    '      with:',
+    "        node-version: '22'",
+    '        package-manager-cache: false',
+    '',
+    '    - name: Read the pnpm version this action pins',
+    '      id: cejel-pnpm',
+    '      shell: bash',
+    '      run: |',
+    '        set -euo pipefail',
+    `        cejel_dir=${directoryExpression}`,
+    `        spec="$(node -e '`,
+    '          const pm = require(process.argv[1]).packageManager ?? "";',
+    '          const match = /^(pnpm@\\d+\\.\\d+\\.\\d+)(\\+.+)?$/.exec(pm);',
+    '          if (!match) {',
+    '            console.error("package.json packageManager must pin pnpm to an exact version, got: " + pm);',
+    '            process.exit(1);',
+    '          }',
+    '          process.stdout.write(match[1]);',
+    `        ' "$cejel_dir/package.json")"`,
+    '        echo "spec=$spec" >> "$GITHUB_OUTPUT"',
+    '',
+    ...canonicalPnpmStep('Install dependencies', directoryExpression, 'install --frozen-lockfile'),
+    '',
+    ...canonicalPnpmStep('Build the Cejel CLI', directoryExpression, 'run build'),
+    '',
+    '    - name: Run Cejel (offline scoring — no network calls, no signup)',
+    '      id: witan-run',
+    '      shell: bash',
+    `      run: node "$GITHUB_ACTION_PATH/${runnerPath}"`,
+    '      env:',
+    '        WITAN_REPO_PATH: ${{ inputs.repo-path }}',
+    '        WITAN_MIN_SCORE: ${{ inputs.min-score }}',
+    '        WITAN_EXPORT_DIR: ${{ inputs.out-dir }}',
+    '        WITAN_RUBRIC_PIN: ${{ inputs.rubric-pin }}',
+  ].join('\n');
+}
+
+for (const [manifestName, manifest, directoryExpression, runnerPath] of [
+  ['action.yml', rootAction, '"$GITHUB_ACTION_PATH"', 'action/run.mjs'],
+  ['action/action.yml', nestedAction, '"$(dirname "$GITHUB_ACTION_PATH")"', 'run.mjs'],
 ]) {
-  requirePnpmVersionDerived(manifestName, manifest, pnpmVersion);
-  requireIncludes(
-    manifest,
-    'package_json_file: ${{ steps.cejel-package.outputs.path }}',
-    `${manifestName} pnpm/action-setup`,
-  );
+  // The refusals read the raw runs: section: it holds no comments, and nothing is skipped.
+  const code = actionRunsSection(manifestName, manifest);
+  if (/^\s*(?:-\s*)?uses:\s*["']?pnpm\/action-setup@/m.test(code)) {
+    throw new Error(
+      `${manifestName} uses pnpm/action-setup, which changes the calling job's PATH; install pnpm with npm install --prefix instead.`,
+    );
+  }
+  if (code.includes('github.action_path')) {
+    throw new Error(
+      `${manifestName} interpolates github.action_path; read $GITHUB_ACTION_PATH in the shell step instead.`,
+    );
+  }
+  if (/GITHUB_PATH|GITHUB_ENV/.test(code)) {
+    throw new Error(`${manifestName} writes to the calling job's PATH or environment.`);
+  }
+  if (/\bnpm exec\b|\bnpx\b/.test(code)) {
+    throw new Error(
+      `${manifestName} runs npm exec or npx, which puts every parent directory's node_modules/.bin ahead of PATH.`,
+    );
+  }
+  const actual = actionRunsSection(manifestName, manifest);
+  const expected = canonicalActionRuns(directoryExpression, runnerPath);
+  if (actual !== expected) {
+    const actualLines = actual.split('\n');
+    const expectedLines = expected.split('\n');
+    const first = expectedLines.findIndex((line, index) => line !== actualLines[index]);
+    const at = first < 0 ? expectedLines.length : first;
+    throw new Error(
+      `${manifestName} runs: section differs from the canonical scoped-pnpm Action at line ${at + 1} of the section; update the Action and the validator together.\n--- expected\n${expectedLines[at] ?? '(end)'}\n--- actual\n${actualLines[at] ?? '(end)'}`,
+    );
+  }
 }
 
 requireEqual(
@@ -729,12 +869,12 @@ requireIncludes(ciWorkflow, 'if-no-files-found: error', 'CI missing-artifact fai
 
 requireIncludes(
   rootAction,
-  'cd "${{ github.action_path }}"',
-  'root Action repository working directory',
+  'cejel_dir="$GITHUB_ACTION_PATH"',
+  'root Action repository directory',
 );
 requireIncludes(
   rootAction,
-  'node "${{ github.action_path }}/action/run.mjs"',
+  'node "$GITHUB_ACTION_PATH/action/run.mjs"',
   'root Action runner path',
 );
 requireIncludes(
@@ -754,12 +894,12 @@ requireIncludes(
 );
 requireIncludes(
   nestedAction,
-  'cd "$(dirname "${{ github.action_path }}")"',
-  'nested Action repository working directory',
+  'cejel_dir="$(dirname "$GITHUB_ACTION_PATH")"',
+  'nested Action repository directory',
 );
 requireIncludes(
   nestedAction,
-  'node "${{ github.action_path }}/run.mjs"',
+  'node "$GITHUB_ACTION_PATH/run.mjs"',
   'nested Action runner path',
 );
 requireIncludes(

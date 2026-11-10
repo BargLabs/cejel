@@ -98,7 +98,7 @@ jobs:
   # different pnpm. The smoke steps in build-test run in this repository, whose packageManager matches
   # the Action's, so they never saw the failure this job guards against. pnpm/action-setup read the
   # CALLER's packageManager and refused it beside the Action's hardcoded version ("Multiple versions of
-  # pnpm specified").
+  # pnpm specified"). It also checks that the caller's own pnpm survives both Actions (#686).
   action-from-another-caller:
     runs-on: ubuntu-latest
     steps:
@@ -112,17 +112,41 @@ jobs:
           printf '{\n  "name": "caller",\n  "private": true,\n  "packageManager": "pnpm@10.0.0"\n}\n' > package.json
           cat package.json
 
+      # The caller's own pnpm, on a PATH entry of its own. The Action must neither replace it nor
+      # change PNPM_HOME for the steps after it (#686): pnpm/action-setup prepended its pnpm to the
+      # job-wide PATH, so a caller's later pnpm steps ran the Action's version instead of their own.
+      - name: Give the caller its own pnpm
+        run: |
+          npm install --no-save --no-audit --no-fund --prefix "$RUNNER_TEMP/caller-pnpm" pnpm@10.0.0
+          echo "$RUNNER_TEMP/caller-pnpm/node_modules/.bin" >> "$GITHUB_PATH"
+          echo "CALLER_PNPM_HOME=${PNPM_HOME:-unset}" >> "$GITHUB_ENV"
+
+      - name: The caller's pnpm before the Action
+        run: test "$(pnpm --version)" = "10.0.0"
+
       - name: Root Action from the caller workspace
         uses: ./cejel
         with:
           repo-path: cejel
           out-dir: .cejel-caller
 
+      - name: The caller's pnpm is unchanged after the root Action
+        run: |
+          echo "pnpm $(pnpm --version) at $(command -v pnpm); PNPM_HOME=${PNPM_HOME:-unset}"
+          test "$(pnpm --version)" = "10.0.0"
+          test "${PNPM_HOME:-unset}" = "$CALLER_PNPM_HOME"
+
       - name: Nested Action from the caller workspace
         uses: ./cejel/action
         with:
           repo-path: cejel
           out-dir: .cejel-caller-nested
+
+      - name: The caller's pnpm is unchanged after the nested Action
+        run: |
+          echo "pnpm $(pnpm --version) at $(command -v pnpm); PNPM_HOME=${PNPM_HOME:-unset}"
+          test "$(pnpm --version)" = "10.0.0"
+          test "${PNPM_HOME:-unset}" = "$CALLER_PNPM_HOME"
 
       - name: Verify both produced a certificate
         run: |

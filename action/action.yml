@@ -59,6 +59,34 @@ outputs:
     description: 'Write-only export destination containing this invocation’s report artifacts.'
     value: ${{ steps.witan-run.outputs.artifact-dir }}
 
+# How runs: works, kept above runs: on purpose: scripts/validate-distribution-metadata.mjs compares
+# the whole runs: section byte for byte with its canonical text, and it skips no lines, so no
+# comment may sit inside runs:. Change the steps and the validator together.
+#
+# pnpm is installed with `npm install --prefix` into a fresh directory holding an empty package.json,
+# at the exact version this action's own package.json pins in packageManager, and run from there by
+# path. Nothing runs through `npm exec`, which puts the node_modules/.bin of every parent directory
+# ahead of PATH, and the explicit --prefix keeps npm from adopting a parent directory (for example one
+# whose package.json declares workspaces) as its project. No pnpm is added to the job's PATH,
+# PNPM_HOME is not set, and setting up the toolchain never reads the calling repository's package.json:
+# setup-node runs with package-manager-cache off, the only path on which it reads that file. (The scan
+# itself still reads the repository it scores, by default the caller's checkout.) pnpm/action-setup did all
+# three: a caller pinning a different pnpm first failed ("Multiple versions of pnpm specified"), and
+# once that was fixed every later pnpm step in the caller's job ran this action's pnpm (#686).
+#
+# Still shared with the caller's job, as before this change: Node 22 first on PATH and setup-node's
+# problem matchers; whichever node is first on PATH runs pnpm; the rest of the job's PATH and
+# environment (NODE_OPTIONS, for example) reaches pnpm and the build. Also shared: npm's cache under
+# ~/.npm; pnpm's default store, metadata cache and global rc file; the user, global and environment
+# npm configuration, including the registry; and two cejel-pnpm.* directories left in $RUNNER_TEMP,
+# each holding the installed pnpm (about 18 MB).
+#
+# A +hash suffix on packageManager is accepted and dropped, not verified (#686 item 6); this
+# repository's distribution validator also refuses a +hash in its own package.json today.
+#
+# The last step deliberately does NOT cd into this action's own checkout: repo-path and the
+# write-only export destination stay relative to the CALLING workflow's workspace. The report used
+# for publication is first created in a fresh action-owned directory under RUNNER_TEMP.
 runs:
   using: 'composite'
   steps:
@@ -66,45 +94,67 @@ runs:
       uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
       with:
         node-version: '22'
+        package-manager-cache: false
 
-    # pnpm/action-setup reads packageManager from a package.json it resolves under
-    # $GITHUB_WORKSPACE, which is the CALLING repository. With a hardcoded version, a caller whose
-    # package.json pins a different pnpm failed this step ("Multiple versions of pnpm specified");
-    # without one it would install the caller's pnpm. So point it at this action's own package.json,
-    # as a path relative to the workspace, and let that file's packageManager set the version.
-    - name: Locate this action's package.json
-      id: cejel-package
+    - name: Read the pnpm version this action pins
+      id: cejel-pnpm
       shell: bash
-      run: >-
-        node -e 'const p = require("path");
-        process.stdout.write("path=" + p.relative(process.env.GITHUB_WORKSPACE, p.join(process.argv[1], "..", "package.json")) + "\n")'
-        "${{ github.action_path }}" >> "$GITHUB_OUTPUT"
-
-    - name: Setup pnpm
-      uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
-      with:
-        package_json_file: ${{ steps.cejel-package.outputs.path }}
+      run: |
+        set -euo pipefail
+        cejel_dir="$(dirname "$GITHUB_ACTION_PATH")"
+        spec="$(node -e '
+          const pm = require(process.argv[1]).packageManager ?? "";
+          const match = /^(pnpm@\d+\.\d+\.\d+)(\+.+)?$/.exec(pm);
+          if (!match) {
+            console.error("package.json packageManager must pin pnpm to an exact version, got: " + pm);
+            process.exit(1);
+          }
+          process.stdout.write(match[1]);
+        ' "$cejel_dir/package.json")"
+        echo "spec=$spec" >> "$GITHUB_OUTPUT"
 
     - name: Install dependencies
       shell: bash
+      env:
+        CEJEL_PNPM: ${{ steps.cejel-pnpm.outputs.spec }}
       run: |
-        cd "$(dirname "${{ github.action_path }}")"
-        pnpm install --frozen-lockfile
+        set -euo pipefail
+        cejel_dir="$(dirname "$GITHUB_ACTION_PATH")"
+        work="$(mktemp -d "$RUNNER_TEMP/cejel-pnpm.XXXXXX")"
+        cd "$work"
+        printf '{}\n' > package.json
+        npm install --prefix "$work" --no-save --no-package-lock --ignore-scripts --no-audit --no-fund "$CEJEL_PNPM"
+        pnpm="$work/node_modules/.bin/pnpm"
+        ran="pnpm@$("$pnpm" --version)"
+        if [ "$ran" != "$CEJEL_PNPM" ]; then
+          echo "::error::expected $CEJEL_PNPM from this action's package.json, installed $ran"
+          exit 1
+        fi
+        "$pnpm" --dir "$cejel_dir" install --frozen-lockfile
 
     - name: Build the Cejel CLI
       shell: bash
+      env:
+        CEJEL_PNPM: ${{ steps.cejel-pnpm.outputs.spec }}
       run: |
-        cd "$(dirname "${{ github.action_path }}")"
-        pnpm run build
+        set -euo pipefail
+        cejel_dir="$(dirname "$GITHUB_ACTION_PATH")"
+        work="$(mktemp -d "$RUNNER_TEMP/cejel-pnpm.XXXXXX")"
+        cd "$work"
+        printf '{}\n' > package.json
+        npm install --prefix "$work" --no-save --no-package-lock --ignore-scripts --no-audit --no-fund "$CEJEL_PNPM"
+        pnpm="$work/node_modules/.bin/pnpm"
+        ran="pnpm@$("$pnpm" --version)"
+        if [ "$ran" != "$CEJEL_PNPM" ]; then
+          echo "::error::expected $CEJEL_PNPM from this action's package.json, installed $ran"
+          exit 1
+        fi
+        "$pnpm" --dir "$cejel_dir" run build
 
-    # Deliberately does NOT cd into this action's own checkout — repo-path and the
-    # write-only export destination stay relative to the CALLING workflow's workspace.
-    # The report used for publication is first created in a fresh action-owned
-    # directory under RUNNER_TEMP.
     - name: Run Cejel (offline scoring — no network calls, no signup)
       id: witan-run
       shell: bash
-      run: node "${{ github.action_path }}/run.mjs"
+      run: node "$GITHUB_ACTION_PATH/run.mjs"
       env:
         WITAN_REPO_PATH: ${{ inputs.repo-path }}
         WITAN_MIN_SCORE: ${{ inputs.min-score }}

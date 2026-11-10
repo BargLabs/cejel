@@ -114,6 +114,45 @@ rubric is pinned. v27 carries no precision or recall claim.
 
 ### Fixed
 
+- **The GitHub Action no longer reads the calling repository's `package.json` to set up pnpm, and no
+  longer changes the calling job's pnpm (#685, #686).** Both `action.yml` and `action/action.yml` ran
+  `pnpm/action-setup`, which reads `packageManager` from the caller's workspace and prepends its pnpm
+  to the job-wide `PATH`. A caller pinning a pnpm other than 9.0.0 failed with "Multiple versions of
+  pnpm specified". After #685 such callers passed, but every later `pnpm` step in their job ran the
+  Action's 9.0.0.
+  - The Action now reads the exact pnpm version from its own `package.json`. It installs that pnpm
+    with `npm install --prefix` into a fresh directory holding an empty `package.json`, then runs it
+    from there by path. It stops if the installed pnpm is any other version.
+  - Nothing runs through `npm exec`, which puts every parent directory's `node_modules/.bin` ahead
+    of `PATH`. The explicit `--prefix` keeps npm from adopting a parent directory as its project,
+    for example one whose `package.json` declares workspaces.
+  - Its `actions/setup-node` step runs with `package-manager-cache: false`, so setting up the
+    toolchain no longer reads the caller's `package.json` either. The scan itself still reads the
+    repository it scores, which is the caller's checkout by default.
+  - It adds no pnpm to the caller's `PATH` and does not set `PNPM_HOME`.
+  - Still shared with the caller's job:
+    - Node 22 first on `PATH` and setup-node's problem matchers, as before.
+    - Whichever `node` is first on `PATH` runs pnpm, as before.
+    - The rest of the job's `PATH` and environment (`NODE_OPTIONS`, for example) reaches pnpm and
+      the build, as before.
+    - npm's cache under `~/.npm`.
+    - pnpm's default store, metadata cache and global rc file.
+    - The user, global and environment npm configuration, including the registry.
+    - Two `cejel-pnpm.*` directories left in `$RUNNER_TEMP`, each holding the installed pnpm
+      (about 18 MB).
+  - The `action-from-another-caller` CI job checks that a caller pinning pnpm 10.0.0 keeps its own
+    pnpm and `PNPM_HOME` after both Actions.
+  - The distribution validator requires each manifest to end with exactly its canonical `runs:`
+    text, byte for byte. No line is skipped: the manifests keep their explanatory comments above
+    `runs:`. Before comparing, the validator also refuses anywhere in the file:
+    - any line break YAML recognises other than `\n` (a lone CR, NEL, LS or PS);
+    - every character JavaScript counts as white space but YAML does not, such as U+00A0;
+    - C0 control characters other than tab, LF and CR, DEL, and a BOM;
+    - YAML document markers and a second literal `runs:` key.
+
+    Other spellings of a duplicate key are left to the runner, which refuses them when it loads the
+    Action. Outside `runs:`, input defaults and output values are not pinned (#689).
+
 - **`cejel issue` reproduces with the attested scan's own date, so a certificate from an earlier
   year can be issued (audit C4; operator ruling of 5 Nov, option A).** v17's B4 freshness check
   matches the scan's calendar year. The re-run used the issuer's clock, so an issuance in a later

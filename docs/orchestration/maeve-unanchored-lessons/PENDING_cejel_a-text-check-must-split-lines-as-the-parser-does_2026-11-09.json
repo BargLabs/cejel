@@ -1,0 +1,25 @@
+[
+  {
+    "statement": "A text check over a parsed format must not skip any line it assumes the parser ignores; compare the raw bytes and refuse every character the two could read differently. 2026-11-09, #687, my own error twice: to compare an Action's runs: section, the validator split on \\n and skipped lines matching ^\\s*#. Round 4 hid steps after a lone CR, NEL, LS or PS, which YamlDotNet 5.3.0 also treats as line breaks. Round 5 then showed that a '#' line inside a run: | block is script, not a comment, and that JavaScript's \\s matches U+00A0, which YAML does not treat as white space, so an NBSP-led line folded into a run: command and executed. Fix (#687): no line is skipped. Comments moved above runs:, the manifest must end with the canonical runs: text byte for byte, and those characters are refused anywhere in the file.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "agent-error",
+      "validation-design"
+    ],
+    "tags": [
+      "yaml-line-breaks",
+      "parser-differential",
+      "validator-bypass",
+      "own-error"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-11-09T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 687
+    }
+  }
+]
