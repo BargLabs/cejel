@@ -22,6 +22,117 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
+## 2026-11-10 (A1 addopts assignment not known) — v27 A1 names the pytest runs an unexported Makefile `=`, `:=` or `+=` of `PYTEST_ADDOPTS` reaches as not read where CI names the variable somewhere the readers do not follow (#674), and the tox posargs reader shares a budget (#653); v17-v26 byte-identical; v27 never above v17; no published score moved
+
+**Status.** A scoring change under `witan-rubric-v27-prospective-2026-10-19` only, with no
+identifier change (goal_cejel_v27_a1_addopts_assignment_not_known_2026-11-10). No holdout or
+calibration ran for it, and this entry makes no precision or recall claim. The default stays v17.
+
+**Why.** (#674, found in the 2026-11-05 change below.) GNU make passes a Makefile variable it does
+not export to a recipe only where the variable is already in make's environment, and then with the
+Makefile's value. A CI step such as `PYTEST_ADDOPTS=-q ./ci/test.sh`, whose script runs `make test`,
+puts it there; the reader does not follow the script, so it read an unexported
+`PYTEST_ADDOPTS = -p no:skipping` as not applied, and rated a file whose every test is skipped
+"runs no test" where pytest runs its tests: a false hollow on a full clone. (#653, found while adding
+nox posargs on 2026-11-03.) `readToxCommands` read each `tox.ini` line holding `{posargs}` once per
+literal CI posargs set, at most 16, so its work was the lines times the sets' words, with no budget
+and no scaling check; the 16-set limit caps the count of sets, not their length.
+
+**Ruling.** Item A reverses, by the operator's ruling of 10 Nov, the 5 Nov card text that "an `=`,
+`:=` or `+=` assignment keeps #670's reading, because make passes the Makefile's value whatever the
+environment holds" (stated in the 2026-11-05 entry below as "Only `?=` changes"). That reason holds
+only where the variable is exported or already in make's environment; the ruling is to read the
+unexported case the way #673's fix reads `?=`.
+
+**Change.**
+
+- **A — an unexported assignment (#674).** Where a Makefile assigns `PYTEST_ADDOPTS` with `=`, `:=`,
+  `::=` or `+=` and does not export it (no `export` on the line, no `export PYTEST_ADDOPTS` line, no
+  bare `export`, no `.EXPORT_ALL_VARIABLES`, the same export test as 2026-11-04), and a CI file names
+  `PYTEST_ADDOPTS` anywhere the readers do not read as an environment, the value is not known. The
+  pytest runs the Makefile's targets reach are named with #644's clause, "pytest run not read:
+  `<the assignment as written>` in Makefile", with a pointer at the assignment's line (its first such
+  assignment, as `readMakeVariables` reads the file: define bodies, conditionals and target-specific
+  assignments leave the name not known as before). The mentions read are the 2026-11-05 entry's,
+  from the same count (`addoptsMentionNotRead`): no second clause, counter or environment reader
+  was added. Where every CI mention is one the readers read, each CI make command's environment is
+  read as on 2026-11-04 (the reader knows whether make's environment holds the variable), and an
+  exported assignment keeps that reading in every case. `::=`, which GNU make 4.0 and later reads as
+  `:=`, is included because it is the same assignment; the card names `=`, `:=` and `+=`.
+- **B — the tox posargs budget (#653).** The tox reader takes the nox reader's kind of budget, with
+  the constant renamed from `NOX_POSARGS_BUDGET` to `POSARGS_BUDGET` (4,096) and shared by both: one
+  unit per run read plus the words put in, so a line holding `{posargs}` costs 1 (the run with no
+  posargs) plus 1 and the set's word count per literal set. It is counted across every `tox.ini` of
+  a read; the nox and tox reads each have their own count. Past it, the line is named "pytest run
+  not read: `<the line>` in tox.ini", at its line, and none of its runs is read, as the nox reader
+  names a call past its budget. The input that maximises the work without it: a `tox.ini` of N
+  lines holding `{posargs}` and a CI file passing 16 distinct sets of W words, N x 16 x W.
+
+**GNU make and pytest, not run here.** This session's shell refused `make` and `python3 -m pytest`
+(and `make --version`), so no make or pytest claim was checked by running either. The make claim
+item A rests on is the 2026-11-05 entry's GNU Make 3.81 check, run in that session from a
+throwaway test: `PYTEST_ADDOPTS = -p no:skipping`, unexported, gives the recipe an empty value with
+nothing in make's environment and the Makefile's value with anything in it. The `:=` and `+=` forms
+were not run in either session; they are read the same way because GNU make's rule for passing a
+variable to a recipe turns on its export attribute and origin, not its flavour. The `::=` sentence
+above is from the GNU make manual, not a run. The pytest claim (`-p no:skipping` runs the bodies of
+skipped tests) rests on the earlier entries; no pytest version is claimed.
+
+**Bounds.** No new regular expression. Item A adds one map entry per name assigned in a Makefile
+(`readMakeVariables` already visits each line once) and a constant check per Makefile. Item B adds
+one subtraction per `tox.ini` line holding `{posargs}` and one pass over the literal sets per
+`tox.ini`. The scaling check in `scan-path-regex-bounds.test.ts` (L = 240,000, CPU time, read at
+L/2 and 2L, limit 11, floor 2), on a `tox.ini` of L/400 `{posargs}` lines and 16 CI sets of L/400
+words: this branch 3.87 (L/2 45.2 ms, 2L 175.2 ms); main `3d6874108`'s reader 16.50 (L/2 352.0 ms,
+2L 5,809.5 ms), so it fails on main by ratio. At W = L/400 one line's cost is past the budget at L/2
+already, so what is timed is the read's linear part. Two earlier inputs were dropped: N = L/400 with
+W = L/2,000 (red on main at 14.67) measured 1.84 with the budget, under the floor, since the few
+lines the budget admits are about the same work at both lengths; and N = L/25 with W = L/4,000 passed
+with the budget (3.54) but measured 7.91 on main, superlinear yet under the limit, so it would not
+have caught the defect it exists for. A second test pins the count across lines and files: a
+1,500-word set reads the root `tox.ini`'s two lines and names the third, in `sub/tox.ini`, not read.
+The ReDoS guard (`src/__tests__/regex-redos-guard.test.ts`) and every timing guard and scaling check
+in `scan-path-regex-bounds.test.ts` passed in the full suite (see the pull request).
+
+**The no-rise property.** Item A only makes a value not known, so the runs it reaches are not read;
+item B only names a line's runs not read. A run not read switches off every removal rule, which
+falls back to v17's reading. Neither reads a setting in force that was not read before, so v27 cannot
+score A1 above v17 on the same commit.
+
+**Measured** (the branch at `055102ed7`, whose last code commit is `6b91d9f97`; `405a783cd` changes
+tests only, `055102ed7` the declaration's comment and the CHANGELOG). The set the 2026-11-05 entry
+names, from this branch's fixture files: the false-assurance (269), CI-claims (71) and B3 (361) sets
+and every v27 A1 set (removal 39, hook outcome 38, allowlist 86, withhold 96, run 58), 1,018
+synthetic repositories. Each was built once and scored in one process by main `3d6874108` (imported
+by path from an ignored worktree at main) and by this branch, under all eleven selectable rubrics
+(v17 to v27); report JSON, HTML and Markdown certificates were compared by hash: 11,198 reports each
+side, 0 errors.
+
+- v17 to v26: 10,180 of 10,180 reports, HTML and Markdown certificates byte-identical to main.
+- v27: 1,018 of 1,018 byte-identical, HTML and Markdown too. None of the 1,018 holds an unexported
+  `PYTEST_ADDOPTS` assignment with an unread CI mention, or tox posargs past the budget, so none
+  moves.
+- v27 A1 above v17 A1 on the same repository: 0 of 1,018. Overall score above v17: 0 of 1,015
+  compared (the others carry no headline score).
+- No v27 fixture pin and no behaviour-fingerprint pin moved; no v17 pin moved.
+
+**Fixtures and tests.** `src/witan/__tests__/v27-a1-addopts-assignment-not-known.test.ts` and the
+tox scaling check, committed red first at `a71e303e7` and run with main `3d6874108`'s code: 4 of 10
+fixtures failed, each rated hollow on main: the unexported `=`, `:=` and `+=` of
+`PYTEST_ADDOPTS = -p no:skipping` with a CI step `PYTEST_ADDOPTS=-q ./ci/test.sh` whose script runs
+`make test` (now named "pytest run not read: `PYTEST_ADDOPTS <op> -p no:skipping` in Makefile",
+pointed at line 2, past a comment line), and a `tox.ini` `{posargs}` line passed one CI set of
+4,100 words (cost 4,102; now named not read, pointed at its line). Each moves to v17's A1 score. The 6
+that passed on main are pins and a control, kept: an unexported `=` where every CI mention is read
+(a leading assignment on make; the Makefile's value in force), an unexported `=` with no CI mention
+(hollow), `export PYTEST_ADDOPTS :=` with a script mention, an assignment exported by an
+`export PYTEST_ADDOPTS` line with a script mention, `.EXPORT_ALL_VARIABLES` with a script mention,
+and a tox set inside the budget (hollow). The `export PYTEST_ADDOPTS =` and `export ... +=` pins with
+a script mention are the 2026-11-05 ones, unchanged. The 15 tests of
+`v27-a1-addopts-not-known.test.ts` and those of `v27-a1-make-environment.test.ts` pass unchanged.
+
+No published score moved: the board is scored under v17.
+
 ## 2026-11-05 (A1 addopts not known) — v27 A1 names a pytest run whose `PYTEST_ADDOPTS` Cejel cannot know as not read: an `env:` expression on a step that runs pytest itself, and a Makefile `?=` default where CI names the variable somewhere the readers do not follow (#669, #673); v17-v26 byte-identical; v27 never above v17; no published score moved
 
 **Status.** A scoring change under `witan-rubric-v27-prospective-2026-10-19` only, with no
