@@ -4,6 +4,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { checkActionManifest } from './action-manifest-guard.mjs';
 import { compareActionManifestOutputs, readActionManifestOutputs } from './action-manifest-outputs.mjs';
+import { requirePnpmVersionDerived } from './workflow-pnpm-version-guard.mjs';
 import { assertSiteOnly } from './verify-board-surfaces.mjs';
 import {
   disagreeingFields,
@@ -85,34 +86,6 @@ function requireEqual(actual, expected, field) {
 function requireIncludes(haystack, needle, field) {
   if (!haystack.includes(needle)) {
     throw new Error(`${field} must include ${JSON.stringify(needle)}.`);
-  }
-}
-
-function requirePnpmVersionDerived(workflowName, workflow, expectedVersion) {
-  const lines = workflow.split(/\r?\n/);
-
-  for (const [index, line] of lines.entries()) {
-    if (!/^\s*(?:-\s*)?uses:\s*pnpm\/action-setup@/.test(line)) continue;
-
-    const stepIndent = line.match(/^\s*/)?.[0].length ?? 0;
-    for (let nextIndex = index + 1; nextIndex < lines.length; nextIndex += 1) {
-      const nextLine = lines[nextIndex];
-      const nextIndent = nextLine.match(/^\s*/)?.[0].length ?? 0;
-      if (nextIndent <= stepIndent && /^\s*-\s+/.test(nextLine)) break;
-
-      const versionMatch = nextLine.match(/^\s*version:\s*['"]?([^'"\s#]+)['"]?/);
-      if (!versionMatch) continue;
-
-      const hardcodedVersion = versionMatch[1];
-      if (hardcodedVersion !== expectedVersion) {
-        throw new Error(
-          `${workflowName} pnpm/action-setup version ${hardcodedVersion} disagrees with package.json packageManager pnpm@${expectedVersion}; remove the workflow version so it is derived.`,
-        );
-      }
-      throw new Error(
-        `${workflowName} hardcodes pnpm/action-setup version ${hardcodedVersion}; remove the workflow version so pnpm@${expectedVersion} is derived from package.json packageManager.`,
-      );
-    }
   }
 }
 

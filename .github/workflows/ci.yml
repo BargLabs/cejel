@@ -134,6 +134,52 @@ jobs:
       - name: The caller's pnpm before the Action
         run: test "$(pnpm --version)" = "10.0.0"
 
+      # The Action must refuse a pnpm tarball whose sha512 differs from its packageManager pin, and
+      # refuse it before installing anything (#686 item 6). A copy of the Action with one hex digit
+      # of the pin changed runs first, so the only cejel-pnpm.* directory afterwards is its own: it
+      # must hold the fetched tarball and no node_modules.
+      - name: Copy the Action with a wrong pnpm sha512 pin
+        run: |
+          if compgen -G "$RUNNER_TEMP/cejel-pnpm.*" > /dev/null; then
+            echo "::error::a cejel-pnpm directory exists before the wrong-pin run"
+            exit 1
+          fi
+          mkdir cejel-wrong-pin
+          git -C cejel archive HEAD | tar -x -C cejel-wrong-pin
+          node -e '
+            const fs = require("fs");
+            const file = "cejel-wrong-pin/package.json";
+            const manifest = JSON.parse(fs.readFileSync(file, "utf8"));
+            const pin = manifest.packageManager;
+            const wrong = pin.replace(/\+sha512\.(.)/, (_, digit) => "+sha512." + (digit === "0" ? "1" : "0"));
+            if (wrong === pin) throw new Error("the pin was not changed: " + pin);
+            manifest.packageManager = wrong;
+            fs.writeFileSync(file, JSON.stringify(manifest, null, 2) + "\n");
+            console.log(pin + "\n" + wrong);
+          '
+
+      - name: Wrong-pin Action from the caller workspace
+        id: wrong-pin
+        continue-on-error: true
+        uses: ./cejel-wrong-pin
+        with:
+          repo-path: cejel
+          out-dir: .cejel-wrong-pin
+
+      - name: The wrong pin was refused before pnpm was installed
+        env:
+          OUTCOME: ${{ steps.wrong-pin.outcome }}
+        run: |
+          test "$OUTCOME" = "failure"
+          dirs=("$RUNNER_TEMP"/cejel-pnpm.*)
+          test "${#dirs[@]}" = 1
+          ls -la "${dirs[0]}"
+          compgen -G "${dirs[0]}/pnpm-*.tgz"
+          test ! -e "${dirs[0]}/node_modules"
+          test ! -e cejel-wrong-pin/node_modules
+          test ! -e .cejel-wrong-pin
+          test "$(pnpm --version)" = "10.0.0"
+
       - name: Root Action from the caller workspace
         uses: ./cejel
         with:

@@ -61,7 +61,7 @@ const SELF_CHECK =
   '          exit 1\n' +
   '        fi\n';
 const NPM_INSTALL =
-  'npm install --prefix "$work" --no-save --no-package-lock --ignore-scripts --no-audit --no-fund "$CEJEL_PNPM"';
+  'npm install --prefix "$work" --no-save --no-package-lock --ignore-scripts --no-audit --no-fund "./$tarball"';
 const INSTALL_ENV = '      env:\n        CEJEL_PNPM: ${{ steps.cejel-pnpm.outputs.spec }}\n';
 const RUNNER_ENV = '        WITAN_REPO_PATH: ${{ inputs.repo-path }}\n';
 const ADDED_STEP = '    - name: Extra\n      shell: bash\n      run: pnpm install\n\n';
@@ -123,6 +123,15 @@ const REFUSED: ReadonlyArray<readonly [string, RegExp, Mutation]> = [
   ['a flow-style step', REFUSAL.runs, (t) => swap(t, BUILD, '    - { name: Extra, shell: bash, run: pnpm install }\n\n' + BUILD)],
   ['an if:-first uses: step', REFUSAL.runs, (t) => swap(t, BUILD, "    - if: always()\n      uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809\n      with:\n        path: x\n        key: x\n\n" + BUILD)],
   ['an env:-first run step', REFUSAL.runs, (t) => swap(t, BUILD, '    - env:\n        X: y\n      shell: bash\n      run: pnpm install\n\n' + BUILD)],
+  // #686 items 6 and 7: the tarball's sha512 is checked against packageManager before install.
+  ['the sha512 comparison removed', REFUSAL.runs, (t) => swap(t, /        if \[ "\$sha512" != "\$CEJEL_PNPM_SHA512" \]; then\n[^\n]*\n          exit 1\n        fi\n/, '', INSTALL)],
+  ['the comparison inverted to a substring match', REFUSAL.runs, (t) => swap(t, 'if [ "$sha512" != "$CEJEL_PNPM_SHA512" ]; then', 'if [[ "$sha512" != *"$CEJEL_PNPM_SHA512"* ]]; then', INSTALL)],
+  ['install from the registry spec, not the checked tarball', REFUSAL.runs, (t) => swap(t, '"./$tarball"', '"$CEJEL_PNPM"', BUILD)],
+  ['npm pack without --ignore-scripts', REFUSAL.runs, (t) => swap(t, 'npm pack --ignore-scripts --silent', 'npm pack --silent', INSTALL)],
+  ['a literal CEJEL_PNPM_SHA512', REFUSAL.runs, (t) => swap(t, '        CEJEL_PNPM_SHA512: ${{ steps.cejel-pnpm.outputs.sha512 }}', `        CEJEL_PNPM_SHA512: ${'0'.repeat(128)}`, BUILD)],
+  ['CEJEL_PNPM_SHA512 removed from env', REFUSAL.runs, (t) => swap(t, '        CEJEL_PNPM_SHA512: ${{ steps.cejel-pnpm.outputs.sha512 }}\n', '', INSTALL)],
+  ['the sha512 pin made optional in the read step', REFUSAL.runs, (t) => swap(t, String.raw`\+sha512\.([0-9a-f]{128})$`, String.raw`(?:\+sha512\.([0-9a-f]{128}))?$`)],
+  ['the sha512 pin loosened to any length', REFUSAL.runs, (t) => swap(t, '([0-9a-f]{128})', '([0-9a-f]+)')],
   ['a literal CEJEL_PNPM', REFUSAL.runs, (t) => swap(t, '        CEJEL_PNPM: ${{ steps.cejel-pnpm.outputs.spec }}', '        CEJEL_PNPM: pnpm@9.0.0', INSTALL)],
   ['CEJEL_PNPM fed from a new input', REFUSAL.runs, (t) => swap(swap(t, '        CEJEL_PNPM: ${{ steps.cejel-pnpm.outputs.spec }}', '        CEJEL_PNPM: ${{ inputs.pnpm }}', INSTALL), 'outputs:\n', "  pnpm:\n    description: 'pnpm'\n    default: 'pnpm@9.0.0'\noutputs:\n")],
   ['step env: setting PATH', REFUSAL.runs, (t) => swap(t, INSTALL_ENV, INSTALL_ENV + '        PATH: /tmp/evil:/usr/bin\n', INSTALL)],
@@ -176,7 +185,7 @@ const REFUSED: ReadonlyArray<readonly [string, RegExp, Mutation]> = [
   ['a duplicate quoted "runs": before the real one', REFUSAL.key, (t) => swap(t, 'inputs:\n', '"runs":\n  using: node20\n  main: x.js\ninputs:\n')],
   ['a BOM', REFUSAL.hidden, (t) => BOM + t],
   // b2ca8e3ea: lines that look like comments to a text check but are script or scalar to YAML.
-  ['a # line breaking out of the node -e quote', REFUSAL.runs, (t) => swap(t, '          process.stdout.write(match[1]);\n', "          process.stdout.write(match[1]);\n#' ; echo x >> \"$GITHUB_OUTPUT\" ; : '\n")],
+  ['a # line breaking out of the node -e quote', REFUSAL.runs, (t) => swap(t, '          process.stdout.write("spec=" + match[1] + "\\nsha512=" + match[2]);\n', `${'          process.stdout.write("spec=" + match[1] + "\\nsha512=" + match[2]);\n'}#' ; echo x >> "$GITHUB_OUTPUT" ; : '\n`)],
   ['a # line plus a GITHUB_PATH write in install', REFUSAL.jobEnv, (t) => swap(t, '        cd "$work"\n', '        cd "$work"\n        # keep\n        echo "$work" >> "$GITHUB_PATH"\n', INSTALL)],
   ['a plain comment line inside a script', REFUSAL.runs, (t) => swap(t, '        cd "$work"\n', '        cd "$work"\n        # a comment\n', INSTALL)],
   ...([

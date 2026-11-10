@@ -160,11 +160,25 @@ rubric is pinned. v27 carries no precision or recall claim.
     checked, as a substring that a decoy elsewhere in the file could supply, so changing `out-dir`
     to `.`, `repo-path` to `/`, the `rubric-pin` default to a prospective rubric, or an output
     value to `${{ github.token }}` passed. The checks moved out of the distribution validator into
-    that module. `src/__tests__/action-manifest-guard.test.ts` runs 111 cases against both
+    that module. `src/__tests__/action-manifest-guard.test.ts` runs 119 cases against both
     manifests, each asserting which check refuses it: those found in the reviews of #687 and #689,
     one for every refused character, and line breaks hidden above `inputs:`. It also runs the edits
     that must still pass: the description, branding, and comments above `inputs:`. A comment above
     `runs:`, which #689 listed as one, is now refused, because it sits in the pinned region.
+  - **The pnpm tarball is checked against a pinned sha512 before it is installed (#686 items 6 and
+    7).** `packageManager` is now `pnpm@9.0.0+sha512.<hex>`, corepack's form, and the Action
+    refuses one without the hash. Each pnpm step fetches the tarball with `npm pack`, compares its
+    sha512 with the pin, and installs from that checked file. Before, npm checked the tarball only
+    against the registry's own `dist.integrity`, and a restored `~/.npm` cache could supply it
+    with no independent check. The pin matches the registry's `dist.integrity` for pnpm 9.0.0.
+    The `action-from-another-caller` job runs a copy of the Action with one digit of the pin
+    changed, and checks that it fails with the tarball fetched and nothing installed. The
+    distribution validator requires the hash in `package.json`.
+  - **A pnpm version hardcoded in a workflow is refused in flow style too (#686 item 5).** The
+    check read only block-style `version:` lines after `uses: pnpm/action-setup`, so a
+    `with: { version: … }`, a step written entirely in flow style, a `with:` before `uses:`, and
+    a quoted key or value all passed. It now reads the whole step, in
+    `scripts/workflow-pnpm-version-guard.mjs`, with a test of each spelling.
 
 - **`cejel issue` reproduces with the attested scan's own date, so a certificate from an earlier
   year can be issued (audit C4; operator ruling of 5 Nov, option A).** v17's B4 freshness check
