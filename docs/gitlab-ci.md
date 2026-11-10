@@ -4,9 +4,31 @@ A GitLab CI job template and a GitLab Code Quality export. Scoring is unchanged:
 the same offline scan as every other Cejel entry point, and the export only re-presents the
 findings already in `report.json`.
 
-## Include
+## Component (recommended)
 
-Pin the include to a release tag, never a branch:
+Cejel is published in the GitLab CI/CD Catalog as
+[`barglabs/cejel`](https://gitlab.com/explore/catalog/barglabs/cejel). Component versions match
+`@cejel/cejel` releases. Pin a version, never a branch:
+
+```yaml
+include:
+  - component: gitlab.com/barglabs/cejel/cejel@0.6.10
+```
+
+| Input | Default | Meaning |
+| --- | --- | --- |
+| `version` | `0.6.10` | The `@cejel/cejel` version `npx` runs. Keep it equal to the component version. |
+| `min_score` | empty | Same as `CEJEL_MIN_SCORE` below. |
+| `stage` | `test` | The stage the `cejel` job runs in. |
+| `git_depth` | `"0"` | Same as `GIT_DEPTH` below. |
+
+The job is the same as the template's: same name, image, script and artifacts. The component's
+source is [gitlab.com/barglabs/cejel](https://gitlab.com/barglabs/cejel) (`templates/cejel.yml`).
+
+## Include (remote template, fallback)
+
+Where the Catalog is not available, include the template from this repository. Pin the include
+to a release tag, never a branch:
 
 ```yaml
 include:
@@ -105,39 +127,31 @@ Confirm the current tier split against GitLab's page before relying on it.
   line; they appear in `.cejel/certificate.html` and `report.json`, not in the merge request.
 - The footer count is the only signal of what was left out. A report with zero exported entries is
   not a clean bill of health.
-- The template has not been run on a GitLab runner, and its YAML is checked in this repository only
-  by structural assertions, not a YAML parser or GitLab's CI lint. Run GitLab's CI lint on the
-  including project before first use.
+- Both routes were run on a GitLab.com instance runner on 2026-11-10, in
+  [barglabs/cejel-gitlab-demo](https://gitlab.com/barglabs/cejel-gitlab-demo): the remote
+  include at `v0.6.10` ([pipeline 3048076526](https://gitlab.com/barglabs/cejel-gitlab-demo/-/pipelines/3048076526)) and the component at `0.6.10`
+  ([pipeline 3048107004](https://gitlab.com/barglabs/cejel-gitlab-demo/-/pipelines/3048107004)). In both, the `cejel` job fetched full history while
+  the pipeline's other job fetched at GitLab's default depth and uploaded its Code Quality report;
+  with the remote include, the report showed on a merge request
+  ([!1](https://gitlab.com/barglabs/cejel-gitlab-demo/-/merge_requests/1)). The
+  variable-precedence rules under Variables were not exercised there. In this repository the YAML
+  is still checked only by structural assertions, not a YAML parser or GitLab's CI lint.
 - `npx` needs the npm registry once per job unless the package is cached or mirrored.
 
-## Next step: CI/CD Catalog component (not published)
+## CI/CD Catalog component
 
-Catalog components must live in a GitLab project, so nothing is published from here. The layout
-for a later move:
-
-```
-templates/cejel.yml      # a `spec:` header, then the job below
-```
+The component lives in its own GitLab project,
+[gitlab.com/barglabs/cejel](https://gitlab.com/barglabs/cejel), as `templates/cejel.yml`
+with the inputs listed under Component above. Its `version` input defaults to the release this
+page documents:
 
 ```yaml
 spec:
   inputs:
     version:
       default: '0.6.10'
-    min_score:
-      default: ''
----
-cejel:
-  stage: test
-  image: node:22
-  script:
-    # same script as ci/gitlab/cejel.gitlab-ci.yml, reading $[[ inputs.version ]]
-    # and $[[ inputs.min_score ]] in place of CEJEL_VERSION and CEJEL_MIN_SCORE
-  artifacts:
-    when: always
-    paths: [.cejel/]
-    reports:
-      codequality: gl-code-quality-report.json
 ```
 
-Creating the gitlab.com namespace and project is the operator's step.
+Its pipeline runs the component on itself and publishes a release for each semantic-version tag
+that matches an `@cejel/cejel` release. That tag is pushed to the GitLab project by hand after each
+Cejel release, so until it is, the newest component version is the previous release.

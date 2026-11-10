@@ -188,8 +188,9 @@ npx @cejel/cejel@latest .
 ```
 
 > **Distribution note:** Cejel `0.6.10` is the coordinated release version for npm,
-> standalone binaries, Docker/OCI, GitHub Action, Homebrew, and MCP Registry. A GitLab CI
-> template and Code Quality export live in [`docs/gitlab-ci.md`](./docs/gitlab-ci.md).
+> standalone binaries, Docker/OCI, GitHub Action, Homebrew, and MCP Registry. On GitLab, use the
+> CI/CD Catalog component `gitlab.com/barglabs/cejel/cejel@0.6.10`; it, the include template and
+> the Code Quality export are documented in [`docs/gitlab-ci.md`](./docs/gitlab-ci.md).
 
 `npx` can reuse a stale cached package. Force the current npm release with the `@latest`
 specifier above, and check the version that will run before comparing certificates:
