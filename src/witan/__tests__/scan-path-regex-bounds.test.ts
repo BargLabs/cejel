@@ -905,6 +905,33 @@ describe('scaling: the v27 A1 gap readers grow no faster than linearly', () => {
     expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
   }, 60_000);
 
+  // goal_cejel_v27_a1_addopts_assignment_not_known_2026-11-10, item B (#653): readToxCommands reads
+  // each tox.ini line holding {posargs} once per literal CI posargs set (at most 16), so without a
+  // budget its work is the tox lines times the sets' words, a product of two inputs. The input that
+  // maximises it: a tox.ini of N lines each holding {posargs}, and a CI file passing 16 distinct
+  // sets of W words, N x 16 x W. Both grow with L here, N = L/400 lines and W = L/2,000 words, so an
+  // unbounded reader's work grows with the square of L. With the budget, past it each remaining line
+  // is named as a run not read, at both lengths.
+  it('the tox posargs reader, on a tox.ini of L/400 {posargs} lines and 16 CI sets of L/2,000 words', () => {
+    const textsFor = (length: number): Map<string, string> => {
+      const commands = Array.from({ length: Math.floor(length / 400) }, (_, index) => `    pytest {posargs} tests/test_${index}.py`).join('\n');
+      const words = Math.floor(length / 2000);
+      const steps = Array.from({ length: 16 }, (_, set) => `      - run: tox -e py -- ${Array.from({ length: words }, (_, word) => `-ks${set}w${word}`).join(' ')}`).join('\n');
+      return new Map([
+        ['tox.ini', `[tox]\nenvlist = py\n\n[testenv]\ndeps = pytest\ncommands =\n${commands}\n`],
+        ['.github/workflows/ci.yml', `name: ci\non: push\njobs:\n  t:\n    runs-on: ubuntu-latest\n    steps:\n${steps}\n`],
+      ]);
+    };
+    const files = ['.github/workflows/ci.yml', 'tox.ini'];
+    const texts = scalingInputs(textsFor);
+    const { ratio, timing, atSmall, atLarge } = scalingRatio((length) => readPytestInvocations(files, (file) => texts(length).get(file)));
+    // Main's reader, with no budget, measured 14.67 here (L/2 64.8 ms, 2L 951.2 ms).
+    expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
+    for (const read of [atSmall, atLarge]) {
+      expect(read.some(({ file, unread }) => file === 'tox.ini' && unread !== undefined && unread.startsWith('pytest {posargs} tests/test_'))).toBe(true);
+    }
+  }, 180_000);
+
   // The review of #655, blocker 2: the unread posargs entries were said once per noxfile, so M
   // noxfiles and U unread CI entries gave M x U runs, and spreading them into one call overflowed
   // the stack (400 and 400 threw RangeError). They are said once per read and count against the
