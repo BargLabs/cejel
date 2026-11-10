@@ -42,12 +42,47 @@ export const CejelLlmPackStatusSchema = z.enum([
   'not_applicable',
 ]);
 
+// #612 and the review of #697, item D: evidence paths are capped at 700 characters, like the
+// report's. A finding whose file is at a longer path keeps its rule, severity, confidence, summary
+// and place; only its citation is replaced by this stated anchor, and the coverage limitations say
+// how many distinct paths were not cited. No path is shortened: it would name a file that does not
+// exist. '.' is the repository, the anchor the report uses for a finding with no citable file.
+export const CEJEL_LLM_EVIDENCE_PATH_MAX = 700;
+
+export const CEJEL_LLM_OVER_LIMIT_EVIDENCE = Object.freeze({
+  path: '.',
+  line: null,
+  label: `Path longer than the artifact's ${CEJEL_LLM_EVIDENCE_PATH_MAX}-character limit; not cited`,
+});
+
+export function cejelLlmOverLimitPathsLimitation(count: number): string {
+  const one = count === 1;
+  return `Cejel did not cite ${count} repository ${one ? 'path' : 'paths'} because ${one ? 'it is' : 'they are'} longer than the artifact's ${CEJEL_LLM_EVIDENCE_PATH_MAX}-character path limit. Every finding that cited ${one ? 'it' : 'one'} is kept, with its rule, severity, confidence and summary, anchored on the repository ('.') instead. No path is shortened, since a shortened path would name a file that does not exist.`;
+}
+
+/**
+ * Re-anchor every finding whose evidence path is over the limit, and count the distinct paths. An
+ * input with no such path is returned as the same array, so every artifact written today is
+ * byte-identical.
+ */
+export function fitCejelLlmFindingPaths<Finding extends { evidence: { path: string; line: number | null; label: string } }>(
+  findings: readonly Finding[],
+): { findings: readonly Finding[]; droppedPaths: number } {
+  const dropped = new Set<string>();
+  const fitted = findings.map((finding) => {
+    if (finding.evidence.path.length <= CEJEL_LLM_EVIDENCE_PATH_MAX) return finding;
+    dropped.add(finding.evidence.path);
+    return { ...finding, evidence: { ...CEJEL_LLM_OVER_LIMIT_EVIDENCE } };
+  });
+  return dropped.size === 0 ? { findings, droppedPaths: 0 } : { findings: fitted, droppedPaths: dropped.size };
+}
+
 export const CejelLlmEvidenceSchema = z
   .object({
     path: z
       .string()
       .min(1)
-      .max(700)
+      .max(CEJEL_LLM_EVIDENCE_PATH_MAX)
       .refine(
         (path) =>
           !path.startsWith('/') &&

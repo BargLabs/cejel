@@ -417,10 +417,7 @@ describe('#612 createWitanReport: an over-limit path is dropped after scoring an
   });
 
   it('keeps a finding whose only citation is over the limit, with its severity, summary and place (#697 item A)', () => {
-    const findings = [
-      { severity: 'critical' as const, summary: 'a planted finding', evidence: pointer(OVER) },
-      { severity: 'info' as const, summary: 'a second finding', evidence: pointer(SHORT) },
-    ];
+    const second = { severity: 'info' as const, summary: 'a second finding', evidence: pointer(SHORT) };
     const make = (path: string) =>
       createWitanReport({
         ...base,
@@ -428,7 +425,7 @@ describe('#612 createWitanReport: an over-limit path is dropped after scoring an
           {
             criterionId: 'A2',
             positiveEvidence: [pointer(SHORT)],
-            findings: [{ ...findings[0], evidence: pointer(path) }, findings[1]],
+            findings: [{ severity: 'critical', summary: 'a planted finding', evidence: pointer(path) }, second],
           },
         ],
       }).criteria.find(({ id }) => id === 'A2');
@@ -439,7 +436,7 @@ describe('#612 createWitanReport: an over-limit path is dropped after scoring an
     expect(over?.evidence).toEqual([pointer(SHORT)]);
     expect(over?.findings).toEqual([
       { severity: 'critical', summary: 'a planted finding', evidence: OVER_LIMIT_ANCHOR },
-      findings[1],
+      second,
     ]);
     expect(OVER_LIMIT_ANCHOR.path).toBe('.');
     expect(OVER_LIMIT_ANCHOR.label).toMatch(/longer than the report's 700-character limit/);
