@@ -100,7 +100,17 @@ jobs:
   # CALLER's packageManager and refused it beside the Action's hardcoded version ("Multiple versions of
   # pnpm specified"). It also checks that the caller's own pnpm survives both Actions (#686).
   action-from-another-caller:
-    runs-on: ubuntu-latest
+    # Linux, macOS and Windows: the Action runs in callers on all three (#690). fail-fast is off so
+    # one OS failing does not hide the others' results.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    # The job's own steps are bash on every OS; on Windows the default would be pwsh.
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
