@@ -16831,7 +16831,9 @@ export function readPytestInvocations(
         addoptsUnknown = addoptsText === undefined;
       }
     } else {
-      const exported = /^(?:export[ \t]*|\.EXPORT_ALL_VARIABLES[ \t]*:.*|(?:override[ \t]+)?export[ \t]+PYTEST_ADDOPTS\b.*)$/m.test(text);
+      // goal_cejel_v27_a1_addopts_review_fixes_698_2026-11-10, item B: led by spaces or by nothing; a
+      // tab-led line is a recipe line, as readMakeVariables reads it.
+      const exported = /^ *(?:export[ \t]*|\.EXPORT_ALL_VARIABLES[ \t]*:.*|(?:override[ \t]+)?export[ \t]+PYTEST_ADDOPTS\b.*)$/m.test(text);
       // Item A (#674; the operator's ruling of 10 Nov reverses the 5 Nov text for this case): GNU make
       // passes an unexported variable to a recipe only where it is already in make's environment, and
       // then with the Makefile's value. Where a CI file names PYTEST_ADDOPTS somewhere the readers do
@@ -17367,6 +17369,11 @@ interface MakeVariables {
    * not known), as written (trimmed), and its 0-based line.
    */
   readonly assigned: ReadonlyMap<string, { readonly text: string; readonly line: number }>;
+  /**
+   * goal_cejel_v27_a1_addopts_review_fixes_698_2026-11-10, item A: the names a `?=` default left not
+   * known because the environment of a CI command may set them (`setByEnvironment`).
+   */
+  readonly defaulted: ReadonlySet<string>;
 }
 
 // The review of #648: at most this many variable substitutions per Makefile, so a chain of
@@ -17396,6 +17403,7 @@ function readMakeVariables(
   const unknown = new Set<string>();
   const pytestNames = new Set<string>();
   const assigned = new Map<string, { readonly text: string; readonly line: number }>();
+  const defaulted = new Set<string>();
   const budget = { left: MAKE_EXPANSION_BUDGET };
   let fromEnvironment = environment !== undefined;
   if (environment !== undefined) values.set(environment.name, environment.value);
@@ -17414,7 +17422,10 @@ function readMakeVariables(
       else if (trimmed.toLowerCase().includes('pytest')) pytestNames.add(defining);
       continue;
     }
+    // A tab-led line is a recipe line, as make reads one in a rule. goal_cejel_v27_a1_addopts_review_fixes_698_2026-11-10,
+    // item B: a line led by spaces is not, so an assignment with leading spaces is read as one.
     if (line.startsWith('\t')) continue;
+    const body = line.replace(/^[ \t]+/, '');
     const define = /^(?:override[ \t]+)?(?:export[ \t]+)?define[ \t]+([A-Za-z_][A-Za-z0-9_.-]*)/.exec(trimmed);
     if (define) {
       defining = define[1] ?? '';
@@ -17429,14 +17440,14 @@ function readMakeVariables(
       conditional = Math.max(0, conditional - 1);
       continue;
     }
-    const targetSpecific = /^[^#=:\t][^#=:]*:[ \t]*(?:(?:override|export|private)[ \t]+)*([A-Za-z_][A-Za-z0-9_.-]*)[ \t]*(?:\?=|:::=|::=|:=|\+=|!=|=)(.*)$/.exec(line);
+    const targetSpecific = /^[^#=:\t][^#=:]*:[ \t]*(?:(?:override|export|private)[ \t]+)*([A-Za-z_][A-Za-z0-9_.-]*)[ \t]*(?:\?=|:::=|::=|:=|\+=|!=|=)(.*)$/.exec(body);
     if (targetSpecific) {
       const name = targetSpecific[1] ?? '';
       if ((targetSpecific[2] ?? '').toLowerCase().includes('pytest')) pytestNames.add(name);
       forget(name);
       continue;
     }
-    const match = /^(?:override[ \t]+)?(?:export[ \t]+)?([A-Za-z_][A-Za-z0-9_.-]*)[ \t]*(\?=|:::=|::=|:=|\+=|!=|=)(.*)$/.exec(line);
+    const match = /^(?:override[ \t]+)?(?:export[ \t]+)?([A-Za-z_][A-Za-z0-9_.-]*)[ \t]*(\?=|:::=|::=|:=|\+=|!=|=)(.*)$/.exec(body);
     if (!match) continue;
     const name = match[1] ?? '';
     const operator = match[2] ?? '=';
@@ -17445,8 +17456,13 @@ function readMakeVariables(
     if (unknown.has(name)) continue;
     const fromTheEnvironment = environment !== undefined && name === environment.name;
     // Item A: under `make -e` an assignment to an environment variable is ignored unless `override`.
-    if (fromTheEnvironment && environment.overrides && !/^override[ \t]/.test(line)) continue;
-    if (conditional > 0 || operator === '!=' || operator === ':::=' || (operator === '?=' && setByEnvironment(name))) {
+    if (fromTheEnvironment && environment.overrides && !/^override[ \t]/.test(body)) continue;
+    if (conditional > 0 || operator === '!=' || operator === ':::=') {
+      forget(name);
+      continue;
+    }
+    if (operator === '?=' && setByEnvironment(name)) {
+      defaulted.add(name);
       forget(name);
       continue;
     }
@@ -17476,7 +17492,7 @@ function readMakeVariables(
       simple.delete(name);
     }
   }
-  return { values, unknown, pytestNames, fromEnvironment, assigned };
+  return { values, unknown, pytestNames, fromEnvironment, assigned, defaulted };
 }
 
 /**
