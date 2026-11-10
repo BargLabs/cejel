@@ -1,0 +1,26 @@
+[
+  {
+    "statement": "A committed test for a guard proves each check only if disabling that check, and each entry of a refusal list, makes the test fail with that check named; a bare toThrow() lets a later check stand in. 2026-11-09, cejel #694 (issue 689), my own near miss twice. First, the 176-case mutation test still passed with the inputs:/outputs: key check removed; disabling each check in turn found it, and two quoted duplicate-key cases outside the hashed region were added. Then Pass A showed that removing NEL, LS, PS, the lone CR, U+3000 or the C0 range from the invisible-character regex, or any of the four pre-checks, still left every case throwing, because the canonical runs: comparison refused the same manifests. Fix (#694): each refused case asserts its refusal message, the free region above inputs: gets its own line-break, marker and per-character cases, and each of 28 single-entry mutants of the guard fails at least 2 of 240 tests.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "agent-error",
+      "test-design"
+    ],
+    "tags": [
+      "mutation-testing",
+      "untested-check",
+      "guard-coverage",
+      "assert-the-reason",
+      "own-error"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-11-09T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 694
+    }
+  }
+]
