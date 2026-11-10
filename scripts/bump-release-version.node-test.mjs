@@ -6,7 +6,13 @@ import { dirname, join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-import { bumpReleaseVersion, PRERELEASE_FILES } from './bump-release-version.mjs';
+import {
+  bumpReleaseVersion,
+  componentPinProblems,
+  MANUAL_FOLLOW_UPS,
+  newestFinalRelease,
+  PRERELEASE_FILES,
+} from './bump-release-version.mjs';
 import {
   disagreeingFields,
   PLUGIN_MANIFEST_PATH,
@@ -124,10 +130,114 @@ test('a release candidate also moves the CHANGELOG heading and the GitLab includ
   assert.equal(read(root, 'README.md'), read(REPO, 'README.md'), 'a release candidate publishes no image, so README.md stays');
 });
 
-test('a final version still leaves the CHANGELOG, GitLab and README edits to the reviewed manual follow-ups', () => {
+test('a final version still leaves the CHANGELOG, the GitLab include and the README release statements to the reviewed manual follow-ups', () => {
   const root = copyOfRepo();
-  assert.deepEqual(bumpReleaseVersion({ root, to: '9.9.9' }).files, FILES);
-  for (const path of [...RC_FILES, 'README.md']) assert.equal(read(root, path), read(REPO, path), path);
+  const from = readJson(root, 'package.json').version;
+  assert.deepEqual(bumpReleaseVersion({ root, to: '9.9.9' }).files, [...FILES, ...COMPONENT_FILES]);
+  for (const path of ['CHANGELOG.md', 'ci/gitlab/cejel.gitlab-ci.yml']) assert.equal(read(root, path), read(REPO, path), path);
+  // Only the component mentions moved: putting 9.9.9 back gives the original bytes.
+  for (const path of COMPONENT_FILES) assert.equal(read(root, path).replaceAll('9.9.9', from), read(REPO, path), path);
+  assert.ok(read(root, 'docs/gitlab-ci.md').includes(`/BargLabs/cejel/v${from}/ci/gitlab/`), 'the include tag stays manual');
+  assert.ok(read(root, 'README.md').includes(`ghcr.io/barglabs/cejel:${from}`), 'the README image pin stays manual');
+});
+
+// ------------------------------------------------ the GitLab CI/CD Catalog component's version
+// The component's version, its `version` input default and the `spec:` default follow the final
+// npm release. The Catalog only carries final releases, so a release candidate leaves them alone.
+const COMPONENT_FILES = ['docs/gitlab-ci.md', 'README.md'];
+
+function componentVersions(root) {
+  const docs = read(root, 'docs/gitlab-ci.md');
+  return {
+    docsComponent: [...docs.matchAll(/gitlab\.com\/barglabs\/cejel\/cejel@([^\s`'")]+)/g)].map((match) => match[1]),
+    readmeComponent: [...read(root, 'README.md').matchAll(/gitlab\.com\/barglabs\/cejel\/cejel@([^\s`'")]+)/g)].map((match) => match[1]),
+    inputDefault: [...docs.matchAll(/^\| `version` \| `([^`]+)` \|/gm)].map((match) => match[1]),
+    specDefault: [...docs.matchAll(/^ +default: '([^']+)'$/gm)].map((match) => match[1]),
+  };
+}
+
+const everyComponentVersionIs = (version) => ({
+  docsComponent: [version],
+  readmeComponent: [version],
+  inputDefault: [version],
+  specDefault: [version],
+});
+
+// The next patch release after package.json's version: 0.6.11 -> 0.6.12 when this was written.
+const nextPatch = (version) => version.replace(/\d+$/, (patch) => String(Number(patch) + 1));
+
+test('a final version moves every component mention: both component lines, the input default and the spec default', () => {
+  const root = copyOfRepo();
+  const from = readJson(root, 'package.json').version;
+  assert.deepEqual(componentVersions(root), everyComponentVersionIs(from));
+  bumpReleaseVersion({ root, to: nextPatch(from) });
+  assert.deepEqual(componentVersions(root), everyComponentVersionIs(nextPatch(from)));
+});
+
+test('a release candidate moves no component mention, and the final after it moves them from the newest final release', () => {
+  const root = copyOfRepo();
+  const from = readJson(root, 'package.json').version;
+  const to = nextPatch(from);
+  bumpReleaseVersion({ root, to: `${to}-rc.1` });
+  assert.deepEqual(componentVersions(root), everyComponentVersionIs(from));
+  assert.equal(read(root, 'README.md'), read(REPO, 'README.md'));
+  bumpReleaseVersion({ root, to: `${to}-rc.2` });
+  assert.deepEqual(componentVersions(root), everyComponentVersionIs(from));
+  bumpReleaseVersion({ root, to });
+  assert.deepEqual(componentVersions(root), everyComponentVersionIs(to));
+});
+
+test('a final version refuses and writes nothing when a component mention is not exactly once', () => {
+  const root = copyOfRepo();
+  const from = readJson(root, 'package.json').version;
+  writeFileSync(join(root, 'README.md'), read(root, 'README.md').replace(`cejel/cejel@${from}`, 'cejel/cejel@0.0.1'));
+  const before = [...FILES, ...COMPONENT_FILES].map((path) => read(root, path));
+  assert.throws(() => bumpReleaseVersion({ root, to: '9.9.9' }), /nothing was written[\s\S]*README\.md/);
+  assert.deepEqual([...FILES, ...COMPONENT_FILES].map((path) => read(root, path)), before);
+});
+
+test('the manual follow-ups no longer list what the bump now moves', () => {
+  const listed = MANUAL_FOLLOW_UPS.join('\n');
+  assert.doesNotMatch(listed, /component/i);
+  assert.doesNotMatch(listed, /default/);
+});
+
+// The pin: every component mention equals package.json's version for a final version, and the
+// newest final release (the newest dated CHANGELOG heading) for a release candidate.
+test('every component mention in this repository is pinned to the release', () => {
+  assert.deepEqual(componentPinProblems(REPO), []);
+});
+
+test('the pin fails on a mention one version behind, naming the file, the line and both versions', () => {
+  const root = copyOfRepo();
+  const from = readJson(root, 'package.json').version;
+  bumpReleaseVersion({ root, to: '9.9.9' });
+  const docs = read(root, 'docs/gitlab-ci.md');
+  writeFileSync(join(root, 'docs/gitlab-ci.md'), docs.replace("default: '9.9.9'", `default: '${from}'`));
+  const line = docs.split('\n').findIndex((text) => text.includes("default: '9.9.9'")) + 1;
+  assert.deepEqual(componentPinProblems(root), [
+    `docs/gitlab-ci.md:${line}: spec version default is ${from}, expected 9.9.9 (package.json's version)`,
+  ]);
+});
+
+test('the pin fails when a mention is missing, rather than passing on nothing', () => {
+  const root = copyOfRepo();
+  writeFileSync(join(root, 'README.md'), read(root, 'README.md').replaceAll('gitlab.com/barglabs/cejel/cejel@', 'gitlab.com/barglabs/cejel@'));
+  assert.deepEqual(componentPinProblems(root), ['README.md: no component version found (expected at least 1)']);
+});
+
+test('for a release candidate the pin expects the newest final release, not the candidate', () => {
+  const root = copyOfRepo();
+  const from = readJson(root, 'package.json').version;
+  bumpReleaseVersion({ root, to: '9.9.9-rc.1' });
+  assert.equal(newestFinalRelease(read(root, 'CHANGELOG.md')), from);
+  assert.deepEqual(componentPinProblems(root), []);
+  const readme = read(root, 'README.md');
+  writeFileSync(join(root, 'README.md'), readme.replace(`cejel/cejel@${from}`, 'cejel/cejel@9.9.9-rc.1'));
+  const line = readme.split('\n').findIndex((text) => text.includes(`cejel/cejel@${from}`)) + 1;
+  assert.deepEqual(componentPinProblems(root), [
+    `README.md:${line}: component version is 9.9.9-rc.1, expected ${from} (the newest final release in CHANGELOG.md; the Catalog carries no release candidate)`,
+  ]);
 });
 
 test('a release candidate refuses and writes nothing when the CHANGELOG has no [Unreleased] heading', () => {

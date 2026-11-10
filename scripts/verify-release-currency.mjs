@@ -37,6 +37,21 @@ const SURFACES = [
   'Claude plugin',
 ];
 
+// The GitLab CI/CD Catalog component, gitlab.com/barglabs/cejel. A job on gitlab.com tags it after
+// each npm release, so the Catalog lags npm by design. It is read after SURFACES and reported on its
+// own [CATALOG ...] lines, not as one of SURFACES: scripts/release.sh counts [PASS] and [FAIL] lines
+// against CURRENCY_SURFACES (= SURFACES.length), and the release driver does not publish the
+// Catalog. The run still fails when it lags: behind the release for less than
+// CATALOG_PENDING_HOURS after the npm publish is pending; for longer, or unreadable, it fails.
+// Read anonymously: the Catalog and the npm registry are public, and no token is sent.
+export const CATALOG_SURFACE = 'GitLab CI/CD Catalog';
+export const CATALOG_PENDING_HOURS = 3;
+const CATALOG_PROJECT = 'barglabs/cejel';
+const CATALOG_GRAPHQL_URL = 'https://gitlab.com/api/graphql';
+const NPM_PACKUMENT_URL = `https://registry.npmjs.org/${PACKAGE_NAME.replace('/', '%2f')}`;
+const FINAL_VERSION = /^\d+\.\d+\.\d+$/;
+const HOUR_MS = 60 * 60 * 1000;
+
 const SEMVER_PATTERN =
   '(?:0|[1-9]\\d*)\\.(?:0|[1-9]\\d*)\\.(?:0|[1-9]\\d*)' +
   '(?:-[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?' +
@@ -363,8 +378,47 @@ async function readMcpRegistry(version, { fetchImpl, retryDelayMs }) {
   );
 }
 
+// The Catalog's newest version, and, only when it is not the release under check, the npm publish
+// time of that release (to tell a lag inside the window from one past it). Any answer that is not a
+// version, or a missing publish time, is unreadable, never a pass.
+async function readGitLabCatalog(version, { fetchImpl }) {
+  const label = CATALOG_SURFACE;
+  const response = await fetchTimed(CATALOG_GRAPHQL_URL, label, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      query: `{ciCatalogResource(fullPath:"${CATALOG_PROJECT}"){versions(first:1){nodes{name createdAt}}}}`,
+    }),
+  }, { fetchImpl });
+  if (!response.ok) throw new Error(`${label} query failed: HTTP ${response.status} ${response.statusText}`);
+  const body = parseJson(await response.text(), label);
+  if (Array.isArray(body?.errors) && body.errors.length > 0) {
+    throw new Error(`${label} query failed: ${body.errors.map((error) => error?.message ?? String(error)).join('; ')}`);
+  }
+  const node = body?.data?.ciCatalogResource?.versions?.nodes?.[0];
+  if (typeof node?.name !== 'string' || node.name.length === 0) {
+    throw new Error(`${label} lists no published version for ${CATALOG_PROJECT}`);
+  }
+  const newest = { newest: node.name, createdAt: typeof node.createdAt === 'string' ? node.createdAt : null, npmPublishedAt: null };
+  if (node.name === version) return newest;
+
+  const npmResponse = await fetchTimed(NPM_PACKUMENT_URL, 'npm publish time', {}, { fetchImpl });
+  if (!npmResponse.ok) {
+    throw new Error(`npm publish time query failed: HTTP ${npmResponse.status} ${npmResponse.statusText}`);
+  }
+  const publishedAt = parseJson(await npmResponse.text(), 'npm publish time')?.time?.[version];
+  if (typeof publishedAt !== 'string' || Number.isNaN(Date.parse(publishedAt))) {
+    throw new Error(`npm lists no publish time for ${PACKAGE_NAME}@${version}`);
+  }
+  return { ...newest, npmPublishedAt: publishedAt };
+}
+
 export function createLiveReaders({ fetchImpl = fetch, retryDelayMs = MCP_REGISTRY_RETRY_DELAY_MS } = {}) {
   return {
+    async [CATALOG_SURFACE](version) {
+      return readGitLabCatalog(version, { fetchImpl });
+    },
+
     async npm(version) {
       const exact = await commandJson(
         'npm', ['view', `${PACKAGE_NAME}@${version}`, 'version', '--json'], 'npm exact version',
@@ -630,11 +684,52 @@ function assertSurface(surface, value, version, releaseCommit, observations) {
   }
 }
 
+// PASS, PENDING or FAIL for the Catalog's observed newest version against the release under check.
+function catalogResult(value, version, now) {
+  const observed = `newest=${value.newest}; created=${value.createdAt ?? '<missing>'}` +
+    (value.npmPublishedAt ? `; npm ${version} published=${value.npmPublishedAt}` : '');
+  if (value.newest === version) return { status: 'PASS', observed };
+  if (!FINAL_VERSION.test(value.newest)) {
+    return { status: 'FAIL', observed, reason: `the Catalog's newest version ${value.newest} is not a final release version` };
+  }
+  if (compareSemver(value.newest, version) > 0) {
+    return { status: 'FAIL', observed, reason: `the Catalog's newest version ${value.newest} is newer than the release being verified, ${version}` };
+  }
+  const published = Date.parse(value.npmPublishedAt ?? '');
+  if (Number.isNaN(published)) {
+    return { status: 'FAIL', observed, reason: `the Catalog is behind at ${value.newest} and npm's publish time for ${version} is unknown` };
+  }
+  const hours = (now() - published) / HOUR_MS;
+  const lag = `the Catalog's newest version is ${value.newest} (created ${value.createdAt ?? '<missing>'}); ` +
+    `npm has had ${version} since ${value.npmPublishedAt} (${hours.toFixed(1)} hours)`;
+  if (hours < CATALOG_PENDING_HOURS) {
+    return { status: 'PENDING', observed, reason: `${lag}; pending inside the ${CATALOG_PENDING_HOURS}-hour tagging window, fails at ${CATALOG_PENDING_HOURS} hours` };
+  }
+  return { status: 'FAIL', observed, reason: `${lag}, ${CATALOG_PENDING_HOURS} hours or more behind` };
+}
+
+async function checkCatalog(readers, version, now) {
+  if (!FINAL_VERSION.test(version)) {
+    return {
+      status: 'NOT CHECKED',
+      observed: '<not read>',
+      reason: `${version} is not a final version (a release candidate); the Catalog carries only final releases`,
+    };
+  }
+  try {
+    if (typeof readers[CATALOG_SURFACE] !== 'function') throw new Error('surface reader is missing');
+    return catalogResult(await readers[CATALOG_SURFACE](version), version, now);
+  } catch (error) {
+    return { status: 'FAIL', observed: error.observed ?? '<unreachable>', reason: error.message || String(error) };
+  }
+}
+
 export async function verifyReleaseCurrency({
   version,
   commit,
   readers = createLiveReaders(),
   write = (line) => process.stdout.write(`${line}\n`),
+  now = () => Date.now(),
 } = {}) {
   if (!SEMVER.test(version || '')) throw new Error(`--version must be a semver; got ${version}`);
   const normalizedCommit = commit?.toLowerCase();
@@ -642,6 +737,7 @@ export async function verifyReleaseCurrency({
     throw new Error(`--commit must be a full 40-character commit SHA; got ${commit}`);
   }
 
+  const catalogRead = checkCatalog(readers, version, now);
   const settled = await Promise.all(SURFACES.map(async (surface) => {
     try {
       if (typeof readers[surface] !== 'function') throw new Error('surface reader is missing');
@@ -670,16 +766,21 @@ export async function verifyReleaseCurrency({
   for (const result of results) {
     write(`[${result.ok ? 'PASS' : 'FAIL'}] ${result.surface}: observed=${result.observed}${result.reason ? `; reason=${result.reason}` : ''}`);
   }
+  const catalog = { surface: CATALOG_SURFACE, ...(await catalogRead) };
+  write(`[CATALOG ${catalog.status}] ${CATALOG_SURFACE}: observed=${catalog.observed}${catalog.reason ? `; reason=${catalog.reason}` : ''}`);
 
-  const failures = results.filter((result) => !result.ok);
+  const failures = [
+    ...results.filter((result) => !result.ok).map((result) => result.surface),
+    ...(catalog.status === 'FAIL' ? [CATALOG_SURFACE] : []),
+  ];
   if (failures.length > 0) {
-    throw new ReleaseCurrencyError(
-      `Release currency verification failed for ${failures.map((result) => result.surface).join(', ')}.`,
-      results,
+    throw Object.assign(
+      new ReleaseCurrencyError(`Release currency verification failed for ${failures.join(', ')}.`, results),
+      { catalog },
     );
   }
   write(`Release ${version} is current on all ${SURFACES.length} surfaces at commit ${releaseCommit}.`);
-  return { version, commit: releaseCommit, results };
+  return { version, commit: releaseCommit, results, catalog };
 }
 
 const FINAL_RELEASE_TAG = /^v(\d+\.\d+\.\d+)$/;

@@ -1,0 +1,24 @@
+[
+  {
+    "statement": "Before adding a line to a check's output, find every consumer that parses that output: a downstream reader may count lines against a fixed number, and the new line then changes a gate the change was told to leave alone. 2026-11-10, #708: a card asked for the GitLab CI/CD Catalog as a further surface of scripts/verify-release-currency.mjs and also forbade changing the release flow's gates. scripts/release.sh counts [PASS] and [FAIL] lines in that check's run log against CURRENCY_SURFACES=14, and release_tests.sh holds that number equal to the SURFACES list. A 15th surface would have required editing the driver. Shortly after every release the Catalog is pending, so the driver would have seen 14 counted lines against 15 and refused stage 13. Fix: report the Catalog on its own [CATALOG ...] lines outside the counted set, still failing the run when it lags, with a test that no Catalog line reads as a counted line.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "output-contracts"
+    ],
+    "tags": [
+      "release-currency",
+      "release-driver",
+      "line-count-gate",
+      "gitlab-catalog"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-11-10T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 708
+    }
+  }
+]
