@@ -52,7 +52,9 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   - Such an evidence pointer is left out of the report. Nothing else is. A finding that cited it
     keeps its severity, summary and place. Its anchor becomes the repository (`.`), labelled
     "Path longer than the report's 700-character limit; not cited". The certificate's "What is
-    wrong" lists the same items as for a short path, without a file location.
+    wrong" lists the same items as for a short path, without a file location. With no file and
+    no line, the GitLab Code Quality export leaves such a finding out and counts it in its footer
+    ("without a file and line excluded").
   - The criterion's `disclosures` say how many distinct paths it did not cite. A path cited by
     two pointers, or by a pointer and a finding, counts once.
   - Such a withheld path is left out of `withheldPaths`. The statement goes in the `disclosures`
@@ -60,13 +62,18 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     the report's first criterion where no check would read it. It names those checks.
     `contentReadSummary` still counts the path. The certificate no longer says no content was
     withheld when some was, and it calls the entries it counts "listed".
-  - None of these statements is a scan limitation. The badge, the `--min-score` gate and every
-    limitation count are those of the same repository with the file at a short path.
+  - None of these statements is ever a scan limitation, whatever the length of the notes or the
+    number of scan limitations. The badge, the `--min-score` gate and every limitation count are
+    those of the same repository with the file at a short path, and a scan whose sixteen scan
+    limitations are used still writes its report.
   - A criterion that already has the four disclosures the schema allows takes the statement at
-    the end of its `notes`. Only where the notes cannot hold it either (1,000 characters) does
-    a scan limitation naming the criterion state it. If the sixteen scan limitations are used
-    too, the scan stops with an error and writes no report. It never drops a path without saying
-    so.
+    the end of its `notes`: whole where the notes stay within 1,000 characters, else in a
+    count-only form ("1 path over the report's 700-character limit is not cited; scoring counted
+    it.", and "1 withheld path is not listed in withheldPaths because it is over the report's
+    700-character limit."). Where even that does not fit, the notes' own tail is cut, ending
+    "...", to make room, and their beginning is kept. Both count-only forms together are under
+    300 characters, so at least 700 characters of the notes always stay. A sentence the
+    certificate reads from the end of such notes can then be cut.
   - No path is shortened. A shortened path would name a file that does not exist.
   - Scores, statuses, metrics and verdicts are computed with every pointer, as before. Scoring
     reads how many pointers a criterion holds, so the pointer is left out after scoring, not
