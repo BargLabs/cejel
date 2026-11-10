@@ -457,10 +457,23 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     PYTEST_ADDOPTS the Makefile does not export (no export on the line, no export PYTEST_ADDOPTS
 //     line, no bare export, no .EXPORT_ALL_VARIABLES) is read the way a ?= default is: make passes
 //     it to a recipe only where the variable is already in make's environment, so where a CI file
-//     names PYTEST_ADDOPTS anywhere those readers do not read, the value is not known, and the
-//     pytest runs its targets reach are named "pytest run not read: `<the assignment as written>` in
-//     <Makefile>", pointed at the assignment's line; where every mention is read, each CI make
-//     command's environment is read as above. From 2026-11-05 (item A, #669) a pytest run on a
+//     names PYTEST_ADDOPTS anywhere those readers do not read, the value is not known; where every
+//     mention is read, each CI make command's environment is read as above. From 2026-11-10 too
+//     (goal_cejel_v27_a1_addopts_review_fixes_698_2026-11-10, the review of #698): an env: entry
+//     (step, job or workflow) counts as read only where every run step it applies to runs nothing
+//     but CI make commands the reader reads; a $GITHUB_ENV write (the rule by name) only where every
+//     run step of the file does, an echo or printf write itself aside; an export only where no other
+//     command follows it in the run; a non-GitHub CI file's variables or env key only where each of
+//     its commands is such a make command. Any other command (a script, a launcher, pytest, an
+//     install, anything the reader does not follow) may run make with the variable, so the mention
+//     is not read. Where a Makefile assigns PYTEST_ADDOPTS unexported (?=, =, :=, ::= or +=) and a
+//     CI mention is not read, the pytest runs its targets reach are named "pytest run not read:
+//     `<the mention's line, trimmed>` in <CI file>", pointed at that line (the first line naming
+//     PYTEST_ADDOPTS outside the entries read and the run steps whose every mention is read); a
+//     value on make's command line is still named first, as "pytest run not read: `PYTEST_ADDOPTS`
+//     in <Makefile>". An exported ?= keeps that clause too. A Makefile assignment led by spaces is
+//     read; a tab-led line is a recipe line. A uses: step under a job- or workflow-level env: is not
+//     counted as reaching make. From 2026-11-05 (item A, #669) a pytest run on a
 //     GitHub Actions step whose step, job or workflow env: sets PYTEST_ADDOPTS by an expression (the
 //     most specific level that sets it decides, so a step literal over a job expression is read),
 //     run directly, as a module or through a launcher A1 follows (a hatch script takes the step's
@@ -492,7 +505,11 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     reader takes a budget of the same kind and size (4,096, one unit per run read plus the words
 //     put in, counted across every tox.ini of the read, apart from the nox count): a tox.ini line
 //     holding {posargs} past it is named "pytest run not read: `<the line>` in <tox.ini>", and none
-//     of its runs is read. A long option the reader does not
+//     of its runs is read. From 2026-11-10 too (the review of #698, item C) the count is one unit per
+//     run read plus the words put in times the {posargs} on the line, and the line is also charged
+//     its {posargs} count times the characters put in (each word's characters and one separator,
+//     per set), against 262,144 characters across the read; past either, the line is not read. The
+//     nox reader copies no text into a call, and takes no character charge. A long option the reader does not
 //     know, before a word, is looked up in the repository's conftest.py files, CRLF read as LF and
 //     every call on a line: declared by .addoption("--name", ...) with action store_true,
 //     store_false, count, store_const or append_const it takes no value and the word is a path;

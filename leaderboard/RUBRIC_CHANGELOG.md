@@ -56,8 +56,11 @@ unexported case the way #673's fix reads `?=`.
   assignments leave the name not known as before). The mentions read are the 2026-11-05 entry's,
   from the same count (`addoptsMentionNotRead`): no second clause, counter or environment reader
   was added. Where every CI mention is one the readers read, each CI make command's environment is
-  read as on 2026-11-04 (the reader knows whether make's environment holds the variable), and an
-  exported assignment keeps that reading in every case. `::=`, which GNU make 4.0 and later reads as
+  read as on 2026-11-04, and an exported assignment keeps that reading in every case. (Corrected in
+  the review round below: this entry first said "the reader knows whether make's environment holds
+  the variable" there. It did not: a mention was counted as read by its kind, an `env:` entry or a
+  `$GITHUB_ENV` line, even where it reached a script that runs make. As built now, a mention is read
+  only where every command it reaches is a CI make command the reader reads.) `::=`, which GNU make 4.0 and later reads as
   `:=`, is included because it is the same assignment; the card names `=`, `:=` and `+=`.
 - **B — the tox posargs budget (#653).** The tox reader takes the nox reader's kind of budget, with
   the constant renamed from `NOX_POSARGS_BUDGET` to `POSARGS_BUDGET` (4,096) and shared by both: one
@@ -66,7 +69,10 @@ unexported case the way #673's fix reads `?=`.
   a read; the nox and tox reads each have their own count. Past it, the line is named "pytest run
   not read: `<the line>` in tox.ini", at its line, and none of its runs is read, as the nox reader
   names a call past its budget. The input that maximises the work without it: a `tox.ini` of N
-  lines holding `{posargs}` and a CI file passing 16 distinct sets of W words, N x 16 x W.
+  lines holding `{posargs}` and a CI file passing 16 distinct sets of W words, N x 16 x W. (Wrong,
+  and corrected in the review round below: each `{posargs}` on a line takes the whole set's text,
+  so one line of K `{posargs}` and one word of C characters is K x C characters of work, at a word
+  cost of 3.)
 
 **GNU make and pytest, not run here.** This session's shell refused `make` and `python3 -m pytest`
 (and `make --version`), so no make or pytest claim was checked by running either. The make claim
