@@ -494,25 +494,32 @@ describe('runWitanFreeCli (zero-config end-to-end)', () => {
     // "0.6.8" in place reproduces the 0.6.8 pin (e2ac3b8e...) byte for byte.
     // Re-pinned for 0.6.10: only the version bump reaches this fixture. Setting toolVersion back to
     // "0.6.9" in place reproduces the 0.6.9 pin (3c08d846...) byte for byte.
+    // Re-pinned for 0.6.11: only the version bump reaches this fixture. Setting toolVersion back to
+    // "0.6.10" in place reproduces the 0.6.10 pin (00c77b5c...) byte for byte.
     // A release candidate (X.Y.Z-rc.N) is tagged from a release branch whose one commit must be
     // exactly scripts/bump-release-version.mjs's output on main (docs/release-process.md,
     // "Prerelease"), so it cannot re-pin this test. Its report must instead equal the pinned final
     // release's report byte for byte once toolVersion is set back to PINNED_TOOL_VERSION in place:
     // the version bump is the only change a release candidate can carry. A final release re-pins
     // as before and moves PINNED_TOOL_VERSION with the pin.
-    const PINNED_TOOL_VERSION = '0.6.10';
+    const PINNED_TOOL_VERSION = '0.6.11';
     const releaseCandidate = /^\d+\.\d+\.\d+-rc\.[1-9]\d*$/.test(
       String((firstReport as { toolVersion?: string }).toolVersion),
     );
     const pinnedReport = releaseCandidate ? { ...firstReport, toolVersion: PINNED_TOOL_VERSION } : firstReport;
     const pinnedReportJson = releaseCandidate ? JSON.stringify(pinnedReport, null, 2) : firstReportJson;
     expect(createHash('sha256').update(pinnedReportJson).digest('hex')).toBe(
-      '00c77b5c79175363eed615685106d3e75d6ce66b56b6729e318fbe981cdc0bf6',
+      'ea0315a8d14f83e9937a39b1cdbbc769f5e47c5f610d2b500a2b43ace6fcbbd1',
     );
     expect((firstReport as { rubricBehaviourFingerprint?: string }).rubricBehaviourFingerprint).toBe(
       'sha256:5cd48f8c642300ae8736a09d4a24ce3a4f8885f6e099b5f27f99d950e0c944b4',
     );
     expect((pinnedReport as { toolVersion?: string }).toolVersion).toBe(PINNED_TOOL_VERSION);
+    const at0610 = { ...firstReport, toolVersion: '0.6.10' } as typeof firstReport;
+    expect(
+      createHash('sha256').update(JSON.stringify(at0610, null, 2)).digest('hex'),
+      'the 0.6.10 report bytes must be recoverable by resetting exactly the toolVersion field',
+    ).toBe('00c77b5c79175363eed615685106d3e75d6ce66b56b6729e318fbe981cdc0bf6');
     const at069 = { ...firstReport, toolVersion: '0.6.9' } as typeof firstReport;
     expect(
       createHash('sha256').update(JSON.stringify(at069, null, 2)).digest('hex'),

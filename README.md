@@ -163,7 +163,7 @@ if (-not $expected -or $actual -ne $expected.ToLowerInvariant()) {
 ```
 
 > **Windows signing status:** `cejel-Windows-x86_64.exe` is intentionally unsigned in
-> 0.6.10 and may trigger Microsoft SmartScreen. The release build removes Node's inherited
+> 0.6.11 and may trigger Microsoft SmartScreen. The release build removes Node's inherited
 > signature before SEA injection and fails unless Windows reports the result as `NotSigned`;
 > it does not ship an invalid signature. Before running it, verify `SHA256SUMS` and the
 > GitHub build-provenance attestation. Each binary also has an attached SPDX SBOM (the packages
@@ -187,9 +187,9 @@ docker run --rm --network=none -v "$PWD:/w" -w /w -v "$PWD/cejel:/cejel:ro" debi
 npx @cejel/cejel@latest .
 ```
 
-> **Distribution note:** Cejel `0.6.10` is the coordinated release version for npm,
+> **Distribution note:** Cejel `0.6.11` is the coordinated release version for npm,
 > standalone binaries, Docker/OCI, GitHub Action, Homebrew, and MCP Registry. On GitLab, use the
-> CI/CD Catalog component `gitlab.com/barglabs/cejel/cejel@0.6.10`; it, the include template and
+> CI/CD Catalog component `gitlab.com/barglabs/cejel/cejel@0.6.11`; it, the include template and
 > the Code Quality export are documented in [`docs/gitlab-ci.md`](./docs/gitlab-ci.md).
 
 `npx` can reuse a stale cached package. Force the current npm release with the `@latest`
@@ -292,16 +292,16 @@ gh attestation verify ./cejel-Windows-x86_64.exe -R BargLabs/cejel
 This is cryptographically signed provenance. It is distinct from Apple Developer ID or
 Microsoft Authenticode code-signing.
 
-**Docker / OCI.** The current container release is `0.6.10`:
+**Docker / OCI.** The current container release is `0.6.11`:
 
 ```bash
-docker run --rm -i -v "$PWD:/workspace:ro" ghcr.io/barglabs/cejel:0.6.10
+docker run --rm -i -v "$PWD:/workspace:ro" ghcr.io/barglabs/cejel:0.6.11
 ```
 
 The image defaults to `cejel-mcp` over stdio. To use the CLI instead:
 
 ```bash
-docker run --rm -v "$PWD:/workspace:ro" --entrypoint cejel ghcr.io/barglabs/cejel:0.6.10 .
+docker run --rm -v "$PWD:/workspace:ro" --entrypoint cejel ghcr.io/barglabs/cejel:0.6.11 .
 ```
 
 The OCI image carries an SBOM of its base-image packages, maximum-mode build provenance, and a
@@ -734,7 +734,7 @@ The OCI image is an alternative when Docker is the preferred execution boundary.
 the host path with the repository OpenClaw should allow Cejel to read:
 
 ```bash
-npx -y openclaw@latest mcp set cejel-oci '{"command":"docker","args":["run","--rm","-i","-v","/absolute/path/to/repo:/workspace:ro","ghcr.io/barglabs/cejel:0.6.10"]}'
+npx -y openclaw@latest mcp set cejel-oci '{"command":"docker","args":["run","--rm","-i","-v","/absolute/path/to/repo:/workspace:ro","ghcr.io/barglabs/cejel:0.6.11"]}'
 npx -y openclaw@latest mcp doctor cejel-oci --probe
 ```
 
