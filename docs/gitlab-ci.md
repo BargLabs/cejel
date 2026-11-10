@@ -86,8 +86,14 @@ Reads a validated `report.json` and writes a JSON array of Code Quality entries
 `severity`). A footer on stderr says how many findings were exported and how many were not.
 
 - `check_name` is the Cejel criterion identifier the finding belongs to.
-- `fingerprint` is the SHA-256 of rule, path, line and the finding summary, so the same finding
-  keeps the same fingerprint across runs.
+- `fingerprint` is the SHA-256 of rule, path, line and the finding's identity. A metric-derived
+  finding's identity is fixed, so its score and band are left out; any other finding's identity is
+  its summary with every number replaced by one placeholder, so a count or ratio is left out. A score
+  or count change at the same file and line therefore keeps the fingerprint. Two different findings
+  at one place that would share an identity each get their ordinal there, in report order, so
+  neither is dropped. GitLab's merge request widget lists only new and resolved findings, so a score
+  change on the same line does not appear there; the score is in the entry's `description` and in
+  Cejel's report.
 - Only findings with both a file and a measured line are exported. A finding scoped to a file or
   to the repository, with no measured line, is counted in the footer and left out. Cejel does not
   put a stand-in line such as `1` on a position it did not measure.
