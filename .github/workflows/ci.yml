@@ -137,10 +137,13 @@ jobs:
       # The Action must refuse a pnpm tarball whose sha512 differs from its packageManager pin, and
       # refuse it before installing anything (#686 item 6). A copy of the Action with one hex digit
       # of the pin changed runs first, so the only cejel-pnpm.* directory afterwards is its own: it
-      # must hold the fetched tarball and no node_modules.
+      # must hold the fetched tarball and no node_modules. Globs keep the variable part quoted: on
+      # Windows $RUNNER_TEMP is a backslash path, and compgen -G "$RUNNER_TEMP/..." reads its
+      # backslashes as escapes and matches nothing, so a check written that way can never fire.
       - name: Copy the Action with a wrong pnpm sha512 pin
         run: |
-          if compgen -G "$RUNNER_TEMP/cejel-pnpm.*" > /dev/null; then
+          existing=("$RUNNER_TEMP"/cejel-pnpm.*)
+          if [ -e "${existing[0]}" ]; then
             echo "::error::a cejel-pnpm directory exists before the wrong-pin run"
             exit 1
           fi
@@ -173,8 +176,11 @@ jobs:
           test "$OUTCOME" = "failure"
           dirs=("$RUNNER_TEMP"/cejel-pnpm.*)
           test "${#dirs[@]}" = 1
+          test -d "${dirs[0]}"
           ls -la "${dirs[0]}"
-          compgen -G "${dirs[0]}/pnpm-*.tgz"
+          tarballs=("${dirs[0]}"/pnpm-*.tgz)
+          test "${#tarballs[@]}" = 1
+          test -s "${tarballs[0]}"
           test ! -e "${dirs[0]}/node_modules"
           test ! -e cejel-wrong-pin/node_modules
           test ! -e .cejel-wrong-pin
