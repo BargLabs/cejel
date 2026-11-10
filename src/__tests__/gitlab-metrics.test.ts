@@ -425,7 +425,10 @@ describe('ci/gitlab/cejel.gitlab-ci.yml metrics report', () => {
       const failedGate = runJob(2, 1);
       expect(failedGate.result.status).toBe(2);
       expect(existsSync(join(failedGate.work, 'gl-code-quality-report.json'))).toBe(true);
-      expect(failedGate.result.stderr).toContain('metrics export failed');
+      expect(failedGate.result.stderr).toContain('stub: metrics export failed');
+      expect(failedGate.result.stderr).toContain(
+        "Cejel: the metrics export failed; the job keeps the scan's exit status 2",
+      );
 
       const passedGate = runJob(0, 1);
       expect(passedGate.result.status).toBe(0);
