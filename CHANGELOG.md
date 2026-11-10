@@ -32,6 +32,18 @@ rubric is pinned. v27 carries no precision or recall claim.
   the fallback. This supersedes the statement in the 0.6.4 entry that the template had not been run
   on a GitLab runner. No scoring change.
 
+- **GitLab: a score or count change at the same file and line keeps the Code Quality fingerprint
+  (#700).** The fingerprint covered the finding summary, which carries a metric-derived score and
+  band, so on [MR !1](https://gitlab.com/barglabs/cejel-gitlab-demo/-/merge_requests/1) two
+  improved scores read as "2 new findings and 2 fixed findings". The fingerprint now covers the
+  criterion, path, line and the finding's identity: fixed for a metric-derived finding, and the
+  summary with every number replaced by one placeholder otherwise. Two different findings at one
+  place that share an identity each get their ordinal there, so the export drops none; it exports
+  the same number of entries as before. `description`, `check_name`, `location` and `severity` are
+  unchanged; the score stays in `description`. **Every located finding gets a new fingerprint once**,
+  so the first merge request after upgrading shows each existing finding as resolved plus new, one
+  time. Export only: every `report.json` is unchanged.
+
 - **Prospective v27: A1 reads `PYTEST_ADDOPTS` in the environment of the CI command that runs
   make, and names a collection hook defined in a plugin class (#633 item D, #634 item 3).** Under
   `witan-rubric-v27-prospective-2026-10-19` only.

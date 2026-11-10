@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 
+import { METRIC_DERIVED_FINDING_PATTERN } from '../witan/finding-presentation.js';
 import type { WitanFinding, WitanReport } from '../witan/schemas.js';
 
 export type GitLabCodeQualitySeverity = 'info' | 'minor' | 'major' | 'critical' | 'blocker';
@@ -43,8 +44,31 @@ export function normalizeRepoRelativePath(raw: string): string | undefined {
   return path;
 }
 
-function fingerprint(rule: string, path: string, line: number, identity: string): string {
-  return createHash('sha256').update(JSON.stringify([rule, path, line, identity])).digest('hex');
+const METRIC_DERIVED_IDENTITY = 'metric-derived';
+const NUMBER_PLACEHOLDER = '<n>';
+/** An integer or a decimal; each side of a fraction such as `3/10` or `1.4/4.0` is one. */
+const NUMBER_PATTERN = /\d+(?:\.\d+)?/g;
+
+/**
+ * What stays the same for one finding across runs (#700). A metric-derived summary carries the
+ * score and the band, so its identity is fixed; any other summary has every number replaced by
+ * one placeholder, so a count or a ratio that moves does not make the finding read as new.
+ */
+export function findingIdentity(summary: string): string {
+  if (METRIC_DERIVED_FINDING_PATTERN.test(summary)) return METRIC_DERIVED_IDENTITY;
+  return summary.replace(NUMBER_PATTERN, NUMBER_PLACEHOLDER);
+}
+
+function fingerprint(
+  rule: string,
+  path: string,
+  line: number,
+  identity: string,
+  ordinal: number,
+): string {
+  return createHash('sha256')
+    .update(JSON.stringify([rule, path, line, identity, ordinal]))
+    .digest('hex');
 }
 
 /** Pure: a Cejel report in, GitLab Code Quality entries out. No I/O, no clock, no randomness. */
@@ -64,7 +88,10 @@ export function exportGitLabCodeQuality(report: WitanReport): GitLabCodeQualityE
 
   const entries: GitLabCodeQualityEntry[] = [];
   let excludedUnlocated = 0;
+  // An identical summary at the same criterion, path and line is one finding and is exported once.
   const seen = new Set<string>();
+  // Distinct summaries already exported per identity group, so each gets its own ordinal.
+  const groupSizes = new Map<string, number>();
   for (const criterion of report.criteria) {
     for (const finding of criterion.findings) {
       const path =
@@ -76,10 +103,18 @@ export function exportGitLabCodeQuality(report: WitanReport): GitLabCodeQualityE
         excludedUnlocated += 1;
         continue;
       }
-      const print = fingerprint(criterion.id, path, line, finding.summary);
       // GitLab keys merge-request diffs on the fingerprint, so a duplicate would be collapsed.
-      if (seen.has(print)) continue;
-      seen.add(print);
+      const exact = JSON.stringify([criterion.id, path, line, finding.summary]);
+      if (seen.has(exact)) continue;
+      seen.add(exact);
+      // Two different summaries can share one identity at one place (they differ only in
+      // numbers). Both are exported: the ordinal, in report order, keeps their fingerprints
+      // distinct, and the first one's fingerprint does not depend on whether a second exists.
+      const identity = findingIdentity(finding.summary);
+      const group = JSON.stringify([criterion.id, path, line, identity]);
+      const ordinal = groupSizes.get(group) ?? 0;
+      groupSizes.set(group, ordinal + 1);
+      const print = fingerprint(criterion.id, path, line, identity, ordinal);
       entries.push({
         description: finding.summary,
         check_name: criterion.id,
