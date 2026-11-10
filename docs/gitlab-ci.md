@@ -142,5 +142,16 @@ Confirm the current tier split against GitLab's page before relying on it.
 
 The component lives in its own GitLab project,
 [gitlab.com/barglabs/cejel](https://gitlab.com/barglabs/cejel), as `templates/cejel.yml`
-with the inputs listed under Component above. Its pipeline runs the component on itself and
-publishes a release for each semantic-version tag that matches an `@cejel/cejel` release.
+with the inputs listed under Component above. Its `version` input defaults to the release this
+page documents:
+
+```yaml
+spec:
+  inputs:
+    version:
+      default: '0.6.10'
+```
+
+Its pipeline runs the component on itself and publishes a release for each semantic-version tag
+that matches an `@cejel/cejel` release. That tag is pushed to the GitLab project by hand after each
+Cejel release, so until it is, the newest component version is the previous release.
