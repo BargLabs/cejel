@@ -32,9 +32,11 @@ branding:
 # each holding the installed pnpm (about 18 MB).
 #
 # packageManager must carry the sha512 of the pnpm tarball, in corepack's form
-# pnpm@X.Y.Z+sha512.<hex>. Each pnpm step fetches the tarball with `npm pack`, checks its sha512
-# against that pin, and installs from the checked file, so neither the registry nor a restored
-# ~/.npm cache can substitute another tarball (#686 items 6 and 7).
+# pnpm@X.Y.Z+sha512.<hex>. Each pnpm step fetches the tarball with `npm pack`, moves it to the
+# fixed name pnpm.tgz (npm names it from the registry's manifest, and npm install would re-parse a
+# crafted name, for example as a git spec), checks its sha512 against that pin, and installs
+# ./pnpm.tgz, so neither the registry nor a restored ~/.npm cache can substitute another tarball
+# (#686 items 6 and 7).
 #
 # The last step deliberately does NOT cd into this action's own checkout: repo-path and the
 # write-only export destination stay relative to the CALLING workflow's workspace. The report used
@@ -128,12 +130,13 @@ runs:
         cd "$work"
         printf '{}\n' > package.json
         tarball="$(npm pack --ignore-scripts --silent "$CEJEL_PNPM")"
-        sha512="$(node -e 'process.stdout.write(require("crypto").createHash("sha512").update(require("fs").readFileSync(process.argv[1])).digest("hex"))' "$tarball")"
+        mv -- "$tarball" pnpm.tgz
+        sha512="$(node -e 'process.stdout.write(require("crypto").createHash("sha512").update(require("fs").readFileSync(process.argv[1])).digest("hex"))' pnpm.tgz)"
         if [ "$sha512" != "$CEJEL_PNPM_SHA512" ]; then
-          echo "::error::$CEJEL_PNPM tarball has sha512 $sha512, not the $CEJEL_PNPM_SHA512 this action's package.json pins"
+          echo "::error::$CEJEL_PNPM tarball ($tarball) has sha512 $sha512, not the $CEJEL_PNPM_SHA512 this action's package.json pins"
           exit 1
         fi
-        npm install --prefix "$work" --no-save --no-package-lock --ignore-scripts --no-audit --no-fund "./$tarball"
+        npm install --prefix "$work" --no-save --no-package-lock --ignore-scripts --no-audit --no-fund ./pnpm.tgz
         pnpm="$work/node_modules/.bin/pnpm"
         ran="pnpm@$("$pnpm" --version)"
         if [ "$ran" != "$CEJEL_PNPM" ]; then
@@ -154,12 +157,13 @@ runs:
         cd "$work"
         printf '{}\n' > package.json
         tarball="$(npm pack --ignore-scripts --silent "$CEJEL_PNPM")"
-        sha512="$(node -e 'process.stdout.write(require("crypto").createHash("sha512").update(require("fs").readFileSync(process.argv[1])).digest("hex"))' "$tarball")"
+        mv -- "$tarball" pnpm.tgz
+        sha512="$(node -e 'process.stdout.write(require("crypto").createHash("sha512").update(require("fs").readFileSync(process.argv[1])).digest("hex"))' pnpm.tgz)"
         if [ "$sha512" != "$CEJEL_PNPM_SHA512" ]; then
-          echo "::error::$CEJEL_PNPM tarball has sha512 $sha512, not the $CEJEL_PNPM_SHA512 this action's package.json pins"
+          echo "::error::$CEJEL_PNPM tarball ($tarball) has sha512 $sha512, not the $CEJEL_PNPM_SHA512 this action's package.json pins"
           exit 1
         fi
-        npm install --prefix "$work" --no-save --no-package-lock --ignore-scripts --no-audit --no-fund "./$tarball"
+        npm install --prefix "$work" --no-save --no-package-lock --ignore-scripts --no-audit --no-fund ./pnpm.tgz
         pnpm="$work/node_modules/.bin/pnpm"
         ran="pnpm@$("$pnpm" --version)"
         if [ "$ran" != "$CEJEL_PNPM" ]; then

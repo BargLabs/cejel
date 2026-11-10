@@ -61,7 +61,7 @@ const SELF_CHECK =
   '          exit 1\n' +
   '        fi\n';
 const NPM_INSTALL =
-  'npm install --prefix "$work" --no-save --no-package-lock --ignore-scripts --no-audit --no-fund "./$tarball"';
+  'npm install --prefix "$work" --no-save --no-package-lock --ignore-scripts --no-audit --no-fund ./pnpm.tgz';
 const INSTALL_ENV = '      env:\n        CEJEL_PNPM: ${{ steps.cejel-pnpm.outputs.spec }}\n';
 const RUNNER_ENV = '        WITAN_REPO_PATH: ${{ inputs.repo-path }}\n';
 const ADDED_STEP = '    - name: Extra\n      shell: bash\n      run: pnpm install\n\n';
@@ -126,7 +126,12 @@ const REFUSED: ReadonlyArray<readonly [string, RegExp, Mutation]> = [
   // #686 items 6 and 7: the tarball's sha512 is checked against packageManager before install.
   ['the sha512 comparison removed', REFUSAL.runs, (t) => swap(t, /        if \[ "\$sha512" != "\$CEJEL_PNPM_SHA512" \]; then\n[^\n]*\n          exit 1\n        fi\n/, '', INSTALL)],
   ['the comparison inverted to a substring match', REFUSAL.runs, (t) => swap(t, 'if [ "$sha512" != "$CEJEL_PNPM_SHA512" ]; then', 'if [[ "$sha512" != *"$CEJEL_PNPM_SHA512"* ]]; then', INSTALL)],
-  ['install from the registry spec, not the checked tarball', REFUSAL.runs, (t) => swap(t, '"./$tarball"', '"$CEJEL_PNPM"', BUILD)],
+  ['install from the registry spec, not the checked tarball', REFUSAL.runs, (t) => swap(t, './pnpm.tgz', '"$CEJEL_PNPM"', BUILD)],
+  // #696 Pass B: npm prints the tarball name from the registry's manifest, so installing that name
+  // lets npm re-parse it (as a git spec, for one); the step moves it to a fixed name first.
+  ['the fixed-name move removed', REFUSAL.runs, (t) => swap(t, '        mv -- "$tarball" pnpm.tgz\n', '', INSTALL)],
+  ['install the name npm printed', REFUSAL.runs, (t) => swap(t, ' ./pnpm.tgz\n', ' "./$tarball"\n', INSTALL)],
+  ['hash the name npm printed', REFUSAL.runs, (t) => swap(t, "digest(\"hex\"))' pnpm.tgz)", "digest(\"hex\"))' \"$tarball\")", BUILD)],
   ['npm pack without --ignore-scripts', REFUSAL.runs, (t) => swap(t, 'npm pack --ignore-scripts --silent', 'npm pack --silent', INSTALL)],
   ['a literal CEJEL_PNPM_SHA512', REFUSAL.runs, (t) => swap(t, '        CEJEL_PNPM_SHA512: ${{ steps.cejel-pnpm.outputs.sha512 }}', `        CEJEL_PNPM_SHA512: ${'0'.repeat(128)}`, BUILD)],
   ['CEJEL_PNPM_SHA512 removed from env', REFUSAL.runs, (t) => swap(t, '        CEJEL_PNPM_SHA512: ${{ steps.cejel-pnpm.outputs.sha512 }}\n', '', INSTALL)],

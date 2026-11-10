@@ -167,8 +167,10 @@ rubric is pinned. v27 carries no precision or recall claim.
     `runs:`, which #689 listed as one, is now refused, because it sits in the pinned region.
   - **The pnpm tarball is checked against a pinned sha512 before it is installed (#686 items 6 and
     7).** `packageManager` is now `pnpm@9.0.0+sha512.<hex>`, corepack's form, and the Action
-    refuses one without the hash. Each pnpm step fetches the tarball with `npm pack`, compares its
-    sha512 with the pin, and installs from that checked file. Before, npm checked the tarball only
+    refuses one without the hash. Each pnpm step fetches the tarball with `npm pack`, moves it to the
+    fixed name `pnpm.tgz`, compares its sha512 with the pin, and installs that file. The fixed name
+    matters: npm names the tarball from the registry's manifest, and `npm install` re-parses the
+    name it is given, so a crafted name could turn into a git spec (#696 review Pass B). Before, npm checked the tarball only
     against the registry's own `dist.integrity`, and a restored `~/.npm` cache could supply it
     with no independent check. The pin matches the registry's `dist.integrity` for pnpm 9.0.0.
     The `action-from-another-caller` job runs a copy of the Action with one digit of the pin
