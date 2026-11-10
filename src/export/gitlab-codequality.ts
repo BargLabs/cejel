@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 
+import { METRIC_DERIVED_FINDING_PATTERN } from '../witan/finding-presentation.js';
 import type { WitanFinding, WitanReport } from '../witan/schemas.js';
 
 export type GitLabCodeQualitySeverity = 'info' | 'minor' | 'major' | 'critical' | 'blocker';
@@ -43,6 +44,21 @@ export function normalizeRepoRelativePath(raw: string): string | undefined {
   return path;
 }
 
+const METRIC_DERIVED_IDENTITY = 'metric-derived';
+const NUMBER_PLACEHOLDER = '<n>';
+/** An integer or a decimal; each side of a fraction such as `3/10` or `1.4/4.0` is one. */
+const NUMBER_PATTERN = /\d+(?:\.\d+)?/g;
+
+/**
+ * What stays the same for one finding across runs (#700). A metric-derived summary carries the
+ * score and the band, so its identity is fixed; any other summary has every number replaced by
+ * one placeholder, so a count or a ratio that moves does not make the finding read as new.
+ */
+export function findingIdentity(summary: string): string {
+  if (METRIC_DERIVED_FINDING_PATTERN.test(summary)) return METRIC_DERIVED_IDENTITY;
+  return summary.replace(NUMBER_PATTERN, NUMBER_PLACEHOLDER);
+}
+
 function fingerprint(rule: string, path: string, line: number, identity: string): string {
   return createHash('sha256').update(JSON.stringify([rule, path, line, identity])).digest('hex');
 }
@@ -76,7 +92,7 @@ export function exportGitLabCodeQuality(report: WitanReport): GitLabCodeQualityE
         excludedUnlocated += 1;
         continue;
       }
-      const print = fingerprint(criterion.id, path, line, finding.summary);
+      const print = fingerprint(criterion.id, path, line, findingIdentity(finding.summary));
       // GitLab keys merge-request diffs on the fingerprint, so a duplicate would be collapsed.
       if (seen.has(print)) continue;
       seen.add(print);
