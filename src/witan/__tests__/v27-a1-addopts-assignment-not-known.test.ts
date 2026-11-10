@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { WitanCriterionScore } from '../schemas.js';
 
 import { scoreRepoWithPublicCejel } from '../public-scan.js';
+import { readPytestInvocations } from '../repo-signals.js';
 import { WITAN_RUBRIC_VERSION_V17, WITAN_RUBRIC_VERSION_V27 } from '../rubric-version.js';
 import { buildFalseAssuranceFixture, type FalseAssuranceFixture } from './fixtures/false-assurance-fixtures.js';
 import { PY_BASE, SKIPPED_CACHE_TEST, lines } from './fixtures/v27-a1-removal-fixtures.js';
@@ -172,6 +173,22 @@ describe('v27 A1, item B (#653): tox posargs past the shared budget', () => {
       'pytest run not read: `pytest {posargs}` in tox.ini',
     );
     expectPointerAt(name, v27, 'tox.ini', 6);
+  });
+
+  it('the budget is one count across the lines and the tox.ini files of a read', () => {
+    // One CI set of 1,500 words: each {posargs} line costs 1 + 1 + 1,500 = 1,502. The root tox.ini's
+    // two lines take 3,004 of 4,096; the third line, in sub/tox.ini, would take it to -410.
+    const words = Array.from({ length: 1500 }, (_, index) => `-kw${index}`);
+    const texts = new Map([
+      ['tox.ini', lines('[tox]', 'envlist = py', '', '[testenv]', 'commands =', '    pytest {posargs} tests/a', '    pytest {posargs} tests/b')],
+      ['sub/tox.ini', lines('[tox]', 'envlist = py', '', '[testenv]', 'commands = pytest {posargs} tests/c')],
+      [CI, workflow([`      - run: tox -e py -- ${words.join(' ')}`])],
+    ]);
+    const read = readPytestInvocations([...texts.keys()], (file) => texts.get(file));
+    const posargsRead = (path: string) => read.some(({ args }) => args.includes(path) && args.includes('-kw1499'));
+    expect(posargsRead('tests/a')).toBe(true);
+    expect(posargsRead('tests/b')).toBe(true);
+    expect(read.filter(({ unread }) => unread !== undefined).map(({ file, unread }) => `${file}: ${unread}`)).toEqual(['sub/tox.ini: pytest {posargs} tests/c']);
   });
 
   it('control: the same line with a CI set inside the budget is read, and rated hollow', () => {
