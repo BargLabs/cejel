@@ -20,7 +20,7 @@
     "movesWhen": {
       "kind": "pr-merged",
       "repository": "BargLabs/cejel",
-      "number": 697
+      "number": 706
     }
   }
 ]
