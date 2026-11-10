@@ -59,8 +59,16 @@ export function findingIdentity(summary: string): string {
   return summary.replace(NUMBER_PATTERN, NUMBER_PLACEHOLDER);
 }
 
-function fingerprint(rule: string, path: string, line: number, identity: string): string {
-  return createHash('sha256').update(JSON.stringify([rule, path, line, identity])).digest('hex');
+function fingerprint(
+  rule: string,
+  path: string,
+  line: number,
+  identity: string,
+  ordinal: number,
+): string {
+  return createHash('sha256')
+    .update(JSON.stringify([rule, path, line, identity, ordinal]))
+    .digest('hex');
 }
 
 /** Pure: a Cejel report in, GitLab Code Quality entries out. No I/O, no clock, no randomness. */
@@ -80,7 +88,10 @@ export function exportGitLabCodeQuality(report: WitanReport): GitLabCodeQualityE
 
   const entries: GitLabCodeQualityEntry[] = [];
   let excludedUnlocated = 0;
+  // An identical summary at the same criterion, path and line is one finding and is exported once.
   const seen = new Set<string>();
+  // Distinct summaries already exported per identity group, so each gets its own ordinal.
+  const groupSizes = new Map<string, number>();
   for (const criterion of report.criteria) {
     for (const finding of criterion.findings) {
       const path =
@@ -92,10 +103,18 @@ export function exportGitLabCodeQuality(report: WitanReport): GitLabCodeQualityE
         excludedUnlocated += 1;
         continue;
       }
-      const print = fingerprint(criterion.id, path, line, findingIdentity(finding.summary));
       // GitLab keys merge-request diffs on the fingerprint, so a duplicate would be collapsed.
-      if (seen.has(print)) continue;
-      seen.add(print);
+      const exact = JSON.stringify([criterion.id, path, line, finding.summary]);
+      if (seen.has(exact)) continue;
+      seen.add(exact);
+      // Two different summaries can share one identity at one place (they differ only in
+      // numbers). Both are exported: the ordinal, in report order, keeps their fingerprints
+      // distinct, and the first one's fingerprint does not depend on whether a second exists.
+      const identity = findingIdentity(finding.summary);
+      const group = JSON.stringify([criterion.id, path, line, identity]);
+      const ordinal = groupSizes.get(group) ?? 0;
+      groupSizes.set(group, ordinal + 1);
+      const print = fingerprint(criterion.id, path, line, identity, ordinal);
       entries.push({
         description: finding.summary,
         check_name: criterion.id,
