@@ -905,6 +905,39 @@ describe('scaling: the v27 A1 gap readers grow no faster than linearly', () => {
     expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
   }, 60_000);
 
+  // goal_cejel_v27_a1_addopts_assignment_not_known_2026-11-10, item B (#653): readToxCommands reads
+  // each tox.ini line holding {posargs} once per literal CI posargs set (at most 16), so without a
+  // budget its work is the tox lines times the sets' words, a product of two inputs. The input that
+  // maximises it: a tox.ini of N lines each holding {posargs}, and a CI file passing 16 distinct
+  // sets of W words, N x 16 x W. Both grow with L here, N = L/400 lines and W = L/400 words, so an
+  // unbounded reader's work grows with the square of L. With the budget, each line is named as a run
+  // not read, at both lengths: at W = L/400 one line's cost, 1 + 16 x (W + 1), is past the budget
+  // at L/2 already, so what is left is the read's linear part. Where the budget admits a few lines
+  // at one length and fewer at the other, those reads are about the same work at both and swamp the
+  // linear part: N = L/400 with W = L/2,000 measured 1.84 with the budget, under the floor of 2. And
+  // where W is small, the reads per line and set outweigh the words: N = L/25 with W = L/4,000
+  // measured 7.91 on the reader without a budget, superlinear but under the limit. The budget's
+  // count across lines and files is pinned by the test after this one.
+  it('the tox posargs reader, on a tox.ini of L/400 {posargs} lines and 16 CI sets of L/400 words', () => {
+    const directory = 'tests/unit';
+    const textsFor = (length: number): Map<string, string> => {
+      const commands = Array.from({ length: Math.floor(length / 400) }, (_, index) => `    pytest {posargs} ${directory}/test_${index}.py`).join('\n');
+      const words = Math.floor(length / 400);
+      const steps = Array.from({ length: 16 }, (_, set) => `      - run: tox -e py -- ${Array.from({ length: words }, (_, word) => `-ks${set}w${word}`).join(' ')}`).join('\n');
+      return new Map([
+        ['tox.ini', `[tox]\nenvlist = py\n\n[testenv]\ndeps = pytest\ncommands =\n${commands}\n`],
+        ['.github/workflows/ci.yml', `name: ci\non: push\njobs:\n  t:\n    runs-on: ubuntu-latest\n    steps:\n${steps}\n`],
+      ]);
+    };
+    const files = ['.github/workflows/ci.yml', 'tox.ini'];
+    const texts = scalingInputs(textsFor);
+    const { ratio, timing, atSmall, atLarge } = scalingRatio((length) => readPytestInvocations(files, (file) => texts(length).get(file)));
+    expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
+    for (const read of [atSmall, atLarge]) {
+      expect(read.some(({ file, unread }) => file === 'tox.ini' && unread !== undefined && unread.startsWith(`pytest {posargs} ${directory}/test_`))).toBe(true);
+    }
+  }, 180_000);
+
   // The review of #655, blocker 2: the unread posargs entries were said once per noxfile, so M
   // noxfiles and U unread CI entries gave M x U runs, and spreading them into one call overflowed
   // the stack (400 and 400 threw RangeError). They are said once per read and count against the
