@@ -1,0 +1,25 @@
+[
+  {
+    "statement": "When a script edits source text with String.prototype.replace, pass the replacement as a function; a string replacement expands $& $` $' and $n, and source code is full of dollar signs. 2026-11-09, cejel #696 (issue 686), my own error: an edit script inserted a test case whose text ended in a regex anchor followed by a template-literal backtick, so the replacement contained the two characters dollar and backtick, which replace() expands to the whole text before the match. It spliced the test file head into the middle; tsc then failed with TS1005 at lines 171 to 179 and vitest found no tests. Fix: restored the file from git and changed the script to s.replace(a, () => b); the same edit then applied cleanly and 256 tests passed.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "agent-error",
+      "scripted-edits"
+    ],
+    "tags": [
+      "string-replace",
+      "dollar-patterns",
+      "scripted-edit",
+      "own-error"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-11-09T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 696
+    }
+  }
+]

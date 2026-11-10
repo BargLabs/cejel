@@ -50,6 +50,10 @@ export const ACTION_INPUTS_OUTPUTS_SHA256 = Object.freeze({
   nested: '8a681ad2af70bbe1da66504717fde1645d0e734067354699bc60a181cfe86a90',
 });
 
+// package.json packageManager as the Action's read step requires it: an exact pnpm version and the
+// hex sha512 of its registry tarball, corepack's form (#686 item 6). The validator reads it from here.
+export const PNPM_PACKAGE_MANAGER_PIN = /^pnpm@(\d+\.\d+\.\d+)\+sha512\.([0-9a-f]{128})$/;
+
 const YAML_INVISIBLE_CHARACTER =
   /\r(?!\n)|[\u{0}-\u{8}\u{B}\u{C}\u{E}-\u{1F}\u{7F}\u{85}\u{A0}\u{1680}\u{2000}-\u{200A}\u{2028}\u{2029}\u{202F}\u{205F}\u{3000}\u{FEFF}]/u;
 
@@ -117,13 +121,21 @@ function canonicalPnpmStep(stepName, directoryExpression, pnpmArguments) {
     '      shell: bash',
     '      env:',
     '        CEJEL_PNPM: ${{ steps.cejel-pnpm.outputs.spec }}',
+    '        CEJEL_PNPM_SHA512: ${{ steps.cejel-pnpm.outputs.sha512 }}',
     '      run: |',
     '        set -euo pipefail',
     `        cejel_dir=${directoryExpression}`,
     '        work="$(mktemp -d "$RUNNER_TEMP/cejel-pnpm.XXXXXX")"',
     '        cd "$work"',
     "        printf '{}\\n' > package.json",
-    '        npm install --prefix "$work" --no-save --no-package-lock --ignore-scripts --no-audit --no-fund "$CEJEL_PNPM"',
+    '        tarball="$(npm pack --ignore-scripts --silent "$CEJEL_PNPM")"',
+    '        mv -- "$tarball" pnpm.tgz',
+    `        sha512="$(node -e 'process.stdout.write(require("crypto").createHash("sha512").update(require("fs").readFileSync(process.argv[1])).digest("hex"))' pnpm.tgz)"`,
+    '        if [ "$sha512" != "$CEJEL_PNPM_SHA512" ]; then',
+    `          echo "::error::$CEJEL_PNPM tarball ($tarball) has sha512 $sha512, not the $CEJEL_PNPM_SHA512 this action's package.json pins"`,
+    '          exit 1',
+    '        fi',
+    '        npm install --prefix "$work" --no-save --no-package-lock --ignore-scripts --no-audit --no-fund ./pnpm.tgz',
     '        pnpm="$work/node_modules/.bin/pnpm"',
     '        ran="pnpm@$("$pnpm" --version)"',
     '        if [ "$ran" != "$CEJEL_PNPM" ]; then',
@@ -146,22 +158,22 @@ export function canonicalActionRuns(form) {
     "        node-version: '22'",
     '        package-manager-cache: false',
     '',
-    '    - name: Read the pnpm version this action pins',
+    '    - name: Read the pnpm version and sha512 this action pins',
     '      id: cejel-pnpm',
     '      shell: bash',
     '      run: |',
     '        set -euo pipefail',
     `        cejel_dir=${directoryExpression}`,
-    `        spec="$(node -e '`,
+    `        pin="$(node -e '`,
     '          const pm = require(process.argv[1]).packageManager ?? "";',
-    '          const match = /^(pnpm@\\d+\\.\\d+\\.\\d+)(\\+.+)?$/.exec(pm);',
+    '          const match = /^(pnpm@\\d+\\.\\d+\\.\\d+)\\+sha512\\.([0-9a-f]{128})$/.exec(pm);',
     '          if (!match) {',
-    '            console.error("package.json packageManager must pin pnpm to an exact version, got: " + pm);',
+    '            console.error("package.json packageManager must pin pnpm to an exact version and its tarball sha512, as pnpm@X.Y.Z+sha512.<hex>; got: " + pm);',
     '            process.exit(1);',
     '          }',
-    '          process.stdout.write(match[1]);',
+    '          process.stdout.write("spec=" + match[1] + "\\nsha512=" + match[2]);',
     `        ' "$cejel_dir/package.json")"`,
-    '        echo "spec=$spec" >> "$GITHUB_OUTPUT"',
+    '        echo "$pin" >> "$GITHUB_OUTPUT"',
     '',
     ...canonicalPnpmStep('Install dependencies', directoryExpression, 'install --frozen-lockfile'),
     '',

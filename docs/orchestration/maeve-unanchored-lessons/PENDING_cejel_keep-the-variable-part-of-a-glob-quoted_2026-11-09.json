@@ -1,0 +1,25 @@
+[
+  {
+    "statement": "In a CI shell check that globs under a runner path, keep the variable part quoted and leave only the wildcard unquoted, as (\"$DIR\"/name.*); never compgen -G \"$DIR/name.*\", which reads the expanded value as a pattern. 2026-11-09, cejel #696, my own error: on windows-latest $RUNNER_TEMP is a backslash path (D:\\a\\_temp), so compgen -G took its backslashes as escapes and matched nothing. The tarball assertion failed although ls showed pnpm-9.0.0.tgz in the directory, and the pre-check meant to refuse a leftover cejel-pnpm directory could never fire on Windows, a pass by absence the failure happened to expose. Reproduced on macOS with a directory named bs2\\a: old pre-check silent, new fires; old tarball check not found, new found. Fix (#696): array globs with the variable quoted, and a count and -s test on the result.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "agent-error",
+      "ci-shell"
+    ],
+    "tags": [
+      "windows-paths",
+      "glob-quoting",
+      "pass-by-absence",
+      "own-error"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-11-09T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 696
+    }
+  }
+]
