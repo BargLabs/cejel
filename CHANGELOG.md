@@ -16,6 +16,43 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- **A repository path longer than 700 characters no longer stops the scan, under every rubric
+  (#612).** The report schema caps every `path` at 700 characters. A file with a longer relative
+  path, cited as evidence or listed as withheld, failed validation, and the scan wrote no report.
+  - Such an evidence pointer is left out of the report. Nothing else is. A finding that cited it
+    keeps its severity, summary and place. Its anchor becomes the repository (`.`), labelled
+    "Path longer than the report's 700-character limit; not cited". The certificate's "What is
+    wrong" lists the same items as for a short path, without a file location.
+  - The criterion's `disclosures` say how many distinct paths it did not cite. A path cited by
+    two pointers, or by a pointer and a finding, counts once.
+  - Such a withheld path is left out of `withheldPaths`. The statement goes in the `disclosures`
+    of one criterion: the first, in report order, that a check reading the path belongs to, or
+    the report's first criterion where no check would read it. It names those checks.
+    `contentReadSummary` still counts the path. The certificate no longer says no content was
+    withheld when some was, and it calls the entries it counts "listed".
+  - None of these statements is a scan limitation. The badge, the `--min-score` gate and every
+    limitation count are those of the same repository with the file at a short path.
+  - A criterion that already has the four disclosures the schema allows takes the statement at
+    the end of its `notes`. Only where the notes cannot hold it either (1,000 characters) does
+    a scan limitation naming the criterion state it. If the sixteen scan limitations are used
+    too, the scan stops with an error and writes no report. It never drops a path without saying
+    so.
+  - No path is shortened. A shortened path would name a file that does not exist.
+  - Scores, statuses, metrics and verdicts are computed with every pointer, as before. Scoring
+    reads how many pointers a criterion holds, so the pointer is left out after scoring, not
+    before.
+  - The finding that explains a metric-derived warning or critical status cites the first
+    pointer the report can carry. Before, it always cited the first pointer.
+  - The LLM pack's artifact does the same for a finding's evidence path over 700 characters. The
+    finding keeps its rule, severity, confidence and summary, anchored on `.` with a stated
+    label, so no rule state moves. `coverage.limitations` says how many distinct paths were not
+    cited. Before, the calibration detector threw and wrote no `llm-report.json`.
+  - A report or artifact with no path over the limit is byte-identical to before. The
+    scoring-surface and fingerprint pins did not move. A path of exactly 700 characters is cited
+    as before.
+
 ## [0.6.11] — 2026-11-09
 
 v17 remains the default rubric. Every scoring change below applies only when the prospective v27
