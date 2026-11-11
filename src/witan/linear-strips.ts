@@ -110,6 +110,89 @@ export function execOnTerminatorFreeLine(pattern: RegExp, line: string): RegExpE
   return LINE_TERMINATOR_PATTERN.test(line) ? null : pattern.exec(line);
 }
 
+/** The first line start (`^` under `m`) in `[from, to]`, or `to` if there is none before it. */
+function firstLineStart(text: string, from: number, to: number): number {
+  for (let index = from; index < to; index += 1) {
+    if (index === 0 || LINE_TERMINATOR_PATTERN.test(text[index - 1] ?? '')) return index;
+  }
+  return to;
+}
+
+/**
+ * `text.replace(/^\s*#.*$/gm, '')`. That regex removes a line led by `#` together with the blank
+ * lines before it (its `\s*` crosses line ends), but retried the blank run from every line start
+ * (quadratic). Here the line-bounded `^(?:(?=.)\s)*#.*$` finds the same comment lines,
+ * and each removal is widened back to where the old `\s*` began: the first line start in the
+ * blank run before the line, never before the end of the previous removal.
+ */
+export function stripLineLedHashCommentLines(text: string): string {
+  const pattern = /^(?:(?=.)\s)*#.*$/gm;
+  let result = '';
+  let kept = 0;
+  for (let match = pattern.exec(text); match !== null; match = pattern.exec(text)) {
+    let blankStart = match.index;
+    while (blankStart > kept && WHITESPACE_PATTERN.test(text[blankStart - 1] ?? '')) blankStart -= 1;
+    result += text.slice(kept, firstLineStart(text, blankStart, match.index));
+    kept = match.index + match[0].length;
+  }
+  return result + text.slice(kept);
+}
+
+/**
+ * `old.exec(text)` for `old` shaped `(?:^|[{,])\s*K` under `m`, given `match = linear.exec(text)`
+ * for `linear` the same pattern with `\s*` written `(?:(?=.)\s)*` (both from index 0).
+ * Both match the same key with the same groups and end: the old `\s*` only also crossed the blank
+ * lines before the key's line. So the match is widened back to where the old one began: the `{` or
+ * `,` before the blank run, or else the run's first line start. The array is changed in place.
+ */
+export function widenToLeadingBlankRun(
+  match: RegExpExecArray | null,
+  text: string,
+): RegExpExecArray | null {
+  if (match === null || text[match.index] === '{' || text[match.index] === ',') return match;
+  const end = match.index + match[0].length;
+  let blankStart = match.index;
+  while (blankStart > 0 && WHITESPACE_PATTERN.test(text[blankStart - 1] ?? '')) blankStart -= 1;
+  const before = text[blankStart - 1];
+  const start = before === '{' || before === ','
+    ? blankStart - 1
+    : firstLineStart(text, blankStart, match.index);
+  match[0] = text.slice(start, end);
+  match.index = start;
+  return match;
+}
+
+const IDENTIFIER_START_PATTERN = /[A-Za-z_$]/;
+const IDENTIFIER_CHARACTER_PATTERN = /[\w$.-]/;
+
+/**
+ * `pattern.exec(text)` from `from`, for the `g` pattern `sticky` stands for, shaped
+ * `(?:["'])?([A-Za-z_$][\w$.-]*)…`. That pattern tried every position, so a long run of identifier
+ * characters cost the square of its length: from each character, `[\w$.-]*` ran to the run's end
+ * and backtracked. A match that starts at a later identifier-start character of a run implies one
+ * at the run's first identifier-start character at or after `from` (the same suffix, a longer
+ * identifier), which the old scan reaches first. So only that character and each quote can start
+ * the match; `sticky` (the same pattern with `y`) is tried there alone.
+ */
+export function execFromIdentifierRunStarts(
+  sticky: RegExp,
+  text: string,
+  from: number,
+): RegExpExecArray | null {
+  let runHasStart = false;
+  for (let index = from; index < text.length; index += 1) {
+    const character = text[index] ?? '';
+    if (character === '"' || character === "'" || (!runHasStart && IDENTIFIER_START_PATTERN.test(character))) {
+      sticky.lastIndex = index;
+      const match = sticky.exec(text);
+      if (match !== null) return match;
+    }
+    if (!IDENTIFIER_CHARACTER_PATTERN.test(character)) runHasStart = false;
+    else if (IDENTIFIER_START_PATTERN.test(character)) runHasStart = true;
+  }
+  return null;
+}
+
 const VERSION_OPERATOR_CHARACTERS = new Set(['>', '<', '=', '~', '!', '^']);
 const VERSION_DIGIT_PATTERN = /[\d.]/;
 

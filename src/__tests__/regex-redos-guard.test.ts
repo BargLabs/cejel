@@ -63,8 +63,8 @@ const families = [
   // assignment pattern's unanchored `([A-Za-z_$][\w$.-]*)` retried the run from each of its
   // characters. The terminator is not what makes it slow; any non-`:`/`=` end does.
   { name: 'word-then-cr', input: `${'a'.repeat(20_000)}\r` },
-  { name: 'word-then-ps', input: `${'a'.repeat(20_000)} ` },
-  { name: 'env-dots-then-ls', input: `${'.env.'.repeat(4_000)} ` },
+  { name: 'word-then-ps', input: `${'a'.repeat(20_000)}\u{2029}` },
+  { name: 'env-dots-then-ls', input: `${'.env.'.repeat(4_000)}\u{2028}` },
   { name: 'env-dots-then-nel', input: `${'.env.'.repeat(4_000)}\u0085` },
 ];
 
