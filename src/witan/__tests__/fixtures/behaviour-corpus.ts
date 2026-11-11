@@ -1,7 +1,8 @@
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 // THE BEHAVIOUR-FINGERPRINT CORPUS.
 //
@@ -51,7 +52,29 @@ export interface BehaviourFixture {
    * HEAD's committer metadata.
    */
   readonly commitDate?: string;
+  /** The tree of the first commit, "initial commit". With no `commits`, also the scanned tree. */
   readonly files: Readonly<Record<string, string>>;
+  /**
+   * Commits made after the first, in order (#622). Commit k (counting the first as 0) is dated k
+   * minutes after the fixture's commit date, and carries the fixed corpus identity and the message
+   * given here, so the history, and HEAD's sha, are the same on every host. Only set it where the
+   * fixture's POINT is what history holds: a credential committed and deleted, commit subjects B2's
+   * merge ratio reads.
+   */
+  readonly commits?: readonly BehaviourFixtureCommit[];
+  /**
+   * Scan a `git clone --depth <cloneDepth>` of the built repository instead of the repository itself
+   * (#622). The clone is taken over the file transport, which is the transport that honours
+   * `--depth` for a local source, and is checked to be shallow before it is returned.
+   */
+  readonly cloneDepth?: number;
+}
+
+/** One commit after a fixture's first: files written, then paths removed, then committed. */
+export interface BehaviourFixtureCommit {
+  readonly message: string;
+  readonly write?: Readonly<Record<string, string>>;
+  readonly remove?: readonly string[];
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -859,6 +882,88 @@ export const BEHAVIOUR_CORPUS: readonly BehaviourFixture[] = [
       'src/cache.test.js': "import assert from 'node:assert';\nassert.strictEqual(1, 1);\n",
     },
   },
+  {
+    name: 'history-shallow-depth-1',
+    purpose:
+      'A2 and B2 read history, and this is the corpus\'s one shallow clone (#622). A full clone of ' +
+      'this repository holds a .env carrying a branded secret shape, committed and then deleted, ' +
+      'which A2 reads from history, and five commit subjects, three naming a pull request, which ' +
+      "B2's merge ratio reads. The scan reads a --depth 1 clone, which holds HEAD alone: the " +
+      'shape #619 changed under v27 (no composite and no verdict) without moving any fingerprint, ' +
+      'because until this specimen the corpus held no shallow clone.',
+    files: {
+      'package.json': manifest({
+        name: 'history-shallow-depth-1',
+        version: '1.2.0',
+        private: true,
+        scripts: { build: 'tsc -p tsconfig.json', lint: 'eslint .', test: 'vitest run' },
+        devDependencies: { typescript: '5.5.4', vitest: '2.0.5' },
+      }),
+      'package-lock.json': manifest({ name: 'history-shallow-depth-1', lockfileVersion: 3, packages: {} }),
+      'src/index.ts': 'export function total(cents: readonly number[]): number {\n  return cents.reduce((a, b) => a + b, 0);\n}\n',
+      'src/index.test.ts': VITEST_FILE,
+      '.github/workflows/ci.yml': CI_WORKFLOW,
+      '.github/PULL_REQUEST_TEMPLATE.md': PR_TEMPLATE,
+      'README.md': '# history-shallow-depth-1\n\nA fixture repository.\n',
+    },
+    commits: [
+      {
+        message: 'Add local settings',
+        write: { '.env': `STRIPE_SECRET_KEY=${SYNTHETIC_BRANDED_SECRET}\n` },
+      },
+      {
+        message: 'Merge pull request #2 from example-org/drop-env',
+        write: { '.gitignore': '.env\nnode_modules/\ndist/\n' },
+        remove: ['.env'],
+      },
+      {
+        message: 'Document the total helper (#3)',
+        write: { 'README.md': '# history-shallow-depth-1\n\nA fixture repository.\n\n`total` sums cents.\n' },
+      },
+      {
+        message: 'Merge pull request #4 from example-org/changelog',
+        write: { 'CHANGELOG.md': '# Changelog\n\n## 1.2.0\n\n- Added `total`.\n' },
+      },
+    ],
+    cloneDepth: 1,
+  },
+  {
+    name: 'publish-after-check-workflow',
+    purpose:
+      'B3: the only workflow has no pull-request trigger and publishes on every push to main, ' +
+      'after running the tests in the same job. Since the 1 November #517 correction (#620) ' +
+      'witan-rubric-v27 counts it as CI verification, as every other rubric always has; before it, ' +
+      'v27 did not. Added with the shallow specimen (#622): until then the corpus held no ' +
+      'publishing workflow, so that v27 change moved no fingerprint.',
+    files: {
+      'package.json': manifest({
+        name: 'publish-after-check-workflow',
+        version: '2.3.0',
+        main: 'index.js',
+        scripts: { test: 'vitest run' },
+        devDependencies: { vitest: '2.0.5' },
+      }),
+      'package-lock.json': manifest({ name: 'publish-after-check-workflow', lockfileVersion: 3, packages: {} }),
+      'index.js': 'export const total = (cents) => cents.reduce((a, b) => a + b, 0);\n',
+      'index.test.js': "import { expect, it } from 'vitest';\nimport { total } from './index.js';\n\nit('sums', () => {\n  expect(total([1, 2])).toBe(3);\n});\n",
+      '.github/workflows/release.yml': [
+        'name: release',
+        'on:',
+        '  push:',
+        '    branches: [main]',
+        'jobs:',
+        '  test-and-publish:',
+        '    runs-on: ubuntu-latest',
+        '    steps:',
+        '      - uses: actions/checkout@v4',
+        '      - run: npm ci',
+        '      - run: npm test',
+        '      - run: npm publish',
+        '',
+      ].join('\n'),
+      'README.md': '# publish-after-check-workflow\n\nA fixture repository.\n',
+    },
+  },
 ];
 
 /**
@@ -901,7 +1006,29 @@ export const BEHAVIOUR_CORPUS_HEAD_SHAS: Readonly<Record<string, string>> = Obje
   'tape-assertions': '347020854b8d0c69f33539345c665d8bd6c09a5f',
   'hmac-digest-compare': '6eedfe0233fa9ceac025d1afc533171920c14cad',
   'unkeyed-digest-controls': 'c668be91818f3dfd912ad8b4e3eb8be97e7fbe6e',
+  // HEAD of the depth-1 clone, which is HEAD of the five-commit repository it was cloned from.
+  'history-shallow-depth-1': '3944940342383be5229713a4ee53c663a4aaf8e0',
+  'publish-after-check-workflow': '4361aace505c30ead0142170239d6a1433a2b01c',
 });
+
+/**
+ * The specimens #622 added, in corpus order, after every specimen before them. The extension proof
+ * in rubric-behaviour-fingerprint.test.ts scores the corpus without them and reads the fingerprints
+ * main carried before the extension.
+ */
+export const BEHAVIOUR_CORPUS_ADDED_BY_622: readonly string[] = Object.freeze([
+  'history-shallow-depth-1',
+  'publish-after-check-workflow',
+]);
+
+/**
+ * What the materialiser's output depends on beyond the fixture text, for #622's shallow specimen:
+ * git 2.28 or later (`git init --initial-branch`; the corpus needed it before #622), and the file
+ * transport for `git clone --depth`. HERMETIC_GIT_ENV masks the global and system git config and
+ * fixes identity, dates and TZ; each later commit's date is the fixture's date plus its index in
+ * minutes. behaviour-corpus-history-622.test.ts checks the git version.
+ */
+export const BEHAVIOUR_CORPUS_MINIMUM_GIT: readonly [number, number] = [2, 28];
 
 /**
  * Materialise a fixture into a fresh temp directory and commit it. Commits are unsigned and take
@@ -909,22 +1036,74 @@ export const BEHAVIOUR_CORPUS_HEAD_SHAS: Readonly<Record<string, string>> = Obje
  */
 export function buildBehaviourFixture(fixture: BehaviourFixture): string {
   const dir = mkdtempSync(join(tmpdir(), `cejel-behaviour-${fixture.name}-`));
-  const env = fixture.commitDate
-    ? {
-        ...HERMETIC_GIT_ENV,
-        GIT_AUTHOR_DATE: fixture.commitDate,
-        GIT_COMMITTER_DATE: fixture.commitDate,
-      }
-    : HERMETIC_GIT_ENV;
-  git(dir, ['init', '--quiet', '--initial-branch=main'], env);
-  for (const [relativePath, contents] of Object.entries(fixture.files)) {
+  const commitEnv = (minutesAfter: number): NodeJS.ProcessEnv => {
+    if (fixture.commitDate === undefined && minutesAfter === 0) return HERMETIC_GIT_ENV;
+    const date =
+      minutesAfter === 0
+        ? (fixture.commitDate as string)
+        : commitDateMinutesAfter(fixture.commitDate ?? CORPUS_COMMIT_DATE, minutesAfter);
+    return { ...HERMETIC_GIT_ENV, GIT_AUTHOR_DATE: date, GIT_COMMITTER_DATE: date };
+  };
+  git(dir, ['init', '--quiet', '--initial-branch=main'], commitEnv(0));
+  writeFixtureFiles(dir, fixture.files);
+  git(dir, ['add', '-A'], commitEnv(0));
+  git(dir, ['commit', '--quiet', '--no-gpg-sign', '-m', 'initial commit'], commitEnv(0));
+  (fixture.commits ?? []).forEach((commit, index) => {
+    const env = commitEnv(index + 1);
+    writeFixtureFiles(dir, commit.write ?? {});
+    for (const relativePath of commit.remove ?? []) rmSync(join(dir, relativePath));
+    git(dir, ['add', '-A'], env);
+    git(dir, ['commit', '--quiet', '--no-gpg-sign', '-m', commit.message], env);
+  });
+  if (fixture.cloneDepth === undefined) return dir;
+  return cloneAtDepth(fixture, dir, fixture.cloneDepth);
+}
+
+/** The corpus-wide commit date, HERMETIC_GIT_ENV's. */
+const CORPUS_COMMIT_DATE = HERMETIC_GIT_ENV.GIT_COMMITTER_DATE as string;
+
+/** `date` (ISO-8601 with an offset) moved `minutes` later, written in UTC as `+00:00`. */
+function commitDateMinutesAfter(date: string, minutes: number): string {
+  const moved = new Date(Date.parse(date) + minutes * 60_000);
+  if (Number.isNaN(moved.getTime())) throw new Error(`not a commit date: ${date}`);
+  return `${moved.toISOString().slice(0, 19)}+00:00`;
+}
+
+function writeFixtureFiles(dir: string, files: Readonly<Record<string, string>>): void {
+  for (const [relativePath, contents] of Object.entries(files)) {
     const fullPath = join(dir, relativePath);
     mkdirSync(dirname(fullPath), { recursive: true });
     writeFileSync(fullPath, contents, 'utf8');
   }
-  git(dir, ['add', '-A'], env);
-  git(dir, ['commit', '--quiet', '--no-gpg-sign', '-m', 'initial commit'], env);
-  return dir;
+}
+
+/**
+ * `git clone --depth <depth>` of `origin` over the file transport, beside it, returned only once
+ * git itself says the clone is shallow. A plain path would clone locally, and a local clone
+ * ignores `--depth` (git warns and copies every object), which would scan a full clone under a
+ * specimen that claims to be shallow. `protocol.file.allow=always` keeps the file transport
+ * allowed on gits that restrict it.
+ */
+function cloneAtDepth(fixture: BehaviourFixture, origin: string, depth: number): string {
+  if (!Number.isInteger(depth) || depth < 1) throw new Error(`${fixture.name}: cloneDepth must be a positive integer`);
+  const target = mkdtempSync(join(tmpdir(), `cejel-behaviour-${fixture.name}-depth-${depth}-`));
+  rmSync(target, { recursive: true });
+  git(tmpdir(), [
+    '-c',
+    'protocol.file.allow=always',
+    'clone',
+    '--quiet',
+    '--no-tags',
+    '--depth',
+    String(depth),
+    pathToFileURL(origin).href,
+    target,
+  ]);
+  const shallow = git(target, ['rev-parse', '--is-shallow-repository']).trim();
+  if (shallow !== 'true') {
+    throw new Error(`${fixture.name}: the --depth ${depth} clone reports is-shallow-repository ${shallow}`);
+  }
+  return target;
 }
 
 export function fixtureHeadSha(dir: string): string {
