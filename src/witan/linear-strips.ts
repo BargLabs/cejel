@@ -121,12 +121,12 @@ function firstLineStart(text: string, from: number, to: number): number {
 /**
  * `text.replace(/^\s*#.*$/gm, '')`. That regex removes a line led by `#` together with the blank
  * lines before it (its `\s*` crosses line ends), but retried the blank run from every line start
- * (quadratic). Here the line-bounded `^(?:(?=.)\s)*#.*$` finds the same comment lines,
+ * (quadratic). Here the line-bounded `^[^\S\n\r\u2028\u2029]*#.*$` finds the same comment lines,
  * and each removal is widened back to where the old `\s*` began: the first line start in the
  * blank run before the line, never before the end of the previous removal.
  */
 export function stripLineLedHashCommentLines(text: string): string {
-  const pattern = /^(?:(?=.)\s)*#.*$/gm;
+  const pattern = /^[^\S\n\r\u2028\u2029]*#.*$/gm;
   let result = '';
   let kept = 0;
   for (let match = pattern.exec(text); match !== null; match = pattern.exec(text)) {
@@ -140,7 +140,7 @@ export function stripLineLedHashCommentLines(text: string): string {
 
 /**
  * `old.exec(text)` for `old` shaped `(?:^|[{,])\s*K` under `m`, given `match = linear.exec(text)`
- * for `linear` the same pattern with `\s*` written `(?:(?=.)\s)*` (both from index 0).
+ * for `linear` the same pattern with `\s*` written `[^\S\n\r\u2028\u2029]*` (both from index 0).
  * Both match the same key with the same groups and end: the old `\s*` only also crossed the blank
  * lines before the key's line. So the match is widened back to where the old one began: the `{` or
  * `,` before the blank run, or else the run's first line start. The array is changed in place.

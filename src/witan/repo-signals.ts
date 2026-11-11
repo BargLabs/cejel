@@ -1350,11 +1350,12 @@ const HTML_SOURCE_EXTENSION_PATTERN = /\.(?:html?|xhtml)$/i;
 const HTML_META_REFRESH_PATTERN =
   /<meta\b(?=[^>]*\bhttp-equiv\s*=\s*["']?\s*refresh\b)(?=[^>]*\bcontent\s*=\s*["'][^"']*\burl\s*=)[^>]*>/i;
 const RUBY_PACKAGE_RECIPE_CLASS_PATTERN = /\bclass\s+[A-Za-z0-9_:]+\s*<\s*(?:Formula|Cask)\b/;
-// `(?:(?=.)\s)*` is `\s*` within one line: a blank that `.` also matches is no line terminator.
-// For a `test`, `^\s*X` under `m` matches exactly when `^(?:(?=.)\s)*X` does (X's own line
-// start is a `^`), and the old form retried every blank line before X from each line start
-// (#550, quadratic). The same holds for `(?:^|[{,])\s*X`.
-const RUBY_PACKAGE_RECIPE_URL_PATTERN = /^(?:(?=.)\s)*url\s+["'][^"']+["']/m;
+// `[^\S\n\r\u2028\u2029]*` is `\s*` within one line: every `\s` but the four line
+// terminators. For a `test`, `^\s*X` under `m` matches exactly when the class form does
+// (X's own line start is a `^`), and the old form retried every blank line before X from each
+// line start (#550, quadratic). The same holds for `(?:^|[{,])\s*X`. It is a class, not
+// `(?:(?=.)\s)`: V8 12.4 (Node 22) compiles that group wrongly under `m` once it tiers up.
+const RUBY_PACKAGE_RECIPE_URL_PATTERN = /^[^\S\n\r\u2028\u2029]*url\s+["'][^"']+["']/m;
 const RUBY_PACKAGE_RECIPE_PATH_PATTERN = /(^|\/)(?:Formula|Casks?)(\/|$)/;
 
 interface RepresentativeSourceGroup {
@@ -4229,7 +4230,7 @@ function collectA3ProdReadinessEvidence(
       });
     } else if (runtimeContainer) {
       const hasActiveHealthcheck = withContentReadSignal('A3', 'dockerfile_healthcheck', () =>
-        fileContains(repoPath, runtimeContainer, /^(?:(?=.)\s)*HEALTHCHECK\s+(?!NONE\b)/im),
+        fileContains(repoPath, runtimeContainer, /^[^\S\n\r\u2028\u2029]*HEALTHCHECK\s+(?!NONE\b)/im),
       );
       if (!hasActiveHealthcheck) {
         findings.push({
@@ -21545,14 +21546,14 @@ function isTestRunnerConfig(repoPath: string, file: string): boolean {
     (/(^|\/)CMakeLists\.txt$/.test(file) &&
       fileContains(repoPath, file, /\b(?:enable_testing|add_test|ctest_add_tests)\s*\(/i)) ||
     (/(^|\/)Makefile$/.test(file) &&
-      fileContains(repoPath, file, /^(?:(?=.)\s)*(?:test|tests|check)\s*:/m))
+      fileContains(repoPath, file, /^[^\S\n\r\u2028\u2029]*(?:test|tests|check)\s*:/m))
   );
 }
 
 function isRecipeTestEntry(repoPath: string, file: string): boolean {
   return (
     isRecipeFile(file) &&
-    fileContains(repoPath, file, /^(?:(?=.)\s)*(?:test|tests|check)\s*:/m)
+    fileContains(repoPath, file, /^[^\S\n\r\u2028\u2029]*(?:test|tests|check)\s*:/m)
   );
 }
 
@@ -22570,7 +22571,7 @@ const WORKFLOW_ARTIFACT_ACTION_PATTERN =
 
 function workflowClaimArtifactDeclarations(contents: string): ClaimArtifactDeclaration[] {
   // A step that may run elsewhere than the repository root names a path Cejel cannot resolve.
-  if (/^(?:(?=.)\s)*(?:-\s+)?working-directory\s*:/m.test(contents)) return [];
+  if (/^[^\S\n\r\u2028\u2029]*(?:-\s+)?working-directory\s*:/m.test(contents)) return [];
   const declarations: ClaimArtifactDeclaration[] = [];
   let stepsIndent: number | null = null;
   let stepItemIndent: number | null = null;
@@ -22690,14 +22691,14 @@ function isCoverageConfig(repoPath: string, file: string): boolean {
   }
   if (/(^|\/)(?:setup\.cfg|tox\.ini)$/.test(file)) {
     // coverage.py reads these files only under the `coverage:`-prefixed section names.
-    return fileContains(repoPath, file, /^(?:(?=.)\s)*\[coverage:(?:run|report)\]\s*$/m);
+    return fileContains(repoPath, file, /^[^\S\n\r\u2028\u2029]*\[coverage:(?:run|report)\]\s*$/m);
   }
   if (/(^|\/)vite\.config\.[cm]?[jt]s$/.test(file)) {
     return viteConfigCollectsCoverage(repoPath, file);
   }
   if (/(^|\/)\.simplecov$/.test(file)) {
     // A line that can hold SimpleCov has a non-blank, so `\s*` in the lookahead never left it.
-    return fileContains(repoPath, file, /^(?!(?:(?=.)\s)*#).*\bSimpleCov\b/m);
+    return fileContains(repoPath, file, /^(?![^\S\n\r\u2028\u2029]*#).*\bSimpleCov\b/m);
   }
   if (/(^|\/)phpunit\.xml(?:\.dist)?$/.test(file)) {
     return /<coverage(?=[\s>/])/.test(stripXmlComments(readRepoText(join(repoPath, file), 'utf8')));
@@ -22750,7 +22751,7 @@ function packageJsonHasCoverageTooling(repoPath: string, file: string): boolean 
 // have comments stripped.
 function vitestCoveragePropertyCollects(contents: string): boolean {
   const property = widenToLeadingBlankRun(
-    /(?:^|[{,])(?:(?=.)\s)*["']?coverage["']?\s*:\s*([^,\r\n}]*)/im.exec(contents),
+    /(?:^|[{,])[^\S\n\r\u2028\u2029]*["']?coverage["']?\s*:\s*([^,\r\n}]*)/im.exec(contents),
     contents,
   )?.[1]?.trim();
   if (!property || /^(?:false\b|null\b|undefined\b)/i.test(property)) return false;
@@ -22771,7 +22772,7 @@ function viteConfigCollectsCoverage(repoPath: string, file: string): boolean {
   }
   const contents = stripJavaScriptComments(readRepoText(join(repoPath, file), 'utf8'));
   const testProperty = widenToLeadingBlankRun(
-    /(?:^|[{,])(?:(?=.)\s)*["']?test["']?\s*:\s*\{/m.exec(contents),
+    /(?:^|[{,])[^\S\n\r\u2028\u2029]*["']?test["']?\s*:\s*\{/m.exec(contents),
     contents,
   );
   if (!testProperty) return false;
@@ -22842,8 +22843,8 @@ function isV23CoverageConfig(repoPath: string, file: string): boolean {
   if (/(^|\/)jest\.config\.[cm]?[jt]s$/.test(file)) {
     const contents = stripJavaScriptComments(readRepoText(join(repoPath, file), 'utf8'));
     return (
-      /(?:^|[{,])(?:(?=.)\s)*["']?collectCoverage["']?\s*:\s*true\b/m.test(contents) ||
-      /(?:^|[{,])(?:(?=.)\s)*["']?(?:coverageThreshold|coverageProvider|coverageDirectory)["']?\s*:/m.test(
+      /(?:^|[{,])[^\S\n\r\u2028\u2029]*["']?collectCoverage["']?\s*:\s*true\b/m.test(contents) ||
+      /(?:^|[{,])[^\S\n\r\u2028\u2029]*["']?(?:coverageThreshold|coverageProvider|coverageDirectory)["']?\s*:/m.test(
         contents,
       )
     );
@@ -22863,7 +22864,7 @@ function coverageConfigurationDecision(
     const rawContents = readRepoText(join(repoPath, file), 'utf8');
     const contents = stripJavaScriptComments(rawContents);
     const match = widenToLeadingBlankRun(
-      /(?:^|[{,])(?:(?=.)\s)*["']?coverage["']?\s*:\s*([^,\r\n}]*)/im.exec(contents),
+      /(?:^|[{,])[^\S\n\r\u2028\u2029]*["']?coverage["']?\s*:\s*([^,\r\n}]*)/im.exec(contents),
       contents,
     );
     if (!match) return null;
@@ -22880,7 +22881,7 @@ function coverageConfigurationDecision(
     const rawContents = readRepoText(join(repoPath, file), 'utf8');
     const contents = stripJavaScriptComments(rawContents);
     const match = widenToLeadingBlankRun(
-      /(?:^|[{,])(?:(?=.)\s)*["']?(collectCoverage|coverageThreshold|coverageProvider|coverageDirectory)["']?\s*:\s*([^,\r\n}]*)/m.exec(
+      /(?:^|[{,])[^\S\n\r\u2028\u2029]*["']?(collectCoverage|coverageThreshold|coverageProvider|coverageDirectory)["']?\s*:\s*([^,\r\n}]*)/m.exec(
         contents,
       ),
       contents,
@@ -24374,9 +24375,9 @@ const EXPRESS_MIDDLEWARE_REACHABLE_PATTERN =
 const ERROR_BOUNDARY_FILENAME_PATTERN = /(^|\/)(?:error-boundary|error)\.(?:tsx|jsx|ts|js)$/;
 const RACK_SERVER_ENTRYPOINT_PATTERN = /Rack::(?:Server|Handler(?:::\w+)?)\.(?:start|run)\s*\(/;
 const RACK_CONFIG_RUN_PATTERN =
-  /^(?:(?=.)\s)*run\s+(?:(?:[A-Z]\w*(?:::\w+)*(?:\.new)?|lambda)\b|->)/m;
+  /^[^\S\n\r\u2028\u2029]*run\s+(?:(?:[A-Z]\w*(?:::\w+)*(?:\.new)?|lambda)\b|->)/m;
 const RUNTIME_CONTAINER_COMMAND_PATTERN =
-  /^(?:(?=.)\s)*(?:CMD|ENTRYPOINT)\s+.*(?:\b(?:start|serve|server|qgis|nginx|apache|gunicorn|uvicorn)\b|manage\.py\s+runserver).*$/im;
+  /^[^\S\n\r\u2028\u2029]*(?:CMD|ENTRYPOINT)\s+.*(?:\b(?:start|serve|server|qgis|nginx|apache|gunicorn|uvicorn)\b|manage\.py\s+runserver).*$/im;
 const NON_RUNTIME_CONTAINER_COMMAND_PATTERN = /\b(?:test|lint|build|compile|package|check)\b/i;
 const V20_NODE_RUNTIME_CONTAINER_COMMAND_PATTERN =
   /\bnode\b.*\b(?:main|server|app|service|index)\.(?:[cm]?js|ts)\b/i;
