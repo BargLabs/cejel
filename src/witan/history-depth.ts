@@ -3,7 +3,13 @@ import { dirname, join, resolve } from 'node:path';
 
 import type { WitanReport } from './schemas.js';
 
-import { execGit, findVisibleGitMetadata } from './git-exec.js';
+import {
+  type GitExecFailureReason,
+  describeGitFailure,
+  execGit,
+  findVisibleGitMetadata,
+  isExpectedGitAbsence,
+} from './git-exec.js';
 import { WITAN_RUBRIC_VERSION_V27 } from './rubric-version.js';
 
 /**
@@ -213,8 +219,40 @@ export const isWitanV27HistoryDepthUnknownAbstention = isWitanHistoryDepthUnknow
  * as "complete".
  */
 export function isShallowRepository(repoPath: string): boolean {
+  return readShallowAnswer(repoPath).shallow;
+}
+
+/**
+ * #574 item 3: isShallowRepository's answer, and, where git failed for a reason other than an
+ * expected absence (a timeout, an output limit, a failed run), that reason. `shallow` is false then,
+ * as before, so every rubric that reads it scores exactly as before; the caller states the failed
+ * read (shallowCheckFailureLimitation), and v27 abstains where the answer decides a score.
+ */
+export interface ShallowAnswer {
+  readonly shallow: boolean;
+  readonly failure?: GitExecFailureReason;
+}
+
+export function readShallowAnswer(repoPath: string): ShallowAnswer {
   const result = execGit(['rev-parse', '--is-shallow-repository'], { cwd: repoPath });
-  return result.ok && result.stdout.trim() === 'true';
+  if (result.ok) return { shallow: result.stdout.trim() === 'true' };
+  return isExpectedGitAbsence(result) ? { shallow: false } : { shallow: false, failure: result.reason };
+}
+
+/** The scan limitation for a failed shallow-clone check (#574 item 3). One sentence per reason. */
+export function shallowCheckFailureLimitation(reason: GitExecFailureReason): string {
+  return `${describeGitFailure(reason, 'shallow-clone check')} Cejel could not tell from git whether this clone is shallow.`;
+}
+
+/**
+ * The scan limitation for a failed history-depth check (#574 item 3). The depth is then read from
+ * the `shallow` file in the common git directory, the file git itself reads to answer
+ * `--is-shallow-repository` (historyDepthFromFiles), so the evidence is the same. The one
+ * difference is a `shallow` file Cejel can see and git cannot open: git reads that as complete, the
+ * files read it as shallow, the cautious side.
+ */
+export function historyDepthFailureLimitation(reason: GitExecFailureReason): string {
+  return `${describeGitFailure(reason, 'history-depth check')} Cejel read the history depth from the repository's own shallow file, which is the file git reads to answer.`;
 }
 
 /**
@@ -228,16 +266,29 @@ export function isShallowRepository(repoPath: string): boolean {
 export type HistoryDepth = 'shallow' | 'complete' | 'not_a_repository' | 'unknown';
 
 export function readHistoryDepth(repoPath: string): HistoryDepth {
+  return readHistoryDepthAnswer(repoPath).depth;
+}
+
+/**
+ * #574 item 3: readHistoryDepth's answer, and, where git failed for a reason other than an expected
+ * absence, that reason, so the caller can state it (historyDepthFailureLimitation). The depth is
+ * the same either way.
+ */
+export function readHistoryDepthAnswer(repoPath: string): {
+  readonly depth: HistoryDepth;
+  readonly failure?: GitExecFailureReason;
+} {
   const result = execGit(['rev-parse', '--is-shallow-repository'], { cwd: repoPath });
   if (result.ok) {
     const answer = result.stdout.trim();
-    if (answer === 'true') return 'shallow';
-    if (answer === 'false') return 'complete';
+    if (answer === 'true') return { depth: 'shallow' };
+    if (answer === 'false') return { depth: 'complete' };
     // Any other answer (a git too old to know the option echoes it back) settles nothing.
   }
+  const failure = !result.ok && !isExpectedGitAbsence(result) ? { failure: result.reason } : {};
   const entry = findVisibleGitMetadata(repoPath);
-  if (entry === undefined) return result.ok ? 'unknown' : 'not_a_repository';
-  return historyDepthFromFiles(entry);
+  if (entry === undefined) return { depth: result.ok ? 'unknown' : 'not_a_repository', ...failure };
+  return { depth: historyDepthFromFiles(entry), ...failure };
 }
 
 /** A filesystem error that proves the entry is not there (as opposed to unreadable). */
@@ -352,6 +403,20 @@ export function historyDepthAbstentionReason(
  * ratio) happen in the collectors, not here.
  */
 export function detectHistoryLimitations(repoPath: string): string[] | undefined {
-  if (!isShallowRepository(repoPath)) return undefined;
-  return [SHALLOW_HISTORY_V27_ABSTENTION];
+  return detectHistoryLimitationsAnswer(repoPath).historyLimitations;
+}
+
+/**
+ * #574 item 3: detectHistoryLimitations, and the scan limitation for a failed shallow-clone check.
+ * The disclosure says git reported the clone shallow, so it is written only where git answered; the
+ * report-level abstention, which reads the shallow file where git cannot answer (readHistoryDepth),
+ * is unchanged.
+ */
+export function detectHistoryLimitationsAnswer(repoPath: string): {
+  readonly historyLimitations?: string[];
+  readonly scanLimitation?: string;
+} {
+  const answer = readShallowAnswer(repoPath);
+  if (answer.failure !== undefined) return { scanLimitation: shallowCheckFailureLimitation(answer.failure) };
+  return answer.shallow ? { historyLimitations: [SHALLOW_HISTORY_V27_ABSTENTION] } : {};
 }

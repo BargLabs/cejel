@@ -76,8 +76,10 @@ import {
   NO_GIT_HISTORY_INSTRUCTION,
   type UnreadHistoryDepth,
   historyDepthAbstentionReason,
-  isShallowRepository,
-  readHistoryDepth,
+  historyDepthFailureLimitation,
+  readHistoryDepthAnswer,
+  readShallowAnswer,
+  shallowCheckFailureLimitation,
   unreadHistoryDepth,
 } from './history-depth.js';
 import { stripBom } from './json-safe.js';
@@ -731,7 +733,10 @@ function buildWitanInputFromRepoUntracked(
   // gives no composite and no verdict, and A2 abstains on it as v27's A2 does. Read once, here, so
   // the A2 collector and the report-level reason below agree. Undefined for a complete clone, which
   // every rubric scores exactly as before.
-  const unreadHistory = unreadHistoryDepth(readHistoryDepth(options.repoPath));
+  // #574 item 3: where git's answer failed, the depth comes from the same shallow file git reads,
+  // and the failed read is stated below.
+  const historyDepth = readHistoryDepthAnswer(options.repoPath);
+  const unreadHistory = unreadHistoryDepth(historyDepth.depth);
   const structuralArchetype = classifyRepoArchetype(inventoryFiles, rubricVersion);
   const readableArchetype =
     rubricVersion === WITAN_RUBRIC_VERSION_V13 ||
@@ -805,6 +810,9 @@ function buildWitanInputFromRepoUntracked(
     ? buildReviewableSourceProof(options.repoPath, inventoryFiles, headSha, rubricVersion)
     : undefined;
   const scanLimitations = new Set(fileInventory.scanLimitations);
+  if (historyDepth.failure !== undefined) {
+    scanLimitations.add(historyDepthFailureLimitation(historyDepth.failure));
+  }
   const coreSignals = collectRepoSignals(
     options.repoPath,
     generatedAt,
@@ -2018,7 +2026,7 @@ function collectRepoSignals(
     'Repository scans do not evaluate the dispatch-trace process dimension.',
   );
   const b2Signal = collectCriterion('B2', () =>
-    collectB2PrTraceEvidence(repoPath, repoFiles, useV27FalseAssuranceClosure),
+    collectB2PrTraceEvidence(repoPath, repoFiles, useV27FalseAssuranceClosure, scanLimitations),
   );
   const b3Signal = collectCriterion('B3', () =>
     collectB3CiDisciplineEvidence(repoPath, repoFiles, mono, useV27FalseAssuranceClosure),
@@ -6290,7 +6298,14 @@ function a2HistoryIncompleteness(
   reads: HistoryReadRecorder,
   blobCapHit: boolean,
 ): A2HistoryIncompleteness | null {
-  const shallow = isShallowRepository(repoPath);
+  // #574 item 3: a failed shallow-clone check is a failed history read like any other (#560): it is
+  // stated, and A2 counts it as an incomplete read, so v27 abstains where the answer decides A2.
+  const shallowAnswer = readShallowAnswer(repoPath);
+  if (shallowAnswer.failure !== undefined) {
+    reads.noteFailure(shallowAnswer.failure);
+    reads.add(shallowCheckFailureLimitation(shallowAnswer.failure));
+  }
+  const shallow = shallowAnswer.shallow;
   const limitHits = [...reads.limitHits].sort();
   const controlCharacterSkip = reads.controlCharacterCandidate;
   // Checked only when git was found absent, so an ordinary scan does no extra filesystem work.
@@ -6583,6 +6598,14 @@ const B2_SHALLOW_RATIO_WITHHELD_NOTE =
   'read over its window. B2 is scored on the CI workflows, pull-request template and review-gate ' +
   'record in the checked-out files, with the ratio left out of its score rather than scored on the ' +
   'commits present. Re-scan a full clone (for actions/checkout, set fetch-depth: 0).';
+// #574 item 3, v27 only: git's shallow-clone check failed (the scan limitations name the read and its
+// reason), and fewer commits are visible than the ratio reads, so whether the ratio would be read
+// over a truncated window is not known. A read failure: B2 stays in the composite at 0.
+export const B2_SHALLOW_CHECK_FAILED_NOTE =
+  'B2 abstained: Cejel could not tell whether this clone is shallow, because git failed to answer ' +
+  `(the scan limitations name the failed read), and fewer than ${RECENT_COMMIT_WINDOW} commits are ` +
+  'visible, so the pull-request merge ratio may be read over a truncated window. Under v27 B2 is not ' +
+  'scored on that ratio; it stays in the composite at 0. Re-scan once the local git failure is resolved.';
 
 /**
  * A criterion that reads commit history, abstaining because the clone is shallow or a history read
@@ -6611,6 +6634,7 @@ function collectB2PrTraceEvidence(
   repoPath: string,
   repoFiles: readonly string[],
   useV27FalseAssuranceClosure = false,
+  scanLimitations: Set<string> = new Set(),
 ): WitanCriterionSignalPayload | null {
   const workflows = repoFiles.filter(isCiWorkflow);
   // GitHub recognizes both the single-file form (pull_request_template.md) and the directory
@@ -6679,8 +6703,22 @@ function collectB2PrTraceEvidence(
   // score, B2 abstains out of the composite instead. v27 does the same since the v27 freeze change
   // F1 (operator decision 2026-10-28); before it, v27 abstained on all of B2 as a read failure at 0.
   // Under v27 a workflow it does not credit still has its disclosure, whichever way B2 goes.
+  // #574 item 3: a failed shallow-clone check reads as "not shallow", as before, and is stated.
+  const shallowAnswer = readShallowAnswer(repoPath);
+  if (shallowAnswer.failure !== undefined) {
+    scanLimitations.add(shallowCheckFailureLimitation(shallowAnswer.failure));
+  }
   const ratioWithheld =
-    isShallowRepository(repoPath) && readRecentCommits(repoPath).length < RECENT_COMMIT_WINDOW;
+    shallowAnswer.shallow && readRecentCommits(repoPath).length < RECENT_COMMIT_WINDOW;
+  // #574 item 3, v27 only: where the check failed and fewer commits are visible than the ratio's
+  // window, the failed read decides whether the ratio is read over a truncated window, so B2
+  // abstains as #560 set for A2 on a failed history read: no insufficientDataReason, so it stays in
+  // the composite at 0 and v27 cannot rise above v17. With a full window visible the answer decides
+  // nothing, and B2 is scored as before.
+  const shallowCheckDecidesRatio =
+    useV27FalseAssuranceClosure &&
+    shallowAnswer.failure !== undefined &&
+    readRecentCommits(repoPath).length < RECENT_COMMIT_WINDOW;
   const uncreditedDisclosures =
     uncredited.size > 0
       ? {
@@ -6694,6 +6732,12 @@ function collectB2PrTraceEvidence(
     uncreditedNote
       ? `${note} ${uncreditedCiWorkflowNote(uncredited, 'a PR-trace CI workflow', CRITERION_NOTES_MAX_LENGTH - note.length - 1)}`
       : note;
+  if (shallowCheckDecidesRatio) {
+    return {
+      ...shallowHistoryAbstention('B2', withUncreditedNote(B2_SHALLOW_CHECK_FAILED_NOTE)),
+      ...uncreditedDisclosures,
+    };
+  }
   if (ratioWithheld && prTracePrimitives === 0) {
     return {
       ...shallowHistoryAbstention('B2', withUncreditedNote(B2_SHALLOW_HISTORY_NOTE)),
