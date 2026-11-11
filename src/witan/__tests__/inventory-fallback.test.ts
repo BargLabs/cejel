@@ -93,8 +93,12 @@ describe('tracked-file inventory fallback', () => {
 
     const { report } = runCejelScan({ repoPath });
 
+    // The mock answers every other git call with an empty output, the history-depth check
+    // included: git exits 0 and prints neither true nor false, and no `.git` entry is visible.
+    // Since the operator's ruling of 11 Nov (#574 item 3) the scan states that it got no answer.
     expect(report.scanLimitations).toEqual([
       expect.stringContaining('output exceeded the explicit 8 MiB limit'),
+      "Cejel: local git history-depth check gave no answer (git printed neither true nor false). Cejel could not read the history depth from the repository's files either.",
     ]);
     expect(JSON.stringify(report)).toContain('bounded directory walk');
     expect(JSON.stringify(report)).not.toContain('complete tracked inventory');

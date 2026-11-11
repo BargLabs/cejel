@@ -103,6 +103,62 @@ rubric is pinned. v27 carries no precision or recall claim.
 
 ### Fixed
 
+- **A failed or timed-out git call no longer silently changes which evidence a scan reads (#574
+  item 3).** On main, four calls let a timeout, an output limit or a failed run pass with nothing
+  stated, so the same commit could give a different report on a loaded machine than on an idle
+  one: git's shallow-clone check (`rev-parse --is-shallow-repository`), the history-depth check
+  (the same command, read separately), the HEAD committer-time read that ingested inputs'
+  freshness is checked against, and v27 A1's listing of every tracked file before it credits a
+  builtin copy of pytest's collected items.
+  - **One history-depth answer per scan.** The scan now asks git for the depth once
+    (`readHistoryDepthAnswer`), and the report-level abstention, A2, B2 and the shallow-history
+    disclosure all use that answer. Until this fix each of them ran its own check and fell back
+    differently, so one scan could hold four answers. Where git's check fails, the depth comes
+    from the repository's `shallow` file, the file git itself reads to answer.
+  - **Under every rubric**, each failed read, for a reason other than an expected absence, is a
+    scan limitation: "Cejel: local git history-depth check exceeded the 30 second timeout. Cejel
+    read the history depth from the repository's own shallow file, which is the file git reads to
+    answer." (or "… Cejel could not read the history depth from the repository's files either."
+    where they cannot settle it), "… HEAD committer-time discovery …" wherever there is an
+    ingested input, and, under v27, "Cejel: local git full tracked-file inventory … A1 credited no
+    copy of pytest's collected items made through a builtin, because the files that may replace
+    the builtin could not be listed."
+  - **Under every rubric, a depth check git does not answer is stated too.** A git too old to
+    know `--is-shallow-repository` exits 0 and prints the option back, and the depth is then read
+    from the `.git` files with, until now, nothing said. The scan now adds "Cejel: local git
+    history-depth check gave no answer (git printed neither true nor false). Cejel read the
+    history depth from the repository's own shallow file, which is the file git reads to answer."
+    (or "… Cejel could not read the history depth from the repository's files either." where they
+    cannot settle it). It is not counted as a failed read, so no score, status or verdict moves.
+    A timeout, output limit or failed run whose depth the files settle was already stated; git
+    missing or git saying there is no repository is an expected absence and still adds no scan
+    limitation.
+  - **A v17 behaviour change, on the failure path only.** Where git does not answer the depth
+    check, A2 and B2 under v17 to v26 now read the depth the `shallow` file gives, where they read
+    "not shallow" before. A score can move only there, and only toward the reading git's own answer
+    gives: on a depth-1 clone whose check failed, B2 now withholds its merge ratio, as it does when
+    git answers. The first version of this entry said a git failure moved no v17 score; that was
+    wrong for this case. Where git answers, nothing changes.
+  - **Under every rubric, v17 included, where git failed and the files cannot settle the depth**
+    (a timeout, an output limit or a failed run, not an expected absence), A2 counts the failed
+    check as a failed history read and abstains, unless a confirmed critical secret finding stands:
+    the report already withholds its verdict for the unknown depth, and under that withholding
+    every rubric's A2 abstains on an incomplete history read (operator ruling of 2 Nov). Where A2
+    was not applicable on main (score 0), it is now `insufficient_data` (score 0). The composite
+    stays null and the verdict `insufficient_source`, as on main. B2 under v17 to v26 reads "not
+    shallow" there, as before. This round's first records said v17's A2 read "not shallow" there
+    too and listed the A2 change under v27 only; that was wrong.
+  - **Under v27**, A2 abstains there as above, and B2, where fewer than 12 commits are visible,
+    also abstains as a read failure, only where git failed and the files cannot settle the depth
+    either. B2 then stays in the composite at 0, the #560 pattern, not out of it:
+    a failed read may lower a score but never raise it. The report withholds its verdict there
+    under every rubric, as for any depth Cejel cannot read.
+  - Where git succeeds, every report under every rubric is byte-identical: see the rubric
+    changelog entry of 2026-11-11 for the measurement on 1,018 synthetic repositories.
+    `src/witan/__tests__/git-call-sites-574.test.ts` records every `execGit` call in every source
+    file under `src/`, under whatever name it is imported, what its failure does and its class,
+    and fails on a call without one, or on any other way of reaching `execGit`.
+
 - **A file of many blank lines, or one long run of identifier characters, no longer stalls the
   scan, under every rubric (#550).** Sixteen regexes in `src/witan/repo-signals.ts`, shaped
   `^\s*X` under the `m` flag or `(?:^|[{,])\s*X`, retried a run of blank lines from every line

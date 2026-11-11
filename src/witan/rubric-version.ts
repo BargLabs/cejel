@@ -539,7 +539,19 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     operator's 26/27 Oct rule for shallow clones, as under every other rubric since #604: it
 //     withholds only its pull-request merge ratio when fewer commits are visible than its window
 //     reads, and is scored on the checked-out files, or abstains where none of them is credited.
-//     A2's abstention after a failed history read is a read failure. F1 also left A2's
+//     A2's abstention after a failed history read is a read failure. From 2026-11-11
+//     (goal_cejel_git_failure_states_its_limitation_2026-11-10, #574 item 3, as fixed after the
+//     review of b67489a96) a scan reads its history depth once (readHistoryDepthAnswer) and A2, B2,
+//     the report-level abstention and the shallow disclosure all use that one answer; where git's
+//     check fails, the depth is read from the shallow file git itself reads. A check failing for
+//     a reason other than an expected absence (a timeout, an output limit, a failed run) is stated
+//     as a scan limitation under every rubric. Under v27 it is a new cause of two abstentions only
+//     where the repository's files cannot settle the depth either, both following #560's pattern
+//     for A2 on a failed history read: A2 counts it as a failed history read, and B2, where fewer
+//     commits are visible than its window reads, abstains as a read failure, in the composite at 0
+//     (B2_SHALLOW_CHECK_FAILED_NOTE), not out of the composite as F1's shallow-only abstention was
+//     (operator ruling of 11 Nov, item B): a failed read may lower a score but never raise it.
+//     The report then abstains under every rubric with the unknown-depth reason. F1 also left A2's
 //     shallow-only abstention out of the composite (reason shallow_history), and its second pass
 //     capped the verdict at the band the composite would reach with it counted as 0. Both are
 //     removed by the operator's ruling of 1 Nov: taking A2 out of the average moved the composite
@@ -551,7 +563,7 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     fetch-depth: 0 in actions/checkout) and scan again. Each criterion is still read and shown,
 //     with A2's and B2's shallow notes. The exit status is an abstained verdict's. No report
 //     carries verdictCap any more. A full clone is unaffected. Where git cannot report the depth,
-//     readHistoryDepth reads it from the repository's .git files, and where those cannot settle it
+//     readHistoryDepthAnswer reads it from the repository's .git files, and where those cannot settle it
 //     the report abstains the same way with WITAN_V27_HISTORY_DEPTH_UNKNOWN_REASON. Until the
 //     operator's ruling of 2 Nov a directory with no .git entry was scored as before; it now
 //     abstains with noGitHistoryAbstentionReason, as under every rubric, and the ruling gives every

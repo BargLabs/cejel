@@ -75,9 +75,12 @@ import {
 import {
   NO_GIT_HISTORY_INSTRUCTION,
   type UnreadHistoryDepth,
+  type HistoryDepthAnswer,
   historyDepthAbstentionReason,
-  isShallowRepository,
-  readHistoryDepth,
+  historyDepthFailureLimitation,
+  isHistoryDepthUnsettledByFailure,
+  isShallowHistoryDepth,
+  readHistoryDepthAnswer,
   unreadHistoryDepth,
 } from './history-depth.js';
 import { stripBom } from './json-safe.js';
@@ -295,6 +298,12 @@ export interface BuildWitanInputOptions {
   // caller is responsible for also scoring against a rubric that includes the collector's
   // criterion so the extra signal actually surfaces in the report.
   domainCollectors?: readonly WitanDomainSignalCollector[];
+  /**
+   * #574 item 3 (item A of the review of b67489a96): the scan's one history-depth answer, where the
+   * caller has read it already (scoreRepoWithPublicCejel, which also writes the disclosure from
+   * it). Read here when absent. Every reader of the depth in the scan uses this one answer.
+   */
+  historyDepth?: HistoryDepthAnswer;
 }
 
 // A repository content skip is a read FAILURE (Cejel expected to read something and could not)
@@ -731,7 +740,11 @@ function buildWitanInputFromRepoUntracked(
   // gives no composite and no verdict, and A2 abstains on it as v27's A2 does. Read once, here, so
   // the A2 collector and the report-level reason below agree. Undefined for a complete clone, which
   // every rubric scores exactly as before.
-  const unreadHistory = unreadHistoryDepth(readHistoryDepth(options.repoPath));
+  // #574 item 3: the scan's one history-depth answer (item A of the review of b67489a96); A2 and B2
+  // read it too. Where git's answer failed, the depth comes from the same shallow file git reads,
+  // and the failed read is stated below.
+  const historyDepth = options.historyDepth ?? readHistoryDepthAnswer(options.repoPath);
+  const unreadHistory = unreadHistoryDepth(historyDepth.depth);
   const structuralArchetype = classifyRepoArchetype(inventoryFiles, rubricVersion);
   const readableArchetype =
     rubricVersion === WITAN_RUBRIC_VERSION_V13 ||
@@ -805,6 +818,8 @@ function buildWitanInputFromRepoUntracked(
     ? buildReviewableSourceProof(options.repoPath, inventoryFiles, headSha, rubricVersion)
     : undefined;
   const scanLimitations = new Set(fileInventory.scanLimitations);
+  const historyDepthLimitation = historyDepthFailureLimitation(historyDepth);
+  if (historyDepthLimitation !== undefined) scanLimitations.add(historyDepthLimitation);
   const coreSignals = collectRepoSignals(
     options.repoPath,
     generatedAt,
@@ -831,6 +846,7 @@ function buildWitanInputFromRepoUntracked(
     inventoryAbsenceContext,
     scanLimitations,
     unreadHistory,
+    historyDepth,
   );
   const archetype =
     usesV17Detectors &&
@@ -1940,6 +1956,7 @@ function collectRepoSignals(
   inventoryAbsenceContext: InventoryAbsenceContext = LEGACY_INVENTORY_ABSENCE_CONTEXT,
   scanLimitations: Set<string> = new Set(),
   unreadHistory?: UnreadHistoryDepth,
+  historyDepth: HistoryDepthAnswer = COMPLETE_HISTORY_DEPTH,
 ): WitanCriterionSignalPayload[] {
   const signals: WitanCriterionSignalPayload[] = [];
   // Monorepo root shared-config (lockfile/CI/dep-update) that governs a sub-package
@@ -1958,6 +1975,7 @@ function collectRepoSignals(
       reviewableSourceProof,
       inventoryAbsenceContext,
       useV27FalseAssuranceClosure,
+      scanLimitations,
     ),
   );
   const a2Signal = collectCriterion('A2', () =>
@@ -1977,6 +1995,7 @@ function collectRepoSignals(
       useV26SettlingEvidence,
       useV27FalseAssuranceClosure,
       unreadHistory,
+      historyDepth,
     ),
   );
   const a3Signal = collectCriterion('A3', () =>
@@ -2018,7 +2037,7 @@ function collectRepoSignals(
     'Repository scans do not evaluate the dispatch-trace process dimension.',
   );
   const b2Signal = collectCriterion('B2', () =>
-    collectB2PrTraceEvidence(repoPath, repoFiles, useV27FalseAssuranceClosure),
+    collectB2PrTraceEvidence(repoPath, repoFiles, useV27FalseAssuranceClosure, historyDepth),
   );
   const b3Signal = collectCriterion('B3', () =>
     collectB3CiDisciplineEvidence(repoPath, repoFiles, mono, useV27FalseAssuranceClosure),
@@ -2091,6 +2110,7 @@ function collectA1TestIntegrityEvidence(
   reviewableSourceProof?: ReviewableSourceProof,
   inventoryAbsenceContext: InventoryAbsenceContext = LEGACY_INVENTORY_ABSENCE_CONTEXT,
   useV27FalseAssuranceClosure = false,
+  scanLimitations: Set<string> = new Set(),
 ): WitanCriterionSignalPayload | null {
   const evidence: WitanEvidencePointer[] = [];
   const findings: WitanCriterionSignalPayload['findings'] = [];
@@ -2127,7 +2147,7 @@ function collectA1TestIntegrityEvidence(
   // where it puts the items back and, for a file, where a pytest run that collects it disables
   // pytest's skipping plugin (a hook that skips) or does not load the hook's conftest.py
   // (goal_cejel_v27_a1_test_count_overmatch_v2_2026-11-02, as fixed after the #626 review).
-  const runWideHooks = pytestSettings ? findPytestRunWideSkips(repoPath, repoFiles) : [];
+  const runWideHooks = pytestSettings ? findPytestRunWideSkips(repoPath, repoFiles, scanLimitations) : [];
   const runWideSkips = runWideHooks.filter((skip) => skip.withheld === undefined);
   const hookWithheldFor = (skip: PytestRunWideSkip, file: string): PytestReason | undefined => {
     if (skip.withheld !== undefined) {
@@ -2880,6 +2900,7 @@ function collectA2IsolationEvidence(
   useV26SettlingEvidence = false,
   useV27FalseAssuranceClosure = false,
   unreadHistory?: UnreadHistoryDepth,
+  historyDepth: HistoryDepthAnswer = COMPLETE_HISTORY_DEPTH,
 ): WitanCriterionSignalPayload | null {
   // v27 abstains on any incomplete history read (#442, #556). Every other rubric does so where the
   // report withholds its verdict for the history (operator ruling of 2 Nov): a shallow clone, or a
@@ -3071,6 +3092,7 @@ function collectA2IsolationEvidence(
     repoPath,
     a2HistoryReads,
     historySecretScan?.truncated === true,
+    historyDepth,
   );
   // DB client import file (checked before migrationFiles so we can use it as evidence anchor).
   const dbLayerImportFile =
@@ -6289,8 +6311,16 @@ function a2HistoryIncompleteness(
   repoPath: string,
   reads: HistoryReadRecorder,
   blobCapHit: boolean,
+  historyDepth: HistoryDepthAnswer,
 ): A2HistoryIncompleteness | null {
-  const shallow = isShallowRepository(repoPath);
+  // #574 item 3 (item A of the review of b67489a96): the scan's one history-depth answer. Where git
+  // failed and the files settled the depth, A2 reads the files' answer, as every reader does. Where
+  // they could not settle it, the failed check is a failed history read like any other (#560):
+  // A2 counts it as an incomplete read (the scan limitation, written once, names it).
+  if (isHistoryDepthUnsettledByFailure(historyDepth) && historyDepth.failure !== undefined) {
+    reads.noteFailure(historyDepth.failure);
+  }
+  const shallow = isShallowHistoryDepth(historyDepth);
   const limitHits = [...reads.limitHits].sort();
   const controlCharacterSkip = reads.controlCharacterCandidate;
   // Checked only when git was found absent, so an ordinary scan does no extra filesystem work.
@@ -6583,6 +6613,23 @@ const B2_SHALLOW_RATIO_WITHHELD_NOTE =
   'read over its window. B2 is scored on the CI workflows, pull-request template and review-gate ' +
   'record in the checked-out files, with the ratio left out of its score rather than scored on the ' +
   'commits present. Re-scan a full clone (for actions/checkout, set fetch-depth: 0).';
+// #574 item 3, v27 only: git's history-depth check failed (the scan limitations name the read and its
+// reason), the repository's files did not settle the depth either, and fewer commits are visible
+// than the ratio reads, so whether the ratio would be read over a truncated window is not known. A
+// read failure: B2 stays in the composite at 0, since a failed read may lower a score but never
+// raise it (operator ruling of 11 Nov, item B).
+export const B2_SHALLOW_CHECK_FAILED_NOTE =
+  'B2 abstained: Cejel could not tell whether this clone is shallow, because git failed to answer ' +
+  "and the repository's files did not settle it (the scan limitations name the failed read), and fewer than " +
+  `${RECENT_COMMIT_WINDOW} commits are ` +
+  'visible, so the pull-request merge ratio may be read over a truncated window. Under v27 B2 is not ' +
+  'scored on that ratio; it stays in the composite at 0. Re-scan once the local git failure is resolved.';
+
+/**
+ * The history-depth answer a collector reads where its caller passes none: a complete clone, which
+ * every rubric scored as before the depth was read once per scan (#574 item 3).
+ */
+const COMPLETE_HISTORY_DEPTH: HistoryDepthAnswer = { depth: 'complete', answeredByGit: true };
 
 /**
  * A criterion that reads commit history, abstaining because the clone is shallow or a history read
@@ -6611,6 +6658,7 @@ function collectB2PrTraceEvidence(
   repoPath: string,
   repoFiles: readonly string[],
   useV27FalseAssuranceClosure = false,
+  historyDepth: HistoryDepthAnswer = COMPLETE_HISTORY_DEPTH,
 ): WitanCriterionSignalPayload | null {
   const workflows = repoFiles.filter(isCiWorkflow);
   // GitHub recognizes both the single-file form (pull_request_template.md) and the directory
@@ -6679,8 +6727,20 @@ function collectB2PrTraceEvidence(
   // score, B2 abstains out of the composite instead. v27 does the same since the v27 freeze change
   // F1 (operator decision 2026-10-28); before it, v27 abstained on all of B2 as a read failure at 0.
   // Under v27 a workflow it does not credit still has its disclosure, whichever way B2 goes.
+  // #574 item 3 (item A of the review of b67489a96): the scan's one history-depth answer. Where git
+  // failed and the shallow file git reads settled the depth, B2 reads that answer under every rubric.
   const ratioWithheld =
-    isShallowRepository(repoPath) && readRecentCommits(repoPath).length < RECENT_COMMIT_WINDOW;
+    isShallowHistoryDepth(historyDepth) && readRecentCommits(repoPath).length < RECENT_COMMIT_WINDOW;
+  // #574 item 3, v27 only: where git failed, the files did not settle the depth, and fewer commits
+  // are visible than the ratio's window, the failed read decides whether the ratio is read over a
+  // truncated window, so B2 abstains as #560 set for A2 on a failed history read: no
+  // insufficientDataReason, so it stays in the composite at 0 and v27 cannot rise above v17
+  // (operator ruling of 11 Nov, item B: a failed read may lower but never raise). With a full window
+  // visible the answer decides nothing, and B2 is scored as before.
+  const shallowCheckDecidesRatio =
+    useV27FalseAssuranceClosure &&
+    isHistoryDepthUnsettledByFailure(historyDepth) &&
+    readRecentCommits(repoPath).length < RECENT_COMMIT_WINDOW;
   const uncreditedDisclosures =
     uncredited.size > 0
       ? {
@@ -6694,6 +6754,12 @@ function collectB2PrTraceEvidence(
     uncreditedNote
       ? `${note} ${uncreditedCiWorkflowNote(uncredited, 'a PR-trace CI workflow', CRITERION_NOTES_MAX_LENGTH - note.length - 1)}`
       : note;
+  if (shallowCheckDecidesRatio) {
+    return {
+      ...shallowHistoryAbstention('B2', withUncreditedNote(B2_SHALLOW_CHECK_FAILED_NOTE)),
+      ...uncreditedDisclosures,
+    };
+  }
   if (ratioWithheld && prTracePrimitives === 0) {
     return {
       ...shallowHistoryAbstention('B2', withUncreditedNote(B2_SHALLOW_HISTORY_NOTE)),
@@ -19828,11 +19894,18 @@ const PYTHON_UNREAD_MODULE_FILE_PATTERN = /\.(?:pyc|pyo|so|pyd|egg|whl|zip|pth)$
  * The review of #655, blocker 3: every file the repository tracks, in any directory (A1's file list
  * leaves out vendor/, build/, dist/, venv/, coverage/ and the like), or undefined where they cannot
  * be listed. Outside Git, every file under the root but .git. Linear in the files.
+ * #574 item 3 (item C of the review of b67489a96): where git fails for a reason other than an
+ * expected absence, the failed listing is a scan limitation, as every other failed `ls-files` is.
  */
-function filesIncludingExcluded(repoPath: string): readonly string[] | undefined {
+function filesIncludingExcluded(repoPath: string, scanLimitations: Set<string>): readonly string[] | undefined {
   const tracked = readGitTrackedFileOutput(repoPath);
   if (tracked.ok) return tracked.stdout.split('\n').filter((line) => line !== '');
-  if (!isExpectedGitAbsence(tracked)) return undefined;
+  if (!isExpectedGitAbsence(tracked)) {
+    scanLimitations.add(
+      `${describeGitFailure(tracked.reason, 'full tracked-file inventory')} A1 credited no copy of pytest's collected items made through a builtin, because the files that may replace the builtin could not be listed.`,
+    );
+    return undefined;
+  }
   const files: string[] = [];
   const pending = [''];
   for (let next = pending.pop(); next !== undefined; next = pending.pop()) {
@@ -19857,8 +19930,8 @@ function filesIncludingExcluded(repoPath: string): readonly string[] | undefined
  * builtin": the first tracked file that may replace the builtin, or that the files could not be
  * listed; undefined where no file may. Linear in the files.
  */
-function builtinCopyReplacedBy(repoPath: string): string | undefined {
-  const files = filesIncludingExcluded(repoPath);
+function builtinCopyReplacedBy(repoPath: string, scanLimitations: Set<string>): string | undefined {
+  const files = filesIncludingExcluded(repoPath, scanLimitations);
   if (files === undefined) return "and the repository's files could not be listed";
   for (const listed of files) {
     // git quotes a path holding unusual characters; such a file is named, not read.
@@ -20355,6 +20428,7 @@ const A1_HOOK_NOT_READ = 'hook not read: ';
 export function findPytestRunWideSkips(
   repoPath: string,
   repoFiles: readonly string[],
+  scanLimitations: Set<string> = new Set(),
 ): PytestRunWideSkip[] {
   const found: Omit<PytestRunWideSkip, 'beyondScope'>[] = [];
   let ignoresCollection = false;
@@ -20364,7 +20438,7 @@ export function findPytestRunWideSkips(
   const builtinsNamedIn = (): string | undefined => {
     if (!builtinsRead) {
       builtinsRead = true;
-      builtinsFile = builtinCopyReplacedBy(repoPath);
+      builtinsFile = builtinCopyReplacedBy(repoPath, scanLimitations);
     }
     return builtinsFile;
   };

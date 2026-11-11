@@ -1,8 +1,13 @@
-import { type WitanInputSignal, type WitanReport, WitanReportSchema } from './schemas.js';
+import {
+  type WitanInputSignal,
+  type WitanReport,
+  type WitanReportInputPayload,
+  WitanReportSchema,
+} from './schemas.js';
 
 import { isWitanNoMeasurementAbstention } from './abstention.js';
-import { execGit } from './git-exec.js';
-import { detectHistoryLimitations } from './history-depth.js';
+import { describeGitFailure, execGit } from './git-exec.js';
+import { detectHistoryLimitations, readHistoryDepthAnswer } from './history-depth.js';
 import {
   type IngestDocument,
   discoverIngestInputs,
@@ -73,14 +78,18 @@ export function scoreRepoWithPublicCejel(options: PublicCejelScoreOptions): Wita
   if (options.rubricVersion !== undefined) {
     assertSelectableRubricVersion(options.rubricVersion);
   }
+  // #574 item 3 (item A of the review of b67489a96): the scan's one history-depth answer, read
+  // once and used by the report-level abstention, A2, B2 and the disclosure below alike.
+  const historyDepth = readHistoryDepthAnswer(options.repoPath);
   const input = buildWitanInputFromRepo({
     productSlug: options.productSlug,
     productDisplayName: options.productDisplayName,
     repoPath: options.repoPath,
+    historyDepth,
     ...(options.generatedAt ? { generatedAt: options.generatedAt } : {}),
     ...(options.rubricVersion ? { rubricVersion: options.rubricVersion } : {}),
   });
-  const scannedSubject = readScannedSubject(
+  const { subject: scannedSubject, commitTimeLimitation } = readScannedSubjectAnswer(
     options.repoPath,
     input.repo.headSha,
     options.subjectRepository,
@@ -91,14 +100,16 @@ export function scoreRepoWithPublicCejel(options: PublicCejelScoreOptions): Wita
       ? buildInputBinding(documents, scannedSubject, options.strictIngest ? 'strict' : 'record-only')
       : undefined;
   if (options.strictIngest && inputBinding) assertStrictIngestBinding(documents, inputBinding);
+  // #574 item 3: the commit time decides each ingested input's freshness, so its failed read is
+  // stated where there is an input; with none it decides nothing. Scan limitations move no score.
   const scored = createWitanReport(
-    input,
+    withScanLimitations(input, [documents.length > 0 ? commitTimeLimitation : undefined]),
     inputSignals.length > 0 ? inputSignals : undefined,
     undefined,
     options.toolVersion,
   );
   // Attached after scoring, so it cannot reach any score; see detectHistoryLimitations.
-  const historyLimitations = detectHistoryLimitations(options.repoPath);
+  const historyLimitations = detectHistoryLimitations(options.repoPath, historyDepth);
   const withHistory: WitanReport = historyLimitations
     ? { ...scored, historyLimitations }
     : scored;
@@ -158,6 +169,19 @@ export function readScannedSubject(
   headSha: string | undefined,
   subjectRepository: string | undefined,
 ): ScannedSubject {
+  return readScannedSubjectAnswer(repoPath, headSha, subjectRepository).subject;
+}
+
+/**
+ * #574 item 3: readScannedSubject, and the scan limitation for a failed HEAD committer-time read.
+ * HEAD resolved before this read runs, so every failure reason, an expected absence included, is a
+ * failed read here. The caller states it where an ingested input's freshness reads the commit time.
+ */
+export function readScannedSubjectAnswer(
+  repoPath: string,
+  headSha: string | undefined,
+  subjectRepository: string | undefined,
+): { readonly subject: ScannedSubject; readonly commitTimeLimitation?: string } {
   let repository: string | undefined;
   if (subjectRepository !== undefined) {
     repository = normalizeRepositoryIdentity(subjectRepository);
@@ -170,8 +194,12 @@ export function readScannedSubject(
     }
   }
   let commitTime: string | undefined;
+  let commitTimeLimitation: string | undefined;
   if (headSha) {
     const result = execGit(['show', '-s', '--format=%ct', 'HEAD'], { cwd: repoPath });
+    if (!result.ok) {
+      commitTimeLimitation = `${describeGitFailure(result.reason, 'HEAD committer-time discovery')} Cejel recorded each ingested input's freshness as unverifiable.`;
+    }
     const seconds = result.ok ? Number(result.stdout.trim()) : Number.NaN;
     // A committer time outside years 0000-9999 (or outside the Date range, where toISOString
     // throws) is treated as unknown: freshness is then unverifiable rather than a crash or an
@@ -181,10 +209,30 @@ export function readScannedSubject(
     }
   }
   return {
-    ...(repository !== undefined ? { repository } : {}),
-    ...(headSha ? { commit: headSha.toLowerCase() } : {}),
-    ...(commitTime !== undefined ? { commitTime } : {}),
+    subject: {
+      ...(repository !== undefined ? { repository } : {}),
+      ...(headSha ? { commit: headSha.toLowerCase() } : {}),
+      ...(commitTime !== undefined ? { commitTime } : {}),
+    },
+    ...(commitTimeLimitation !== undefined ? { commitTimeLimitation } : {}),
   };
+}
+
+/**
+ * #574 item 3: `input` with `extra` scan limitations appended, each once, within the report schema's
+ * cap of 16. Returns `input` itself when there is nothing to add, so a scan whose git reads all
+ * succeeded builds the same report object as before.
+ */
+function withScanLimitations(
+  input: WitanReportInputPayload,
+  extra: readonly (string | undefined)[],
+): WitanReportInputPayload {
+  const existing = input.scanLimitations ?? [];
+  const added = [...new Set(extra.filter((entry): entry is string => entry !== undefined))].filter(
+    (entry) => !existing.includes(entry),
+  );
+  if (added.length === 0) return input;
+  return { ...input, scanLimitations: [...existing, ...added].slice(0, 16) };
 }
 
 /** Resolve the sealed public-scan ingest surface; repository-authored inputs require opt-in. */

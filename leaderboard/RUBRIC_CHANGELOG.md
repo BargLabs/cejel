@@ -22,6 +22,188 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
+## 2026-11-11 (git failure states its limitation) — a scan reads its history depth once and every reader uses that answer; a failed history-depth check, HEAD committer-time read or v27 A1 builtin-copy listing, or a depth check an old git does not answer, is a stated scan limitation under every rubric; under v17 to v26 a score can move only where git's depth check fails, toward git's own answer, and A2 abstains where git failed and the depth cannot be known; under v27 A2 and B2 abstain only there (#574 item 3); where git succeeds every report is byte-identical; no published score moved
+
+**Status.** A disclosure under every rubric; under every rubric, v17 included, a behaviour change
+on the failure path only (below); and a scoring change under
+`witan-rubric-v27-prospective-2026-10-19`, with no identifier change
+(goal_cejel_git_failure_states_its_limitation_2026-11-10; operator rulings of 10 Nov, R4: #574
+item 3 only, and of 11 Nov on the review of `b67489a96`). No holdout or calibration ran for it, and
+this entry makes no precision or recall claim. The default stays v17.
+
+**Correction.** This entry's first version (at `b67489a96`) said a git failure moved no v17 score.
+That was wrong. Each of four `rev-parse --is-shallow-repository` checks per scan fell back on its
+own: on a depth-1 clone where B2's own check failed, v17's B2 read the truncated window as complete
+(warning 2 to warning 1.6 on this entry's fixture; the review saw verified 4 to warning 3.2 on
+another). And under v27 one failing check made A2 or B2 abstain although another check in the same
+scan answered "complete": on a full clone of 3 commits, B2 fell from warning 1.6 to an abstention at
+0 and the composite from 1.3 to 0.8. Both are fixed below, and the record now says what the code
+does.
+
+**Why.** (#574.) A comparison of v17 and v27 reports over 256 generated shapes once reported 100
+lost findings, and seven reruns, six of them under heavy load, reported 0. One hypothesis is that a
+scanner decision depends on whether a git call finishes inside `GIT_EXEC_TIMEOUT_MS` (30 s). Where a
+failed call changes the evidence read with nothing stated, the same commit gives different reports
+on a loaded and an idle machine, which breaks `cejel issue` and `verify` reproductions. Items 1 and
+2 of #574 (checker logging, reproducing under load) are not in this change.
+
+**The list.** Every `execGit` call in `src/` is classified by what its caller does on each failure
+reason. `src/witan/__tests__/git-call-sites-574.test.ts` holds the record. It reads every source
+file under `src/` (not tests), follows each static import of `execGit` under any local name (an
+alias, or a namespace), and fails when a call is added, moved or removed without a record entry, or
+when a file reaches `execGit` any other way (a mention that is not a call, a re-export, a dynamic
+import). On main (`1da23c208`) there were 21 calls on the scan path (18 in `repo-signals.ts`, 2 in
+`history-depth.ts`, 1 in `public-scan.ts`) and 3 in the LLM and D-series packs. Four reads let a
+failure pass with nothing stated:
+
+- `isShallowRepository` (silent absence): any failure read as "not shallow", for A2's history
+  incompleteness, B2's merge-ratio window and the shallow-history disclosure, each by its own call;
+- `readHistoryDepth` (silent switch): any failure fell back to the `.git` files, with nothing
+  stated. The fallback reads the `shallow` file in the common git directory, which is the file git
+  reads to answer `--is-shallow-repository`, so it is kept: the evidence is the same, except a
+  `shallow` file git cannot open, which git reads as complete and the files as shallow;
+- `readScannedSubject`'s HEAD committer-time read (silent absence): any failure left every
+  ingested input's freshness `unverifiable`;
+- `filesIncludingExcluded`, v27 A1's listing of every tracked file before it credits a builtin
+  copy of pytest's collected items (silent absence, missed by this entry's first version): a failed
+  `ls-files` left A1 saying the files could not be listed, with no scan limitation and no reason.
+
+Now the scan path has 20 calls (18, 1, 1): the depth is read by one call. An expected absence (git
+not installed, or git answering that there is no repository or no revision) adds no scan limitation
+at any site: it is a fact about the host or the directory, not the load, and #560 and #568 decided
+how it is treated.
+
+**Change.**
+
+- **One history-depth answer per scan** (review item A). `scoreRepoWithPublicCejel` reads
+  `readHistoryDepthAnswer` once and passes it to `buildWitanInputFromRepo`; the report-level
+  abstention, A2, B2 and the shallow-history disclosure all use it. Where git answers true or
+  false, that is the answer, as before. Where git does not answer, the depth is the `shallow`
+  file's: shallow, complete, or, where the files cannot settle it, unknown.
+- **Every rubric: stated.** Each failed read, for a reason other than an expected absence, is one
+  scan limitation through `describeGitFailure`: "Cejel: local git history-depth check exceeded the
+  30 second timeout. Cejel read the history depth from the repository's own shallow file, which is
+  the file git reads to answer.", or, where the files cannot settle it, "… Cejel could not read
+  the history depth from the repository's files either."; "Cejel: local git HEAD committer-time
+  discovery … Cejel recorded each ingested input's freshness as unverifiable.", only where there
+  is an ingested input; and, where v27 A1 reads it, "Cejel: local git full tracked-file inventory
+  … A1 credited no copy of pytest's collected items made through a builtin, because the files that
+  may replace the builtin could not be listed." The shallow-history disclosure quotes git's answer,
+  so it is written only where git answered, as before.
+- **Every rubric: a depth check git did not answer is stated** (operator ruling of 11 Nov, item B
+  of the second review). A git too old to know `--is-shallow-repository` exits 0 and prints the
+  option back; the depth is then read from the `.git` files, as for a failure, and until this
+  ruling nothing said so. It now adds one scan limitation, worded as the failures are: "Cejel:
+  local git history-depth check gave no answer (git printed neither true nor false). Cejel read
+  the history depth from the repository's own shallow file, which is the file git reads to
+  answer.", or, where the files cannot settle it, "… Cejel could not read the history depth from
+  the repository's files either." (the report already withholds its verdict there with the
+  unknown-depth reason). It is not a failure: no criterion counts it as a failed read, so no
+  score, status, composite or verdict moves under any rubric. Any exit 0 without true or false
+  counts, an empty output included; `inventory-fallback.test.ts`, whose mock answers the depth
+  check with an empty output and has no `.git` entry, now expects this sentence beside its
+  inventory limitation. The other cases where git fails to
+  answer and the files settle the depth (a timeout, an output limit, a failed run) were already
+  stated, by the sentence above. An expected absence still adds none: with git not installed, or
+  git answering that the directory is no repository, the depth is the files' answer with no scan
+  limitation, as #560 and #568 decided for expected absences; where the files cannot settle it the
+  report withholds its verdict with the unknown-depth reason, which says git could not report the
+  depth, and with no `.git` entry visible it withholds it with the no-git reason.
+- **v17 to v26: a behaviour change on the failure path only.** Where git does not answer the
+  depth check (a failure of any reason, an expected absence included, or an old git that echoes
+  the option back instead of printing true or false), A2 and B2 now read the depth the `shallow`
+  file gives, where before each read "not shallow". So a score can move only where
+  that git call fails, and only toward the reading git's own answer gives: on a depth-1 clone B2
+  then withholds its merge ratio, as it does when git answers. Where the files cannot settle the
+  depth, the report withholds its verdict under every rubric with the unknown-depth reason, as
+  since 0.6.10, and A2 and B2 read it as the next item says. Where git answers, nothing changes.
+- **v17 to v26, where git failed and the files cannot settle the depth.** Git failed for a reason
+  other than an expected absence (a timeout, an output limit, a failed run), and the `.git` files
+  cannot settle the depth either. B2 reads "not shallow", as before. A2 does not: it counts the
+  failed check as a failed history read (#560's pattern), and because the report withholds its
+  verdict for the unknown depth (`abstainsOnIncompleteHistory`, operator ruling of 2 Nov), A2
+  then abstains under every rubric, v17 included, as v27's does, unless a confirmed critical
+  secret finding stands. Where main kept A2's not-applicable result (`not_applicable`, score 0),
+  A2 is now `insufficient_data`, score 0, with the failed-read note; where main scored A2, it
+  takes the same abstention. The composite is null and the verdict `insufficient_source`, on main
+  and here, so no composite or verdict moves. The first version of this round's records said
+  A2 read "not shallow" here under v17 to v26, as before, and listed A2's change under v27 only;
+  that was wrong for A2.
+- **v27.** A2 and B2 abstain on the depth only where it cannot be known: git failed (not an
+  expected absence) and the files cannot settle it. A2 counts the failed check as a failed history
+  read (#560's pattern), as under every other rubric (above). B2, where fewer than 12 commits are
+  visible, abstains as a read failure with `B2_SHALLOW_CHECK_FAILED_NOTE` and no
+  `insufficientDataReason`, so it stays in the composite at 0 (review item B, operator ruling:
+  kept): the #560 pattern, not F1's out-of-composite one, because a failed read may lower a score
+  but never raise it. B2's abstention is v27's only. The v27 declaration in
+  `src/witan/rubric-version.ts` says so.
+
+**The no-rise property.** Every change adds a scan limitation, follows the depth git's own file
+gives, or adds an abstention at 0 in the composite, and only where a git read failed. None can
+raise a v27 score above v17's on the same commit: where the depth is read from the files, v17 and
+v27 read the same answer, and where the files cannot settle it, A2 abstains at 0 under both and
+only v27's B2 moves, downward.
+
+**Measured** at `300b92d37` against main `1da23c208`, the current main. `fff661a24` is the last
+commit that changes code under `src/` outside the tests; the records commit after it changes only
+the v27 declaration's comment. The set the 2026-11-10 entry names, from this branch's fixture
+files: the false-assurance (269), CI-claims (71) and B3 (361, the twelve-workflow shape included;
+the first version's driver missed it) sets and every v27 A1 set (removal 39, hook outcome 38,
+allowlist 86, withhold 96, run 58), 1,018 synthetic repositories. Each was built once and scored
+by main's `src/` (extracted with `git archive` into an ignored directory) and by this branch's,
+under all eleven selectable rubrics; report JSON, HTML and Markdown certificates were compared by
+hash: 11,198 reports a side, 0 errors. Built once, the symlink fixture
+(`review4-a4-working-directory-through-tracked-symlink`) has one head SHA on both sides, so no
+fixture is excluded. The driver ran in five processes a side and is not committed.
+
+- v17 to v26: 10,180 of 10,180 reports, HTML and Markdown certificates byte-identical to main.
+- v27: 1,018 of 1,018 byte-identical, HTML and Markdown too. None of the 1,018 fails a git read,
+  so none moves.
+- v27 A1 above v17 A1 on the same repository: 0 of 1,018. Overall score above v17: 0 of 1,015
+  compared (the other 3 carry no headline score).
+- The failure cases are in `git-history-depth-one-answer-574.test.ts` and
+  `git-failure-states-limitation-574.test.ts`, under all eleven rubrics where a score could move:
+  a depth-1 clone and a full clone with every depth check failing score exactly as with git
+  answering under every rubric, v27 included, and state the failed read once; a full clone with git
+  failing and the files unable to settle the depth is stated under every rubric, withholds its
+  verdict, A2 abstains (`insufficient_data`, score 0, where git answering gives `not_applicable`,
+  score 0) under every rubric, v17 included, B2 is unchanged under v17 to v26, and under v27 B2
+  abstains at 0.
+- With the second review's echo statement (item B) in place, five synthetic shapes where git
+  succeeds (a full clone of 14 commits, a one-commit repository, a depth-1 clone, a directory with
+  no `.git`, and the full clone with an ingested input), each built once and scored by main
+  `1da23c208` and by this branch under v17 and v27: 10 of 10 report JSON files byte-identical
+  (`cmp`). The echo statement is written only where git exits 0 without printing true or false
+  (a git older than 2.15, which added the option).
+- No pin moved; the fingerprint pins (`rubric-behaviour-fingerprint.test.ts`) and the v17
+  scoring-surface golden pass. The full suite's counts are in the pull request.
+
+**Fixtures and tests.** `git-failure-states-limitation-574.test.ts`, committed red first at
+`16657908d` (4 of 6 failed with main's code). For the review round,
+`git-history-depth-one-answer-574.test.ts`, red first at `27d0abb4e`: against `b67489a96` 7 of 8
+failed (4 depth checks per scan; v17 B2 on a depth-1 clone whose B2 check alone failed; v27 on a
+full clone with one check failing; the unsettled depth's wording; the unstated A1 listing), and the
+one that passed is the v17 control for the A1 listing. Failures are injected through the `execGit`
+mock, as #560's tests do, chosen by the calling function where one call is failed alone; the
+unsettled depth is made by pointing the files fallback at a `.git` file whose git directory is
+gone. The record test's two escapes (a new file calling `execGit`, and a second, aliased call in
+`public-scan.ts`) each pass the first version's test and fail this one; an unrelated edit passes.
+No test-only timeout option was added to `execGit`, so #583 stays open. For the second review
+(operator ruling of 11 Nov, item B), the echo case is in `git-history-depth-one-answer-574.test.ts`,
+red first at `549014f4b`: 2 of 10 failed (the echo with the files settling the depth, on a full
+and a depth-1 clone, and the echo with the files unable to settle it, each first at v17 on the
+missing scan limitation); the git answer is injected through the same `execGit` mock as exit 0
+with the option printed back. Both pass now, under every selectable rubric, with the scores,
+statuses, composite and verdict unchanged.
+
+**The CI timing flake.** `scan-path-regex-bounds.test.ts`'s v27 pathological-input guard failed
+once on CI at 2,032 ms against 2,000 ms (v17 on that runner 653 ms). This change does not slow it.
+On Node 22, five alternating runs of that test on main and on this branch measured v27 at a
+median of 574.7 ms on the branch (572.5 to 578.1) against 588.1 ms on main (586.5 to 593.1), and
+v17 at 253.6 ms (252.7 to 254.7) against 269.8 ms (269.7 to 270.6). The branch makes fewer git
+calls per scan. The CI ratio, 3.1 times v17 against about 2.2 here, is the runner's variance, not
+this change.
+
 ## 2026-11-10 (A1 addopts assignment not known) — v27 A1 names the pytest runs an unexported Makefile `=`, `:=` or `+=` of `PYTEST_ADDOPTS` reaches as not read where CI names the variable somewhere the readers do not follow (#674), and the tox posargs reader shares a budget (#653); v17-v26 byte-identical; v27 never above v17; no published score moved
 
 **Status.** A scoring change under `witan-rubric-v27-prospective-2026-10-19` only, with no

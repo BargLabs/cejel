@@ -834,9 +834,9 @@ const REVIEWED: readonly ReviewedEntry[] = [
     role: 'pass-through', criteria: ANY, why: 'The same, where nothing of the signal survives the dropped reads.',
   },
   {
-    kind: 'call', file: 'witan/public-scan.ts', within: 'scoreRepoWithPublicCejel', sha: 'abb87c389354#0',
+    kind: 'call', file: 'witan/public-scan.ts', within: 'scoreRepoWithPublicCejel', sha: '87e14ec9209b#0',
     role: 'pass-through', criteria: ANY,
-    why: 'Gathers the collector signals (buildWitanInputFromRepo) that createWitanReport scores; adds none.',
+    why: 'Gathers the collector signals (buildWitanInputFromRepo) that createWitanReport scores; adds none. #574 item 3 (review of b67489a96, item A) passes the scan\'s one history-depth answer in, a depth and a git failure reason, which carries no disclosure text.',
   },
   {
     kind: 'call', file: 'witan/scoring.ts', within: 'createWitanReport', sha: '3b0ef1ef6a33#0',
