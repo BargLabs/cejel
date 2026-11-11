@@ -11,7 +11,7 @@ import {
   WITAN_RUBRIC_VERSION_V27,
   WITAN_SELECTABLE_RUBRIC_VERSIONS,
 } from '../rubric-version.js';
-import type { WitanCriterionScore, WitanReport } from '../schemas.js';
+import type { WitanReport } from '../schemas.js';
 import {
   buildA2HistoryOrigin,
   cloneShallowA2Origin,
@@ -44,8 +44,6 @@ const isShallowCheck = (argv: readonly string[]) => argv[0] === 'rev-parse' && a
 const isCommitTimeRead = (argv: readonly string[]) =>
   argv[0] === 'show' && argv.includes('-s') && argv.includes('--format=%ct');
 
-const SHALLOW_CHECK_TIMEOUT =
-  'Cejel: local git shallow-clone check exceeded the 30 second timeout. Cejel could not tell from git whether this clone is shallow.';
 const HISTORY_DEPTH_TIMEOUT =
   "Cejel: local git history-depth check exceeded the 30 second timeout. Cejel read the history depth from the repository's own shallow file, which is the file git reads to answer.";
 const COMMIT_TIME_FAILED =
@@ -115,12 +113,6 @@ function scanFailing(
   }
 }
 
-const criterion = (report: WitanReport, id: string): WitanCriterionScore => {
-  const found = report.criteria.find((entry) => entry.id === id);
-  if (!found) throw new Error(`no ${id}`);
-  return found;
-};
-
 /** What a rubric's scores are: each criterion's status and score, the composite and the verdict. */
 const scores = (report: WitanReport) => ({
   verdict: report.verdict,
@@ -128,29 +120,23 @@ const scores = (report: WitanReport) => ({
   criteria: report.criteria.map(({ id, status, score }) => ({ id, status, score })),
 });
 
-describe('#574: a failed shallow-clone check is stated (history-depth.ts isShallowRepository and readHistoryDepth)', () => {
-  it('every rubric states both failed reads; no rubric but v27 moves a score, status or verdict', () => {
+// Since the review of b67489a96 (item A) a scan reads its history depth once, so the shallow-clone
+// check and the history-depth check are one read with one scan limitation; v27's abstentions on an
+// unsettled depth are pinned in git-history-depth-one-answer-574.test.ts.
+describe('#574: a failed history-depth check is stated (history-depth.ts readHistoryDepthAnswer)', () => {
+  it('every rubric states the failed read once; on a full clone the shallow file settles the depth, so no rubric moves', () => {
     for (const rubricVersion of WITAN_SELECTABLE_RUBRIC_VERSIONS) {
       const idle = scan(repos.complete, rubricVersion);
       const loaded = scanFailing(repos.complete, rubricVersion, (argv) => (isShallowCheck(argv) ? 'timeout' : null));
-      expect(idle.scanLimitations ?? [], rubricVersion).not.toContain(SHALLOW_CHECK_TIMEOUT);
-      expect(loaded.scanLimitations ?? [], rubricVersion).toContain(SHALLOW_CHECK_TIMEOUT);
-      expect(loaded.scanLimitations ?? [], rubricVersion).toContain(HISTORY_DEPTH_TIMEOUT);
-      if (rubricVersion !== V27) expect(scores(loaded), rubricVersion).toEqual(scores(idle));
+      expect(idle.scanLimitations ?? [], rubricVersion).not.toContain(HISTORY_DEPTH_TIMEOUT);
+      expect((loaded.scanLimitations ?? []).filter((entry) => entry === HISTORY_DEPTH_TIMEOUT), rubricVersion).toHaveLength(1);
+      expect(scores(loaded), rubricVersion).toEqual(scores(idle));
     }
   });
 
-  it('v27: B2 and A2, whose scores the shallow answer decides, abstain in the composite at 0; v27 stays at or below v17', () => {
+  it('v27 stays at or below v17 with the check failing', () => {
     const fail = (argv: readonly string[]) => (isShallowCheck(argv) ? 'timeout' : null);
-    const idle = scan(repos.complete, V27);
-    expect(criterion(idle, 'B2').status).not.toBe('insufficient_data');
     const loaded = scanFailing(repos.complete, V27, fail);
-    const b2 = criterion(loaded, 'B2');
-    expect(b2.status).toBe('insufficient_data');
-    expect(b2.score).toBe(0);
-    expect(b2.notes ?? '').toContain('could not tell whether this clone is shallow');
-    expect(criterion(loaded, 'A2').status).toBe('insufficient_data');
-    expect(criterion(loaded, 'A2').notes ?? '').toContain('30-second timeout');
     const v17 = scanFailing(repos.complete, V17, fail);
     expect(loaded.overallScore).not.toBeNull();
     expect(v17.overallScore).not.toBeNull();
@@ -169,9 +155,6 @@ describe('#574: a failed shallow-clone check is stated (history-depth.ts isShall
       expect(loaded.insufficientSourceReason, rubricVersion).toBe(idle.insufficientSourceReason);
       expect(loaded.scanLimitations ?? [], rubricVersion).toContain(
         "Cejel: local git history-depth check failed. Cejel read the history depth from the repository's own shallow file, which is the file git reads to answer.",
-      );
-      expect(loaded.scanLimitations ?? [], rubricVersion).toContain(
-        'Cejel: local git shallow-clone check failed. Cejel could not tell from git whether this clone is shallow.',
       );
     }
   });

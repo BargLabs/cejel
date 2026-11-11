@@ -128,19 +128,13 @@ const RECORD: Readonly<Record<string, GitCallSite>> = {
     onFailure: 'Own limit: batched re-read; other failure: declareHistoryFailure; expected absence: recorder notes it.',
     class: 'stated',
   },
-  // On main this call was isShallowRepository's.
-  'src/witan/history-depth.ts#readShallowAnswer#1': {
-    command: 'git rev-parse --is-shallow-repository',
-    onFailure:
-      'Expected absence: "not shallow", unstated, as before. Other failure: "not shallow", as before, and each caller states shallowCheckFailureLimitation: A2\'s history incompleteness (noted as a failed history read, #560), B2\'s merge-ratio window (v27: B2 abstains in the composite at 0 where fewer than 12 commits are visible), and the shallow-history disclosure, which is not written where git did not answer.',
-    class: 'stated',
-    classOnMain: 'silent absence',
-  },
-  // On main this call was readHistoryDepth's.
+  // On main this call was readHistoryDepth's, and isShallowRepository made a second, separate one,
+  // read three more times per scan (A2, B2, the shallow disclosure). Since the review of b67489a96
+  // (item A) the scan reads this one answer once and every reader of the depth uses it.
   'src/witan/history-depth.ts#readHistoryDepthAnswer#1': {
     command: 'git rev-parse --is-shallow-repository',
     onFailure:
-      "Any failure: the depth is read from the shallow file in the common git directory, the file git itself reads to answer, so the evidence is the same (a shallow file git cannot open reads as shallow, the cautious side); not_a_repository where no .git entry is visible. Other failure: stated (historyDepthFailureLimitation).",
+      "Read once per scan; the report-level abstention, A2, B2 and the shallow disclosure all use the answer. Any failure: the depth is read from the shallow file in the common git directory, the file git itself reads to answer, so the evidence is the same (a shallow file git cannot open reads as shallow, the cautious side); not_a_repository where no .git entry is visible. Other failure: stated (historyDepthFailureLimitation), and where the files cannot settle the depth v27's A2 counts a failed history read and v27's B2 abstains in the composite at 0 where fewer than 12 commits are visible. The disclosure, which quotes git's answer, is written only where git answered.",
     class: 'stated',
     classOnMain: 'silent switch',
   },
@@ -203,9 +197,9 @@ describe('#574 item 3: every execGit call site is classified', () => {
     expect(found).toEqual(Object.keys(RECORD).sort());
   });
 
-  it('the scan path has 18 calls in repo-signals.ts, 2 in history-depth.ts and 1 in public-scan.ts', () => {
+  it('the scan path has 18 calls in repo-signals.ts, 1 in history-depth.ts and 1 in public-scan.ts', () => {
     expect(callSitesIn('src/witan/repo-signals.ts')).toHaveLength(18);
-    expect(callSitesIn('src/witan/history-depth.ts')).toHaveLength(2);
+    expect(callSitesIn('src/witan/history-depth.ts')).toHaveLength(1);
     expect(callSitesIn('src/witan/public-scan.ts')).toHaveLength(1);
   });
 

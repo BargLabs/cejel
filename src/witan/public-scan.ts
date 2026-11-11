@@ -7,7 +7,7 @@ import {
 
 import { isWitanNoMeasurementAbstention } from './abstention.js';
 import { describeGitFailure, execGit } from './git-exec.js';
-import { detectHistoryLimitationsAnswer } from './history-depth.js';
+import { detectHistoryLimitations, readHistoryDepthAnswer } from './history-depth.js';
 import {
   type IngestDocument,
   discoverIngestInputs,
@@ -78,10 +78,14 @@ export function scoreRepoWithPublicCejel(options: PublicCejelScoreOptions): Wita
   if (options.rubricVersion !== undefined) {
     assertSelectableRubricVersion(options.rubricVersion);
   }
+  // #574 item 3 (item A of the review of b67489a96): the scan's one history-depth answer, read
+  // once and used by the report-level abstention, A2, B2 and the disclosure below alike.
+  const historyDepth = readHistoryDepthAnswer(options.repoPath);
   const input = buildWitanInputFromRepo({
     productSlug: options.productSlug,
     productDisplayName: options.productDisplayName,
     repoPath: options.repoPath,
+    historyDepth,
     ...(options.generatedAt ? { generatedAt: options.generatedAt } : {}),
     ...(options.rubricVersion ? { rubricVersion: options.rubricVersion } : {}),
   });
@@ -96,19 +100,16 @@ export function scoreRepoWithPublicCejel(options: PublicCejelScoreOptions): Wita
       ? buildInputBinding(documents, scannedSubject, options.strictIngest ? 'strict' : 'record-only')
       : undefined;
   if (options.strictIngest && inputBinding) assertStrictIngestBinding(documents, inputBinding);
-  // Read before scoring only so a failed shallow-clone check can be stated (#574 item 3); the
-  // disclosure itself is still attached after scoring and cannot reach any score.
-  const { historyLimitations, scanLimitation: shallowCheckLimitation } = detectHistoryLimitationsAnswer(
-    options.repoPath,
-  );
   // #574 item 3: the commit time decides each ingested input's freshness, so its failed read is
   // stated where there is an input; with none it decides nothing. Scan limitations move no score.
   const scored = createWitanReport(
-    withScanLimitations(input, [documents.length > 0 ? commitTimeLimitation : undefined, shallowCheckLimitation]),
+    withScanLimitations(input, [documents.length > 0 ? commitTimeLimitation : undefined]),
     inputSignals.length > 0 ? inputSignals : undefined,
     undefined,
     options.toolVersion,
   );
+  // Attached after scoring, so it cannot reach any score; see detectHistoryLimitations.
+  const historyLimitations = detectHistoryLimitations(options.repoPath, historyDepth);
   const withHistory: WitanReport = historyLimitations
     ? { ...scored, historyLimitations }
     : scored;
