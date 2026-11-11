@@ -1975,6 +1975,7 @@ function collectRepoSignals(
       reviewableSourceProof,
       inventoryAbsenceContext,
       useV27FalseAssuranceClosure,
+      scanLimitations,
     ),
   );
   const a2Signal = collectCriterion('A2', () =>
@@ -2109,6 +2110,7 @@ function collectA1TestIntegrityEvidence(
   reviewableSourceProof?: ReviewableSourceProof,
   inventoryAbsenceContext: InventoryAbsenceContext = LEGACY_INVENTORY_ABSENCE_CONTEXT,
   useV27FalseAssuranceClosure = false,
+  scanLimitations: Set<string> = new Set(),
 ): WitanCriterionSignalPayload | null {
   const evidence: WitanEvidencePointer[] = [];
   const findings: WitanCriterionSignalPayload['findings'] = [];
@@ -2145,7 +2147,7 @@ function collectA1TestIntegrityEvidence(
   // where it puts the items back and, for a file, where a pytest run that collects it disables
   // pytest's skipping plugin (a hook that skips) or does not load the hook's conftest.py
   // (goal_cejel_v27_a1_test_count_overmatch_v2_2026-11-02, as fixed after the #626 review).
-  const runWideHooks = pytestSettings ? findPytestRunWideSkips(repoPath, repoFiles) : [];
+  const runWideHooks = pytestSettings ? findPytestRunWideSkips(repoPath, repoFiles, scanLimitations) : [];
   const runWideSkips = runWideHooks.filter((skip) => skip.withheld === undefined);
   const hookWithheldFor = (skip: PytestRunWideSkip, file: string): PytestReason | undefined => {
     if (skip.withheld !== undefined) {
@@ -19892,11 +19894,18 @@ const PYTHON_UNREAD_MODULE_FILE_PATTERN = /\.(?:pyc|pyo|so|pyd|egg|whl|zip|pth)$
  * The review of #655, blocker 3: every file the repository tracks, in any directory (A1's file list
  * leaves out vendor/, build/, dist/, venv/, coverage/ and the like), or undefined where they cannot
  * be listed. Outside Git, every file under the root but .git. Linear in the files.
+ * #574 item 3 (item C of the review of b67489a96): where git fails for a reason other than an
+ * expected absence, the failed listing is a scan limitation, as every other failed `ls-files` is.
  */
-function filesIncludingExcluded(repoPath: string): readonly string[] | undefined {
+function filesIncludingExcluded(repoPath: string, scanLimitations: Set<string>): readonly string[] | undefined {
   const tracked = readGitTrackedFileOutput(repoPath);
   if (tracked.ok) return tracked.stdout.split('\n').filter((line) => line !== '');
-  if (!isExpectedGitAbsence(tracked)) return undefined;
+  if (!isExpectedGitAbsence(tracked)) {
+    scanLimitations.add(
+      `${describeGitFailure(tracked.reason, 'full tracked-file inventory')} A1 credited no copy of pytest's collected items made through a builtin, because the files that may replace the builtin could not be listed.`,
+    );
+    return undefined;
+  }
   const files: string[] = [];
   const pending = [''];
   for (let next = pending.pop(); next !== undefined; next = pending.pop()) {
@@ -19921,8 +19930,8 @@ function filesIncludingExcluded(repoPath: string): readonly string[] | undefined
  * builtin": the first tracked file that may replace the builtin, or that the files could not be
  * listed; undefined where no file may. Linear in the files.
  */
-function builtinCopyReplacedBy(repoPath: string): string | undefined {
-  const files = filesIncludingExcluded(repoPath);
+function builtinCopyReplacedBy(repoPath: string, scanLimitations: Set<string>): string | undefined {
+  const files = filesIncludingExcluded(repoPath, scanLimitations);
   if (files === undefined) return "and the repository's files could not be listed";
   for (const listed of files) {
     // git quotes a path holding unusual characters; such a file is named, not read.
@@ -20419,6 +20428,7 @@ const A1_HOOK_NOT_READ = 'hook not read: ';
 export function findPytestRunWideSkips(
   repoPath: string,
   repoFiles: readonly string[],
+  scanLimitations: Set<string> = new Set(),
 ): PytestRunWideSkip[] {
   const found: Omit<PytestRunWideSkip, 'beyondScope'>[] = [];
   let ignoresCollection = false;
@@ -20428,7 +20438,7 @@ export function findPytestRunWideSkips(
   const builtinsNamedIn = (): string | undefined => {
     if (!builtinsRead) {
       builtinsRead = true;
-      builtinsFile = builtinCopyReplacedBy(repoPath);
+      builtinsFile = builtinCopyReplacedBy(repoPath, scanLimitations);
     }
     return builtinsFile;
   };

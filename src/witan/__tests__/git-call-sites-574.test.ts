@@ -64,7 +64,7 @@ const RECORD: Readonly<Record<string, GitCallSite>> = {
   'src/witan/repo-signals.ts#readGitTrackedFileOutput#2': {
     command: 'git ls-files --cached',
     onFailure:
-      'collectRepoFileInventory: other failure states "Tracked-file inventory was unavailable because <gitFailureDetail>" and walks the directory; expected absence walks the directory unstated (a directory git calls no repository has no tracked files; git missing is #568\'s, which A2 states). listRepoInventory: other failure stops the scan. listGitTrackedFiles (monorepo root): other failure states "monorepo shared-file inventory".',
+      'collectRepoFileInventory: other failure states "Tracked-file inventory was unavailable because <gitFailureDetail>" and walks the directory; expected absence walks the directory unstated (a directory git calls no repository has no tracked files; git missing is #568\'s, which A2 states). listRepoInventory: other failure stops the scan. listGitTrackedFiles (monorepo root): other failure states "monorepo shared-file inventory". filesIncludingExcluded (v27 A1\'s builtin-copy check): other failure states "full tracked-file inventory" and A1 credits no builtin copy (review of b67489a96, item C; unstated before); expected absence walks the directory.',
     class: 'stated',
   },
   'src/witan/repo-signals.ts#resolveMonorepoContext#1': {
