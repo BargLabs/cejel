@@ -115,6 +115,18 @@ describe('#550: the blank-run literals give exactly what their old forms gave', 
     expect(widened).toBeGreaterThan(100);
   });
 
+  it('every exec() of a (?:^|[{,]) line-bounded literal is widened back', () => {
+    const literal = '/(?:^|[{,])(?:(?=.)\\s)*';
+    let execs = 0;
+    for (let at = source.indexOf(literal); at !== -1; at = source.indexOf(literal, at + 1)) {
+      const lineEnd = source.indexOf('\n', at);
+      if (!source.slice(at, lineEnd).includes('.exec(')) continue;
+      execs += 1;
+      expect(source.slice(0, at).trimEnd().endsWith('widenToLeadingBlankRun('), source.slice(at, lineEnd)).toBe(true);
+    }
+    expect(execs).toBe(4);
+  });
+
   it('replace(): stripLineLedHashCommentLines gives what .replace(/^\\s*#.*$/gm, "") gave', () => {
     expect(source).toContain('stripLineLedHashCommentLines(contents)');
     let crossed = 0;
