@@ -67,22 +67,35 @@ rubric is pinned. v27 carries no precision or recall claim.
   - **A mention is read only where it reaches a make command the reader reads (review of #698).**
     An `env:` entry (step, job or workflow), a `$GITHUB_ENV` write or an `export` was counted as
     read by its kind, so `run: ./ci/test.sh` under `env: PYTEST_ADDOPTS: -q`, whose script runs
-    `make test`, still gave a false hollow. Now an `env:` entry counts only where every run step it
-    applies to runs nothing but make commands the reader reads; a `$GITHUB_ENV` write only where
-    every run step of the file does; an `export` only where nothing but such make commands follows
-    it; a GitLab-style `variables:` key only where every command of the file is one. A script, a
-    launcher, `pytest`, an install or anything else the reader does not follow makes it a mention
-    not read. So a job-level `env: PYTEST_ADDOPTS` over a `pip install` step as well as `make test`
-    now leaves the runs of an unexported Makefile assignment not read, where it was read before.
+    `make test`, still gave a false hollow. Now an `env:` entry counts only where every step it
+    applies to is a run step running nothing but make commands the reader reads; a `$GITHUB_ENV`
+    write only where the file holds no `uses:` step and every run step of the file does; an
+    `export` only where nothing but such make commands follows it; a GitLab-style `variables:` key
+    only where every command of the file is one. A script, a launcher, `pytest`, an install or
+    anything else the reader does not follow makes it a mention not read. So a job-level
+    `env: PYTEST_ADDOPTS` over a `pip install` step as well as `make test` now leaves the runs of an
+    unexported Makefile assignment not read, where it was read before.
+  - **A `uses:` step is a step the reader does not follow (fix round on #710).** A `uses:` step was
+    left out of the steps an `env:` entry reaches, so a job- or workflow-level
+    `env: PYTEST_ADDOPTS: -q` (or a `$GITHUB_ENV` write) over `run: make lint` and a local composite
+    action that runs a script, which runs `make test`, still gave a false hollow. An `env:` entry
+    that reaches a `uses:` step, at any level, is now a mention not read, as is a `$GITHUB_ENV` write
+    in a file that holds one.
+  - **The rule is strict.** A mention that reaches any step that is not a make command the reader
+    reads, including `pip install`, `set -e`, `echo` and `uses: actions/checkout`, now leaves the
+    runs not read. This withholds on some files that are truly hollow (v27 then keeps v17's
+    reading); narrowing it is cejel #713.
   - **An indented Makefile assignment (review of #698).** `  PYTEST_ADDOPTS = -p no:skipping`,
     led by spaces, is read as an assignment; a tab-led line in a rule stays a recipe line.
   - **The tox posargs budget (#653).** A `tox.ini` line holding `{posargs}` was read once per
     literal CI posargs set, at most 16, so its work was the lines times the sets' words, and each
-    `{posargs}` on the line took the whole set's text. The tox reader now counts 4,096 units (one
-    per run read plus the words put in, per `{posargs}` on the line) and 262,144 characters (each
-    `{posargs}` times the characters put in), across every `tox.ini` of a scan. Past either, the
-    line is named "pytest run not read: `<the line>` in tox.ini", with a pointer at its line, and
-    none of its runs is read. The nox reader copies no text into a call and is unchanged.
+    `{posargs}` on the line took the whole set's text. The tox reader now has two budgets, each
+    across every `tox.ini` of a scan: 4,096 units, where a line holding `{posargs}` costs 1, plus 1
+    per literal CI set, plus its `{posargs}` count times the sets' words; and 262,144 characters,
+    where it costs its `{posargs}` count times the sets' characters (each word and one separator).
+    Past either, the line is named "pytest run not read: `<the line>` in tox.ini", with a pointer at
+    its line, and none of its runs is read. The nox reader copies no text into a call and its
+    scoring is unchanged.
   - v17 and every other rubric are unchanged. No holdout or calibration ran, and no published score
     moved.
 
