@@ -89,7 +89,11 @@ names its rubric, so the proof above holds with this change. On the shallow spec
 component is now one value under v17 to v26 and another under v27, whose reason is worded
 differently ("could fall below"). `behaviour-corpus-history-622.test.ts` checks this.
 `v26-v25-parity.test.ts`, which already set `rubricVersion` aside when comparing report-level
-fields, now sets aside the same identifier where the reason quotes it.
+fields, now sets aside the same identifier where the reason quotes it. Two files pin the projected
+surface itself against an earlier main: `disclosure-gaps.test.ts` and
+`shallow-a2-applicability-556.test.ts`. They put the report's own identifier back where the
+projection writes `<rubricVersion>` before hashing, and every one of their pins still matches, so
+the projection is the earlier one apart from that substitution.
 
 **Node.** The component pins, the eleven digests and all 32 x 11 projected surfaces were captured
 under Node 26.7.0 and Node 22.23.4 (CI's major). They are byte-identical on both.

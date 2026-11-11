@@ -19,7 +19,7 @@ import {
   probeA2EnvPathHistoryRead,
   v27A2FailedHistoryNote,
 } from '../repo-signals.js';
-import { projectWitanScoringSurface } from '../rubric-fingerprint.js';
+import { projectWitanScoringSurface, WITAN_PROJECTED_RUBRIC_PLACEHOLDER } from '../rubric-fingerprint.js';
 import {
   WITAN_RUBRIC_VERSION_V17,
   WITAN_RUBRIC_VERSION_V27,
@@ -140,7 +140,20 @@ function a2(scored: WitanReport): WitanCriterionScore {
 }
 
 function surface(scored: WitanReport): string {
-  return createHash('sha256').update(JSON.stringify(projectWitanScoringSurface(scored))).digest('hex');
+  // #622: the projection writes WITAN_PROJECTED_RUBRIC_PLACEHOLDER where the shallow-clone reason
+  // quotes the rubric. These pins predate that, so the report's own identifier is put back in place
+  // (key order unchanged) before hashing: the surface must still be the one main produced.
+  const projected = projectWitanScoringSurface(scored);
+  const asPinned =
+    projected.insufficientSourceReason === null
+      ? projected
+      : {
+          ...projected,
+          insufficientSourceReason: projected.insufficientSourceReason
+            .split(WITAN_PROJECTED_RUBRIC_PLACEHOLDER)
+            .join(scored.rubricVersion),
+        };
+  return createHash('sha256').update(JSON.stringify(asPinned)).digest('hex');
 }
 
 const isScore = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value);
