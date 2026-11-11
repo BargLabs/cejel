@@ -15952,11 +15952,17 @@ function readShellCommands(
   // goal_cejel_v27_a1_addopts_not_known_2026-11-05, item B (#673): where given, counts the
   // PYTEST_ADDOPTS assignments read as make's environment: an `export` word, and a leading
   // assignment or `env` prefix on a make command. Any other mention is not counted.
-  mentions?: { read: number },
+  // goal_cejel_v27_a1_addopts_review_fixes_698_2026-11-10, item A: `reachesOther` is set where a
+  // command visited is not a make command the reader reads (a script, a launcher, pytest, anything
+  // else; an echo or printf writing $GITHUB_ENV is the write itself, not a reader of it), and an
+  // `export` counts only where no such command comes after it.
+  mentions?: { read: number; reachesOther?: boolean },
 ): void {
   let current = directory;
   let why = directory === null ? unknownDirectory : undefined;
   let exported = addopts;
+  let exports = 0;
+  let exportReachesOther = false;
   const joined = stripShellHeredocBodies(text).replace(/\\\r?\n/g, ' ');
   for (const segment of splitShellCommandSegments(joined)) {
     const all = shellWords(segment.trim());
@@ -15986,7 +15992,7 @@ function readShellCommands(
       for (const word of words.slice(1)) {
         if (word.startsWith(PYTEST_ADDOPTS_ASSIGNMENT)) {
           exported = shellWords(word.slice(PYTEST_ADDOPTS_ASSIGNMENT.length));
-          if (mentions !== undefined) mentions.read += 1;
+          exports += 1;
         }
       }
       continue;
@@ -16007,8 +16013,29 @@ function readShellCommands(
       current = null;
       continue;
     }
+    if (mentions !== undefined && makeCommandOf(words) === undefined && !writesGithubEnvOnly(words)) {
+      mentions.reachesOther = true;
+      if (exports > 0) exportReachesOther = true;
+    }
     visit(words, current, local, current === null ? why : undefined);
   }
+  if (mentions !== undefined && !exportReachesOther) mentions.read += exports;
+}
+
+/**
+ * goal_cejel_v27_a1_addopts_review_fixes_698_2026-11-10, item A: an `echo` or `printf` with a word
+ * naming GITHUB_ENV (its redirection) and no command substitution: it writes the file and runs
+ * nothing else. Linear in the words.
+ */
+function writesGithubEnvOnly(words: readonly string[]): boolean {
+  const name = basename(words[0] ?? '');
+  if (name !== 'echo' && name !== 'printf') return false;
+  let names = false;
+  for (const word of words) {
+    if (word.includes('$(') || word.includes('`')) return false;
+    if (word.includes('GITHUB_ENV')) names = true;
+  }
+  return names;
 }
 
 const PYTHON_INTERPRETER_PATTERN = /^(?:python(?:\d+(?:\.\d+)*)?|pypy\d*(?:\.\d+)?|py)(?:\.exe)?$/i;
@@ -16312,9 +16339,21 @@ interface GithubRunStep {
    * workflow-, job- and step-level `env:` entries for PYTEST_ADDOPTS read for this step.
    */
   readonly addoptsKeyLines: readonly number[];
+  /** goal_cejel_v27_a1_addopts_review_fixes_698_2026-11-10, item A: the 0-based last line of the run's text. */
+  readonly lastLine: number;
 }
 
-function readGithubRunSteps(text: string): GithubRunStep[] {
+/**
+ * Fix round on cejel #710 (re-review at 9ad037b1d, blocker 2), item A: a step that runs an action
+ * (`uses:`), which the reader does not follow for the environment it passes on, and the 0-based lines
+ * of the workflow-, job- and step-level `env:` entries for PYTEST_ADDOPTS that reach it.
+ */
+interface GithubUsesStep {
+  readonly line: number;
+  readonly addoptsKeyLines: readonly number[];
+}
+
+function readGithubRunSteps(text: string, usesSteps?: GithubUsesStep[]): GithubRunStep[] {
   const lines = readYamlLines(text);
   const raw = text.split(/\r?\n/);
   const steps: GithubRunStep[] = [];
@@ -16395,6 +16434,7 @@ function readGithubRunSteps(text: string): GithubRunStep[] {
   const firstRootLine = lines.findIndex((line) => !line.blank);
   const root = factsOf(firstRootLine === -1 ? new Map() : mappingKeys(firstRootLine, lines[firstRootLine]?.keyColumn ?? 0));
   const jobs = new Map<number, MappingFacts>();
+  const stepKeysAt = new Map<number, Map<string, number>>();
   const jobFacts = (header: number, column: number): MappingFacts => {
     let facts = jobs.get(header);
     if (facts === undefined) {
@@ -16407,22 +16447,40 @@ function readGithubRunSteps(text: string): GithubRunStep[] {
   };
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index];
-    if (!line || line.blank || line.key !== 'run' || line.value === '') continue;
+    if (!line || line.blank || (line.key !== 'run' && line.key !== 'uses') || line.value === '') continue;
     const column = line.keyColumn;
     // The step's first key is the dash line at this column; its other keys sit at the column too.
     const stepStart = itemStart[index] ?? -1;
     if (stepStart === -1) continue;
-    const stepKeys = mappingKeys(stepStart, column);
+    // Fix round on #710, item A: a step's keys are read once, however many run: or uses: keys it
+    // holds, so a step of N such keys costs its lines once, not N times.
+    let stepKeys = stepKeysAt.get(stepStart);
+    if (stepKeys === undefined) {
+      stepKeys = mappingKeys(stepStart, column);
+      stepKeysAt.set(stepStart, stepKeys);
+    }
     const list = parent[stepStart] ?? -1;
     const jobHeader = list === -1 ? -1 : (parent[list] ?? -1);
     const job = jobHeader === -1 ? { never: false } : jobFacts(jobHeader, lines[list]?.keyColumn ?? 0);
     if (isFalse(scalarAt(stepKeys.get('if'))) || job.never) continue;
+    // Fix round on #710, item A: a `uses:` step is recorded with the env: entries that reach it, and
+    // is not a run step. (A step holding both keys is read as its run.)
+    if (line.key === 'uses') {
+      if (!stepKeys.has('run')) {
+        usesSteps?.push({
+          line: index,
+          addoptsKeyLines: [root.addoptsLine, job.addoptsLine, addoptsLineIn(stepKeys)].filter((at): at is number => at !== undefined),
+        });
+      }
+      continue;
+    }
     const directoryValue = scalarAt(stepKeys.get('working-directory')) ?? job.directory ?? root.directory;
     const directory = directoryValue === undefined ? '' : directoryValue.includes('${{') ? null : resolveCommandPath('', directoryValue);
     const stepAddopts = addoptsIn(stepKeys);
     const addoptsValue = stepAddopts ?? job.addopts ?? root.addopts;
     const addoptsLine = stepAddopts !== undefined ? addoptsLineIn(stepKeys) : job.addopts !== undefined ? job.addoptsLine : root.addoptsLine;
     let command: string;
+    let lastLine = index;
     if (/^[|>]/.test(line.value)) {
       const block: string[] = [];
       for (let next = index + 1; next < raw.length; next += 1) {
@@ -16430,6 +16488,7 @@ function readGithubRunSteps(text: string): GithubRunStep[] {
         if (text.trim() !== '' && text.length - text.trimStart().length <= column) break;
         block.push(text);
       }
+      lastLine = index + block.length;
       let indent = Number.POSITIVE_INFINITY;
       for (const text of block) if (text.trim() !== '') indent = Math.min(indent, text.length - text.trimStart().length);
       const dedented = block.map((text) => text.slice(Number.isFinite(indent) ? indent : 0));
@@ -16445,6 +16504,7 @@ function readGithubRunSteps(text: string): GithubRunStep[] {
       command,
       directory,
       line: index,
+      lastLine,
       addoptsKeyLines: [root.addoptsLine, job.addoptsLine, stepAddoptsLine].filter((at): at is number => at !== undefined),
       ...(directory === null && directoryValue !== undefined ? { unknownDirectory: `working-directory: ${directoryValue}` } : {}),
       ...(addoptsValue === undefined || expression ? {} : { addopts: shellWords(addoptsValue) }),
@@ -16485,10 +16545,18 @@ export function readPytestInvocations(
   // goal_cejel_v27_a1_addopts_not_known_2026-11-05, item B (#673): true where a CI file names
   // PYTEST_ADDOPTS somewhere the readers below do not read as an environment (a script a step runs
   // with it set, a comment, an expression), so a Makefile's `?=` default of it is not known.
-  let addoptsMentionNotRead = false;
-  // Item B: whether every whole-word PYTEST_ADDOPTS in `text` is one of the `read` mentions.
-  const noteAddoptsMentions = (text: string, read: number): void => {
-    if (wordCount(text, 'PYTEST_ADDOPTS') !== read) addoptsMentionNotRead = true;
+  // goal_cejel_v27_a1_addopts_review_fixes_698_2026-11-10, item A: the first such mention, as
+  // written (its line, trimmed) and where: the reason and the pointer of the runs it leaves not read.
+  let addoptsMentionNotRead: { readonly text: string; readonly source: string; readonly file: string; readonly line: number } | undefined;
+  // Item B: whether every whole-word PYTEST_ADDOPTS in `text` is one of the `read` mentions. Review
+  // of #698, item A: where not, the mention is the first line naming PYTEST_ADDOPTS outside
+  // `readLines` (the entries read, and the steps whose every mention is read).
+  const noteAddoptsMentions = (text: string, read: number, readLines: ReadonlySet<number>, file: string): void => {
+    if (addoptsMentionNotRead !== undefined || wordCount(text, 'PYTEST_ADDOPTS') === read) return;
+    const lines = text.split(/\r?\n/);
+    let at = lines.findIndex((line, index) => !readLines.has(index) && containsWord(line, 'PYTEST_ADDOPTS'));
+    if (at === -1) at = lines.findIndex((line) => containsWord(line, 'PYTEST_ADDOPTS'));
+    addoptsMentionNotRead = { text: (lines[at] ?? '').trim(), source: a1NotePath(file), file, line: Math.max(at, 0) };
   };
   // goal_cejel_v27_a1_makefile_addopts_environment_2026-11-04, item A: each CI make command run with
   // PYTEST_ADDOPTS in its environment, or with one Cejel cannot read. Recorded while CI is read only.
@@ -16638,10 +16706,21 @@ export function readPytestInvocations(
     // `$GITHUB_ENV` rule covers, every mention on a line naming GITHUB_ENV (the rule is by name, so
     // the shell forms are not counted there); elsewhere an `export` and a leading assignment or
     // `env` prefix on a make command.
+    // goal_cejel_v27_a1_addopts_review_fixes_698_2026-11-10, item A (blocker 1 of the review of
+    // #698): an `env:` entry counts as read only where every step it applies to runs nothing but CI
+    // make commands the reader reads, and a `$GITHUB_ENV` write only where every run step of the
+    // file does (the rule is by name, so by file). Elsewhere it reaches a script, a launcher or
+    // anything else the reader does not follow, which may run make with it: a mention not read.
     const keyLines = new Set<number>();
-    const shellMentions = writesAddopts === undefined && text.includes('PYTEST_ADDOPTS') ? { read: 0 } : undefined;
-    for (const step of readGithubRunSteps(text)) {
+    const keysReachingOther = new Set<number>();
+    const readLines = new Set<number>();
+    let fileReachesOther = false;
+    let shellRead = 0;
+    const mentioned = text.includes('PYTEST_ADDOPTS');
+    const usesSteps: GithubUsesStep[] = [];
+    for (const step of readGithubRunSteps(text, usesSteps)) {
       for (const at of step.addoptsKeyLines) keyLines.add(at);
+      const shellMentions = mentioned ? { read: 0, reachesOther: false } : undefined;
       const envAddopts = step.addopts !== undefined && step.addoptsLine !== undefined ? { words: step.addopts, line: step.addoptsLine } : undefined;
       // Item A: a make command's environment is not known where the file may write PYTEST_ADDOPTS
       // to $GITHUB_ENV (the rule by name) or an `env:` entry sets it by an expression.
@@ -16654,15 +16733,38 @@ export function readPytestInvocations(
           : { reason: notKnownReason, source, file, line: writesAddopts === undefined && step.addoptsLine !== undefined ? step.addoptsLine : step.line };
       if (unreadWhy !== undefined) readShellCommands(step.command, null, step.addopts, visitor(source, file, step.line, 0, envAddopts, envNotKnown), unreadWhy, shellMentions);
       else readShellCommands(step.command, step.directory, step.addopts, visitor(source, file, step.line, 0, envAddopts, envNotKnown), step.unknownDirectory, shellMentions);
+      if (shellMentions === undefined) continue;
+      if (shellMentions.reachesOther) {
+        fileReachesOther = true;
+        for (const at of step.addoptsKeyLines) keysReachingOther.add(at);
+      }
+      // In a file the $GITHUB_ENV rule covers, the shell forms are not counted (the rule is by name).
+      if (writesAddopts !== undefined) continue;
+      shellRead += shellMentions.read;
+      if (!shellMentions.reachesOther && wordCount(step.command, 'PYTEST_ADDOPTS') === shellMentions.read) {
+        for (let at = step.line; at <= step.lastLine; at += 1) readLines.add(at);
+      }
     }
-    if (text.includes('PYTEST_ADDOPTS')) {
-      let read = keyLines.size + (shellMentions?.read ?? 0);
-      if (writesAddopts !== undefined) {
+    if (mentioned) {
+      // Fix round on #710 (blocker 2 of the re-review at 9ad037b1d; operator ruling of 10 Nov), item
+      // A: a `uses:` step is one the reader does not follow for the environment (a local composite
+      // action may run a script that runs make), so an `env:` entry that reaches one, and a
+      // `$GITHUB_ENV` write in a file that holds one (the rule is by file), is a mention not read.
+      for (const step of usesSteps) {
+        fileReachesOther = true;
+        for (const at of step.addoptsKeyLines) keysReachingOther.add(at);
+      }
+      for (const at of keyLines) if (!keysReachingOther.has(at)) readLines.add(at);
+      let read = shellRead;
+      for (const at of keyLines) if (!keysReachingOther.has(at)) read += 1;
+      if (writesAddopts !== undefined && !fileReachesOther) {
         text.split(/\r?\n/).forEach((line, index) => {
-          if (!keyLines.has(index) && line.includes('GITHUB_ENV')) read += wordCount(line, 'PYTEST_ADDOPTS');
+          if (keyLines.has(index) || !line.includes('GITHUB_ENV')) return;
+          read += wordCount(line, 'PYTEST_ADDOPTS');
+          readLines.add(index);
         });
       }
-      noteAddoptsMentions(text, read);
+      noteAddoptsMentions(text, read, readLines, file);
     }
     // The review of #648: a step action whose inputs run pytest (a retry or display wrapper) runs
     // it with arguments Cejel does not read.
@@ -16705,13 +16807,17 @@ export function readPytestInvocations(
     // Item B of goal_cejel_v27_a1_addopts_not_known_2026-11-05 (#673): the variables or env key
     // readCiAddopts reads (its first line, where that line is a key, not a shell assignment), and
     // the shell forms make's environment is read from.
-    const shellMentions = text.includes('PYTEST_ADDOPTS') ? { read: 0 } : undefined;
+    const shellMentions = text.includes('PYTEST_ADDOPTS') ? { read: 0, reachesOther: false } : undefined;
     for (const command of ciShellTexts(text)) {
       readShellCommands(command, jenkinsDir === undefined ? '' : null, addopts, visitor(source, file, 0), jenkinsDir, shellMentions);
     }
     if (shellMentions !== undefined) {
-      const keyLine = text.split(/\r?\n/).find((line) => PYTEST_ADDOPTS_LINE_PATTERN.test(line));
-      noteAddoptsMentions(text, shellMentions.read + (keyLine !== undefined && PYTEST_ADDOPTS_KEY_PATTERN.test(keyLine) ? 1 : 0));
+      // goal_cejel_v27_a1_addopts_review_fixes_698_2026-11-10, item A: the key applies to every
+      // command of the file, so it counts as read only where each is a make command the reader reads.
+      const lines = text.split(/\r?\n/);
+      const keyAt = lines.findIndex((line) => PYTEST_ADDOPTS_LINE_PATTERN.test(line));
+      const keyRead = keyAt !== -1 && PYTEST_ADDOPTS_KEY_PATTERN.test(lines[keyAt] ?? '') && !shellMentions.reachesOther;
+      noteAddoptsMentions(text, shellMentions.read + (keyRead ? 1 : 0), new Set(keyRead ? [keyAt] : []), file);
     }
   }
   // item A: a noxfile's session.run calls (nox runs every session it is not told to skip). Item B
@@ -16735,7 +16841,7 @@ export function readPytestInvocations(
     // Each call taking posargs is read once per set, so the work is the noxfile's calls times the
     // sets' words: a product of two inputs. A shared budget bounds it; past it the call is not read.
     const callCost = passedSets.reduce((sum, words) => sum + 1 + words.length, 0);
-    let noxLeft = NOX_POSARGS_BUDGET;
+    let noxLeft = POSARGS_BUDGET;
     // The review of #655, blocker 2: the posargs Cejel cannot read are said once per read, not once
     // per noxfile (M noxfiles and U such entries made M x U runs), and each counts against the budget.
     let unreadSaid = false;
@@ -16799,10 +16905,10 @@ export function readPytestInvocations(
     // goal_cejel_v27_a1_makefile_addopts_environment_2026-11-04: not PYTEST_ADDOPTS, whose value in
     // the environment of each CI make command is read below.
     // Item B of goal_cejel_v27_a1_addopts_not_known_2026-11-05 (#673): PYTEST_ADDOPTS too, where a
-    // CI file names it somewhere those readers do not read; this changes only a `?=` default, since
-    // make passes the Makefile's value of an `=`, `:=` or `+=` whatever the environment holds.
+    // CI file names it somewhere those readers do not read. That leaves a `?=` default not known here;
+    // an unexported `=`, `:=`, `::=` or `+=` is read below (goal_cejel_v27_a1_addopts_assignment_not_known_2026-11-10, item A).
     const setByEnvironment = (name: string) =>
-      name === 'PYTEST_ADDOPTS' ? addoptsMentionNotRead : environmentTexts.some((ciText) => containsWord(ciText, name));
+      name === 'PYTEST_ADDOPTS' ? addoptsMentionNotRead !== undefined : environmentTexts.some((ciText) => containsWord(ciText, name));
     const justVariables = just ? readJustVariables(text) : undefined;
     const make = just ? undefined : readMakeVariables(text, setByEnvironment);
     const budget = { left: MAKE_EXPANSION_BUDGET };
@@ -16819,6 +16925,10 @@ export function readPytestInvocations(
     // of #648: a just file's `set export` exports every assignment.
     let addoptsUnknown = false;
     let addoptsText: string | undefined;
+    // goal_cejel_v27_a1_addopts_assignment_not_known_2026-11-10, item A (#674): what leaves an
+    // unexported PYTEST_ADDOPTS not known, named as the reason and pointed at. The review of #698,
+    // item A: the first CI mention not read, not the assignment.
+    let addoptsNotKnownAt: { readonly text: string; readonly source: string; readonly file: string; readonly line: number } | undefined;
     if (justVariables !== undefined) {
       const exportsAll = /^set[ \t]+export(?:[ \t]*:=[ \t]*true)?[ \t]*$/m.test(text);
       const assigned = /^(?:export[ \t]+)?PYTEST_ADDOPTS[ \t]*:=/m.test(text);
@@ -16828,8 +16938,23 @@ export function readPytestInvocations(
         addoptsUnknown = addoptsText === undefined;
       }
     } else {
-      const exported = /^(?:export[ \t]*|\.EXPORT_ALL_VARIABLES[ \t]*:.*|(?:override[ \t]+)?export[ \t]+PYTEST_ADDOPTS\b.*)$/m.test(text);
-      if (isUnknown('PYTEST_ADDOPTS')) addoptsUnknown = true;
+      // goal_cejel_v27_a1_addopts_review_fixes_698_2026-11-10, item B: led by spaces or by nothing; a
+      // tab-led line is a recipe line, as readMakeVariables reads it.
+      const exported = /^ *(?:export[ \t]*|\.EXPORT_ALL_VARIABLES[ \t]*:.*|(?:override[ \t]+)?export[ \t]+PYTEST_ADDOPTS\b.*)$/m.test(text);
+      // Item A (#674; the operator's ruling of 10 Nov reverses the 5 Nov text for this case): GNU make
+      // passes an unexported variable to a recipe only where it is already in make's environment, and
+      // then with the Makefile's value. Where a CI file names PYTEST_ADDOPTS somewhere the readers do
+      // not read, that environment is not known, so neither is the value the recipe sees. Where every
+      // mention is read, each CI make command's environment is read below, as before.
+      // goal_cejel_v27_a1_addopts_review_fixes_698_2026-11-10, item A: every unexported assignment,
+      // `?=` included, is named with the first CI mention not read and pointed at its line.
+      const assigns = make?.assigned.has('PYTEST_ADDOPTS') === true || make?.defaulted.has('PYTEST_ADDOPTS') === true;
+      // A value on a make command line (#648) is named first, as before.
+      const mentionAt = exported || !assigns || makeOverrides.has('PYTEST_ADDOPTS') ? undefined : addoptsMentionNotRead;
+      if (mentionAt !== undefined) {
+        addoptsUnknown = true;
+        addoptsNotKnownAt = mentionAt;
+      } else if (isUnknown('PYTEST_ADDOPTS')) addoptsUnknown = true;
       else if (exported && make?.values.has('PYTEST_ADDOPTS')) {
         const expanded = expand(make.values.get('PYTEST_ADDOPTS') ?? '');
         if (expanded.unknown) addoptsUnknown = true;
@@ -16852,7 +16977,11 @@ export function readPytestInvocations(
       inForceAddopts: readonly string[] | undefined,
       notKnown: string | undefined,
       addoptsAt?: { readonly words: readonly string[]; readonly source: string; readonly file: string; readonly line: number },
+      // Item A of goal_cejel_v27_a1_addopts_assignment_not_known_2026-11-10: where a run not known is
+      // pointed at, in place of its target's header; the review of #698, item A: the CI mention.
+      notKnownAt?: { readonly source: string; readonly file: string; readonly line: number },
     ): void => {
+      const pointAt = notKnown === undefined ? undefined : notKnownAt;
       const expandHere = variables === make ? expand : expandWith(variables);
       const reached = new Set<string>();
       const queue = names.filter((name): name is string => name !== undefined && targets.has(name));
@@ -16872,7 +17001,7 @@ export function readPytestInvocations(
           }
           readShellCommands(expanded.text, repoDirectory(file), inForceAddopts, (words, directory, inForce, why) => {
             queue.push(...recipeTargetsNamed(words).filter((named) => targets.has(named)));
-            const visit = visitor(a1NotePath(file), file, headers.get(name) ?? 0, 0, undefined, undefined, addoptsAt);
+            const visit = visitor(pointAt?.source ?? a1NotePath(file), pointAt?.file ?? file, pointAt?.line ?? headers.get(name) ?? 0, 0, undefined, undefined, addoptsAt);
             if (notKnown !== undefined) visit(words, null, inForce, notKnown);
             else visit(words, directory, inForce, why);
           });
@@ -16880,7 +17009,14 @@ export function readPytestInvocations(
       }
     };
     // make run by hand, or by a CI command with no PYTEST_ADDOPTS in its environment.
-    readRecipes([firstTarget, 'test', 'tests', 'check', ...namedTargets], make, addopts, addoptsUnknown ? 'PYTEST_ADDOPTS' : undefined);
+    readRecipes(
+      [firstTarget, 'test', 'tests', 'check', ...namedTargets],
+      make,
+      addopts,
+      addoptsUnknown ? (addoptsNotKnownAt?.text ?? 'PYTEST_ADDOPTS') : undefined,
+      undefined,
+      addoptsNotKnownAt,
+    );
     // Item A of goal_cejel_v27_a1_makefile_addopts_environment_2026-11-04: each CI make command run
     // in this Makefile's directory (or one not known) with PYTEST_ADDOPTS in its environment. make
     // then passes PYTEST_ADDOPTS to every recipe, exported or not: with the Makefile's value where it
@@ -16923,12 +17059,15 @@ export function readPytestInvocations(
   // resolve leaves every factor-conditional pytest line not read.
   const toxenv = readToxenvValues(environmentTexts);
   for (const name of toxenv.names) namedToxEnvironments.add(name);
+  // goal_cejel_v27_a1_addopts_assignment_not_known_2026-11-10, item B (#653): one posargs budget
+  // across every tox.ini of the read, as the nox reader's is across every noxfile.
+  const toxBudget = { left: POSARGS_BUDGET, characters: POSARGS_CHARACTER_BUDGET };
   for (const file of usable.filter((candidate) => basename(candidate) === 'tox.ini')) {
     const text = readText(file);
     if (text === undefined) continue;
     const notRead = (entry: { readonly text: string; readonly source: string; readonly file: string; readonly anchor: number }) =>
       invocations.push({ source: entry.source, file: entry.file, anchor: entry.anchor, directory: '', args: [], text: entry.text, unread: entry.text });
-    readToxCommands(file, text, namedToxEnvironments, (anchor) => visitor(a1NotePath(file), file, anchor), toxPosargs, notRead, toxenv.unknown);
+    readToxCommands(file, text, namedToxEnvironments, (anchor) => visitor(a1NotePath(file), file, anchor), toxPosargs, notRead, toxenv.unknown, toxBudget);
   }
   // The review of #655, blocker 1: the noxfiles are read last, once tox's commands have named
   // their nox commands too; their runs still go where the recipes' runs began. The review of #655,
@@ -17336,6 +17475,17 @@ interface MakeVariables {
    * the environment set it.
    */
   readonly fromEnvironment: boolean;
+  /**
+   * goal_cejel_v27_a1_addopts_assignment_not_known_2026-11-10, item A (#674): for each name, its
+   * first assignment read with `=`, `:=`, `::=` or `+=` (not `?=`, and not one that leaves the name
+   * not known), as written (trimmed), and its 0-based line.
+   */
+  readonly assigned: ReadonlyMap<string, { readonly text: string; readonly line: number }>;
+  /**
+   * goal_cejel_v27_a1_addopts_review_fixes_698_2026-11-10, item A: the names a `?=` default left not
+   * known because the environment of a CI command may set them (`setByEnvironment`).
+   */
+  readonly defaulted: ReadonlySet<string>;
 }
 
 // The review of #648: at most this many variable substitutions per Makefile, so a chain of
@@ -17364,6 +17514,8 @@ function readMakeVariables(
   const simple = new Set<string>();
   const unknown = new Set<string>();
   const pytestNames = new Set<string>();
+  const assigned = new Map<string, { readonly text: string; readonly line: number }>();
+  const defaulted = new Set<string>();
   const budget = { left: MAKE_EXPANSION_BUDGET };
   let fromEnvironment = environment !== undefined;
   if (environment !== undefined) values.set(environment.name, environment.value);
@@ -17373,14 +17525,19 @@ function readMakeVariables(
   };
   let conditional = 0;
   let defining: string | undefined;
+  let lineIndex = -1;
   for (const line of text.split(/\r?\n/)) {
+    lineIndex += 1;
     const trimmed = line.trim();
     if (defining !== undefined) {
       if (/^endef\b/.test(trimmed)) defining = undefined;
       else if (trimmed.toLowerCase().includes('pytest')) pytestNames.add(defining);
       continue;
     }
+    // A tab-led line is a recipe line, as make reads one in a rule. goal_cejel_v27_a1_addopts_review_fixes_698_2026-11-10,
+    // item B: a line led by spaces is not, so an assignment with leading spaces is read as one.
     if (line.startsWith('\t')) continue;
+    const body = line.replace(/^[ \t]+/, '');
     const define = /^(?:override[ \t]+)?(?:export[ \t]+)?define[ \t]+([A-Za-z_][A-Za-z0-9_.-]*)/.exec(trimmed);
     if (define) {
       defining = define[1] ?? '';
@@ -17395,14 +17552,14 @@ function readMakeVariables(
       conditional = Math.max(0, conditional - 1);
       continue;
     }
-    const targetSpecific = /^[^#=:\t][^#=:]*:[ \t]*(?:(?:override|export|private)[ \t]+)*([A-Za-z_][A-Za-z0-9_.-]*)[ \t]*(?:\?=|:::=|::=|:=|\+=|!=|=)(.*)$/.exec(line);
+    const targetSpecific = /^[^#=:\t][^#=:]*:[ \t]*(?:(?:override|export|private)[ \t]+)*([A-Za-z_][A-Za-z0-9_.-]*)[ \t]*(?:\?=|:::=|::=|:=|\+=|!=|=)(.*)$/.exec(body);
     if (targetSpecific) {
       const name = targetSpecific[1] ?? '';
       if ((targetSpecific[2] ?? '').toLowerCase().includes('pytest')) pytestNames.add(name);
       forget(name);
       continue;
     }
-    const match = /^(?:override[ \t]+)?(?:export[ \t]+)?([A-Za-z_][A-Za-z0-9_.-]*)[ \t]*(\?=|:::=|::=|:=|\+=|!=|=)(.*)$/.exec(line);
+    const match = /^(?:override[ \t]+)?(?:export[ \t]+)?([A-Za-z_][A-Za-z0-9_.-]*)[ \t]*(\?=|:::=|::=|:=|\+=|!=|=)(.*)$/.exec(body);
     if (!match) continue;
     const name = match[1] ?? '';
     const operator = match[2] ?? '=';
@@ -17411,13 +17568,19 @@ function readMakeVariables(
     if (unknown.has(name)) continue;
     const fromTheEnvironment = environment !== undefined && name === environment.name;
     // Item A: under `make -e` an assignment to an environment variable is ignored unless `override`.
-    if (fromTheEnvironment && environment.overrides && !/^override[ \t]/.test(line)) continue;
-    if (conditional > 0 || operator === '!=' || operator === ':::=' || (operator === '?=' && setByEnvironment(name))) {
+    if (fromTheEnvironment && environment.overrides && !/^override[ \t]/.test(body)) continue;
+    if (conditional > 0 || operator === '!=' || operator === ':::=') {
+      forget(name);
+      continue;
+    }
+    if (operator === '?=' && setByEnvironment(name)) {
+      defaulted.add(name);
       forget(name);
       continue;
     }
     // Item A: a `?=` keeps the environment's value; any other assignment replaces or extends it.
     if (fromTheEnvironment && operator !== '?=') fromEnvironment = false;
+    if (operator !== '?=' && !assigned.has(name)) assigned.set(name, { text: line.trim(), line: lineIndex });
     if (operator === '?=') {
       if (!values.has(name)) {
         values.set(name, value);
@@ -17441,7 +17604,7 @@ function readMakeVariables(
       simple.delete(name);
     }
   }
-  return { values, unknown, pytestNames, fromEnvironment };
+  return { values, unknown, pytestNames, fromEnvironment, assigned, defaulted };
 }
 
 /**
@@ -17692,8 +17855,27 @@ const NOX_POSARGS_WORD = '\u0000session.posargs';
  * item B: the posargs substitutions per read, counted as one per run read plus the words put in;
  * past it a call taking posargs is not read. The input that maximises the work without it: a
  * noxfile of N calls taking posargs and a CI file passing 16 distinct sets of W words, N x 16 x W.
+ * goal_cejel_v27_a1_addopts_assignment_not_known_2026-11-10, item B (#653): the tox reader takes
+ * the same budget, counted the same way across every tox.ini of the read; past it a line holding
+ * {posargs} is named as a run not read. Its worst input is the same shape: a tox.ini of N lines
+ * holding {posargs} and 16 distinct CI sets of W words. The nox and tox reads each have their own.
  */
-const NOX_POSARGS_BUDGET = 4096;
+const POSARGS_BUDGET = 4096;
+/**
+ * goal_cejel_v27_a1_addopts_review_fixes_698_2026-11-10, item C (blocker 3 of the review of #698):
+ * the count above charges a tox.ini line one unit per run read plus the words put in, but each
+ * {posargs} on the line takes the whole set's text, so the line's work is its {posargs} count times
+ * the characters put in: L/20 {posargs} and one word of L/2 characters cost 3 units and L²/40
+ * characters. The tox reader also charges each line that product (a word's characters and one
+ * separator, per {posargs}, per set), against this many characters across every tox.ini of a read.
+ * The nox reader puts a passed word in place of *session.posargs by reference and copies no text, but
+ * each *session.posargs on a call takes every set's words, so its work on a call is the call's
+ * *session.posargs count times the sets' words. The count above charges a call the sets' words once,
+ * however many *session.posargs it holds, so it bounds that at about 4,096 words per
+ * *session.posargs (fix round on #710: this said "the call's words plus the sets' words"). The nox
+ * reader takes no character charge.
+ */
+const POSARGS_CHARACTER_BUDGET = 262_144;
 
 /**
  * item A: a noxfile's `session.run(...)` calls: the literal string arguments before the first
@@ -17808,6 +17990,10 @@ function readToxCommands(
   posargs: readonly { readonly words: readonly string[]; readonly text: string; readonly source: string; readonly file: string; readonly anchor: number }[] = [],
   notRead: (entry: { readonly text: string; readonly source: string; readonly file: string; readonly anchor: number }) => void = () => undefined,
   factorsUnknown = false,
+  // goal_cejel_v27_a1_addopts_assignment_not_known_2026-11-10, item B (#653): the posargs budget
+  // shared across the read's tox.ini files (POSARGS_BUDGET). The review of #698, item C: and the
+  // characters left (POSARGS_CHARACTER_BUDGET).
+  budget: { left: number; characters: number } = { left: POSARGS_BUDGET, characters: POSARGS_CHARACTER_BUDGET },
 ): void {
   const sections = readIniSections(text);
   const toxDirectory = repoDirectory(file);
@@ -17833,6 +18019,17 @@ function readToxCommands(
   // Distinct literal posargs, at most 16, so CI lines times tox lines stays bounded; past 16 the
   // run is named as not read rather than read in part.
   const { literal: literalPosargs, unread: unreadPosargs } = partitionPosargs(posargs);
+  // Item B of goal_cejel_v27_a1_addopts_assignment_not_known_2026-11-10 (#653): a line holding
+  // {posargs} is read once with none and once per literal set, so its work is one per run read plus
+  // the words put in, the nox reader's count. The 16-set limit caps the sets, not their length.
+  // The review of #698, item C: per {posargs} on the line, the sets' words and their characters (a
+  // word's characters and one separator each); a line with one {posargs} costs what it did.
+  let posargsWords = 0;
+  let posargsCharacters = 0;
+  for (const entry of literalPosargs) {
+    posargsWords += entry.words.length;
+    for (const word of entry.words) posargsCharacters += word.length + 1;
+  }
   let unreadSaid = false;
   const seen = new Set<Map<string, string>>();
   for (const { section, names } of environments) {
@@ -17868,6 +18065,18 @@ function readToxCommands(
             .replace(/\{posargs\}/g, passed === undefined ? '' : passed.map((word) => (/\s/.test(word) ? `'${word}'` : word)).join(' '))
             .replace(/\{posargs:([^}]*)\}/g, (_, fallback: string) => (passed === undefined ? fallback : passed.join(' ')))
             .replace(/\{(?:toxinidir|tox_root)\}/g, relative);
+        // Item B (#653): past the shared budget the line is named as a run not read, as the nox
+        // reader names a call; none of its runs is read.
+        if (line.includes('{posargs')) {
+          let occurrences = 0;
+          for (let at = line.indexOf('{posargs'); at !== -1; at = line.indexOf('{posargs', at + 1)) occurrences += 1;
+          budget.left -= 1 + literalPosargs.length + occurrences * posargsWords;
+          budget.characters -= occurrences * posargsCharacters;
+          if (budget.left < 0 || budget.characters < 0) {
+            notRead({ text: line, source: a1NotePath(file), file, anchor });
+            continue;
+          }
+        }
         readShellCommands(substitute(undefined), directory, addopts, visitAt(anchor));
         if (!line.includes('{posargs')) continue;
         for (const entry of literalPosargs) readShellCommands(substitute(entry.words), directory, addopts, visitAt(anchor));

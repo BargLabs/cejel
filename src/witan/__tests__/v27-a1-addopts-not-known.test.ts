@@ -26,7 +26,6 @@ const CI = '.github/workflows/ci.yml';
 
 const ENVIRONMENT_VALUE = `every-test-skipped rule not applied: -p no:skipping in PYTEST_ADDOPTS in ${CI}`;
 const MAKEFILE_VALUE = 'every-test-skipped rule not applied: -p no:skipping in PYTEST_ADDOPTS in Makefile';
-const MAKEFILE_NOT_READ = 'pytest run not read: `PYTEST_ADDOPTS` in Makefile';
 const HOLLOW = 'rated hollow here';
 
 const fixture = (name: string, files: Readonly<Record<string, string>>): FalseAssuranceFixture => ({
@@ -170,12 +169,18 @@ describe('v27 A1, item A (#669): an env: expression on a step that runs pytest i
   });
 });
 
+// goal_cejel_v27_a1_addopts_review_fixes_698_2026-11-10, item A: the runs a ?= default leaves not
+// known are named with the first CI mention not read, pointed at its line (they were named
+// `PYTEST_ADDOPTS` in Makefile at 46d7cbe27). A job env: entry over this file's `pip install pytest`
+// step reaches a command that is not make, so it is such a mention: the two job env: pins moved to
+// not read. The readings they held are kept on a job whose only run step is make, in
+// v27-a1-make-environment.test.ts (a1rev-conditional-default and a1rev-conditional-default-env-inert).
 describe('v27 A1, item B (#673): a ?= default where CI names PYTEST_ADDOPTS somewhere the reader does not follow', () => {
   it('?= with a script CI runs with PYTEST_ADDOPTS set, which runs make test: the default is not known', () => {
     expectWithheld(
       'a1qdef-script-sets-addopts',
       { Makefile: recipe('PYTEST_ADDOPTS ?= -q'), ...CI_SCRIPT, [CI]: workflow(['      - run: PYTEST_ADDOPTS="-p no:skipping" ./ci/test.sh']) },
-      MAKEFILE_NOT_READ,
+      `pytest run not read: \`- run: PYTEST_ADDOPTS="-p no:skipping" ./ci/test.sh\` in ${CI}`,
     );
   });
 
@@ -183,22 +188,23 @@ describe('v27 A1, item B (#673): a ?= default where CI names PYTEST_ADDOPTS some
     expectWithheld(
       'a1qdef-bash-c-mention',
       { Makefile: recipe('PYTEST_ADDOPTS ?= -q'), [CI]: workflow(['      - run: bash -c "PYTEST_ADDOPTS=\'-p no:skipping\' make test"']) },
-      MAKEFILE_NOT_READ,
+      `pytest run not read: \`- run: bash -c "PYTEST_ADDOPTS='-p no:skipping' make test"\` in ${CI}`,
     );
   });
 
-  it('pin: ?= with only a job env: literal keeps #670 (the environment value, inert)', () => {
-    expectHollow('a1qdef-pin-job-env-literal-inert', {
-      Makefile: recipe('PYTEST_ADDOPTS ?= -p no:skipping'),
-      [CI]: workflow(['      - run: make test'], ['    env:', '      PYTEST_ADDOPTS: "-q"']),
-    });
+  it('?= with a job env: literal over a pip step as well as make: not read (was: hollow, #670)', () => {
+    expectWithheld(
+      'a1qdef-pin-job-env-literal-inert',
+      { Makefile: recipe('PYTEST_ADDOPTS ?= -p no:skipping'), [CI]: workflow(['      - run: make test'], ['    env:', '      PYTEST_ADDOPTS: "-q"']) },
+      `pytest run not read: \`PYTEST_ADDOPTS: "-q"\` in ${CI}`,
+    );
   });
 
-  it('pin: ?= with only a job env: literal keeps #670 (the environment value, in force)', () => {
+  it('?= with a job env: literal over a pip step as well as make: not read (was: the environment value, #670)', () => {
     expectWithheld(
       'a1qdef-pin-job-env-literal-in-force',
       { Makefile: recipe('PYTEST_ADDOPTS ?= -x'), [CI]: workflow(['      - run: make test'], ['    env:', '      PYTEST_ADDOPTS: "-p no:skipping"']) },
-      ENVIRONMENT_VALUE,
+      `pytest run not read: \`PYTEST_ADDOPTS: "-p no:skipping"\` in ${CI}`,
     );
   });
 

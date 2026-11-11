@@ -36,8 +36,14 @@ const fixture = (name: string, files: Readonly<Record<string, string>>): FalseAs
   commits: [{ ...PY_BASE, 'tests/test_cache.py': SKIPPED_CACHE_TEST, ...files }],
 });
 
-/** A workflow whose test job runs `stepLines` (raw YAML, step-list indent), with optional workflow- and job-level lines. */
-const workflow = (stepLines: readonly string[], jobLines: readonly string[] = [], rootLines: readonly string[] = []): string =>
+/**
+ * A workflow whose test job runs `stepLines` (raw YAML, step-list indent), with optional workflow- and
+ * job-level lines. goal_cejel_v27_a1_addopts_review_fixes_698_2026-11-10, item A: `makeOnly` drops
+ * the `pip install pytest` step, so a job- or workflow-level env: entry reaches make commands only.
+ * Fix round on #710, item A: it drops the `actions/checkout` step too, since a `uses:` step is one the
+ * reader does not follow (the strict rule; the shape with checkout is pinned after the make-only cases).
+ */
+const workflow = (stepLines: readonly string[], jobLines: readonly string[] = [], rootLines: readonly string[] = [], makeOnly = false): string =>
   lines(
     'name: ci',
     'on:',
@@ -48,10 +54,11 @@ const workflow = (stepLines: readonly string[], jobLines: readonly string[] = []
     '    runs-on: ubuntu-latest',
     ...jobLines,
     '    steps:',
-    '      - uses: actions/checkout@v4',
-    '      - run: pip install pytest',
+    ...(makeOnly ? [] : ['      - uses: actions/checkout@v4', '      - run: pip install pytest']),
     ...stepLines,
   );
+/** The review of #698, item A: the clause of a run left not read by an env: entry that reaches `pip install pytest`. */
+const notReadByEntry = (value: string) => `pytest run not read: \`PYTEST_ADDOPTS: "${value}"\` in ${CI}`;
 
 const MAKE_TEST = ['      - run: make test'];
 const recipe = (...head: string[]) => lines(...head, '', 'test:', '\tpytest');
@@ -102,13 +109,18 @@ function expectHollow(name: string, files: Readonly<Record<string, string>>): Wi
   return v27;
 }
 
+// goal_cejel_v27_a1_addopts_review_fixes_698_2026-11-10, item A: a job- or workflow-level env: entry
+// also reaches this file's `pip install pytest` step, which is not a make command the reader reads,
+// so it is a mention not read, and a Makefile's unexported assignment of PYTEST_ADDOPTS (?= included)
+// leaves the runs not read, named with the entry. These v27 pins moved there from the reading each
+// test's name states (kept, on a job whose only run step is make, in the describe after this one).
 describe('v27 A1, item A: PYTEST_ADDOPTS in the environment of the command that runs make', () => {
-  it('a job-level env: PYTEST_ADDOPTS makes make pass the Makefile value to the recipe', () => {
-    expectWithheld('a1env-job-env-makefile-value', { Makefile: UNEXPORTED, [CI]: workflow(MAKE_TEST, ['    env:', '      PYTEST_ADDOPTS: "-q"']) }, MAKEFILE_VALUE);
+  it('a job-level env: PYTEST_ADDOPTS over a pip step as well as make: not read (was: make passes the Makefile value)', () => {
+    expectWithheld('a1env-job-env-makefile-value', { Makefile: UNEXPORTED, [CI]: workflow(MAKE_TEST, ['    env:', '      PYTEST_ADDOPTS: "-q"']) }, notReadByEntry('-q'));
   });
 
-  it('a workflow-level env: PYTEST_ADDOPTS', () => {
-    expectWithheld('a1env-workflow-env-makefile-value', { Makefile: UNEXPORTED, [CI]: workflow(MAKE_TEST, [], ['env:', '  PYTEST_ADDOPTS: "-q"']) }, MAKEFILE_VALUE);
+  it('a workflow-level env: PYTEST_ADDOPTS over a pip step as well as make: not read', () => {
+    expectWithheld('a1env-workflow-env-makefile-value', { Makefile: UNEXPORTED, [CI]: workflow(MAKE_TEST, [], ['env:', '  PYTEST_ADDOPTS: "-q"']) }, notReadByEntry('-q'));
   });
 
   it('a step-level env: PYTEST_ADDOPTS on the make step', () => {
@@ -119,11 +131,11 @@ describe('v27 A1, item A: PYTEST_ADDOPTS in the environment of the command that 
     );
   });
 
-  it('an earlier step writes PYTEST_ADDOPTS to $GITHUB_ENV: the recipe run is not read (the rule by name)', () => {
+  it('an earlier step writes PYTEST_ADDOPTS to $GITHUB_ENV, in a file with a pip step: not read, named with the write', () => {
     expectWithheld(
       'a1env-github-env-write',
       { Makefile: UNEXPORTED, [CI]: workflow(['      - run: echo "PYTEST_ADDOPTS=-q" >> "$GITHUB_ENV"', ...MAKE_TEST]) },
-      'pytest run not read: `PYTEST_ADDOPTS written to $GITHUB_ENV` in Makefile',
+      `pytest run not read: \`- run: echo "PYTEST_ADDOPTS=-q" >> "$GITHUB_ENV"\` in ${CI}`,
     );
   });
 
@@ -147,27 +159,27 @@ describe('v27 A1, item A: PYTEST_ADDOPTS in the environment of the command that 
     );
   });
 
-  it('a ?= default: the environment value is kept', () => {
+  it('a ?= default, with the job env: over a pip step: not read', () => {
     expectWithheld(
       'a1env-conditional-default',
       { Makefile: recipe('PYTEST_ADDOPTS ?= -x'), [CI]: workflow(MAKE_TEST, ['    env:', '      PYTEST_ADDOPTS: "-p no:skipping"']) },
-      ENVIRONMENT_VALUE,
+      notReadByEntry('-p no:skipping'),
     );
   });
 
-  it('a += append: the environment value followed by the Makefile value', () => {
+  it('a += append, with the job env: over a pip step: not read', () => {
     expectWithheld(
       'a1env-append',
       { Makefile: recipe('PYTEST_ADDOPTS += -p no:skipping'), [CI]: workflow(MAKE_TEST, ['    env:', '      PYTEST_ADDOPTS: "-q"']) },
-      MAKEFILE_VALUE,
+      notReadByEntry('-q'),
     );
   });
 
-  it('make -e: the environment value overrides the Makefile assignment', () => {
+  it('make -e, with the job env: over a pip step: not read', () => {
     expectWithheld(
       'a1env-make-e',
       { Makefile: recipe('PYTEST_ADDOPTS = -x'), [CI]: workflow(['      - run: make -e test'], ['    env:', '      PYTEST_ADDOPTS: "-p no:skipping"']) },
-      ENVIRONMENT_VALUE,
+      notReadByEntry('-p no:skipping'),
     );
   });
 
@@ -191,18 +203,20 @@ describe('v27 A1, item A: PYTEST_ADDOPTS in the environment of the command that 
     );
   });
 
-  it('a ?= default with the environment set to -q: the environment value, so no setting is in force', () => {
-    expectHollow('a1env-conditional-default-env-inert', {
-      Makefile: recipe('PYTEST_ADDOPTS ?= -p no:skipping'),
-      [CI]: workflow(MAKE_TEST, ['    env:', '      PYTEST_ADDOPTS: "-q"']),
-    });
+  it('a ?= default with the environment set to -q, over a pip step: not read (was: hollow)', () => {
+    expectWithheld(
+      'a1env-conditional-default-env-inert',
+      { Makefile: recipe('PYTEST_ADDOPTS ?= -p no:skipping'), [CI]: workflow(MAKE_TEST, ['    env:', '      PYTEST_ADDOPTS: "-q"']) },
+      notReadByEntry('-q'),
+    );
   });
 
-  it('make -e with the environment set to -q: the environment value, so no setting is in force', () => {
-    expectHollow('a1env-make-e-env-inert', {
-      Makefile: UNEXPORTED,
-      [CI]: workflow(['      - run: make -e test'], ['    env:', '      PYTEST_ADDOPTS: "-q"']),
-    });
+  it('make -e with the environment set to -q, over a pip step: not read (was: hollow)', () => {
+    expectWithheld(
+      'a1env-make-e-env-inert',
+      { Makefile: UNEXPORTED, [CI]: workflow(['      - run: make -e test'], ['    env:', '      PYTEST_ADDOPTS: "-q"']) },
+      notReadByEntry('-q'),
+    );
   });
 
   it('an environment set on a step that runs another target leaves the test target as make by hand reads it', () => {
@@ -216,15 +230,15 @@ describe('v27 A1, item A: PYTEST_ADDOPTS in the environment of the command that 
     expectWithheld('a1env-env-prefix', { Makefile: UNEXPORTED, [CI]: workflow(['      - run: env PYTEST_ADDOPTS=-q make test']) }, MAKEFILE_VALUE);
   });
 
-  it('make -e with an override assignment: the Makefile value still wins', () => {
+  it('make -e with an override assignment, over a pip step: not read', () => {
     expectWithheld(
       'a1env-make-e-override',
       { Makefile: recipe('override PYTEST_ADDOPTS = -p no:skipping'), [CI]: workflow(['      - run: make -e test'], ['    env:', '      PYTEST_ADDOPTS: "-q"']) },
-      MAKEFILE_VALUE,
+      notReadByEntry('-q'),
     );
   });
 
-  it('make -C sub reads sub/Makefile with the environment, not the root Makefile', () => {
+  it('make -C sub, with the job env: over a pip step: not read', () => {
     expectWithheld(
       'a1env-make-directory',
       {
@@ -232,7 +246,7 @@ describe('v27 A1, item A: PYTEST_ADDOPTS in the environment of the command that 
         'sub/Makefile': lines('PYTEST_ADDOPTS = -p no:skipping', '', 'test:', '\tpytest ../tests'),
         [CI]: workflow(['      - run: make -C sub test'], ['    env:', '      PYTEST_ADDOPTS: "-q"']),
       },
-      'every-test-skipped rule not applied: -p no:skipping in PYTEST_ADDOPTS in sub/Makefile',
+      notReadByEntry('-q'),
     );
   });
 
@@ -249,6 +263,71 @@ describe('v27 A1, item A: PYTEST_ADDOPTS in the environment of the command that 
       'a1env-control-command-line',
       { Makefile: UNEXPORTED, [CI]: workflow(['      - run: make test PYTEST_ADDOPTS=-q'], ['    env:', '      PYTEST_ADDOPTS: "-q"']) },
       'pytest run not read: `PYTEST_ADDOPTS` in Makefile',
+    );
+  });
+});
+
+// goal_cejel_v27_a1_addopts_review_fixes_698_2026-11-10, item A: the readings the describe above held
+// at 46d7cbe27, on a job whose only run step is make, where the env: entry reaches make commands only
+// and is read: each keeps its reading.
+describe('v27 A1, review of #698, item A: the same environments on a job whose only run step is make', () => {
+  const jobEnv = (value: string) => ['    env:', `      PYTEST_ADDOPTS: "${value}"`];
+  const cases: readonly { name: string; files: Readonly<Record<string, string>>; outcome: string | 'hollow' }[] = [
+    { name: 'a1rev-job-env-makefile-value', files: { Makefile: UNEXPORTED, [CI]: workflow(MAKE_TEST, jobEnv('-q'), [], true) }, outcome: MAKEFILE_VALUE },
+    { name: 'a1rev-workflow-env-makefile-value', files: { Makefile: UNEXPORTED, [CI]: workflow(MAKE_TEST, [], ['env:', '  PYTEST_ADDOPTS: "-q"'], true) }, outcome: MAKEFILE_VALUE },
+    {
+      name: 'a1rev-github-env-write',
+      files: { Makefile: UNEXPORTED, [CI]: workflow(['      - run: echo "PYTEST_ADDOPTS=-q" >> "$GITHUB_ENV"', ...MAKE_TEST], [], [], true) },
+      outcome: 'pytest run not read: `PYTEST_ADDOPTS written to $GITHUB_ENV` in Makefile',
+    },
+    { name: 'a1rev-conditional-default', files: { Makefile: recipe('PYTEST_ADDOPTS ?= -x'), [CI]: workflow(MAKE_TEST, jobEnv('-p no:skipping'), [], true) }, outcome: ENVIRONMENT_VALUE },
+    { name: 'a1rev-append', files: { Makefile: recipe('PYTEST_ADDOPTS += -p no:skipping'), [CI]: workflow(MAKE_TEST, jobEnv('-q'), [], true) }, outcome: MAKEFILE_VALUE },
+    { name: 'a1rev-make-e', files: { Makefile: recipe('PYTEST_ADDOPTS = -x'), [CI]: workflow(['      - run: make -e test'], jobEnv('-p no:skipping'), [], true) }, outcome: ENVIRONMENT_VALUE },
+    { name: 'a1rev-conditional-default-env-inert', files: { Makefile: recipe('PYTEST_ADDOPTS ?= -p no:skipping'), [CI]: workflow(MAKE_TEST, jobEnv('-q'), [], true) }, outcome: 'hollow' },
+    { name: 'a1rev-make-e-env-inert', files: { Makefile: UNEXPORTED, [CI]: workflow(['      - run: make -e test'], jobEnv('-q'), [], true) }, outcome: 'hollow' },
+    {
+      name: 'a1rev-make-e-override',
+      files: { Makefile: recipe('override PYTEST_ADDOPTS = -p no:skipping'), [CI]: workflow(['      - run: make -e test'], jobEnv('-q'), [], true) },
+      outcome: MAKEFILE_VALUE,
+    },
+    {
+      name: 'a1rev-make-directory',
+      files: {
+        Makefile: lines('PYTEST_ADDOPTS = -x', '', 'test:', '\techo root'),
+        'sub/Makefile': lines('PYTEST_ADDOPTS = -p no:skipping', '', 'test:', '\tpytest ../tests'),
+        [CI]: workflow(['      - run: make -C sub test'], jobEnv('-q'), [], true),
+      },
+      outcome: 'every-test-skipped rule not applied: -p no:skipping in PYTEST_ADDOPTS in sub/Makefile',
+    },
+    {
+      name: 'a1rev-control-command-line',
+      files: { Makefile: UNEXPORTED, [CI]: workflow(['      - run: make test PYTEST_ADDOPTS=-q'], jobEnv('-q'), [], true) },
+      outcome: 'pytest run not read: `PYTEST_ADDOPTS` in Makefile',
+    },
+  ];
+  for (const { name, files, outcome } of cases) {
+    it(`${name}: the reading kept`, () => {
+      if (outcome === 'hollow') expectHollow(name, files);
+      else expectWithheld(name, files, outcome);
+    });
+  }
+});
+
+// Fix round on #710 (re-review at 9ad037b1d, blocker 2; operator ruling of 10 Nov: keep the rule
+// strict and disclose it): a job-level env: entry over an actions/checkout step, or a $GITHUB_ENV write
+// in a file that holds one, reaches a uses: step the reader does not follow, so the mention is not
+// read even where every run step is make. This withholds on some files that are truly hollow;
+// narrowing it is cejel #713.
+describe('v27 A1, fix round on #710, item A: a uses: step such as actions/checkout leaves the mention not read', () => {
+  it('a job-level env: entry over actions/checkout and make test: not read, named with the entry', () => {
+    expectWithheld('a1uses-job-env-checkout-make', { Makefile: UNEXPORTED, [CI]: workflow(['      - uses: actions/checkout@v4', ...MAKE_TEST], ['    env:', '      PYTEST_ADDOPTS: "-q"'], [], true) }, notReadByEntry('-q'));
+  });
+
+  it('a $GITHUB_ENV write in a file with actions/checkout, then make test: not read, named with the write', () => {
+    expectWithheld(
+      'a1uses-github-env-checkout-make',
+      { Makefile: UNEXPORTED, [CI]: workflow(['      - uses: actions/checkout@v4', '      - run: echo "PYTEST_ADDOPTS=-q" >> "$GITHUB_ENV"', ...MAKE_TEST], [], [], true) },
+      `pytest run not read: \`- run: echo "PYTEST_ADDOPTS=-q" >> "$GITHUB_ENV"\` in ${CI}`,
     );
   });
 });

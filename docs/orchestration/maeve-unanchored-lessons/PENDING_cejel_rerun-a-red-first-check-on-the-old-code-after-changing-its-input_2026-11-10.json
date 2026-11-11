@@ -1,0 +1,26 @@
+[
+  {
+    "statement": "A red-first check whose input is changed after the red run must be run again against the old code: an input tuned to pass the fixed code can stop failing the code it exists to catch. 2026-11-10, cejel #698 (issue 653), my own near miss. The tox posargs scaling check was committed red on main at ratio 14.67. With the budget in place it fell under the floor of 2 (1.84), because the few lines the budget admits are the same work at both lengths. I raised the line count until the fixed reader measured 3.54 and committed that input; run once more against main's reader it measured 7.91, superlinear but under the limit of 11, so it no longer failed there. Fix (#698): an input where one line's cost exceeds the budget at the smaller length already (N = W = L/400) fails main by ratio (16.50) and passes the fixed reader (3.87), both runs recorded in the RUBRIC_CHANGELOG entry.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "agent-error",
+      "test-design"
+    ],
+    "tags": [
+      "red-first",
+      "scaling-check",
+      "test-input-drift",
+      "verify-against-old-code",
+      "own-error"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-11-10T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 698
+    }
+  }
+]

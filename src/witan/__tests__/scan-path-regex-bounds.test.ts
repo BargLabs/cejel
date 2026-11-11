@@ -905,6 +905,87 @@ describe('scaling: the v27 A1 gap readers grow no faster than linearly', () => {
     expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
   }, 60_000);
 
+  // goal_cejel_v27_a1_addopts_assignment_not_known_2026-11-10, item B (#653): readToxCommands reads
+  // each tox.ini line holding {posargs} once per literal CI posargs set (at most 16), so without a
+  // budget its work is the tox lines times the sets' words, a product of two inputs. The input that
+  // maximises it: a tox.ini of N lines each holding {posargs}, and a CI file passing 16 distinct
+  // sets of W words, N x 16 x W. Both grow with L here, N = L/400 lines and W = L/400 words, so an
+  // unbounded reader's work grows with the square of L. With the budget, each line is named as a run
+  // not read, at both lengths: at W = L/400 one line's cost, 1 + 16 x (W + 1), is past the budget
+  // at L/2 already, so what is left is the read's linear part. Where the budget admits a few lines
+  // at one length and fewer at the other, those reads are about the same work at both and swamp the
+  // linear part: N = L/400 with W = L/2,000 measured 1.84 with the budget, under the floor of 2. And
+  // where W is small, the reads per line and set outweigh the words: N = L/25 with W = L/4,000
+  // measured 7.91 on the reader without a budget, superlinear but under the limit. The budget's
+  // count across lines and files is pinned by the test after this one.
+  it('the tox posargs reader, on a tox.ini of L/400 {posargs} lines and 16 CI sets of L/400 words', () => {
+    const directory = 'tests/unit';
+    const textsFor = (length: number): Map<string, string> => {
+      const commands = Array.from({ length: Math.floor(length / 400) }, (_, index) => `    pytest {posargs} ${directory}/test_${index}.py`).join('\n');
+      const words = Math.floor(length / 400);
+      const steps = Array.from({ length: 16 }, (_, set) => `      - run: tox -e py -- ${Array.from({ length: words }, (_, word) => `-ks${set}w${word}`).join(' ')}`).join('\n');
+      return new Map([
+        ['tox.ini', `[tox]\nenvlist = py\n\n[testenv]\ndeps = pytest\ncommands =\n${commands}\n`],
+        ['.github/workflows/ci.yml', `name: ci\non: push\njobs:\n  t:\n    runs-on: ubuntu-latest\n    steps:\n${steps}\n`],
+      ]);
+    };
+    const files = ['.github/workflows/ci.yml', 'tox.ini'];
+    const texts = scalingInputs(textsFor);
+    const { ratio, timing, atSmall, atLarge } = scalingRatio((length) => readPytestInvocations(files, (file) => texts(length).get(file)));
+    expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
+    for (const read of [atSmall, atLarge]) {
+      expect(read.some(({ file, unread }) => file === 'tox.ini' && unread !== undefined && unread.startsWith(`pytest {posargs} ${directory}/test_`))).toBe(true);
+    }
+  }, 180_000);
+
+  // goal_cejel_v27_a1_addopts_review_fixes_698_2026-11-10, item C (blocker 3 of the review of #698):
+  // the word count above charges a line 1 + 16 x (W + 1) whatever it holds, but each {posargs} on the
+  // line takes the whole set's text, so the work is the occurrences times the characters put in. The
+  // input that maximises it: one tox.ini line holding K {posargs} and one CI word of C characters,
+  // K x C, charged 3 by the word count. Here K = L/400 and C = L/100, so a reader charged by words
+  // grows with the square of L (#698's measured 16 or more); charged by characters, the line is past
+  // the budget at L/2 already, and is named not read at both lengths.
+  it('the tox posargs reader, on one tox.ini line of L/400 {posargs} and one CI word of L/100 characters', () => {
+    const textsFor = (length: number): Map<string, string> => {
+      const line = `pytest ${Array.from({ length: Math.floor(length / 400) }, () => '{posargs}').join(' ')}`;
+      const word = `-k${'x'.repeat(Math.floor(length / 100))}`;
+      return new Map([
+        ['tox.ini', `[tox]\nenvlist = py\n\n[testenv]\ndeps = pytest\ncommands = ${line}\n`],
+        ['.github/workflows/ci.yml', `name: ci\non: push\njobs:\n  t:\n    runs-on: ubuntu-latest\n    steps:\n      - run: tox -e py -- ${word}\n`],
+      ]);
+    };
+    const files = ['.github/workflows/ci.yml', 'tox.ini'];
+    const texts = scalingInputs(textsFor);
+    const { ratio, timing, atSmall, atLarge } = scalingRatio((length) => readPytestInvocations(files, (file) => texts(length).get(file)));
+    expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
+    for (const read of [atSmall, atLarge]) {
+      expect(read.some(({ file, unread }) => file === 'tox.ini' && unread !== undefined && unread.startsWith('pytest {posargs} {posargs}'))).toBe(true);
+    }
+  }, 180_000);
+
+  // Item C: the nox reader, checked on the same shape: one session.run call holding K
+  // *session.posargs and one CI word of C characters, K = L/400 and C = L/100. It does not have the
+  // blind spot: it puts each passed word in place of *session.posargs as a reference to the same
+  // string, so no text is copied and its work is K + C, not K x C. On #698's reader this measured
+  // 3.54, and a whole v27 scan of the shape took the same time at both lengths. The call is read.
+  it('the nox posargs reader, on one call of L/400 *session.posargs and one CI word of L/100 characters', () => {
+    const textsFor = (length: number): Map<string, string> => {
+      const call = `    session.run("pytest", ${Array.from({ length: Math.floor(length / 400) }, () => '*session.posargs').join(', ')})`;
+      const word = `-k${'x'.repeat(Math.floor(length / 100))}`;
+      return new Map([
+        ['noxfile.py', `import nox\n\n\n@nox.session\ndef tests(session):\n${call}\n`],
+        ['.github/workflows/ci.yml', `name: ci\non: push\njobs:\n  t:\n    runs-on: ubuntu-latest\n    steps:\n      - run: nox -s tests -- ${word}\n`],
+      ]);
+    };
+    const files = ['.github/workflows/ci.yml', 'noxfile.py'];
+    const texts = scalingInputs(textsFor);
+    const { ratio, timing, atSmall, atLarge } = scalingRatio((length) => readPytestInvocations(files, (file) => texts(length).get(file)));
+    expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
+    for (const read of [atSmall, atLarge]) {
+      expect(read.some(({ file, unread, args }) => file === 'noxfile.py' && unread === undefined && args.length > 0)).toBe(true);
+    }
+  }, 180_000);
+
   // The review of #655, blocker 2: the unread posargs entries were said once per noxfile, so M
   // noxfiles and U unread CI entries gave M x U runs, and spreading them into one call overflowed
   // the stack (400 and 400 threw RangeError). They are said once per read and count against the
@@ -1057,12 +1138,16 @@ describe('scaling: the v27 A1 make environment and class hook readers grow no fa
 // (an export, a leading assignment and an env prefix on make) and a pytest run, against a Makefile
 // with a `?=` default and L/400 targets. The `end` variant adds one mention the readers do not read,
 // in a comment on the file's last line, so the count is shown to reach the end of the file.
+// goal_cejel_v27_a1_addopts_review_fixes_698_2026-11-10, item A: a mention is read only where every
+// command it reaches is a make command the reader reads, so the run: line no longer ends with a
+// pytest run (which made its export and env: entry mentions not read); the counted forms are kept,
+// and the readers also test each command for make once (makeCommandOf, linear in its words).
 describe('scaling: the v27 A1 PYTEST_ADDOPTS mention count grows no faster than linearly', () => {
   const textsFor = (length: number, end: string): Map<string, string> => {
     const steps = Array.from(
       { length: Math.floor(length / 200) },
       (_, index) =>
-        `      - run: export PYTEST_ADDOPTS=-q && PYTEST_ADDOPTS=-q env PYTEST_ADDOPTS=-ke${index} make t${index % 64} && pytest tests\n        env:\n          PYTEST_ADDOPTS: "-k e${index}"`,
+        `      - run: export PYTEST_ADDOPTS=-q && PYTEST_ADDOPTS=-q env PYTEST_ADDOPTS=-ke${index} make t${index % 64} && make t${(index + 1) % 64}\n        env:\n          PYTEST_ADDOPTS: "-k e${index}"`,
     ).join('\n');
     const recipes = Array.from({ length: Math.floor(length / 400) }, (_, index) => `t${index}:\n\tpytest tests/test_${index}.py`).join('\n');
     return new Map([
@@ -1086,10 +1171,35 @@ describe('scaling: the v27 A1 PYTEST_ADDOPTS mention count grows no faster than 
     const texts = scalingInputs((length) => textsFor(length, '# PYTEST_ADDOPTS is set per step\n'));
     const { ratio, timing, atSmall, atLarge } = scalingRatio((length) => readPytestInvocations(files, (file) => texts(length).get(file)));
     // The default is not known, so make's environments are not read against it and every target's
-    // run is named not read.
+    // run is named not read, pointed at the mention (the review of #698, item A: the comment line).
     for (const read of [atSmall, atLarge]) {
       expect(read.filter(({ addoptsAt }) => addoptsAt !== undefined)).toHaveLength(0);
-      expect(read.some(({ unread, file }) => unread !== undefined && file === 'Makefile')).toBe(true);
+      expect(read.some(({ unread, file }) => unread === '# PYTEST_ADDOPTS is set per step' && file === '.github/workflows/ci.yml')).toBe(true);
+    }
+    expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
+  }, 120_000);
+
+  // Fix round on #710, item A: the GitHub step reader records each uses: step with the env: entries
+  // that reach it, reading the step's keys once per step (cached by the step's first line), so a step
+  // holding many uses: keys costs its lines once. The input that maximises its work: a job env: entry
+  // over L/160 uses: steps and one step of L/160 uses: keys, then make t0, against a ?= default.
+  it('uses: steps under a job env: entry: the mention is not read at L and at 2L, in linear time', () => {
+    const textsFor = (length: number): Map<string, string> => {
+      const count = Math.floor(length / 160);
+      const steps = Array.from({ length: count }, (_, index) => `      - uses: org/a${index}@v1`).join('\n');
+      const keys = Array.from({ length: count }, (_, index) => `        uses: org/b${index}@v1`).join('\n');
+      return new Map([
+        [
+          '.github/workflows/ci.yml',
+          `name: ci\non: push\njobs:\n  t:\n    runs-on: ubuntu-latest\n    env:\n      PYTEST_ADDOPTS: "-q"\n    steps:\n${steps}\n      - uses: org/c@v1\n${keys}\n      - run: make t0\n`,
+        ],
+        ['Makefile', 'PYTEST_ADDOPTS ?= -x\n\nt0:\n\tpytest tests/test_0.py\n'],
+      ]);
+    };
+    const texts = scalingInputs(textsFor);
+    const { ratio, timing, atSmall, atLarge } = scalingRatio((length) => readPytestInvocations(files, (file) => texts(length).get(file)));
+    for (const read of [atSmall, atLarge]) {
+      expect(read.some(({ unread, file }) => unread === 'PYTEST_ADDOPTS: "-q"' && file === '.github/workflows/ci.yml')).toBe(true);
     }
     expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
   }, 120_000);

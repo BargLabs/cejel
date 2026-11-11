@@ -22,6 +22,215 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
+## 2026-11-10 (A1 addopts assignment not known) — v27 A1 names the pytest runs an unexported Makefile `=`, `:=` or `+=` of `PYTEST_ADDOPTS` reaches as not read where CI names the variable somewhere the readers do not follow (#674), and the tox posargs reader shares a budget (#653); v17-v26 byte-identical; v27 never above v17; no published score moved
+
+**Status.** A scoring change under `witan-rubric-v27-prospective-2026-10-19` only, with no
+identifier change (goal_cejel_v27_a1_addopts_assignment_not_known_2026-11-10, its review round
+goal_cejel_v27_a1_addopts_review_fixes_698_2026-11-10, and the fix round on #710). No holdout or
+calibration ran for it, and this entry makes no precision or recall claim. The default stays v17.
+
+**Why.** (#674, found in the 2026-11-05 change below.) GNU make passes a Makefile variable it does
+not export to a recipe only where the variable is already in make's environment, and then with the
+Makefile's value. A CI step such as `PYTEST_ADDOPTS=-q ./ci/test.sh`, whose script runs `make test`,
+puts it there; the reader does not follow the script, so it read an unexported
+`PYTEST_ADDOPTS = -p no:skipping` as not applied, and rated a file whose every test is skipped
+"runs no test" where pytest runs its tests: a false hollow on a full clone. (#653, found while adding
+nox posargs on 2026-11-03.) `readToxCommands` read each `tox.ini` line holding `{posargs}` once per
+literal CI posargs set, at most 16, so its work was the lines times the sets' words, with no budget
+and no scaling check; the 16-set limit caps the count of sets, not their length.
+
+**Ruling.** Item A reverses, by the operator's ruling of 10 Nov, the 5 Nov card text that "an `=`,
+`:=` or `+=` assignment keeps #670's reading, because make passes the Makefile's value whatever the
+environment holds" (stated in the 2026-11-05 entry below as "Only `?=` changes"). That reason holds
+only where the variable is exported or already in make's environment; the ruling is to read the
+unexported case the way #673's fix reads `?=`.
+
+**Change.**
+
+- **A — an unexported assignment (#674).** Where a Makefile assigns `PYTEST_ADDOPTS` with `?=`,
+  `=`, `:=`, `::=` or `+=` and does not export it (no `export` on the line, no
+  `export PYTEST_ADDOPTS` line, no bare `export`, no `.EXPORT_ALL_VARIABLES`, the same export test
+  as 2026-11-04), and a CI mention of `PYTEST_ADDOPTS` is not read (what counts as read is in the
+  review round paragraph below), the value is not known. The pytest runs the Makefile's targets
+  reach are named with the first CI mention not read, its line trimmed, and pointed at that line of
+  the CI file, not at the Makefile assignment: for a job-level `env:` entry, "Pytest run not read:
+  `PYTEST_ADDOPTS: -q` in .github/workflows/ci.yml", with a pointer at the entry's line. A value on
+  make's command line is still named first, as "pytest run not read: `PYTEST_ADDOPTS` in Makefile".
+  `readMakeVariables` reads the Makefile as before: define bodies, conditionals and target-specific
+  assignments leave the name not known. Where every CI mention is read, each CI make command's
+  environment is read as on 2026-11-04, and an exported assignment keeps that reading in every case.
+  `::=`, which GNU make 4.0 and later reads as `:=`, is included because it is the same assignment;
+  the card names `=`, `:=` and `+=`.
+- **B — the tox posargs budget (#653).** The tox reader takes two budgets, each counted across every
+  `tox.ini` of a read (the nox read keeps its own unit count): 4,096 units (`POSARGS_BUDGET`,
+  renamed from `NOX_POSARGS_BUDGET` and shared in size with the nox reader), where a line holding
+  `{posargs}` costs 1 (the run with no posargs), plus 1 per literal CI set, plus its `{posargs}`
+  count times the sets' words; and 262,144 characters (`POSARGS_CHARACTER_BUDGET`), where the line
+  costs its `{posargs}` count times the sets' characters, each word's characters and one separator,
+  per set. Past either, the line is named "pytest run not read: `<the line>` in tox.ini", at its
+  line, and none of its runs is read, as the nox reader names a call past its budget. A line with
+  one `{posargs}` costs the units it cost before the review round.
+  The input that maximises the work is one `tox.ini` line with many `{posargs}` and long CI words,
+  capped by the character budget: K `{posargs}` and one CI set of W words of C characters cost
+  K x W units and K x W x (C + 1) characters, so a read substitutes at most about 262,144
+  characters; for example K = 4,000 and one word of 64 characters (4,002 units, 260,000
+  characters). A line past either budget costs one linear count of its `{posargs}`. Timed on the
+  dev host on 10 Nov at `deddb48d1` (CPU time per `readPytestInvocations` read, the mean of 20
+  after 3 warm reads, while the measurement below ran on the same host): that line followed by
+  lines of the same kind up to L = 240,000 bytes (1 line read, 4 named not read) 2.7 ms, and up to
+  2L = 480,000 bytes (1 read, 10 not read) 3.2 ms; the review's input, one line of L/20 `{posargs}`
+  and one CI word of L/2 characters, past both budgets, 1.0 ms at L and 2.2 ms at 2L. (The first
+  commit named N lines and 16 sets of W words, N x 16 x W, as this input and charged words only;
+  that was wrong, since each `{posargs}` takes the whole set's text. The review round corrected it.)
+
+**Review round (#698).** The review of #698 at `46d7cbe27` found three blockers, fixed in this pull
+request, red first at `b1fb00a31`:
+
+- **A.** A mention was counted as read by its kind, an `env:` entry or a `$GITHUB_ENV` line, even
+  where it reached a script that runs make, so `run: ./ci/test.sh` under `env: PYTEST_ADDOPTS: -q`
+  still gave a false hollow. Now an `env:` entry (step, job or workflow) counts as read only where
+  every step it applies to is a run step running nothing but CI make commands the reader reads; a
+  `$GITHUB_ENV` write (the rule is by name, so by file) only where the file holds no `uses:` step
+  and every run step of the file does, an echo or printf write itself aside; an `export` only where
+  no other command follows it in the run; a non-GitHub CI file's variables or env key only where
+  each of its commands is such a make command. This applies to every unexported assignment, `?=`
+  included. It corrects this entry's first text, "the reader knows whether make's environment holds
+  the variable", which the code did not do.
+- **B.** A Makefile assignment led by spaces is read; a tab-led line in a rule stays a recipe line,
+  as GNU make reads it.
+- **C.** The tox budget counts work, not words: the character budget in item B above.
+- **This round, item A** (the re-review of #710 at `9ad037b1d`, blocker 2; operator ruling of
+  10 Nov). A `uses:` step was left out of the steps an `env:` entry reaches, so job- or
+  workflow-level `env: PYTEST_ADDOPTS: -q` (or a `$GITHUB_ENV` write) over `run: make lint` and
+  `uses: ./.github/actions/t`, a local composite action that runs `./ci/test.sh`, which runs
+  `make test`, with Makefile `PYTEST_ADDOPTS = -p no:skipping`, was a false hollow (the re-review
+  measured v27 A1 2.0 against v17's 2.3). A `uses:` step is now a step the reader does not follow:
+  an `env:` entry that reaches one, at any level, is a mention not read, as is a `$GITHUB_ENV`
+  write in a file that holds one, the same as a script step. Blocker 1 of that re-review was this
+  entry's records, corrected here.
+
+**The rule is strict, and in practice it withholds every job- or workflow-level case.** By the operator's ruling
+of 10 Nov the rule stays strict and is disclosed: a mention that reaches any step that is not a
+make command the reader reads now leaves the run not read, including `pip install`, `set -e`,
+`echo` and a `uses:` step such as `actions/checkout`. So a job-level `env: PYTEST_ADDOPTS` over a
+checkout or an install step as well as `make test`, beside an unexported Makefile assignment,
+withholds where the reading was kept before. Nearly every GitHub Actions job starts with a `uses:`
+step (`actions/checkout`), so in practice a job- or workflow-level `env: PYTEST_ADDOPTS` beside an
+unexported Makefile assignment of the variable always withholds, and every truly hollow file of that
+shape is withheld rather than rated hollow; only a step-level `env:` on the make step itself keeps
+its reading. v27 then keeps v17's reading there, never above it. The 1,018 synthetic repositories
+measured below cannot show this: none of them holds both a CI mention of `PYTEST_ADDOPTS` and a
+Makefile assignment of it. The narrowing, to steps that can run make, is cejel #713.
+
+**GNU make and pytest.** The first session's shell refused `make` and `python3 -m pytest`. The make
+claims were then checked with GNU Make 3.81, run on the dev host on 10 Nov from a throwaway test: an
+unexported `=` or `:=` reaches the recipe only when the variable is in make's environment, and then
+with the Makefile's value; `+=` gives the environment's value, then the Makefile's; `::=` is a parse
+error before make 4.0 (3.81 among them), so the reading of `::=` as `:=` is from the GNU make manual
+for 4.0 and later, not a run. `-p no:skipping` running the bodies of skipped tests rests on the
+earlier entries; no pytest version is claimed and no pytest claim was run.
+
+**Bounds.** No new regular expression. Item A adds one map entry per name assigned in a Makefile
+(`readMakeVariables` already visits each line once) and a constant check per Makefile. Item B adds
+one count of the `{posargs}` per `tox.ini` line holding them, two subtractions, and one pass over
+the literal sets per `tox.ini`. The scaling checks in `scan-path-regex-bounds.test.ts` (L = 240,000,
+CPU time, read at L/2 and 2L, limit 11, floor 2):
+
+- a `tox.ini` of L/400 `{posargs}` lines and 16 CI sets of L/400 words: at the first commit 3.87
+  (L/2 45.2 ms, 2L 175.2 ms), against main `3d6874108`'s reader 16.50 (L/2 352.0 ms, 2L 5,809.5
+  ms), so it fails on main by ratio; at `deddb48d1` 4.02 (71.4 ms, 287.0 ms). At W = L/400 one
+  line's cost is past the budget at L/2 already, so what is timed is the read's linear part. Two
+  earlier inputs were dropped: N = L/400 with W = L/2,000 (red on main at 14.67) measured 1.84 with
+  the budget, under the floor; and N = L/25 with W = L/4,000 passed with the budget (3.54) but
+  measured 7.91 on main, superlinear yet under the limit.
+- the review round's input, one `tox.ini` line of L/400 `{posargs}` and one CI word of L/100
+  characters: 2.94 at `deddb48d1` (L/2 47.7 ms, 2L 140.1 ms), named not read at both lengths.
+- the nox reader on the same shape, one call of L/400 `*session.posargs` and one CI word of L/100
+  characters: 3.82 (70.4 ms, 269.1 ms). It copies no text, but each `*session.posargs` takes every
+  set's words, so its work on a call is the call's `*session.posargs` count times the sets' words,
+  which its unit count caps at about 4,096 words per `*session.posargs` (the code comment, which
+  said "the call's words plus the sets' words", is corrected).
+- this round: the GitHub step reader reads a step's keys once, cached by the step's first line.
+  Before, a step holding many `uses:` (or `run:`) keys was read once per key: on a job `env:` over
+  L/160 `uses:` steps and one step of L/160 `uses:` keys it measured 14.05 (L/2 52.6 ms, 2L 739.6
+  ms) with the `uses:` rule and no cache, and 4.12 (36.6 ms, 151.1 ms) with it.
+
+A second test pins the unit count across lines and files: a 1,500-word set reads the root
+`tox.ini`'s two lines and names the third, in `sub/tox.ini`, not read. The ReDoS guard
+(`src/__tests__/regex-redos-guard.test.ts`) and every timing guard and scaling check in
+`scan-path-regex-bounds.test.ts` passed in the full suite, run on this round's records commit (code as at
+`deddb48d1`); see the pull request.
+
+**The no-rise property.** Item A and this round's item A only make a value not known, so the runs
+it reaches are not read; item B only names a line's runs not read. A run not read switches off
+every removal rule, which falls back to v17's reading. None reads a setting in force that was not
+read before, so v27 cannot score A1 above v17 on the same commit.
+
+**Measured** (re-measured for the fix round on #710 at `deddb48d1`, this pull request's final code
+commit, against main `bc008be9e`; the review round's measurement, at `ae0587f58` against main
+`0177ca6c1`, and the first, at `055102ed7` against main `3d6874108`, gave the same counts). The set
+the 2026-11-05 entry names, from this branch's fixture files: the false-assurance (269), CI-claims
+(71) and B3 (361) sets and every v27 A1 set (removal 39, hook outcome 38, allowlist 86, withhold 96,
+run 58), 1,018 synthetic repositories. Each was built once and scored in one process by main
+`bc008be9e` (extracted by `git archive` into an ignored directory) and by this branch, under all
+eleven selectable rubrics (v17 to v27; the two lists equal); report JSON, HTML and Markdown
+certificates were compared by hash: 11,198 reports each side, 0 errors. The driver ran in six
+processes, each taking every sixth repository, and is not committed.
+
+- v17 to v26: 10,180 of 10,180 reports, HTML and Markdown certificates byte-identical to main.
+- v27: 1,018 of 1,018 byte-identical, HTML and Markdown too. None of the 1,018 holds an unexported
+  `PYTEST_ADDOPTS` assignment with a CI mention not read (a script, an install or a `uses:` step
+  among what it reaches), or tox posargs past either budget, so none moves.
+- v27 A1 above v17 A1 on the same repository: 0 of 1,018. Overall score above v17: 0 of 1,015
+  compared (the other 3 carry no headline score).
+- The shapes the review round and this round add (a mention that reaches a script or a `uses:`
+  step, an indented assignment, the tox posargs work input) are not in these sets. Their own tests
+  pin them.
+
+**Fixtures and tests.** `src/witan/__tests__/v27-a1-addopts-assignment-not-known.test.ts` and the
+tox scaling check, committed red first at `a71e303e7` and run with main `3d6874108`'s code: 4 of 10
+fixtures failed, each rated hollow on main: the unexported `=`, `:=` and `+=` of
+`PYTEST_ADDOPTS = -p no:skipping` with a CI step `PYTEST_ADDOPTS=-q ./ci/test.sh` whose script runs
+`make test` (now named "pytest run not read: `- run: PYTEST_ADDOPTS=-q ./ci/test.sh` in
+.github/workflows/ci.yml", pointed at that line, line 10), and a `tox.ini` `{posargs}` line passed
+one CI set of 4,100 words (cost 4,102; now named not read, pointed at its line). Each moves to v17's
+A1 score. The 6 that passed on main are pins and a control, kept: an unexported `=` where every CI
+mention is read (a leading assignment on make; the Makefile's value in force), an unexported `=`
+with no CI mention (hollow), `export PYTEST_ADDOPTS :=` with a script mention, an assignment exported
+by an `export PYTEST_ADDOPTS` line with a script mention, `.EXPORT_ALL_VARIABLES` with a script
+mention, and a tox set inside the budget (hollow). The review round's red tests (`b1fb00a31`) and
+this round's (`2b1bdf087`: the job-level `env:`, workflow-level `env:` and `$GITHUB_ENV` shapes over
+`run: make lint` and the local composite action, each failing at `9ad037b1d`, rated hollow) pass
+now; this round pins a control with no `env:` (still hollow), and an `env:` scoped to the
+`run: make test` step with `uses:` steps outside its reach (its reading kept).
+
+**v27 pins this pull request rewrote** (against main). 14 tests: 4 in
+`v27-a1-addopts-not-known.test.ts` and 10 in `v27-a1-make-environment.test.ts`, each moved by
+review-round item A.
+
+- 11 moved from a reading to not read, each by a job- or workflow-level `env:` entry (or a
+  `$GITHUB_ENV` write) over the fixture's `pip install pytest` step as well as make. Three of them
+  went from hollow to withheld: `a1qdef-pin-job-env-literal-inert`,
+  `a1env-conditional-default-env-inert` and `a1env-make-e-env-inert`. Eight went from withheld by a
+  value in force to withheld as not read: `a1qdef-pin-job-env-literal-in-force`,
+  `a1env-job-env-makefile-value`, `a1env-workflow-env-makefile-value`, `a1env-conditional-default`,
+  `a1env-append`, `a1env-make-e`, `a1env-make-e-override` and `a1env-make-directory`.
+- 3 changed only the clause of a run that was already not read, now named with the first CI mention
+  not read: `a1qdef-script-sets-addopts`, `a1qdef-bash-c-mention` and `a1env-github-env-write`. (The
+  re-review counted 12: the 10 in `v27-a1-make-environment.test.ts` and the two `a1qdef-pin-job-env`
+  pins.)
+- The readings the 11 held are pinned on make-only jobs, the 11 `a1rev-` cases in
+  `v27-a1-make-environment.test.ts`. This round drops their `actions/checkout` step, which now
+  leaves a job `env:` not read, so they keep testing make's environment; their outcomes did not
+  change. With checkout restored, 10 of the 11 would change to not read (the eleventh,
+  `a1rev-control-command-line`, is not read already), so the job- and workflow-level
+  make-environment readings are now pinned only on jobs with no `uses:` step. Two new pins state
+  the strict rule with checkout:
+  `a1uses-job-env-checkout-make` and `a1uses-github-env-checkout-make`.
+
+No v17 pin and no behaviour-fingerprint pin moved. No published score moved: the board is scored
+under v17.
+
 ## 2026-11-05 (A1 addopts not known) — v27 A1 names a pytest run whose `PYTEST_ADDOPTS` Cejel cannot know as not read: an `env:` expression on a step that runs pytest itself, and a Makefile `?=` default where CI names the variable somewhere the readers do not follow (#669, #673); v17-v26 byte-identical; v27 never above v17; no published score moved
 
 **Status.** A scoring change under `witan-rubric-v27-prospective-2026-10-19` only, with no
