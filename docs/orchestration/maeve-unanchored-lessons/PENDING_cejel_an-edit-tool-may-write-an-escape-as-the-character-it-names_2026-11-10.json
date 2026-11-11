@@ -1,0 +1,26 @@
+[
+  {
+    "statement": "An editing tool may write a Unicode escape as the character it names: check the bytes after writing any escape for a line terminator or blank, and in a regex prefer an ASCII-only form. 2026-11-10, cejel #550, my own near miss. Rewriting sixteen ^\\s*X literals, I wrote the class [^\\S\\n\\r\\u2028\\u2029] through the agent's edit tool; the file received the raw U+2028 and U+2029 characters, which end a regex literal in JavaScript, so every rewritten literal was cut at \\r. Typecheck was not run yet; the ReDoS guard caught it only because it compiles each literal and counted the SyntaxError as a failure (399 failures). NBSP was converted the same way; \\u0085 was not. The fix was a form with no escape at all: (?:(?=.)\\s), a blank that . also matches, so no line terminator; string literals took the \\u{2028} form, which the tool left as text. A grep for the raw characters over the changed files then returned only files the change did not touch.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "agent-error",
+      "tooling"
+    ],
+    "tags": [
+      "unicode-escape",
+      "line-terminator",
+      "regex-literal",
+      "edit-tool",
+      "own-error"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-11-10T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 716
+    }
+  }
+]
