@@ -8,7 +8,8 @@ const RULE_ID_MAX = 200;
 const MESSAGE_MAX = 500;
 const LOCATION_MAX = 700;
 
-function clamp(value: string, max: number): string {
+// Also the rule path-limits.ts cuts a criterion's notes by, to fit a #612 statement after them.
+export function clamp(value: string, max: number): string {
   if (value.length <= max) return value;
   const ellipsis = '...';
   return `${value.slice(0, Math.max(max - ellipsis.length, 0))}${ellipsis}`;

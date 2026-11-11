@@ -1,0 +1,26 @@
+[
+  {
+    "statement": "When an item must leave the output, list what else is anchored on it, counted from it, or derived from it, and decide each one separately. Removing the item can remove a finding, double a count, falsify a sentence built from the shrunken list, or move a gate if the statement lands where a gate reads. 2026-11-10, cejel #697 review: dropping an over-limit citation also dropped the critical finding anchored on it, so the certificate said 'no single finding of its own'. The disclosure counted pointers plus findings, so one path read as 2. The withheld-path statement was a scan limitation, so the badge became 'unrated: limited evidence' and --min-score 0.1 exited 1. Own catch while fixing it: the certificate built 'No content was withheld' from the filtered withheldPaths list, which became false. Fix: re-anchor the finding on a stated anchor, count distinct paths, and state the drop in a criterion's disclosures or notes.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "review-finding",
+      "schema-limits"
+    ],
+    "tags": [
+      "schema-cap",
+      "anchored-findings",
+      "derived-sentences",
+      "gate-neutral-statement",
+      "distinct-count"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-11-10T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 706
+    }
+  }
+]
