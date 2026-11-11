@@ -539,7 +539,14 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     operator's 26/27 Oct rule for shallow clones, as under every other rubric since #604: it
 //     withholds only its pull-request merge ratio when fewer commits are visible than its window
 //     reads, and is scored on the checked-out files, or abstains where none of them is credited.
-//     A2's abstention after a failed history read is a read failure. F1 also left A2's
+//     A2's abstention after a failed history read is a read failure. From 2026-11-11
+//     (goal_cejel_git_failure_states_its_limitation_2026-11-10, #574 item 3) git's shallow-clone
+//     check failing for a reason other than an expected absence (a timeout, an output limit, a
+//     failed run) is stated as a scan limitation under every rubric, and under v27 is a new cause
+//     of two abstentions, both following #560's pattern for A2 on a failed history read: A2 counts
+//     it as a failed history read, and B2, where fewer commits are visible than its window reads,
+//     abstains as a read failure, in the composite at 0 (B2_SHALLOW_CHECK_FAILED_NOTE), since the
+//     failed check decides whether the ratio is read over a truncated window. F1 also left A2's
 //     shallow-only abstention out of the composite (reason shallow_history), and its second pass
 //     capped the verdict at the band the composite would reach with it counted as 0. Both are
 //     removed by the operator's ruling of 1 Nov: taking A2 out of the average moved the composite

@@ -103,6 +103,33 @@ rubric is pinned. v27 carries no precision or recall claim.
 
 ### Fixed
 
+- **A failed or timed-out git call no longer silently changes which evidence a scan reads (#574
+  item 3).** Of the 21 `execGit` calls on the scan path (18 in `src/witan/repo-signals.ts`, 2 in
+  `src/witan/history-depth.ts`, 1 in `src/witan/public-scan.ts`), three let a timeout, an output
+  limit or a failed run pass with nothing stated, so the same commit could give a different report
+  on a loaded machine than on an idle one:
+  - git's shallow-clone check (`rev-parse --is-shallow-repository`) read a failure as "not
+    shallow", for A2's history reads, B2's pull-request merge ratio and the shallow-history
+    disclosure. It is now a scan limitation ("Cejel: local git shallow-clone check exceeded the 30
+    second timeout. Cejel could not tell from git whether this clone is shallow."), and A2 counts
+    it as a failed history read, as #560 set.
+  - The history-depth check, the same command, fell back to the repository's `shallow` file. That
+    is the file git reads to answer, so the depth is kept; the failed read is now stated ("history-
+    depth check").
+  - The HEAD committer-time read, which ingested inputs' freshness is checked against, left each
+    input `unverifiable`. It is now stated ("HEAD committer-time discovery") wherever there is an
+    ingested input; with none, the time decides nothing and nothing is added.
+  - Under every rubric but v27 a failure adds a scan limitation (and, for A2, its existing history
+    disclosure) and moves no score, status or verdict. Under v27, where the shallow-clone check
+    failed, A2 abstains as on any failed history read, and B2, where fewer than 12 commits are
+    visible, abstains as a read failure, in the composite at 0, so v27 stays at or below v17. The
+    shallow-history disclosure, which says git reported the clone shallow, is not written where git
+    did not answer; the report-level shallow abstention still reads the `shallow` file and stands.
+  - Where git succeeds, every report under every rubric is byte-identical: see the rubric
+    changelog entry of 2026-11-11 for the measurement. The other 18 calls already stated their
+    failures, or abstained; `src/witan/__tests__/git-call-sites-574.test.ts` records every call,
+    what its failure does and its class, and fails when a call is added without one.
+
 - **A file of many blank lines, or one long run of identifier characters, no longer stalls the
   scan, under every rubric (#550).** Sixteen regexes in `src/witan/repo-signals.ts`, shaped
   `^\s*X` under the `m` flag or `(?:^|[{,])\s*X`, retried a run of blank lines from every line

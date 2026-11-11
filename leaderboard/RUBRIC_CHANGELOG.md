@@ -22,6 +22,109 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
+## 2026-11-11 (git failure states its limitation) — a failed shallow-clone check, history-depth check or HEAD committer-time read is a stated scan limitation under every rubric; under v27 A2 and B2 abstain where the shallow-clone check decides them (#574 item 3); where git succeeds every report is byte-identical; no published score moved
+
+**Status.** A disclosure under every rubric, and a scoring change under
+`witan-rubric-v27-prospective-2026-10-19` only, with no identifier change
+(goal_cejel_git_failure_states_its_limitation_2026-11-10; operator ruling of 10 Nov, R4: #574 item 3
+only). No holdout or calibration ran for it, and this entry makes no precision or recall claim. The
+default stays v17.
+
+**Why.** (#574.) A comparison of v17 and v27 reports over 256 generated shapes once reported 100
+lost findings, and seven reruns, six of them under heavy load, reported 0. One hypothesis is that a
+scanner decision depends on whether a git call finishes inside `GIT_EXEC_TIMEOUT_MS` (30 s). Where a
+failed call changes the evidence read with nothing stated, the same commit gives different reports
+on a loaded and an idle machine, which breaks `cejel issue` and `verify` reproductions. Items 1 and
+2 of #574 (checker logging, reproducing under load) are not in this change.
+
+**The list.** Every `execGit` call in `src/` was classified by what its caller does on each failure
+reason; `src/witan/__tests__/git-call-sites-574.test.ts` holds the record and fails when a call is
+added, moved or removed without one. 21 calls are on the scan path (18 in `repo-signals.ts`, 2 in
+`history-depth.ts`, 1 in `public-scan.ts`, recounted at `1da23c208`) and 3 in the LLM and D-series
+packs.
+On main (`1da23c208`) 21 already stated their failure (a scan limitation, a history limitation, or
+an error that stops the scan and names the read) or abstained, and 3 did not:
+
+- `isShallowRepository` (silent absence): any failure read as "not shallow", for A2's history
+  incompleteness, B2's merge-ratio window and the shallow-history disclosure;
+- `readHistoryDepth` (silent switch): any failure fell back to the `.git` files, with nothing
+  stated. The fallback reads the `shallow` file in the common git directory, which is the file git
+  reads to answer `--is-shallow-repository`, so it is kept: the evidence is the same, except a
+  `shallow` file git cannot open, which git reads as complete and the files as shallow;
+- `readScannedSubject`'s HEAD committer-time read (silent absence): any failure left every
+  ingested input's freshness `unverifiable`.
+
+An expected absence (git not installed, or git answering that there is no repository or no
+revision) is unchanged at every site: it is a fact about the host or the directory, not the load,
+and #560 and #568 decided how it is treated.
+
+**Change.**
+
+- **Every rubric.** Each of the three failed reads, for a reason other than an expected absence, is
+  a scan limitation through `describeGitFailure`, the wording every stated site uses: "Cejel: local
+  git shallow-clone check exceeded the 30 second timeout. Cejel could not tell from git whether
+  this clone is shallow."; "Cejel: local git history-depth check … Cejel read the history depth
+  from the repository's own shallow file, which is the file git reads to answer."; "Cejel: local
+  git HEAD committer-time discovery … Cejel recorded each ingested input's freshness as
+  unverifiable.", the last only where there is an ingested input (with none, the time decides
+  nothing). A2 counts a failed shallow-clone check as a failed history read on its recorder, as
+  #560 set, so every rubric but v27 adds A2's existing history disclosure where A2 is marked not
+  applicable. Under every rubric but v27 no score, status or verdict moves. The shallow-history
+  disclosure says git reported the clone shallow, so it is not written where git did not answer,
+  as before; the report-level shallow abstention reads the `shallow` file and stands.
+- **v27.** Where the shallow-clone check failed, A2 abstains as on any failed history read (#560's
+  pattern, the one the card names), and B2, where fewer than 12 commits are visible (so the failed
+  check decides whether the merge ratio is read over a truncated window), abstains as a read
+  failure: no `insufficientDataReason`, so it stays in the composite at 0, with
+  `B2_SHALLOW_CHECK_FAILED_NOTE`. With a full window visible the answer decides nothing and B2 is
+  scored as before. The v27 declaration in `src/witan/rubric-version.ts` names the new cause.
+
+**The no-rise property.** Every change adds a scan limitation or an abstention at 0 in the
+composite, and only where a git read failed; neither can raise a v27 score above v17's on the same
+commit.
+
+**Measured** (at `e3e18e7bf`, this change's last code commit, against main `1da23c208`). The set
+the 2026-11-10 entry names, rebuilt from this branch's fixture files: the false-assurance (269),
+CI-claims (71) and B3 sets and every v27 A1 set (removal 39, hook outcome 38, allowlist 86,
+withhold 96, run 58). The B3 set came to 360, not 361: the twelve-workflow shape is built from its
+own list rather than a shape array, and the driver did not rebuild it. 1,017 synthetic repositories
+in all. Main's side ran with main's `history-depth.ts`, `public-scan.ts` and `repo-signals.ts`
+checked out over this branch, the only source files this change touches outside the tests. Each
+side built every repository and scored it under all eleven selectable rubrics (v17 to v27). Report
+JSON, HTML and Markdown certificates were compared by hash: 11,187 reports a side, 0 errors. The
+driver is not committed.
+
+- v17 to v26: 10,160 of 10,170 reports, HTML and Markdown certificates byte-identical to main. The
+  other 10 belong to one fixture, `review4-a4-working-directory-through-tracked-symlink`, which
+  commits a symlink to a fresh temporary directory, so its head SHA changes with every build (two
+  builds checked: `304a718e8…` and `9c4f3aaf7…`). The measurement for the #648 review round
+  recorded the same 10.
+- v27: 1,016 of 1,017 byte-identical, the one the same symlink fixture. None of the 1,017 fails a
+  git read, so none moves.
+- v27 A1 above v17 A1 on the same repository: 0. Overall score above v17: 0 of 1,014 compared (the
+  other 3 carry no headline score).
+- The failure fixtures are in `git-failure-states-limitation-574.test.ts`. Under all eleven rubrics
+  each one is scored with git succeeding and again with the shallow-clone check timing out. With
+  git succeeding, none of them carries any of the three new sentences. With the check failing,
+  every rubric names both failed reads. Under v17 to v26 every criterion's status and score, the
+  composite and the verdict equal the run with git succeeding. Under v27, A2 and B2 abstain and the
+  composite stays at or below v17's.
+- No pin moved. The fingerprint pins (`rubric-behaviour-fingerprint.test.ts`, 29 tests) and every
+  other pin test passed in the full suite: 8,004 tests passed, 23 were skipped and 32 failed. All
+  32 failures are the sandbox's, not this change's: `ssh-keygen` cannot run because the sandbox has
+  no user entry for uid 501 (the issuance tests), headless Chrome could not be spawned (ENOBUFS),
+  and `npm pack` failed. The issuance and symlink-refusal failures were reproduced with main's
+  code.
+
+**Fixtures and tests.** `src/witan/__tests__/git-failure-states-limitation-574.test.ts`, committed
+red first at `16657908d` and run against main's code: 4 of 6 failed (no scan limitation named any
+of the three reads; v27's B2 was scored, `warning`, on the failed check); the 2 that passed are the
+controls (an expected absence adds nothing; no ingested input adds nothing). Failures are injected
+through the `execGit` mock, as #560's tests do. `git-failure-stated-sites-574.test.ts` pins the
+stated sites no earlier test pinned (the inventory's directory walk, repository-root discovery,
+HEAD resolution, the recent-history read, the ignore-rule check). No test-only timeout option was
+added to `execGit`, so #583 stays open.
+
 ## 2026-11-10 (A1 addopts assignment not known) — v27 A1 names the pytest runs an unexported Makefile `=`, `:=` or `+=` of `PYTEST_ADDOPTS` reaches as not read where CI names the variable somewhere the readers do not follow (#674), and the tox posargs reader shares a budget (#653); v17-v26 byte-identical; v27 never above v17; no published score moved
 
 **Status.** A scoring change under `witan-rubric-v27-prospective-2026-10-19` only, with no
