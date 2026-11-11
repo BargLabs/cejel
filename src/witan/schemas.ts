@@ -722,6 +722,13 @@ export const WITAN_ATTESTATION_PREDICATE_TYPE = 'https://cejel.dev/attestations/
 // (WitanVerdictCapSchema). A report without it is byte-identical to a 1.8 one. Since the operator's
 // ruling of 1 Nov no build writes it (a v27 shallow clone abstains instead, with no new field); it
 // is still accepted on read.
+// #612 (still 1.9, no new field): an evidence pointer whose path is over the 700-character limit is
+// not cited; a finding anchored on it keeps its place on a stated anchor (path '.'), and the
+// criterion's disclosures say how many distinct paths it did not cite. A withheld path over the
+// limit is left out of withheldPaths and stated in one criterion's disclosures. Where four
+// disclosures are used the statement goes in the notes, shortened to a count, with the notes' own
+// tail cut where needed; it is never a scan limitation (path-limits.ts). A report with no such path
+// is byte-identical.
 export const WITAN_REPORT_FORMAT_VERSION = '1.9' as const;
 
 export const WitanAttestationOutcomeSchema = z.discriminatedUnion('status', [

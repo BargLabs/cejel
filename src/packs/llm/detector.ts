@@ -31,6 +31,8 @@ import {
   CEJEL_LLM_ENABLED_RULE_IDS,
   CEJEL_LLM_RULE_IDS,
   CejelLlmPackResultSchema,
+  cejelLlmOverLimitPathsLimitation,
+  fitCejelLlmFindingPaths,
   type CejelLlmPackResult,
   type CejelLlmRuleResult,
 } from './types.js';
@@ -202,7 +204,7 @@ export function collectCejelLlmPack(
     hasEvaluationSurface ||
     pythonLineageFindings.length > 0 ||
     pythonRuleFindings.length > 0;
-  const findings = applicable
+  const detectedFindings = applicable
     ? [
         ...CEJEL_LLM_V1_RULES.flatMap((rule) =>
           (rule.id === 'LLM-IOH-001' ? javascriptUnsafeSinkFiles : javascriptLlmFiles)
@@ -222,6 +224,10 @@ export function collectCejelLlmPack(
         ...detectCejelLlmEvaluationRules(sourceFiles),
       ]
     : [];
+  // #697 review item D: a finding at a path over the artifact's 700-character limit keeps its rule,
+  // severity, confidence and summary on a stated anchor, so no rule state moves; the limitations
+  // below say how many paths were not cited. Indicator counts read the detected paths.
+  const { findings, droppedPaths } = fitCejelLlmFindingPaths(detectedFindings);
   const ruleResults: CejelLlmRuleResult[] = CEJEL_LLM_ENABLED_RULE_IDS.map((ruleId) => {
     const ruleFindings = findings.filter((finding) => finding.ruleId === ruleId);
     const confidence = RULE_CONFIDENCE.get(ruleId) ?? 'low';
@@ -279,7 +285,7 @@ export function collectCejelLlmPack(
     ...pythonLlmFiles.map((file) => file.path),
     ...actionSurfaceFiles.map((file) => file.path),
     ...evaluationSurfaceFiles.map((file) => file.path),
-    ...findings.map((finding) => finding.evidence.path),
+    ...detectedFindings.map((finding) => finding.evidence.path),
   ]);
   const integrationSet = new Set(integrations);
   if (actionSurfaceFiles.length > 0) integrationSet.add('Model-facing tool registration');
@@ -308,6 +314,7 @@ export function collectCejelLlmPack(
         'Rules use bounded, observable source patterns and do not claim whole-program data-flow analysis.',
         'Action-governance and evaluation-hygiene rules require one of the explicitly supported complete local JavaScript, TypeScript, or Python evidence paths.',
         'No model-quality, factuality, prompt-injection-resistance, or general hallucination rate is measured.',
+        ...(droppedPaths > 0 ? [cejelLlmOverLimitPathsLimitation(droppedPaths)] : []),
       ],
     },
     notes:

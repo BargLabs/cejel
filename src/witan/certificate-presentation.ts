@@ -18,6 +18,7 @@ import {
   isMeasuredCriterionStatus,
   shortCategoryLabel,
 } from './coverage.js';
+import { statesUnlistedWithheldPaths } from './path-limits.js';
 import type {
   WitanContentReadSummary,
   WitanCriterionMetric,
@@ -934,11 +935,18 @@ function describeWithheldReasons(entries: readonly WitanWithheldPath[]): string 
 function buildWithheldPathsGapSentence(report: WitanReport): string | undefined {
   const withheldPaths = report.withheldPaths;
   if (withheldPaths === undefined) return undefined;
+  // #612: a withheld path over the report's path limit is left out of withheldPaths and stated in
+  // a criterion's disclosures or notes. The count here is then of the listed entries only, and the
+  // "nothing withheld" sentence would be false, so it is not said.
+  const unlisted = statesUnlistedWithheldPaths(report.criteria);
   if (withheldPaths.length === 0) {
-    return 'No content was withheld from any signal.';
+    return unlisted
+      ? "Content was withheld at a path longer than the report's 700-character path limit; withheldPaths does not list it, and a criterion's disclosures or notes say how much."
+      : 'No content was withheld from any signal.';
   }
   const count = withheldPaths.length;
-  const entryWord = count === 1 ? 'content entry was' : 'content entries were';
+  const listed = unlisted ? 'listed ' : '';
+  const entryWord = count === 1 ? `${listed}content entry was` : `${listed}content entries were`;
   const pronoun = count === 1 ? 'it' : 'them';
   const reasonLabel = describeWithheldReasons(withheldPaths);
   const intersecting = withheldPaths.filter((entry) => entry.signalsAdmitting.length > 0);
