@@ -103,6 +103,24 @@ rubric is pinned. v27 carries no precision or recall claim.
 
 ### Fixed
 
+- **A file of many blank lines, or one long run of identifier characters, no longer stalls the
+  scan, under every rubric (#550).** Sixteen regexes in `src/witan/repo-signals.ts`, shaped
+  `^\s*X` under the `m` flag or `(?:^|[{,])\s*X`, retried a run of blank lines from every line
+  start, because `\s` also matches a line end: 10,000 blank lines took each past the ReDoS
+  guard's 50 ms, and a 512 KB file of them could take minutes per regex. The PEM private-key
+  assignment pattern retried a run of identifier characters from each of its characters, in the
+  same way.
+  - Performance only. Every report under every rubric, v17 included, is byte-identical: the
+    scoring-surface and fingerprint pins did not move, and no rubric changelog entry is needed.
+  - Each rewrite gives exactly what its old form gave, checked per site against the old regex
+    (kept only in the test) over generated inputs with blank runs, CRLF, tabs, NBSP, U+2028,
+    U+2029 and NEL: the `test` sites keep the blank run within one line; the four `exec` sites and
+    the one `replace` site widen each match back over the blank lines the old form also
+    consumed; the PEM pattern is tried only at the first identifier-start character of each run
+    and at each quote.
+  - The ReDoS guard carries the blank-lines family and four identifier-run families, so these
+    shapes cannot come back unnoticed. It proves only the families it carries.
+
 - **A repository path longer than 700 characters no longer stops the scan, under every rubric
   (#612).** The report schema caps every `path` at 700 characters. A file with a longer relative
   path, cited as evidence or listed as withheld, failed validation, and the scan wrote no report.
