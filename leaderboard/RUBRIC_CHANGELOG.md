@@ -22,6 +22,93 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
+## 2026-11-11 (behaviour corpus: shallow clone and publish-after-check) — every behaviour fingerprint moved because the corpus changed, not because any rubric's behaviour did: the corpus gains a depth-1 shallow clone and a publishing workflow that runs a check before it publishes (#622, #559); without them the corpus reproduces all eleven previous fingerprints; no scoring code changed; no published score moved
+
+**Status.** A change to the behaviour corpus only, under every selectable rubric
+(goal_cejel_behaviour_corpus_shallow_clone_2026-11-10; operator ruling of 10 Nov, R3: land before
+the new v27 freeze, so the release candidate carries the fingerprint a promotion would publish).
+Fixes #622; #559 was closed as its duplicate. No scoring code changed, and no rubric identifier. A
+report differs from main's in one field, `rubricBehaviourFingerprint`. No holdout or calibration ran,
+and this entry makes no precision or recall claim. The default stays v17.
+
+**Why.** #619 changed what v27 reports on a shallow clone: no composite and no verdict (the 1 Nov
+entry; v17 and every other rubric do the same since the 2 Nov entry). It moved no fingerprint, because the corpus held no
+shallow clone. So two v27 builds that disagree on every shallow clone carried the same
+`(rubricVersion, rubricBehaviourFingerprint)`. The same was true of the B3 change that counts a
+publishing workflow with no pull-request trigger when a check runs before it publishes (#620, the
+1 Nov B3 entry): the corpus held no publishing workflow. The accepted #526 ruling names a candidate
+as one v27 behaviour, identified by its fingerprint at a named commit. A fingerprint that cannot see
+these shapes does not identify the v27 a promotion would publish.
+
+**The specimens.** Both are synthetic and written for this corpus. They are appended after every
+earlier specimen, so the corpus now holds 32.
+
+- `history-shallow-depth-1`: a repository of five commits, scanned as a `git clone --depth 1`. Its
+  full clone holds a `.env` with a branded secret shape, committed and then deleted, which A2 reads
+  from history, and three commit subjects that name a pull request, which B2's merge ratio reads.
+  Measured on the full clone, under every rubric: A2 critical 1.4 with a critical finding, B2 3.7
+  with `pr_merge_ratio` 3, verdict `at_risk`. On the depth-1 clone, under every rubric: no composite
+  and verdict `insufficient_source`, A2 `insufficient_data`, B2 4 from `pr_trace_primitives` alone
+  (the ratio withheld). A build that gave a shallow clone a composite, a verdict or a merge ratio
+  would now move this specimen's report component or its B2 component.
+- `publish-after-check-workflow`: the only workflow has no pull-request trigger and runs `npm test`
+  before `npm publish` on every push to main. Under every rubric, v27 included, B3 scores 1.5
+  (`ci_script_depth` 2, `default_branch_ci_depth` 1), and v27's note says the workflow is counted
+  because a check runs before it publishes. The same workflow without `npm test` scores B3 0.5
+  under v27 (`default_branch_ci_depth` 0), so a v27 build that stopped counting this shape would move
+  B3's component.
+
+**How the shallow specimen is built.** `BehaviourFixture` gains optional `commits` (commits after the
+first, each dated its index in minutes after the fixture's date, with the corpus identity and its
+own message) and `cloneDepth`. The materialiser commits under `HERMETIC_GIT_ENV` (global and system
+git config masked, fixed identity, dates and `TZ`), then clones over the file transport with
+`--depth` and `--no-tags`; a local path would ignore `--depth`. It refuses the clone unless
+`git rev-parse --is-shallow-repository` prints `true`. The corpus needs git 2.28 or later (`git init
+--initial-branch`, as before this change). `behaviour-corpus-history-622.test.ts` checks the git
+version and that every `cloneDepth` specimen is shallow: it failed when the clone step was skipped.
+It also checks the full clone's history, identity and dates, and the scores above. Both specimens'
+HEAD shas are pinned. Built on git 2.50.1 (Apple Git-155).
+
+**Proof that no rubric's behaviour changed.** `rubric-behaviour-fingerprint.test.ts` ("#622: the
+corpus extension moved every fingerprint by its added specimens alone") scores the corpus without
+the two specimens and compares it with the fingerprint main `773a265c6` carried, under every
+selectable rubric. 11 of 11 reproduce, so all 30 earlier specimens' projected surfaces are
+unchanged under every rubric, and the two added specimens are the whole difference. The test was
+committed and run before any pin moved. In the pins, all 121 criterion components move (11 rubrics x
+11 criteria), each rubric gains two report components, and no earlier specimen's report component
+moves.
+
+**Node.** The component pins, the eleven digests and all 32 x 11 projected surfaces were captured
+under Node 26.7.0 and Node 22.23.4 (CI's major). They are byte-identical on both.
+
+Measured fingerprints:
+
+| Rubric | Before (main `773a265c6`) | After |
+| --- | --- | --- |
+| `witan-rubric-v17-2026-07-24` | `sha256:5cd48f8c642300ae8736a09d4a24ce3a4f8885f6e099b5f27f99d950e0c944b4` | `sha256:a19af747afca60f2ed61c5a6481fe0234b127909bd7b788051f0bd8f9750d23b` |
+| `witan-rubric-v18-prospective-2026-07-25` | `sha256:4a5d17c84e265ec20cf54216d2e794dec1d299d859c69ac8ef1ab317fc479e2f` | `sha256:c59b7383e40681a350397ba19884c97e68896820d8d10854c6a07fc13884ccc3` |
+| `witan-rubric-v19-prospective-2026-08-09` | `sha256:73dc0282a9ea2a481db8e86a9a5dc227a8b108356c358de029901f2dc38cef79` | `sha256:2ce90a1046b98979acf905b1f44e996955de17607c03906b51ca139b6dfe0cd1` |
+| `witan-rubric-v20-prospective-2026-08-10` | `sha256:b5f4254a6056ff792d79a2d85892cdf05484eabded85ba13251a2c8fd5ac6336` | `sha256:565b11c11abbde6664e5eb76d47c679d9b71e12c8a7faf099decee7fe4af72cb` |
+| `witan-rubric-v21-prospective-2026-08-10` | `sha256:f599d06354adb45af018639594cb6f44e7cb40445b84a0dcdd4438b8d7d069d0` | `sha256:d456209c81852da933b96a3ea2f5d37f5a3c87607fae32e7dd5ad5705b656913` |
+| `witan-rubric-v22-prospective-2026-08-10` | `sha256:34fb6ac5d1f6faf0912aa4d00924837eeee543614d7971247d005312b89928e1` | `sha256:0c1f20d37de6a921e657b8af882024bc7f5dcfb81dc7b2e93669f56893a18b36` |
+| `witan-rubric-v23-prospective-2026-09-06` | `sha256:ce24235861ce0f0dc4dafd22059a78d31f348e5c741e4056475867c29cc8b814` | `sha256:a0e352cef84cb50d31b7485960c9e9eea982cbadad4685dbbbbce40209969269` |
+| `witan-rubric-v24-prospective-2026-09-15` | `sha256:b221907d60d209cd3d57437892ae3dd873f4fa221ad8743954a30c8575d4e77c` | `sha256:1b651d17586ea63e9747e3077f6ec6dd8ce10691f74c2afb716aa19de97d9568` |
+| `witan-rubric-v25-prospective-2026-10-12` | `sha256:0f2638a5088f95a610a0e12012442f1067af3e985b955f96ec71853d549693b9` | `sha256:632c128f1a21f1e7d6bd23df75e3acef880ade7c14c8aacf4afbbd9533e96cf3` |
+| `witan-rubric-v26-prospective-2026-10-14` | `sha256:4530317d56fc73eb89287e344ad626e2b9a96908ef12eb9e9c13b839bd599dae` | `sha256:969ce7332cc73e06ba50e05e86a037995fc2b89bb7ad10ca0c9c8094753e2b7a` |
+| `witan-rubric-v27-prospective-2026-10-19` | `sha256:dfe4e7e9ba37666f60b1ebcee4eb44917110798e9038c81eef079718db9ee7b1` | `sha256:012d6dd0a73280294c80885f897d23c97bb00187154fc4fb1d725337af1f4f0d` |
+
+No two rubrics share a fingerprint, before or after.
+
+**Report format.** No field changes. The pins that hash a whole report moved by the fingerprint
+alone. In `v17-scoring-surface-golden.test.ts` (four fixtures) and in the CLI cross-path pin in
+`src/__tests__/index.test.ts`, restoring only the previous v17 fingerprint reproduces each previous
+pin byte for byte, and every older restoration starts from that report.
+
+**Published corpus.** Not re-run. No file that scores a repository changed: outside tests, the
+change is the fingerprint table in `src/witan/rubric-fingerprint.ts`, which a scan reads only to
+stamp the report. A report's scores, verdicts and every field but `rubricBehaviourFingerprint` are
+those main writes.
+
 ## 2026-11-11 (git failure states its limitation) — a scan reads its history depth once and every reader uses that answer; a failed history-depth check, HEAD committer-time read or v27 A1 builtin-copy listing, or a depth check an old git does not answer, is a stated scan limitation under every rubric; under v17 to v26 a score can move only where git's depth check fails, toward git's own answer, and A2 abstains where git failed and the depth cannot be known; under v27 A2 and B2 abstain only there (#574 item 3); where git succeeds every report is byte-identical; no published score moved
 
 **Status.** A disclosure under every rubric; under every rubric, v17 included, a behaviour change

@@ -35,6 +35,21 @@ rubric is pinned. v27 carries no precision or recall claim.
 
 ### Changed
 
+- **Every rubric's behaviour fingerprint moved because the behaviour corpus changed; no rubric's
+  behaviour changed (#622).** The corpus that `rubricBehaviourFingerprint` is measured on gains two
+  synthetic specimens: a depth-1 shallow clone of a repository whose full clone scores A2 and B2
+  from history, and a publishing workflow with no pull-request trigger that runs its tests before
+  it publishes. Until now neither shape was in the corpus, so v27's shallow-clone abstention (#619)
+  and its count of a workflow that checks before it publishes (#620) moved no fingerprint, and two
+  builds that differ on either shape carried the same fingerprint. Scored without the two specimens,
+  the corpus reproduces all eleven previous fingerprints, under Node 22 and Node 26 alike. A
+  `report.json` differs from the previous build's in `rubricBehaviourFingerprint` alone; no score,
+  verdict or other field changes. v17's fingerprint is now
+  `sha256:a19af747afca60f2ed61c5a6481fe0234b127909bd7b788051f0bd8f9750d23b` and v27's
+  `sha256:012d6dd0a73280294c80885f897d23c97bb00187154fc4fb1d725337af1f4f0d`; all eleven, old and
+  new, are in [`leaderboard/RUBRIC_CHANGELOG.md`](leaderboard/RUBRIC_CHANGELOG.md). Building the
+  corpus needs git 2.28 or later, as before.
+
 - **GitLab: the CI/CD Catalog component stays on the npm release.** The release bump now moves
   every component mention for a final release (`gitlab.com/barglabs/cejel/cejel@<version>` in
   `docs/gitlab-ci.md` and the README, the inputs table's `version` default and the `spec:`
