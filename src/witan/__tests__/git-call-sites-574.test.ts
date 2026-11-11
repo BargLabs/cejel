@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -163,38 +163,127 @@ const RECORD: Readonly<Record<string, GitCallSite>> = {
   },
 };
 
-const SOURCE_FILES = [
-  'src/witan/repo-signals.ts',
-  'src/witan/history-depth.ts',
-  'src/witan/public-scan.ts',
-  'src/packs/llm/files.ts',
-  'src/packs/d-series/unobserved-control.ts',
-] as const;
-
 const ROOT = join(__dirname, '..', '..', '..');
 
-/** Every execGit call in `file`, keyed `<file>#<enclosing function>#<position in it>`. */
-function callSitesIn(file: string): string[] {
-  const lines = readFileSync(join(ROOT, file), 'utf8').split('\n');
+// Review of b67489a96, item D: the record covers every source file under src/, not a fixed list,
+// and finds execGit under whatever name a file imports it as. A test file (under __tests__/, or
+// named *.test.* or *.spec.*) is not source and is not read.
+const SOURCE_FILE_PATTERN = /\.(?:[cm]?[jt]sx?)$/;
+const TEST_FILE_PATTERN = /\.(?:test|spec)\.[cm]?[jt]sx?$/;
+const GIT_EXEC_MODULE = /^(?:\.{1,2}\/)+(?:[\w.-]+\/)*git-exec(?:\.[cm]?[jt]s)?$/;
+const GIT_EXEC_DEFINITION = 'src/witan/git-exec.ts';
+
+/** Every source file under src/, repository-relative, in a fixed order. */
+function sourceFiles(): string[] {
+  const found: string[] = [];
+  const pending = ['src'];
+  for (let next = pending.pop(); next !== undefined; next = pending.pop()) {
+    for (const entry of readdirSync(join(ROOT, next), { withFileTypes: true })) {
+      const path = `${next}/${entry.name}`;
+      if (entry.isDirectory()) {
+        if (entry.name !== '__tests__' && entry.name !== 'node_modules') pending.push(path);
+      } else if (SOURCE_FILE_PATTERN.test(entry.name) && !TEST_FILE_PATTERN.test(entry.name)) {
+        found.push(path);
+      }
+    }
+  }
+  return found.sort();
+}
+
+interface ScannedSource {
+  /** Every execGit call, keyed `<file>#<enclosing function>#<position in it>`. */
+  readonly calls: string[];
+  /**
+   * Every way the file reaches execGit other than a call through an imported name: a mention of the
+   * name that is not a call (`const run = execGit`), a re-export, a dynamic import or require of
+   * git-exec, or a namespace used other than as `ns.execGit(`. Each fails the record test, since a
+   * call through it would escape the record.
+   */
+  readonly unrecognised: string[];
+}
+
+const blank = (text: string): string => text.replace(/[^\n]/g, ' ');
+
+/** The calls and the unrecognised references in one file's text. Linear in the text. */
+function scanSource(file: string, text: string): ScannedSource {
+  const unrecognised: string[] = [];
+  const callees: string[] = [];
+  let code = text;
+  // Static imports from git-exec, under any local name. Each matched statement is blanked, so its
+  // specifiers are not read as mentions below; line numbers stay where they were.
+  const importPattern =
+    /\bimport\s+(?:type\s+)?(?:([\w$]+)\s*,\s*)?(?:\{([^}]*)\}|\*\s+as\s+([\w$]+))\s*from\s*(['"])([^'"]+)\4\s*;?/g;
+  code = code.replace(importPattern, (statement, _default, named: string | undefined, namespace: string | undefined, _quote, from: string) => {
+    if (!GIT_EXEC_MODULE.test(from)) return statement;
+    if (namespace !== undefined) callees.push(`${namespace}.execGit`);
+    for (const specifier of (named ?? '').split(',')) {
+      const parsed = /^\s*(?:type\s+)?execGit(?:\s+as\s+([\w$]+))?\s*$/.exec(specifier);
+      if (parsed) callees.push(parsed[1] ?? 'execGit');
+    }
+    return blank(statement);
+  });
+  if (file === GIT_EXEC_DEFINITION) callees.push('execGit');
+  const lines = code.split('\n');
   const keys: string[] = [];
   const perFunction = new Map<string, number>();
   let enclosing = '<module>';
-  for (const line of lines) {
-    const declared = /^(?:export\s+)?(?:async\s+)?function\s+(\w+)/.exec(line);
+  lines.forEach((line, index) => {
+    const declared = /^(?:export\s+)?(?:async\s+)?function\s+([\w$]+)/.exec(line);
     if (declared?.[1]) enclosing = declared[1];
-    const code = line.replace(/\/\/.*$/, '');
-    if (/^\s*\*/.test(code) || !/\bexecGit\(/.test(code) || /function\s+execGit\(/.test(code)) continue;
-    const position = (perFunction.get(enclosing) ?? 0) + 1;
-    perFunction.set(enclosing, position);
-    keys.push(`${file}#${enclosing}#${position}`);
-  }
-  return keys;
+    // A comment line, or the part of a line after a comment that follows a space (a `//` inside a
+    // string such as a URL is not preceded by one).
+    if (/^\s*(?:\*|\/\*|\/\/)/.test(line)) return;
+    const stripped = line.replace(/(^|\s)\/\/.*$/, '$1');
+    const where = `${file}:${index + 1}`;
+    if (/\bexport\s+(?:type\s+)?(?:\*|\{[^}]*\})\s*from\s*['"][^'"]*git-exec/.test(stripped)) {
+      unrecognised.push(`${where} re-exports git-exec`);
+    }
+    if (/\b(?:import|require)\s*\(\s*['"`][^'"`]*git-exec/.test(stripped)) {
+      unrecognised.push(`${where} loads git-exec dynamically`);
+    }
+    for (const callee of callees) {
+      const escaped = callee.replace(/[$.]/g, (character) => `\\${character}`);
+      const mention = new RegExp(`(?<![\\w$.])${escaped}(?![\\w$])`, 'g');
+      for (const match of stripped.matchAll(mention)) {
+        const after = stripped.slice((match.index ?? 0) + callee.length);
+        const before = stripped.slice(0, match.index ?? 0);
+        if (file === GIT_EXEC_DEFINITION && /function\s+$/.test(before)) continue;
+        if (/^\s*\(/.test(after)) {
+          const position = (perFunction.get(enclosing) ?? 0) + 1;
+          perFunction.set(enclosing, position);
+          keys.push(`${file}#${enclosing}#${position}`);
+        } else {
+          unrecognised.push(`${where} mentions ${callee} other than as a call`);
+        }
+      }
+    }
+    // A namespace import reaches execGit only as `ns.execGit(`; any other use of the namespace
+    // object (`ns['execGit']`, `const { execGit: run } = ns`, passing ns on) is not followed.
+    for (const callee of callees.filter((name) => name.endsWith('.execGit'))) {
+      const namespace = callee.slice(0, -'.execGit'.length);
+      const use = new RegExp(`(?<![\\w$.])${namespace.replace(/\$/g, '\\$')}(?![\\w$])(?!\\.execGit\\b)`, 'g');
+      if (use.test(stripped)) unrecognised.push(`${where} uses the git-exec namespace ${namespace} other than to call execGit`);
+    }
+  });
+  return { calls: keys, unrecognised };
+}
+
+function scanFile(file: string): ScannedSource {
+  return scanSource(file, readFileSync(join(ROOT, file), 'utf8'));
+}
+
+function callSitesIn(file: string): string[] {
+  return scanFile(file).calls;
 }
 
 describe('#574 item 3: every execGit call site is classified', () => {
-  it('the record names exactly the execGit calls in the source', () => {
-    const found = SOURCE_FILES.flatMap(callSitesIn).sort();
+  it('the record names exactly the execGit calls in every source file under src/', () => {
+    const found = sourceFiles().flatMap(callSitesIn).sort();
     expect(found).toEqual(Object.keys(RECORD).sort());
+  });
+
+  it('no source file reaches execGit other than by a call through an imported name', () => {
+    expect(sourceFiles().flatMap((file) => scanFile(file).unrecognised)).toEqual([]);
   });
 
   it('the scan path has 18 calls in repo-signals.ts, 1 in history-depth.ts and 1 in public-scan.ts', () => {
@@ -208,5 +297,34 @@ describe('#574 item 3: every execGit call site is classified', () => {
       .filter(([, site]) => site.class === 'silent switch' || site.class === 'silent absence')
       .map(([key]) => key);
     expect(silent).toEqual([]);
+  });
+});
+
+// The scanner itself, on synthetic source text: each way a call could escape it is found.
+describe('#574 item 3: the call-site scanner (review of b67489a96, item D)', () => {
+  it('finds a call through an aliased import, and a call through a namespace import', () => {
+    const aliased = "import { describeGitFailure, execGit as runGit } from '../witan/git-exec.js';\nexport function probe(cwd: string) {\n  return runGit(['status'], { cwd });\n}\n";
+    expect(scanSource('src/x/probe.ts', aliased)).toEqual({ calls: ['src/x/probe.ts#probe#1'], unrecognised: [] });
+    const multiline = "import {\n  type GitExecResult,\n  execGit as run,\n} from './git-exec.js';\nfunction probe() {\n  run(['status'], { cwd: '.' });\n}\n";
+    expect(scanSource('src/witan/probe.ts', multiline).calls).toEqual(['src/witan/probe.ts#probe#1']);
+    const namespace = "import * as git from './git-exec.js';\nfunction probe() {\n  git.execGit(['status'], { cwd: '.' });\n}\n";
+    expect(scanSource('src/witan/probe.ts', namespace)).toEqual({ calls: ['src/witan/probe.ts#probe#1'], unrecognised: [] });
+  });
+
+  it('reports every other way to reach execGit', () => {
+    const cases = [
+      "import { execGit } from './git-exec.js';\nconst run = execGit;\n",
+      "import * as git from './git-exec.js';\nconst run = git['execGit'];\n",
+      "export { execGit } from './git-exec.js';\n",
+      "const { execGit } = await import('./git-exec.js');\n",
+    ];
+    for (const text of cases) expect(scanSource('src/witan/probe.ts', text).unrecognised, text).toHaveLength(1);
+  });
+
+  it('ignores comments, a longer name, and a member of another object; a mention in a string fails closed', () => {
+    const text = "import { execGit } from './git-exec.js';\n// execGit(['x'])\n/* execGit(['y']) */\n * execGit(['z'])\nfunction probe() {\n  execGitLater();\n  tools.execGit(['status']);\n  execGit(['status'], { cwd: '.' }); // execGit(['w'])\n}\n";
+    expect(scanSource('src/witan/probe.ts', text)).toEqual({ calls: ['src/witan/probe.ts#probe#1'], unrecognised: [] });
+    const quoted = "import { execGit } from './git-exec.js';\nconst label = 'execGit';\n";
+    expect(scanSource('src/witan/probe.ts', quoted).unrecognised).toEqual(['src/witan/probe.ts:2 mentions execGit other than as a call']);
   });
 });
