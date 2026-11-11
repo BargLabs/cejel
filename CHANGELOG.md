@@ -113,11 +113,19 @@ rubric is pinned. v27 carries no precision or recall claim.
   - Performance only. Every report under every rubric, v17 included, is byte-identical: the
     scoring-surface and fingerprint pins did not move, and no rubric changelog entry is needed.
   - Each rewrite gives exactly what its old form gave, checked per site against the old regex
-    (kept only in the test) over generated inputs with blank runs, CRLF, tabs, NBSP, U+2028,
-    U+2029 and NEL: the `test` sites keep the blank run within one line; the four `exec` sites and
-    the one `replace` site widen each match back over the blank lines the old form also
-    consumed; the PEM pattern is tried only at the first identifier-start character of each run
-    and at each quote.
+    (kept only in the test) over 100,000 generated inputs per site with blank runs, CRLF, lone
+    CR, tabs, VT, FF, NEL, U+2028, U+2029 and every Unicode space `\s` matches: the `test` sites
+    keep the blank run within one line, written as the class `[^\S\n\r\u2028\u2029]`; the four
+    `exec` sites and the one `replace` site widen each match back over the blank lines the old
+    form also consumed; the PEM pattern is tried only at the first identifier-start character of
+    each run and at each quote. A further test runs that PEM driver itself on the guard's
+    identifier-run families inside a time-limited `vm` and counts its attempts.
+  - Equivalence and byte identity were checked on Node 22 and on Node 26: 16 synthetic
+    repositories with blank runs, CRLF and Unicode spaces in their config files, under every
+    rubric, gave reports byte-identical to main's on the same Node (only `generatedAt` in
+    `attestation.json` differs). The in-line blank is a character class, not `(?:(?=.)\s)`,
+    because V8 12.4 (Node 22) evaluates that lookahead group wrongly under the `m` flag once the
+    regex is compiled to native code.
   - The ReDoS guard carries the blank-lines family and four identifier-run families, so these
     shapes cannot come back unnoticed. It proves only the families it carries.
 
