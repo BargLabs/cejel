@@ -219,11 +219,13 @@ review-round item A.
   not read: `a1qdef-script-sets-addopts`, `a1qdef-bash-c-mention` and `a1env-github-env-write`. (The
   re-review counted 12: the 10 in `v27-a1-make-environment.test.ts` and the two `a1qdef-pin-job-env`
   pins.)
-- The readings the 11 held are pinned on make-only jobs, the 11 `a1rev-` cases. This round drops
-  their `actions/checkout` step, which now leaves a job `env:` not read, so they keep testing make's
-  environment; their outcomes did not change. With checkout restored, 10 of the 11 would be named
-not read, so the job- and workflow-level make-environment readings are now pinned only on jobs with
-no `uses:` step. Two new pins state the strict rule with checkout:
+- The readings the 11 held are pinned on make-only jobs, the 11 `a1rev-` cases in
+  `v27-a1-make-environment.test.ts`. This round drops their `actions/checkout` step, which now
+  leaves a job `env:` not read, so they keep testing make's environment; their outcomes did not
+  change. With checkout restored, 10 of the 11 would change to not read (the eleventh,
+  `a1rev-control-command-line`, is not read already), so the job- and workflow-level
+  make-environment readings are now pinned only on jobs with no `uses:` step. Two new pins state
+  the strict rule with checkout:
   `a1uses-job-env-checkout-make` and `a1uses-github-env-checkout-make`.
 
 No v17 pin and no behaviour-fingerprint pin moved. No published score moved: the board is scored
