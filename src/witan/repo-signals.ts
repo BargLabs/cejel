@@ -1354,7 +1354,7 @@ const RUBY_PACKAGE_RECIPE_CLASS_PATTERN = /\bclass\s+[A-Za-z0-9_:]+\s*<\s*(?:For
 // terminators. For a `test`, `^\s*X` under `m` matches exactly when the class form does
 // (X's own line start is a `^`), and the old form retried every blank line before X from each
 // line start (#550, quadratic). The same holds for `(?:^|[{,])\s*X`. It is a class, not
-// `(?:(?=.)\s)`: V8 12.4 (Node 22) compiles that group wrongly under `m` once it tiers up.
+// `(?:(?=.)\s)`: V8 before Node 26 (18, 20, 22) compiles that group wrongly under `m` once it tiers up.
 const RUBY_PACKAGE_RECIPE_URL_PATTERN = /^[^\S\n\r\u2028\u2029]*url\s+["'][^"']+["']/m;
 const RUBY_PACKAGE_RECIPE_PATH_PATTERN = /(^|\/)(?:Formula|Casks?)(\/|$)/;
 

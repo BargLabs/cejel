@@ -124,8 +124,9 @@ rubric is pinned. v27 carries no precision or recall claim.
     repositories with blank runs, CRLF and Unicode spaces in their config files, under every
     rubric, gave reports byte-identical to main's on the same Node (only `generatedAt` in
     `attestation.json` differs). The in-line blank is a character class, not `(?:(?=.)\s)`,
-    because V8 12.4 (Node 22) evaluates that lookahead group wrongly under the `m` flag once the
-    regex is compiled to native code.
+    because V8 before Node 26 (seen on Node 18, 20 and 22) evaluates that lookahead group wrongly
+    under the `m` flag once the regex is compiled to native code. The character class was also
+    checked on Node 18 and 20.
   - The ReDoS guard carries the blank-lines family and four identifier-run families, so these
     shapes cannot come back unnoticed. It proves only the families it carries.
 

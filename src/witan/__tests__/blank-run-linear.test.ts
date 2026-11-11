@@ -17,8 +17,8 @@ import {
 // every other character `\s` matches, NEL, lone CR, and the site's own tokens. The new literal is
 // read from the production source, so a change to it is what this test checks.
 //
-// #716 review: the first rewrite spelled the in-line blank `(?:(?=.)\s)`. V8 12.4 (Node 22)
-// compiles that group wrongly under `m` once the regex tiers up to native code (the first call is
+// #716 review: the first rewrite spelled the in-line blank `(?:(?=.)\s)`. V8 before Node 26
+// (seen on Node 18, 20 and 22) compiles that group wrongly under `m` once the regex tiers up to native code (the first call is
 // right, later ones are not), so the rewrite is a character class, `[^\S\n\r` plus the two
 // Unicode line terminators `]`, and these checks run every literal many times on purpose.
 
