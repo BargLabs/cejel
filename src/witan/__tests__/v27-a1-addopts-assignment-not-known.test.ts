@@ -255,6 +255,82 @@ describe('v27 A1, review of #698, item A: a mention is read only where it reache
   });
 });
 
+// Fix round on #710 (re-review at 9ad037b1d, blocker 2; operator ruling of 10 Nov): a `uses:` step
+// under an `env:` entry, or after a `$GITHUB_ENV` write, is a step the reader does not follow. A local
+// composite action may run a script that runs make with the variable, so the mention is not read,
+// the same as a script step.
+describe('v27 A1, fix round on #710, item A: a uses: step the env reaches is a step the reader does not follow', () => {
+  const ACTION = '.github/actions/t/action.yml';
+  // The local composite action runs a script, which runs make test.
+  const COMPOSITE = {
+    [ACTION]: lines('name: t', 'runs:', '  using: composite', '  steps:', '    - run: ./ci/test.sh', '      shell: bash'),
+    ...CI_SCRIPT,
+  };
+  const MAKEFILE = lines('PYTEST_ADDOPTS = -p no:skipping', '', 'lint:', '\t@true', '', 'test:', '\tpytest');
+  const STEPS = ['    steps:', '      - run: make lint', '      - uses: ./.github/actions/t'];
+  const head = ['name: ci', 'on:', '  push:'];
+  const job = ['jobs:', '  test:', '    runs-on: ubuntu-latest'];
+
+  it('a job-level env: entry over run: make lint and a local composite action that runs make test: not known', () => {
+    const name = 'a1uses-job-env-composite-eq';
+    const v27 = expectWithheld(
+      name,
+      { Makefile: MAKEFILE, ...COMPOSITE, [CI]: lines(...head, ...job, '    env:', '      PYTEST_ADDOPTS: -q', ...STEPS) },
+      `pytest run not read: \`PYTEST_ADDOPTS: -q\` in ${CI}`,
+    );
+    expectPointerAt(name, v27, CI, 8);
+  });
+
+  it('a workflow-level env: entry over the same steps: not known', () => {
+    const name = 'a1uses-workflow-env-composite-eq';
+    const v27 = expectWithheld(
+      name,
+      { Makefile: MAKEFILE, ...COMPOSITE, [CI]: lines(...head, 'env:', '  PYTEST_ADDOPTS: -q', ...job, ...STEPS) },
+      `pytest run not read: \`PYTEST_ADDOPTS: -q\` in ${CI}`,
+    );
+    expectPointerAt(name, v27, CI, 5);
+  });
+
+  it('a $GITHUB_ENV write, then run: make lint and the local composite action: not known', () => {
+    const name = 'a1uses-github-env-composite-eq';
+    const v27 = expectWithheld(
+      name,
+      {
+        Makefile: MAKEFILE,
+        ...COMPOSITE,
+        [CI]: lines(...head, ...job, '    steps:', '      - run: echo "PYTEST_ADDOPTS=-q" >> "$GITHUB_ENV"', '      - run: make lint', '      - uses: ./.github/actions/t'),
+      },
+      `pytest run not read: \`- run: echo "PYTEST_ADDOPTS=-q" >> "$GITHUB_ENV"\` in ${CI}`,
+    );
+    expectPointerAt(name, v27, CI, 8);
+  });
+
+  it('control: the same steps with no env: entry and no $GITHUB_ENV write: still hollow', () => {
+    expectHollow('a1uses-control-no-env', { Makefile: MAKEFILE, ...COMPOSITE, [CI]: lines(...head, ...job, ...STEPS) });
+  });
+
+  it('pin: an env: entry scoped to the run: make test step, with uses: steps outside its reach, keeps its reading', () => {
+    expectWithheld(
+      'a1uses-pin-step-env-make-uses-elsewhere',
+      {
+        Makefile: MAKEFILE,
+        ...COMPOSITE,
+        [CI]: lines(
+          ...head,
+          ...job,
+          '    steps:',
+          '      - uses: actions/checkout@v4',
+          '      - run: make test',
+          '        env:',
+          '          PYTEST_ADDOPTS: -q',
+          '      - uses: ./.github/actions/t',
+        ),
+      },
+      MAKEFILE_VALUE,
+    );
+  });
+});
+
 // goal_cejel_v27_a1_addopts_review_fixes_698_2026-11-10, item B (blocker 2): a Makefile assignment
 // with leading spaces is read; a tab-led line in a rule stays a recipe line, as GNU make reads it.
 describe('v27 A1, review of #698, item B: an indented Makefile assignment is read', () => {
