@@ -83,8 +83,10 @@ rubric is pinned. v27 carries no precision or recall claim.
     in a file that holds one.
   - **The rule is strict.** A mention that reaches any step that is not a make command the reader
     reads, including `pip install`, `set -e`, `echo` and `uses: actions/checkout`, now leaves the
-    runs not read. This withholds on some files that are truly hollow (v27 then keeps v17's
-    reading); narrowing it is cejel #713.
+    runs not read. Since nearly every job holds a `uses:` step such as `actions/checkout`, a job- or
+    workflow-level `env: PYTEST_ADDOPTS` beside an unexported Makefile assignment in practice always
+    withholds, including on truly hollow files (v27 then keeps v17's reading); only a step-level `env:`
+    on the make step keeps its reading. Narrowing it is cejel #713.
   - **An indented Makefile assignment (review of #698).** `  PYTEST_ADDOPTS = -p no:skipping`,
     led by spaces, is read as an assignment; a tab-led line in a rule stays a recipe line.
   - **The tox posargs budget (#653).** A `tox.ini` line holding `{posargs}` was read once per

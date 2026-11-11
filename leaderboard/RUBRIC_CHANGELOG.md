@@ -109,14 +109,18 @@ request, red first at `b1fb00a31`:
   write in a file that holds one, the same as a script step. Blocker 1 of that re-review was this
   entry's records, corrected here.
 
-**The rule is strict, and withholds on some files that are truly hollow.** By the operator's ruling
+**The rule is strict, and in practice it withholds every job- or workflow-level case.** By the operator's ruling
 of 10 Nov the rule stays strict and is disclosed: a mention that reaches any step that is not a
 make command the reader reads now leaves the run not read, including `pip install`, `set -e`,
 `echo` and a `uses:` step such as `actions/checkout`. So a job-level `env: PYTEST_ADDOPTS` over a
 checkout or an install step as well as `make test`, beside an unexported Makefile assignment,
-withholds where the reading was kept before, and some of those files are truly hollow: v27 then
-falls back to v17's reading there, never above it. The narrowing, to steps that can run make, is
-cejel #713.
+withholds where the reading was kept before. Nearly every GitHub Actions job starts with a `uses:`
+step (`actions/checkout`), so in practice a job- or workflow-level `env: PYTEST_ADDOPTS` beside an
+unexported Makefile assignment of the variable always withholds, and every truly hollow file of that
+shape is withheld rather than rated hollow; only a step-level `env:` on the make step itself keeps
+its reading. v27 then keeps v17's reading there, never above it. The 1,018 synthetic repositories
+measured below cannot show this: none of them holds both a CI mention of `PYTEST_ADDOPTS` and a
+Makefile assignment of it. The narrowing, to steps that can run make, is cejel #713.
 
 **GNU make and pytest.** The first session's shell refused `make` and `python3 -m pytest`. The make
 claims were then checked with GNU Make 3.81, run on the dev host on 10 Nov from a throwaway test: an
@@ -215,9 +219,11 @@ review-round item A.
   not read: `a1qdef-script-sets-addopts`, `a1qdef-bash-c-mention` and `a1env-github-env-write`. (The
   re-review counted 12: the 10 in `v27-a1-make-environment.test.ts` and the two `a1qdef-pin-job-env`
   pins.)
-- The readings the 11 held are pinned on make-only jobs, the 12 `a1rev-` cases. This round drops
+- The readings the 11 held are pinned on make-only jobs, the 11 `a1rev-` cases. This round drops
   their `actions/checkout` step, which now leaves a job `env:` not read, so they keep testing make's
-  environment; their outcomes did not change. Two new pins state the strict rule with checkout:
+  environment; their outcomes did not change. With checkout restored, 10 of the 11 would be named
+not read, so the job- and workflow-level make-environment readings are now pinned only on jobs with
+no `uses:` step. Two new pins state the strict rule with checkout:
   `a1uses-job-env-checkout-make` and `a1uses-github-env-checkout-make`.
 
 No v17 pin and no behaviour-fingerprint pin moved. No published score moved: the board is scored
