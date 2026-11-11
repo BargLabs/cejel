@@ -37,13 +37,19 @@ const injected = vi.hoisted(() => ({
   fail: null as null | ((argv: readonly string[], stack: string) => GitExecFailureReason | null),
   shallowChecks: 0,
   gitEntry: undefined as string | undefined,
+  // Where set, git's depth check exits 0 and prints the option back, as a git too old to know
+  // --is-shallow-repository does.
+  echo: false,
 }));
 vi.mock('../git-exec.js', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../git-exec.js')>();
   return {
     ...actual,
     execGit: (argv: readonly string[], options: Parameters<typeof actual.execGit>[1]) => {
-      if (argv[0] === 'rev-parse' && argv.includes('--is-shallow-repository')) injected.shallowChecks += 1;
+      if (argv[0] === 'rev-parse' && argv.includes('--is-shallow-repository')) {
+        injected.shallowChecks += 1;
+        if (injected.echo) return { ok: true as const, stdout: '--is-shallow-repository\n' };
+      }
       let stack = '';
       if (injected.fail) {
         const limit = Error.stackTraceLimit;
@@ -69,6 +75,10 @@ const DEPTH_TIMEOUT_SETTLED =
   "Cejel: local git history-depth check exceeded the 30 second timeout. Cejel read the history depth from the repository's own shallow file, which is the file git reads to answer.";
 const DEPTH_TIMEOUT_UNSETTLED =
   "Cejel: local git history-depth check exceeded the 30 second timeout. Cejel could not read the history depth from the repository's files either.";
+const DEPTH_ECHO_SETTLED =
+  "Cejel: local git history-depth check gave no answer (git printed neither true nor false). Cejel read the history depth from the repository's own shallow file, which is the file git reads to answer.";
+const DEPTH_ECHO_UNSETTLED =
+  "Cejel: local git history-depth check gave no answer (git printed neither true nor false). Cejel could not read the history depth from the repository's files either.";
 const BUILTIN_LISTING_TIMEOUT =
   "Cejel: local git full tracked-file inventory exceeded the 30 second timeout. A1 credited no copy of pytest's collected items made through a builtin, because the files that may replace the builtin could not be listed.";
 
@@ -109,11 +119,13 @@ beforeAll(() => {
 afterEach(() => {
   injected.fail = null;
   injected.gitEntry = undefined;
+  injected.echo = false;
 });
 
 afterAll(() => {
   injected.fail = null;
   injected.gitEntry = undefined;
+  injected.echo = false;
   rmSync(scratch, { recursive: true, force: true });
   removeShallowA2Fixtures();
 });
@@ -240,6 +252,50 @@ describe('#574 item A: one history-depth answer per scan', () => {
         expect(b2.score).toBe(0);
         expect(b2.notes ?? '').toContain('could not tell whether this clone is shallow');
       }
+    }
+  });
+});
+
+// Operator ruling of 11 Nov (item B of the second review of #718): where git does not answer the
+// depth check and the depth is read from the repository's files, the report says so. A git too old
+// to know --is-shallow-repository exits 0 and echoes the option back; until this ruling that fell
+// back to the files with nothing stated, though a timeout, an output limit or a failed run was
+// stated. Disclosure only: no score, status or verdict moves.
+describe('#574 item B: an old git that echoes the depth check back is stated', () => {
+  function scanEchoing(repoPath: string, rubricVersion: string): WitanReport {
+    injected.echo = true;
+    try {
+      return scan(repoPath, rubricVersion);
+    } finally {
+      injected.echo = false;
+    }
+  }
+
+  it('v17 and v27: the files settle the depth, the scan states how it was read, and nothing else moves', () => {
+    for (const rubricVersion of WITAN_SELECTABLE_RUBRIC_VERSIONS) {
+      for (const repoPath of [repos.complete, repos.shallow]) {
+        const idle = scan(repoPath, rubricVersion);
+        const echoed = scanEchoing(repoPath, rubricVersion);
+        expect(echoed.scanLimitations ?? [], rubricVersion).toContain(DEPTH_ECHO_SETTLED);
+        expect(idle.scanLimitations ?? [], rubricVersion).not.toContain(DEPTH_ECHO_SETTLED);
+        expect(scores(echoed), rubricVersion).toEqual(scores(idle));
+      }
+    }
+    // The ruling names v17 and v27; the loop above covers both.
+    expect(WITAN_SELECTABLE_RUBRIC_VERSIONS).toEqual(expect.arrayContaining([V17, V27]));
+  });
+
+  it('v17 and v27: where the files cannot settle the depth either, that is stated too, and A2 and B2 read as before', () => {
+    for (const rubricVersion of WITAN_SELECTABLE_RUBRIC_VERSIONS) {
+      const idle = scan(repos.complete, rubricVersion);
+      injected.gitEntry = danglingGitFile;
+      const echoed = scanEchoing(repos.complete, rubricVersion);
+      injected.gitEntry = undefined;
+      expect(echoed.scanLimitations ?? [], rubricVersion).toContain(DEPTH_ECHO_UNSETTLED);
+      expect(isWitanHistoryDepthUnknownAbstention(echoed), rubricVersion).toBe(true);
+      // No failure: git ran and exited 0, so neither A2 nor B2 counts a failed read.
+      expect(reading(echoed, 'A2'), rubricVersion).toEqual(reading(idle, 'A2'));
+      expect(reading(echoed, 'B2'), rubricVersion).toEqual(reading(idle, 'B2'));
     }
   });
 });
