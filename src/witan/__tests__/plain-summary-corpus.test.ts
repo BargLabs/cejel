@@ -15,10 +15,12 @@ import { renderTerminalCertificate } from '../../terminal.js';
 import { createWitanAttestation, serializeWitanReport } from '../attestation.js';
 import { renderWitanHtmlReport } from '../html.js';
 import { scoreRepoWithPublicCejel } from '../public-scan.js';
+import { rubricBehaviourFingerprint } from '../rubric-fingerprint.js';
 import { WITAN_RUBRIC_VERSION_V17, WITAN_RUBRIC_VERSION_V27 } from '../rubric-version.js';
 import type { WitanReport } from '../schemas.js';
 import {
   BEHAVIOUR_CORPUS,
+  BEHAVIOUR_CORPUS_ADDED_BY_622,
   BEHAVIOUR_CORPUS_HEAD_SHAS,
   buildBehaviourFixture,
   fixtureHeadSha,
@@ -89,12 +91,23 @@ describe('report.json and attestation.json are byte-identical to origin/main on 
     writeFileSync(process.env.PLAIN_SUMMARY_BYTE_PINS ?? '', `${JSON.stringify(pins, null, 2)}\n`);
   });
 
+  // #622 (2026-11-11): the behaviour corpus gained two specimens, which have no origin/main bytes to
+  // match, and every rubric's fingerprint moved while no score did. Each pinned fixture is checked
+  // byte for byte with only the fingerprint the pins were captured under put back in place (key
+  // order unchanged), and the report must carry this build's fingerprint.
+  const FINGERPRINTS_BEFORE_622: Readonly<Record<string, string>> = {
+    [WITAN_RUBRIC_VERSION_V17]: 'sha256:5cd48f8c642300ae8736a09d4a24ce3a4f8885f6e099b5f27f99d950e0c944b4',
+    [WITAN_RUBRIC_VERSION_V27]: 'sha256:dfe4e7e9ba37666f60b1ebcee4eb44917110798e9038c81eef079718db9ee7b1',
+  };
   it.skipIf(process.env.PLAIN_SUMMARY_BYTE_PINS !== undefined)('every fixture matches its pin', () => {
     const pins = JSON.parse(readFileSync(PINS_PATH, 'utf8')) as Record<string, BytePin>;
-    expect(Object.keys(pins).sort()).toEqual([...reports.keys()].sort());
-    for (const [key, report] of reports) {
-      expect(sha256(serializeWitanReport(report)), `${key} report.json`).toBe(pins[key]?.reportSha256);
-      expect(sha256(attestationBytes(report)), `${key} attestation.json`).toBe(pins[key]?.attestationSha256);
+    const pinned = [...reports].filter(([key]) => !BEHAVIOUR_CORPUS_ADDED_BY_622.includes(key.split('/')[1] ?? ''));
+    expect(Object.keys(pins).sort()).toEqual(pinned.map(([key]) => key).sort());
+    for (const [key, report] of pinned) {
+      expect(report.rubricBehaviourFingerprint, key).toBe(rubricBehaviourFingerprint(report.rubricVersion));
+      const restored = { ...report, rubricBehaviourFingerprint: FINGERPRINTS_BEFORE_622[report.rubricVersion] };
+      expect(sha256(serializeWitanReport(restored)), `${key} report.json`).toBe(pins[key]?.reportSha256);
+      expect(sha256(attestationBytes(restored)), `${key} attestation.json`).toBe(pins[key]?.attestationSha256);
     }
   });
 

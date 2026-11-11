@@ -130,7 +130,7 @@ import { WITAN_RUBRIC_VERSION_V17 } from '../rubric-version.js';
 // `preShallowCorpusReportSha256` (the previous pin) byte for byte, and every older restoration
 // below starts from that report.
 
-const V17_FINGERPRINT = 'sha256:a19af747afca60f2ed61c5a6481fe0234b127909bd7b788051f0bd8f9750d23b';
+const V17_FINGERPRINT = 'sha256:1017cbaa7a77b4cdf50177bd20536480d874e191b46a1fe65cd7aaedc794a375';
 const V17_FINGERPRINT_BEFORE_SHALLOW_CORPUS =
   'sha256:5cd48f8c642300ae8736a09d4a24ce3a4f8885f6e099b5f27f99d950e0c944b4';
 const V17_FINGERPRINT_BEFORE_HMAC_DIGEST_COMPARE =
@@ -218,7 +218,7 @@ const FIXTURES: readonly Fixture[] = [
       'README.md': '# fixture\n',
     },
     fixtureHeadSha: '57528d5757b04f14b3b21adb41163866ff428242',
-    reportSha256: 'bddbb9348c6fd95871ace6ff72dd7f706dbfe6bb08afbe5a95ee7b046dbbf47c',
+    reportSha256: '83adba13fc0732253574a20ce1982d5269c177ce0b270538ccd10bbc76f252e8',
     preShallowCorpusReportSha256: 'd796c0043d9eadaab410612a66c66897087f8bc07954ce882ff68141f9385077',
     preWorkflowTriggerLabelsReportSha256: '01112896f38d5eb905c07fc7f6666578420e26c7d40d329d2c9b2f6dad6bbc8f',
     preHmacDigestCompareReportSha256: 'a928c41a5abc2415f189dfecc2e288daa0ea2da4d59ebd0f5f1c27b8879663b6',
@@ -248,7 +248,7 @@ const FIXTURES: readonly Fixture[] = [
       'README.md': '# fixture\n',
     },
     fixtureHeadSha: '92be8bb76999ef1ea948ca3ed3e6dc7397b14fd2',
-    reportSha256: '75a7b3273ad28ed1843902fc38b698d3625d26a4711e412fe4de147de40f156e',
+    reportSha256: 'cfcfc03c571dac49566080c24d5d2fe7cbc2586da8a60ad8f8898e5c53f9fcde',
     preShallowCorpusReportSha256: '4e934e2401880433af4e8d7878ecbb5915fa358c137894b834f96093f1887976',
     preWorkflowTriggerLabelsReportSha256: '4e934e2401880433af4e8d7878ecbb5915fa358c137894b834f96093f1887976',
     preHmacDigestCompareReportSha256: 'f6c7a83a3fe12120a619c174623c42b2972a71dd63f31a34536ffbba473c1854',
@@ -277,7 +277,7 @@ const FIXTURES: readonly Fixture[] = [
       'README.md': '# fixture\n',
     },
     fixtureHeadSha: 'e3d5165eb7fcbc480718d4b93088f8e586f20535',
-    reportSha256: 'b180c2d567d90d46a08e6b89279417933eb5ffc7a7f4f6b53af7c1dbffbef207',
+    reportSha256: '81548e801c1489909fa165a5a150ee6a1f17d13c4f56790d3bcec377980b0ce2',
     preShallowCorpusReportSha256: 'c7bb8643149b21a3fea1292ad635f21a9dbf490dc087f60e33d55981921c069f',
     preWorkflowTriggerLabelsReportSha256: 'c7bb8643149b21a3fea1292ad635f21a9dbf490dc087f60e33d55981921c069f',
     preHmacDigestCompareReportSha256: 'cab6889c33491d04d5227cf4ab1181ca6a5f6ecfbd780194122db95de6233d5f',
@@ -304,7 +304,7 @@ const FIXTURES: readonly Fixture[] = [
       'README.md': '# fixture\n',
     },
     fixtureHeadSha: 'b72b860e9fbba8005bf25328de8fe68954169f38',
-    reportSha256: '2193a6d8a58b2dff3560ea4ceb23e96d8e5e54cb19bc3f78d752ba58cd46ca36',
+    reportSha256: 'ab97122a890c7185d568c95fb69394e965fddf082a372e9a8969e0e619bcaeb1',
     preShallowCorpusReportSha256: 'dcafd17ef528b4ead94ffc7763058ecb9a09f998254a0f40fd6b29dd03ae2d82',
     preWorkflowTriggerLabelsReportSha256: '447eab327005526c905f01f35c8a5685d983d19a62aaaff8f843cb6f33c76662',
     preHmacDigestCompareReportSha256: 'b7febcfb40d03d2e7d11508de952613aa0ef8cfa938d2467a84509a6f6f44f31',

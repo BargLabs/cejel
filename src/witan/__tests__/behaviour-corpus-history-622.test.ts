@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { scoreRepoWithPublicCejel } from '../public-scan.js';
+import { projectWitanScoringSurface, WITAN_PROJECTED_RUBRIC_PLACEHOLDER } from '../rubric-fingerprint.js';
 import {
   WITAN_RUBRIC_VERSION_V17,
   WITAN_RUBRIC_VERSION_V27,
@@ -131,6 +132,30 @@ describe(`#622 — ${SHALLOW}: a full clone would score A2 and B2 from history`,
       expect(criterion(fromShallow, 'B2').metrics.map(({ name }) => name), rubricVersion).toEqual(['pr_trace_primitives']);
       expect(fromShallow.verdict, rubricVersion).toBe('insufficient_source');
     }
+  });
+});
+
+describe(`#622 — ${SHALLOW}: the fingerprint reads what the rubric decided, not its name`, () => {
+  it('the projected surface names no rubric, and is the same under every rubric whose shallow-clone reason is worded alike', () => {
+    const dir = buildBehaviourFixture(fixture(SHALLOW));
+    const surfaces = WITAN_SELECTABLE_RUBRIC_VERSIONS.map((rubricVersion) => {
+      const report = scan(dir, SHALLOW, rubricVersion);
+      expect(report.insufficientSourceReason, rubricVersion).toContain(`Under ${rubricVersion} Cejel gives no composite`);
+      const { criteria: _criteria, ...reportLevel } = projectWitanScoringSurface(report);
+      return {
+        rubricVersion,
+        surface: JSON.stringify(projectWitanScoringSurface(report)),
+        reportLevel: JSON.stringify(reportLevel),
+      };
+    });
+    for (const { rubricVersion, surface } of surfaces) {
+      for (const named of WITAN_SELECTABLE_RUBRIC_VERSIONS) expect(surface, rubricVersion).not.toContain(named);
+      expect(surface, rubricVersion).toContain(`Under ${WITAN_PROJECTED_RUBRIC_PLACEHOLDER} Cejel gives no composite`);
+    }
+    // The report-level outcome (verdict, composites, the reason): the same from v17 to v26. v27's
+    // reason is worded differently ("could fall below"), which is a difference in what it says.
+    const beforeV27 = surfaces.filter(({ rubricVersion }) => rubricVersion !== WITAN_RUBRIC_VERSION_V27);
+    expect(new Set(beforeV27.map(({ reportLevel }) => reportLevel)).size).toBe(1);
   });
 });
 

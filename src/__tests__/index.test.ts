@@ -514,10 +514,10 @@ describe('runWitanFreeCli (zero-config end-to-end)', () => {
     // previous v17 fingerprint in place (key order unchanged) reproduces the previous pin
     // (ea0315a8...) byte for byte, and every older restoration starts from that report.
     expect(createHash('sha256').update(pinnedReportJson).digest('hex')).toBe(
-      '63c31f4a1c16bd86536f0d02a03bd245801f3044e8d0d6c596489d4b73dcd0c3',
+      '75b4aad3045d41848c8e42189a4f46c6b3815e29357fa21d1b66c51f024e0b85',
     );
     expect((firstReport as { rubricBehaviourFingerprint?: string }).rubricBehaviourFingerprint).toBe(
-      'sha256:a19af747afca60f2ed61c5a6481fe0234b127909bd7b788051f0bd8f9750d23b',
+      'sha256:1017cbaa7a77b4cdf50177bd20536480d874e191b46a1fe65cd7aaedc794a375',
     );
     expect((pinnedReport as { toolVersion?: string }).toolVersion).toBe(PINNED_TOOL_VERSION);
     const V17_FINGERPRINT_BEFORE_SHALLOW_CORPUS =

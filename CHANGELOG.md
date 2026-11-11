@@ -42,11 +42,13 @@ rubric is pinned. v27 carries no precision or recall claim.
   it publishes. Until now neither shape was in the corpus, so v27's shallow-clone abstention (#619)
   and its count of a workflow that checks before it publishes (#620) moved no fingerprint, and two
   builds that differ on either shape carried the same fingerprint. Scored without the two specimens,
-  the corpus reproduces all eleven previous fingerprints, under Node 22 and Node 26 alike. A
+  the corpus reproduces all eleven previous fingerprints, under Node 22 and Node 26 alike. The
+  fingerprint also stops reading a rubric's own name where the shallow-clone reason quotes it, so
+  two rubrics that behave alike can still share a fingerprint. A
   `report.json` differs from the previous build's in `rubricBehaviourFingerprint` alone; no score,
   verdict or other field changes. v17's fingerprint is now
-  `sha256:a19af747afca60f2ed61c5a6481fe0234b127909bd7b788051f0bd8f9750d23b` and v27's
-  `sha256:012d6dd0a73280294c80885f897d23c97bb00187154fc4fb1d725337af1f4f0d`; all eleven, old and
+  `sha256:1017cbaa7a77b4cdf50177bd20536480d874e191b46a1fe65cd7aaedc794a375` and v27's
+  `sha256:8fa9d87e3047afb80e8e09d08c5cb88a651c8e8b69b6b35184d2ab98ddd3a8fb`; all eleven, old and
   new, are in [`leaderboard/RUBRIC_CHANGELOG.md`](leaderboard/RUBRIC_CHANGELOG.md). Building the
   corpus needs git 2.28 or later, as before.
 

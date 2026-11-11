@@ -78,6 +78,19 @@ committed and run before any pin moved. In the pins, all 121 criterion component
 11 criteria), each rubric gains two report components, and no earlier specimen's report component
 moves.
 
+**The fingerprint no longer reads a rubric's name through the abstention reason.** The
+shallow-clone reason opens "Under `<rubricVersion>` Cejel gives no composite score and no verdict".
+The projection the fingerprint digests (`projectWitanScoringSurface`) carried that reason
+verbatim, so the shallow specimen put each rubric's identifier into its digest, and two rubrics
+that behave identically could never share a fingerprint. That is the defect the projection's
+exclusion of `rubricVersion` exists to prevent. The projection now replaces the report's own
+identifier in that reason with `<rubricVersion>` and keeps the rest. No earlier specimen's reason
+names its rubric, so the proof above holds with this change. On the shallow specimen, the report
+component is now one value under v17 to v26 and another under v27, whose reason is worded
+differently ("could fall below"). `behaviour-corpus-history-622.test.ts` checks this.
+`v26-v25-parity.test.ts`, which already set `rubricVersion` aside when comparing report-level
+fields, now sets aside the same identifier where the reason quotes it.
+
 **Node.** The component pins, the eleven digests and all 32 x 11 projected surfaces were captured
 under Node 26.7.0 and Node 22.23.4 (CI's major). They are byte-identical on both.
 
@@ -85,28 +98,37 @@ Measured fingerprints:
 
 | Rubric | Before (main `773a265c6`) | After |
 | --- | --- | --- |
-| `witan-rubric-v17-2026-07-24` | `sha256:5cd48f8c642300ae8736a09d4a24ce3a4f8885f6e099b5f27f99d950e0c944b4` | `sha256:a19af747afca60f2ed61c5a6481fe0234b127909bd7b788051f0bd8f9750d23b` |
-| `witan-rubric-v18-prospective-2026-07-25` | `sha256:4a5d17c84e265ec20cf54216d2e794dec1d299d859c69ac8ef1ab317fc479e2f` | `sha256:c59b7383e40681a350397ba19884c97e68896820d8d10854c6a07fc13884ccc3` |
-| `witan-rubric-v19-prospective-2026-08-09` | `sha256:73dc0282a9ea2a481db8e86a9a5dc227a8b108356c358de029901f2dc38cef79` | `sha256:2ce90a1046b98979acf905b1f44e996955de17607c03906b51ca139b6dfe0cd1` |
-| `witan-rubric-v20-prospective-2026-08-10` | `sha256:b5f4254a6056ff792d79a2d85892cdf05484eabded85ba13251a2c8fd5ac6336` | `sha256:565b11c11abbde6664e5eb76d47c679d9b71e12c8a7faf099decee7fe4af72cb` |
-| `witan-rubric-v21-prospective-2026-08-10` | `sha256:f599d06354adb45af018639594cb6f44e7cb40445b84a0dcdd4438b8d7d069d0` | `sha256:d456209c81852da933b96a3ea2f5d37f5a3c87607fae32e7dd5ad5705b656913` |
-| `witan-rubric-v22-prospective-2026-08-10` | `sha256:34fb6ac5d1f6faf0912aa4d00924837eeee543614d7971247d005312b89928e1` | `sha256:0c1f20d37de6a921e657b8af882024bc7f5dcfb81dc7b2e93669f56893a18b36` |
-| `witan-rubric-v23-prospective-2026-09-06` | `sha256:ce24235861ce0f0dc4dafd22059a78d31f348e5c741e4056475867c29cc8b814` | `sha256:a0e352cef84cb50d31b7485960c9e9eea982cbadad4685dbbbbce40209969269` |
-| `witan-rubric-v24-prospective-2026-09-15` | `sha256:b221907d60d209cd3d57437892ae3dd873f4fa221ad8743954a30c8575d4e77c` | `sha256:1b651d17586ea63e9747e3077f6ec6dd8ce10691f74c2afb716aa19de97d9568` |
-| `witan-rubric-v25-prospective-2026-10-12` | `sha256:0f2638a5088f95a610a0e12012442f1067af3e985b955f96ec71853d549693b9` | `sha256:632c128f1a21f1e7d6bd23df75e3acef880ade7c14c8aacf4afbbd9533e96cf3` |
-| `witan-rubric-v26-prospective-2026-10-14` | `sha256:4530317d56fc73eb89287e344ad626e2b9a96908ef12eb9e9c13b839bd599dae` | `sha256:969ce7332cc73e06ba50e05e86a037995fc2b89bb7ad10ca0c9c8094753e2b7a` |
-| `witan-rubric-v27-prospective-2026-10-19` | `sha256:dfe4e7e9ba37666f60b1ebcee4eb44917110798e9038c81eef079718db9ee7b1` | `sha256:012d6dd0a73280294c80885f897d23c97bb00187154fc4fb1d725337af1f4f0d` |
+| `witan-rubric-v17-2026-07-24` | `sha256:5cd48f8c642300ae8736a09d4a24ce3a4f8885f6e099b5f27f99d950e0c944b4` | `sha256:1017cbaa7a77b4cdf50177bd20536480d874e191b46a1fe65cd7aaedc794a375` |
+| `witan-rubric-v18-prospective-2026-07-25` | `sha256:4a5d17c84e265ec20cf54216d2e794dec1d299d859c69ac8ef1ab317fc479e2f` | `sha256:d4479647b2ea561db907f2a0e890e1ea789aeb0ba93e8367a0c115df0084ba01` |
+| `witan-rubric-v19-prospective-2026-08-09` | `sha256:73dc0282a9ea2a481db8e86a9a5dc227a8b108356c358de029901f2dc38cef79` | `sha256:afc007665ad29b348054699e560fb8b51ccfa9909964dd299a5eccf9156e7652` |
+| `witan-rubric-v20-prospective-2026-08-10` | `sha256:b5f4254a6056ff792d79a2d85892cdf05484eabded85ba13251a2c8fd5ac6336` | `sha256:2f81463b7b97591bfb5b22e25654d688947f19cc5a384f8b217a85a342475001` |
+| `witan-rubric-v21-prospective-2026-08-10` | `sha256:f599d06354adb45af018639594cb6f44e7cb40445b84a0dcdd4438b8d7d069d0` | `sha256:4afda89876135bc742511257e17f8c0b6db8c88ae90818adfc60ff382b8a49da` |
+| `witan-rubric-v22-prospective-2026-08-10` | `sha256:34fb6ac5d1f6faf0912aa4d00924837eeee543614d7971247d005312b89928e1` | `sha256:804ff598f785ef3a290d37db0617278f811755af49f9f14b1d68fa3d6299dfb2` |
+| `witan-rubric-v23-prospective-2026-09-06` | `sha256:ce24235861ce0f0dc4dafd22059a78d31f348e5c741e4056475867c29cc8b814` | `sha256:3d5a16189c49fc10d9c08e1f309f4966ba1c7a3d1dea86ec1e841f67752fab7e` |
+| `witan-rubric-v24-prospective-2026-09-15` | `sha256:b221907d60d209cd3d57437892ae3dd873f4fa221ad8743954a30c8575d4e77c` | `sha256:2b822b556a0ca073a0d7dc1ec7690a0b5b2b3e1581c00b03b4aebd987a4cbc0a` |
+| `witan-rubric-v25-prospective-2026-10-12` | `sha256:0f2638a5088f95a610a0e12012442f1067af3e985b955f96ec71853d549693b9` | `sha256:86da3a1603ddff9635033721fa41029d7eea06c4b2e39ed8b1da5dd703f177a2` |
+| `witan-rubric-v26-prospective-2026-10-14` | `sha256:4530317d56fc73eb89287e344ad626e2b9a96908ef12eb9e9c13b839bd599dae` | `sha256:0870e977698cf9fa3863c534007c8442fb9c61f274cbefa45fd724801bcc146f` |
+| `witan-rubric-v27-prospective-2026-10-19` | `sha256:dfe4e7e9ba37666f60b1ebcee4eb44917110798e9038c81eef079718db9ee7b1` | `sha256:8fa9d87e3047afb80e8e09d08c5cb88a651c8e8b69b6b35184d2ab98ddd3a8fb` |
 
 No two rubrics share a fingerprint, before or after.
 
 **Report format.** No field changes. The pins that hash a whole report moved by the fingerprint
-alone. In `v17-scoring-surface-golden.test.ts` (four fixtures) and in the CLI cross-path pin in
-`src/__tests__/index.test.ts`, restoring only the previous v17 fingerprint reproduces each previous
-pin byte for byte, and every older restoration starts from that report.
+alone, and each is checked by putting the previous fingerprint back in place (key order unchanged):
+
+- `v17-scoring-surface-golden.test.ts` (four fixtures) and the CLI cross-path pin in
+  `src/__tests__/index.test.ts`: re-pinned; the restoration reproduces each previous pin byte for
+  byte, and every older restoration starts from that report.
+- `certificate-reads-disclosure.test.ts` (F2 under v17, v22, v23 and v25): re-pinned the same way.
+- `v17-unread-history-no-verdict.test.ts` (12 complete-clone pins), `plain-summary-corpus.test.ts`
+  (60 report and attestation pins) and `certificate-below-first-page.test.ts` (644 report and
+  attestation pins over three fixture corpora): the pins are unchanged and still match with the
+  previous fingerprint restored. Each report must carry this build's fingerprint. The two added
+  specimens have no main bytes and are left out of those three files' pins. The certificate does not
+  print the fingerprint, and all 644 pinned certificates are unchanged.
 
 **Published corpus.** Not re-run. No file that scores a repository changed: outside tests, the
-change is the fingerprint table in `src/witan/rubric-fingerprint.ts`, which a scan reads only to
-stamp the report. A report's scores, verdicts and every field but `rubricBehaviourFingerprint` are
+change is in `src/witan/rubric-fingerprint.ts`, which a scan reads only to stamp the report (the
+fingerprint table, and the projection's reason above). A report's scores, verdicts and every field but `rubricBehaviourFingerprint` are
 those main writes.
 
 ## 2026-11-11 (git failure states its limitation) — a scan reads its history depth once and every reader uses that answer; a failed history-depth check, HEAD committer-time read or v27 A1 builtin-copy listing, or a depth check an old git does not answer, is a stated scan limitation under every rubric; under v17 to v26 a score can move only where git's depth check fails, toward git's own answer, and A2 abstains where git failed and the depth cannot be known; under v27 A2 and B2 abstain only there (#574 item 3); where git succeeds every report is byte-identical; no published score moved
