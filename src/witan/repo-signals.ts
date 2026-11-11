@@ -17868,8 +17868,12 @@ const POSARGS_BUDGET = 4096;
  * the characters put in: L/20 {posargs} and one word of L/2 characters cost 3 units and L²/40
  * characters. The tox reader also charges each line that product (a word's characters and one
  * separator, per {posargs}, per set), against this many characters across every tox.ini of a read.
- * The nox reader puts a passed word in place of *session.posargs by reference and copies no text, so
- * its work is the call's words plus the sets' words, and it takes no such charge.
+ * The nox reader puts a passed word in place of *session.posargs by reference and copies no text, but
+ * each *session.posargs on a call takes every set's words, so its work on a call is the call's
+ * *session.posargs count times the sets' words. The count above charges a call the sets' words once,
+ * however many *session.posargs it holds, so it bounds that at about 4,096 words per
+ * *session.posargs (fix round on #710: this said "the call's words plus the sets' words"). The nox
+ * reader takes no character charge.
  */
 const POSARGS_CHARACTER_BUDGET = 262_144;
 
