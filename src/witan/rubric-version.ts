@@ -460,9 +460,10 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     names PYTEST_ADDOPTS anywhere those readers do not read, the value is not known; where every
 //     mention is read, each CI make command's environment is read as above. From 2026-11-10 too
 //     (goal_cejel_v27_a1_addopts_review_fixes_698_2026-11-10, the review of #698): an env: entry
-//     (step, job or workflow) counts as read only where every run step it applies to runs nothing
-//     but CI make commands the reader reads; a $GITHUB_ENV write (the rule by name) only where every
-//     run step of the file does, an echo or printf write itself aside; an export only where no other
+//     (step, job or workflow) counts as read only where every step it applies to is a run step
+//     running nothing but CI make commands the reader reads; a $GITHUB_ENV write (the rule by name)
+//     only where the file holds no uses: step and every run step of the file does, an echo or printf
+//     write itself aside; an export only where no other
 //     command follows it in the run; a non-GitHub CI file's variables or env key only where each of
 //     its commands is such a make command. Any other command (a script, a launcher, pytest, an
 //     install, anything the reader does not follow) may run make with the variable, so the mention
@@ -472,8 +473,13 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     PYTEST_ADDOPTS outside the entries read and the run steps whose every mention is read); a
 //     value on make's command line is still named first, as "pytest run not read: `PYTEST_ADDOPTS`
 //     in <Makefile>". An exported ?= keeps that clause too. A Makefile assignment led by spaces is
-//     read; a tab-led line is a recipe line. A uses: step under a job- or workflow-level env: is not
-//     counted as reaching make. From 2026-11-05 (item A, #669) a pytest run on a
+//     read; a tab-led line is a recipe line. From 2026-11-10 too (the fix round on #710, item A,
+//     blocker 2 of the re-review at 9ad037b1d): a uses: step (a local composite action among them) is
+//     a step the reader does not follow, so an env: entry that reaches one, at any level, is a
+//     mention not read, as is a $GITHUB_ENV write in a file that holds one. The rule is strict: a
+//     mention that reaches any step other than a make command the reader reads (an install, set -e,
+//     echo, actions/checkout) leaves the runs not read, which withholds on some files that are truly
+//     hollow; narrowing it is cejel #713. From 2026-11-05 (item A, #669) a pytest run on a
 //     GitHub Actions step whose step, job or workflow env: sets PYTEST_ADDOPTS by an expression (the
 //     most specific level that sets it decides, so a step literal over a job expression is read),
 //     run directly, as a module or through a launcher A1 follows (a hatch script takes the step's

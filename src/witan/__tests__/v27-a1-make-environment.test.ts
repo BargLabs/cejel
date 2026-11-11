@@ -40,6 +40,8 @@ const fixture = (name: string, files: Readonly<Record<string, string>>): FalseAs
  * A workflow whose test job runs `stepLines` (raw YAML, step-list indent), with optional workflow- and
  * job-level lines. goal_cejel_v27_a1_addopts_review_fixes_698_2026-11-10, item A: `makeOnly` drops
  * the `pip install pytest` step, so a job- or workflow-level env: entry reaches make commands only.
+ * Fix round on #710, item A: it drops the `actions/checkout` step too, since a `uses:` step is one the
+ * reader does not follow (the strict rule; the shape with checkout is pinned after the make-only cases).
  */
 const workflow = (stepLines: readonly string[], jobLines: readonly string[] = [], rootLines: readonly string[] = [], makeOnly = false): string =>
   lines(
@@ -52,8 +54,7 @@ const workflow = (stepLines: readonly string[], jobLines: readonly string[] = []
     '    runs-on: ubuntu-latest',
     ...jobLines,
     '    steps:',
-    '      - uses: actions/checkout@v4',
-    ...(makeOnly ? [] : ['      - run: pip install pytest']),
+    ...(makeOnly ? [] : ['      - uses: actions/checkout@v4', '      - run: pip install pytest']),
     ...stepLines,
   );
 /** The review of #698, item A: the clause of a run left not read by an env: entry that reaches `pip install pytest`. */
@@ -310,6 +311,25 @@ describe('v27 A1, review of #698, item A: the same environments on a job whose o
       else expectWithheld(name, files, outcome);
     });
   }
+});
+
+// Fix round on #710 (re-review at 9ad037b1d, blocker 2; operator ruling of 10 Nov: keep the rule
+// strict and disclose it): a job-level env: entry over an actions/checkout step, or a $GITHUB_ENV write
+// in a file that holds one, reaches a uses: step the reader does not follow, so the mention is not
+// read even where every run step is make. This withholds on some files that are truly hollow;
+// narrowing it is cejel #713.
+describe('v27 A1, fix round on #710, item A: a uses: step such as actions/checkout leaves the mention not read', () => {
+  it('a job-level env: entry over actions/checkout and make test: not read, named with the entry', () => {
+    expectWithheld('a1uses-job-env-checkout-make', { Makefile: UNEXPORTED, [CI]: workflow(['      - uses: actions/checkout@v4', ...MAKE_TEST], ['    env:', '      PYTEST_ADDOPTS: "-q"'], [], true) }, notReadByEntry('-q'));
+  });
+
+  it('a $GITHUB_ENV write in a file with actions/checkout, then make test: not read, named with the write', () => {
+    expectWithheld(
+      'a1uses-github-env-checkout-make',
+      { Makefile: UNEXPORTED, [CI]: workflow(['      - uses: actions/checkout@v4', '      - run: echo "PYTEST_ADDOPTS=-q" >> "$GITHUB_ENV"', ...MAKE_TEST], [], [], true) },
+      `pytest run not read: \`- run: echo "PYTEST_ADDOPTS=-q" >> "$GITHUB_ENV"\` in ${CI}`,
+    );
+  });
 });
 
 describe('v27 A1, item B: pins for the forms main already reads right (rulings of 4 Nov)', () => {

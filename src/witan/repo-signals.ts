@@ -16343,7 +16343,17 @@ interface GithubRunStep {
   readonly lastLine: number;
 }
 
-function readGithubRunSteps(text: string): GithubRunStep[] {
+/**
+ * Fix round on cejel #710 (re-review at 9ad037b1d, blocker 2), item A: a step that runs an action
+ * (`uses:`), which the reader does not follow for the environment it passes on, and the 0-based lines
+ * of the workflow-, job- and step-level `env:` entries for PYTEST_ADDOPTS that reach it.
+ */
+interface GithubUsesStep {
+  readonly line: number;
+  readonly addoptsKeyLines: readonly number[];
+}
+
+function readGithubRunSteps(text: string, usesSteps?: GithubUsesStep[]): GithubRunStep[] {
   const lines = readYamlLines(text);
   const raw = text.split(/\r?\n/);
   const steps: GithubRunStep[] = [];
@@ -16424,6 +16434,7 @@ function readGithubRunSteps(text: string): GithubRunStep[] {
   const firstRootLine = lines.findIndex((line) => !line.blank);
   const root = factsOf(firstRootLine === -1 ? new Map() : mappingKeys(firstRootLine, lines[firstRootLine]?.keyColumn ?? 0));
   const jobs = new Map<number, MappingFacts>();
+  const stepKeysAt = new Map<number, Map<string, number>>();
   const jobFacts = (header: number, column: number): MappingFacts => {
     let facts = jobs.get(header);
     if (facts === undefined) {
@@ -16436,16 +16447,33 @@ function readGithubRunSteps(text: string): GithubRunStep[] {
   };
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index];
-    if (!line || line.blank || line.key !== 'run' || line.value === '') continue;
+    if (!line || line.blank || (line.key !== 'run' && line.key !== 'uses') || line.value === '') continue;
     const column = line.keyColumn;
     // The step's first key is the dash line at this column; its other keys sit at the column too.
     const stepStart = itemStart[index] ?? -1;
     if (stepStart === -1) continue;
-    const stepKeys = mappingKeys(stepStart, column);
+    // Fix round on #710, item A: a step's keys are read once, however many run: or uses: keys it
+    // holds, so a step of N such keys costs its lines once, not N times.
+    let stepKeys = stepKeysAt.get(stepStart);
+    if (stepKeys === undefined) {
+      stepKeys = mappingKeys(stepStart, column);
+      stepKeysAt.set(stepStart, stepKeys);
+    }
     const list = parent[stepStart] ?? -1;
     const jobHeader = list === -1 ? -1 : (parent[list] ?? -1);
     const job = jobHeader === -1 ? { never: false } : jobFacts(jobHeader, lines[list]?.keyColumn ?? 0);
     if (isFalse(scalarAt(stepKeys.get('if'))) || job.never) continue;
+    // Fix round on #710, item A: a `uses:` step is recorded with the env: entries that reach it, and
+    // is not a run step. (A step holding both keys is read as its run.)
+    if (line.key === 'uses') {
+      if (!stepKeys.has('run')) {
+        usesSteps?.push({
+          line: index,
+          addoptsKeyLines: [root.addoptsLine, job.addoptsLine, addoptsLineIn(stepKeys)].filter((at): at is number => at !== undefined),
+        });
+      }
+      continue;
+    }
     const directoryValue = scalarAt(stepKeys.get('working-directory')) ?? job.directory ?? root.directory;
     const directory = directoryValue === undefined ? '' : directoryValue.includes('${{') ? null : resolveCommandPath('', directoryValue);
     const stepAddopts = addoptsIn(stepKeys);
@@ -16689,7 +16717,8 @@ export function readPytestInvocations(
     let fileReachesOther = false;
     let shellRead = 0;
     const mentioned = text.includes('PYTEST_ADDOPTS');
-    for (const step of readGithubRunSteps(text)) {
+    const usesSteps: GithubUsesStep[] = [];
+    for (const step of readGithubRunSteps(text, usesSteps)) {
       for (const at of step.addoptsKeyLines) keyLines.add(at);
       const shellMentions = mentioned ? { read: 0, reachesOther: false } : undefined;
       const envAddopts = step.addopts !== undefined && step.addoptsLine !== undefined ? { words: step.addopts, line: step.addoptsLine } : undefined;
@@ -16717,6 +16746,14 @@ export function readPytestInvocations(
       }
     }
     if (mentioned) {
+      // Fix round on #710 (blocker 2 of the re-review at 9ad037b1d; operator ruling of 10 Nov), item
+      // A: a `uses:` step is one the reader does not follow for the environment (a local composite
+      // action may run a script that runs make), so an `env:` entry that reaches one, and a
+      // `$GITHUB_ENV` write in a file that holds one (the rule is by file), is a mention not read.
+      for (const step of usesSteps) {
+        fileReachesOther = true;
+        for (const at of step.addoptsKeyLines) keysReachingOther.add(at);
+      }
       for (const at of keyLines) if (!keysReachingOther.has(at)) readLines.add(at);
       let read = shellRead;
       for (const at of keyLines) if (!keysReachingOther.has(at)) read += 1;

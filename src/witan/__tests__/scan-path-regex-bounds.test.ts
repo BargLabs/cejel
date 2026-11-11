@@ -1178,6 +1178,31 @@ describe('scaling: the v27 A1 PYTEST_ADDOPTS mention count grows no faster than 
     }
     expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
   }, 120_000);
+
+  // Fix round on #710, item A: the GitHub step reader records each uses: step with the env: entries
+  // that reach it, reading the step's keys once per step (cached by the step's first line), so a step
+  // holding many uses: keys costs its lines once. The input that maximises its work: a job env: entry
+  // over L/160 uses: steps and one step of L/160 uses: keys, then make t0, against a ?= default.
+  it('uses: steps under a job env: entry: the mention is not read at L and at 2L, in linear time', () => {
+    const textsFor = (length: number): Map<string, string> => {
+      const count = Math.floor(length / 160);
+      const steps = Array.from({ length: count }, (_, index) => `      - uses: org/a${index}@v1`).join('\n');
+      const keys = Array.from({ length: count }, (_, index) => `        uses: org/b${index}@v1`).join('\n');
+      return new Map([
+        [
+          '.github/workflows/ci.yml',
+          `name: ci\non: push\njobs:\n  t:\n    runs-on: ubuntu-latest\n    env:\n      PYTEST_ADDOPTS: "-q"\n    steps:\n${steps}\n      - uses: org/c@v1\n${keys}\n      - run: make t0\n`,
+        ],
+        ['Makefile', 'PYTEST_ADDOPTS ?= -x\n\nt0:\n\tpytest tests/test_0.py\n'],
+      ]);
+    };
+    const texts = scalingInputs(textsFor);
+    const { ratio, timing, atSmall, atLarge } = scalingRatio((length) => readPytestInvocations(files, (file) => texts(length).get(file)));
+    for (const read of [atSmall, atLarge]) {
+      expect(read.some(({ unread, file }) => unread === 'PYTEST_ADDOPTS: "-q"' && file === '.github/workflows/ci.yml')).toBe(true);
+    }
+    expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
+  }, 120_000);
 });
 
 // goal_cejel_v27_conftest_timing_guard_2026-11-02, item B. The shell word scanner every reader
