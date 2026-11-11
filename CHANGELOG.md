@@ -73,7 +73,9 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     700-character limit."). Where even that does not fit, the notes' own tail is cut, ending
     "...", to make room, and their beginning is kept. Both count-only forms together are under
     300 characters, so at least 700 characters of the notes always stay. A sentence the
-    certificate reads from the end of such notes can then be cut.
+    certificate reads from the end of such notes can then be cut. A guard test fails if any
+    collector could give A2, A3 or A5 more than two disclosures, so no statement goes into the
+    notes that carry their "cannot be settled" sentences.
   - No path is shortened. A shortened path would name a file that does not exist.
   - Scores, statuses, metrics and verdicts are computed with every pointer, as before. Scoring
     reads how many pointers a criterion holds, so the pointer is left out after scoring, not

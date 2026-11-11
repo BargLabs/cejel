@@ -7,6 +7,7 @@ import { afterAll, describe, expect, it, vi } from 'vitest';
 
 import { runWitanFreeCli } from '../../index.js';
 import { buildPlainSummary } from '../../plain-summary.js';
+import { WITAN_A3_BUILD_STEP_UNSETTLED_DISCLOSURE } from '../abstention.js';
 import { renderWitanBadgeEndpoint } from '../badge.js';
 import { buildRelyingPartySummary } from '../certificate-presentation.js';
 import {
@@ -577,6 +578,28 @@ describe('#612 createWitanReport: an over-limit path is dropped after scoring an
       expect(both.some((statements) => a3?.notes?.endsWith(statements))).toBe(true);
       expect(statesUnlistedWithheldPaths(over.criteria)).toBe(true);
     });
+  });
+
+  // Guard (operator ruling of 10 Nov): the cut keeps the notes' head, so a "cannot be settled"
+  // sentence there survives it, and the certificate and the plain summary still read it.
+  it('keeps a "cannot be settled" sentence that sits in the kept head of notes the cut shortens', () => {
+    const disclosures = ['one.', 'two.', 'three.', 'four.'];
+    // Full notes: the sentence first, then filler to the 1,000-character limit.
+    const notes = `${WITAN_A3_BUILD_STEP_UNSETTLED_DISCLOSURE} ${'n'.repeat(998 - WITAN_A3_BUILD_STEP_UNSETTLED_DISCLOSURE.length)}.`;
+    expect(notes.length).toBe(1000);
+    const report = createWitanReport({
+      ...base,
+      signals: [{ criterionId: 'A3', positiveEvidence: [pointer(OVER), pointer(SHORT)], disclosures, notes }],
+    });
+    const a3 = report.criteria.find(({ id }) => id === 'A3');
+    expect(a3?.status).not.toBe('not_applicable');
+    expect(a3?.notes?.length).toBeLessThanOrEqual(1000);
+    expect(a3?.notes?.endsWith(`... ${overLimitCitationNote(1)}`)).toBe(true);
+    expect(a3?.notes?.startsWith(WITAN_A3_BUILD_STEP_UNSETTLED_DISCLOSURE)).toBe(true);
+    expect(buildRelyingPartySummary(report).notEstablished).toContain(WITAN_A3_BUILD_STEP_UNSETTLED_DISCLOSURE);
+    expect(JSON.stringify(buildPlainSummary(report))).toContain(
+      'Whether this package has a build or type-check step outside the files Cejel read cannot be told from the files',
+    );
   });
 
   it('keeps both count-only forms short enough that at least 700 characters of notes always stay', () => {
