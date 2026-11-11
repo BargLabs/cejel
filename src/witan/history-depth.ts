@@ -272,9 +272,11 @@ export function isShallowHistoryDepth(answer: HistoryDepthAnswer): boolean {
 /**
  * True when git failed (for a reason other than an expected absence) and the repository's files
  * did not settle the depth either: the one case where the depth cannot be known because of the
- * failed read. v27's A2 and B2 abstain on it (#574 item 3, item A); every other rubric reads it as
- * not shallow, as before, and the report withholds its verdict under every rubric
- * (historyDepthUnknownAbstentionReason, or the no-git reason where no `.git` entry is visible).
+ * failed read. A2 counts it as a failed history read under every rubric, and, since the report
+ * withholds its verdict here under every rubric (historyDepthUnknownAbstentionReason, or the no-git
+ * reason where no `.git` entry is visible), A2 abstains under every rubric, v17 included. v27's B2
+ * abstains on it too (#574 item 3, item A); every other rubric's B2 reads it as not shallow, as
+ * before.
  */
 export function isHistoryDepthUnsettledByFailure(answer: HistoryDepthAnswer): boolean {
   return answer.failure !== undefined && answer.depth !== 'shallow' && answer.depth !== 'complete';

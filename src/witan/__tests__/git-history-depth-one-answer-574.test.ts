@@ -213,8 +213,9 @@ describe('#574 item A: one history-depth answer per scan', () => {
     }
   });
 
-  it('git failing and the files unable to settle the depth: stated under every rubric, no verdict, and v27 A2 and B2 abstain', () => {
+  it('git failing and the files unable to settle the depth: stated under every rubric, no verdict, A2 abstains under every rubric, and v27 B2 abstains', () => {
     for (const rubricVersion of WITAN_SELECTABLE_RUBRIC_VERSIONS) {
+      const idle = scan(repos.complete, rubricVersion);
       injected.gitEntry = danglingGitFile;
       const loaded = scanFailing(repos.complete, rubricVersion, everyShallowCheck);
       injected.gitEntry = undefined;
@@ -222,8 +223,18 @@ describe('#574 item A: one history-depth answer per scan', () => {
       expect(loaded.scanLimitations ?? [], rubricVersion).not.toContain(DEPTH_TIMEOUT_SETTLED);
       expect(isWitanHistoryDepthUnknownAbstention(loaded), rubricVersion).toBe(true);
       expect(loaded.overallScore, rubricVersion).toBeNull();
+      expect(loaded.verdict, rubricVersion).toBe('insufficient_source');
+      // Every rubric, v17 included: A2 counts the failed check as a failed history read and
+      // abstains (the report withholds its verdict for the depth, so abstainsOnIncompleteHistory
+      // holds under every rubric). With git answering, this repository's A2 is not applicable.
+      expect(reading(idle, 'A2'), rubricVersion).toEqual({ status: 'not_applicable', score: 0 });
+      expect(reading(loaded, 'A2'), rubricVersion).toEqual({ status: 'insufficient_data', score: 0 });
+      if (rubricVersion !== V27) {
+        // v17 to v26: B2 reads "not shallow", as with git answering "complete".
+        expect(reading(loaded, 'B2'), rubricVersion).toEqual(reading(idle, 'B2'));
+        expect(criterion(loaded, 'B2').notes, rubricVersion).toBe(criterion(idle, 'B2').notes);
+      }
       if (rubricVersion === V27) {
-        expect(criterion(loaded, 'A2').status).toBe('insufficient_data');
         const b2 = criterion(loaded, 'B2');
         expect(b2.status).toBe('insufficient_data');
         expect(b2.score).toBe(0);

@@ -134,7 +134,7 @@ const RECORD: Readonly<Record<string, GitCallSite>> = {
   'src/witan/history-depth.ts#readHistoryDepthAnswer#1': {
     command: 'git rev-parse --is-shallow-repository',
     onFailure:
-      "Read once per scan; the report-level abstention, A2, B2 and the shallow disclosure all use the answer. Any failure: the depth is read from the shallow file in the common git directory, the file git itself reads to answer, so the evidence is the same (a shallow file git cannot open reads as shallow, the cautious side); not_a_repository where no .git entry is visible. Other failure: stated (historyDepthFailureLimitation), and where the files cannot settle the depth v27's A2 counts a failed history read and v27's B2 abstains in the composite at 0 where fewer than 12 commits are visible. The disclosure, which quotes git's answer, is written only where git answered.",
+      "Read once per scan; the report-level abstention, A2, B2 and the shallow disclosure all use the answer. Any failure: the depth is read from the shallow file in the common git directory, the file git itself reads to answer, so the evidence is the same (a shallow file git cannot open reads as shallow, the cautious side); not_a_repository where no .git entry is visible. Other failure: stated (historyDepthFailureLimitation), and where the files cannot settle the depth A2 counts a failed history read and abstains under every rubric, v17 included (the report withholds its verdict there), and v27's B2 abstains in the composite at 0 where fewer than 12 commits are visible. The disclosure, which quotes git's answer, is written only where git answered.",
     class: 'stated',
     classOnMain: 'silent switch',
   },

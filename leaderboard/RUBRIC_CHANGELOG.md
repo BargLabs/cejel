@@ -22,7 +22,7 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
-## 2026-11-11 (git failure states its limitation) — a scan reads its history depth once and every reader uses that answer; a failed history-depth check, HEAD committer-time read or v27 A1 builtin-copy listing is a stated scan limitation under every rubric; under v17 to v26 a score can move only where git's depth check fails, toward git's own answer; under v27 A2 and B2 abstain only where the depth cannot be known (#574 item 3); where git succeeds every report is byte-identical; no published score moved
+## 2026-11-11 (git failure states its limitation) — a scan reads its history depth once and every reader uses that answer; a failed history-depth check, HEAD committer-time read or v27 A1 builtin-copy listing is a stated scan limitation under every rubric; under v17 to v26 a score can move only where git's depth check fails, toward git's own answer, and A2 abstains where git failed and the depth cannot be known; under v27 A2 and B2 abstain only there (#574 item 3); where git succeeds every report is byte-identical; no published score moved
 
 **Status.** A disclosure under every rubric; under every rubric, v17 included, a behaviour change
 on the failure path only (below); and a scoring change under
@@ -96,20 +96,34 @@ how it is treated.
   file gives, where before each read "not shallow". So a score can move only where
   that git call fails, and only toward the reading git's own answer gives: on a depth-1 clone B2
   then withholds its merge ratio, as it does when git answers. Where the files cannot settle the
-  depth, A2 and B2 read "not shallow", as before, and the report withholds its verdict under every
-  rubric with the unknown-depth reason, as since 0.6.10. Where git answers, nothing changes.
+  depth, the report withholds its verdict under every rubric with the unknown-depth reason, as
+  since 0.6.10, and A2 and B2 read it as the next item says. Where git answers, nothing changes.
+- **v17 to v26, where git failed and the files cannot settle the depth.** Git failed for a reason
+  other than an expected absence (a timeout, an output limit, a failed run), and the `.git` files
+  cannot settle the depth either. B2 reads "not shallow", as before. A2 does not: it counts the
+  failed check as a failed history read (#560's pattern), and because the report withholds its
+  verdict for the unknown depth (`abstainsOnIncompleteHistory`, operator ruling of 2 Nov), A2
+  then abstains under every rubric, v17 included, as v27's does, unless a confirmed critical
+  secret finding stands. Where main kept A2's not-applicable result (`not_applicable`, score 0),
+  A2 is now `insufficient_data`, score 0, with the failed-read note; where main scored A2, it
+  takes the same abstention. The composite is null and the verdict `insufficient_source`, on main
+  and here, so no composite or verdict moves. The first version of this round's records said
+  A2 read "not shallow" here under v17 to v26, as before, and listed A2's change under v27 only;
+  that was wrong for A2.
 - **v27.** A2 and B2 abstain on the depth only where it cannot be known: git failed (not an
   expected absence) and the files cannot settle it. A2 counts the failed check as a failed history
-  read (#560's pattern). B2, where fewer than 12 commits are visible, abstains as a read failure
-  with `B2_SHALLOW_CHECK_FAILED_NOTE` and no `insufficientDataReason`, so it stays in the composite
-  at 0 (review item B, operator ruling: kept): the #560 pattern, not F1's out-of-composite one,
-  because a failed read may lower a score but never raise it. The v27 declaration in
+  read (#560's pattern), as under every other rubric (above). B2, where fewer than 12 commits are
+  visible, abstains as a read failure with `B2_SHALLOW_CHECK_FAILED_NOTE` and no
+  `insufficientDataReason`, so it stays in the composite at 0 (review item B, operator ruling:
+  kept): the #560 pattern, not F1's out-of-composite one, because a failed read may lower a score
+  but never raise it. B2's abstention is v27's only. The v27 declaration in
   `src/witan/rubric-version.ts` says so.
 
 **The no-rise property.** Every change adds a scan limitation, follows the depth git's own file
 gives, or adds an abstention at 0 in the composite, and only where a git read failed. None can
 raise a v27 score above v17's on the same commit: where the depth is read from the files, v17 and
-v27 read the same answer.
+v27 read the same answer, and where the files cannot settle it, A2 abstains at 0 under both and
+only v27's B2 moves, downward.
 
 **Measured** at `300b92d37` against main `1da23c208`, the current main. `fff661a24` is the last
 commit that changes code under `src/` outside the tests; the records commit after it changes only
@@ -133,7 +147,9 @@ fixture is excluded. The driver ran in five processes a side and is not committe
   a depth-1 clone and a full clone with every depth check failing score exactly as with git
   answering under every rubric, v27 included, and state the failed read once; a full clone with git
   failing and the files unable to settle the depth is stated under every rubric, withholds its
-  verdict, and under v27 A2 and B2 abstain, B2 at 0.
+  verdict, A2 abstains (`insufficient_data`, score 0, where git answering gives `not_applicable`,
+  score 0) under every rubric, v17 included, B2 is unchanged under v17 to v26, and under v27 B2
+  abstains at 0.
 - No pin moved; the fingerprint pins (`rubric-behaviour-fingerprint.test.ts`) and the v17
   scoring-surface golden pass. The full suite's counts are in the pull request.
 

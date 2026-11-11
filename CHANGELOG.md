@@ -129,9 +129,18 @@ rubric is pinned. v27 carries no precision or recall claim.
     gives: on a depth-1 clone whose check failed, B2 now withholds its merge ratio, as it does when
     git answers. The first version of this entry said a git failure moved no v17 score; that was
     wrong for this case. Where git answers, nothing changes.
-  - **Under v27**, A2 counts a failed check as a failed history read, and B2, where fewer than 12
-    commits are visible, abstains as a read failure, only where git failed and the files cannot
-    settle the depth either. B2 then stays in the composite at 0, the #560 pattern, not out of it:
+  - **Under every rubric, v17 included, where git failed and the files cannot settle the depth**
+    (a timeout, an output limit or a failed run, not an expected absence), A2 counts the failed
+    check as a failed history read and abstains, unless a confirmed critical secret finding stands:
+    the report already withholds its verdict for the unknown depth, and under that withholding
+    every rubric's A2 abstains on an incomplete history read (operator ruling of 2 Nov). Where A2
+    was not applicable on main (score 0), it is now `insufficient_data` (score 0). The composite
+    stays null and the verdict `insufficient_source`, as on main. B2 under v17 to v26 reads "not
+    shallow" there, as before. This round's first records said v17's A2 read "not shallow" there
+    too and listed the A2 change under v27 only; that was wrong.
+  - **Under v27**, A2 abstains there as above, and B2, where fewer than 12 commits are visible,
+    also abstains as a read failure, only where git failed and the files cannot settle the depth
+    either. B2 then stays in the composite at 0, the #560 pattern, not out of it:
     a failed read may lower a score but never raise it. The report withholds its verdict there
     under every rubric, as for any depth Cejel cannot read.
   - Where git succeeds, every report under every rubric is byte-identical: see the rubric
