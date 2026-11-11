@@ -152,7 +152,9 @@ describe('#574: a failed shallow-clone check is stated (history-depth.ts isShall
     expect(criterion(loaded, 'A2').status).toBe('insufficient_data');
     expect(criterion(loaded, 'A2').notes ?? '').toContain('30-second timeout');
     const v17 = scanFailing(repos.complete, V17, fail);
-    expect(loaded.overallScore).toBeLessThanOrEqual(v17.overallScore);
+    expect(loaded.overallScore).not.toBeNull();
+    expect(v17.overallScore).not.toBeNull();
+    expect(loaded.overallScore as number).toBeLessThanOrEqual(v17.overallScore as number);
   });
 
   it('on a shallow clone the report still withholds its verdict for the history, and the failed read is stated', () => {

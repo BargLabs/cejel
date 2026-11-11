@@ -128,23 +128,29 @@ const RECORD: Readonly<Record<string, GitCallSite>> = {
     onFailure: 'Own limit: batched re-read; other failure: declareHistoryFailure; expected absence: recorder notes it.',
     class: 'stated',
   },
-  'src/witan/history-depth.ts#isShallowRepository#1': {
+  // On main this call was isShallowRepository's.
+  'src/witan/history-depth.ts#readShallowAnswer#1': {
     command: 'git rev-parse --is-shallow-repository',
     onFailure:
-      'Any failure reads as "not shallow". Callers: A2\'s history incompleteness, B2\'s merge-ratio window, and the shallow-history disclosure (detectHistoryLimitations). On main nothing stated the failed read.',
-    class: 'silent absence',
+      'Expected absence: "not shallow", unstated, as before. Other failure: "not shallow", as before, and each caller states shallowCheckFailureLimitation: A2\'s history incompleteness (noted as a failed history read, #560), B2\'s merge-ratio window (v27: B2 abstains in the composite at 0 where fewer than 12 commits are visible), and the shallow-history disclosure, which is not written where git did not answer.',
+    class: 'stated',
+    classOnMain: 'silent absence',
   },
-  'src/witan/history-depth.ts#readHistoryDepth#1': {
+  // On main this call was readHistoryDepth's.
+  'src/witan/history-depth.ts#readHistoryDepthAnswer#1': {
     command: 'git rev-parse --is-shallow-repository',
     onFailure:
-      "Any failure: the depth is read from the repository's own files (the shallow file git itself reads); not_a_repository where no .git entry is visible. On main nothing stated the failed read.",
-    class: 'silent switch',
+      "Any failure: the depth is read from the shallow file in the common git directory, the file git itself reads to answer, so the evidence is the same (a shallow file git cannot open reads as shallow, the cautious side); not_a_repository where no .git entry is visible. Other failure: stated (historyDepthFailureLimitation).",
+    class: 'stated',
+    classOnMain: 'silent switch',
   },
-  'src/witan/public-scan.ts#readScannedSubject#1': {
+  // On main this call was readScannedSubject's.
+  'src/witan/public-scan.ts#readScannedSubjectAnswer#1': {
     command: 'git show -s --format=%ct HEAD',
     onFailure:
-      'Runs only when HEAD resolved. Any failure: no commit time, so every ingested input\'s freshness is "unverifiable" instead of stale or within the window. On main nothing stated the failed read.',
-    class: 'silent absence',
+      'Runs only when HEAD resolved. Any failure: no commit time, so every ingested input\'s freshness is "unverifiable" instead of stale or within the window; stated ("HEAD committer-time discovery") wherever there is an ingested input. With none, the commit time decides nothing and nothing is added.',
+    class: 'stated',
+    classOnMain: 'silent absence',
   },
   'src/packs/llm/files.ts#listTrackedFiles#1': {
     command: 'git rev-parse --is-inside-work-tree',
