@@ -231,12 +231,17 @@ export type HistoryDepth = 'shallow' | 'complete' | 'not_a_repository' | 'unknow
  * - `answeredByGit`: git itself printed true or false. The disclosure quotes git's answer, so it is
  *   written only then (detectHistoryLimitations), exactly as before;
  * - `failure`: git failed for a reason other than an expected absence (a timeout, an output limit,
- *   a failed run). The scan states it (historyDepthFailureLimitation).
+ *   a failed run). The scan states it (historyDepthFailureLimitation);
+ * - `noAnswer`: git ran and exited 0 but printed neither true nor false (a git too old to know the
+ *   option echoes it back). Not a failure, so no criterion counts it as a failed read, but the scan
+ *   states it as it states a failure (operator ruling of 11 Nov, item B of the second review of
+ *   #718): the depth was then read from the repository's files, or could not be read.
  */
 export interface HistoryDepthAnswer {
   readonly depth: HistoryDepth;
   readonly answeredByGit: boolean;
   readonly failure?: GitExecFailureReason;
+  readonly noAnswer?: true;
 }
 
 export function readHistoryDepthAnswer(repoPath: string): HistoryDepthAnswer {
@@ -247,7 +252,7 @@ export function readHistoryDepthAnswer(repoPath: string): HistoryDepthAnswer {
     if (answer === 'false') return { depth: 'complete', answeredByGit: true };
     // Any other answer (a git too old to know the option echoes it back) settles nothing.
   }
-  const failure = !result.ok && !isExpectedGitAbsence(result) ? { failure: result.reason } : {};
+  const failure = result.ok ? { noAnswer: true as const } : isExpectedGitAbsence(result) ? {} : { failure: result.reason };
   const entry = findVisibleGitMetadata(repoPath);
   if (entry === undefined) {
     return { depth: result.ok ? 'unknown' : 'not_a_repository', answeredByGit: false, ...failure };
@@ -287,6 +292,10 @@ export function isShallowRepository(repoPath: string): boolean {
   return isShallowHistoryDepth(readHistoryDepthAnswer(repoPath));
 }
 
+/** The start of the scan limitation where git's depth check exited 0 but printed no answer. */
+export const HISTORY_DEPTH_NO_ANSWER =
+  'Cejel: local git history-depth check gave no answer (git printed neither true nor false).';
+
 /**
  * The scan limitation for a failed history-depth check (#574 item 3), or undefined where git
  * answered or the failure is an expected absence. Where the files settle the depth, they are the
@@ -294,11 +303,17 @@ export function isShallowRepository(repoPath: string): boolean {
  * `--is-shallow-repository` (historyDepthFromFiles), so the evidence is the same. The one
  * difference is a `shallow` file Cejel can see and git cannot open: git reads that as complete, the
  * files read it as shallow, the cautious side.
+ * Operator ruling of 11 Nov (item B of the second review of #718): the same where git exited 0 but
+ * gave no answer (`noAnswer`), worded as the failures are. An expected absence (git_absent,
+ * not_a_repo) still adds none: git missing from PATH, or git saying the directory is no
+ * repository, is a fact about the host or the directory, and the depth is then the files' answer
+ * (or not_a_repository, which the report states through its no-git reason).
  */
 export function historyDepthFailureLimitation(answer: HistoryDepthAnswer): string | undefined {
-  if (answer.failure === undefined) return undefined;
-  const failed = describeGitFailure(answer.failure, 'history-depth check');
-  return isHistoryDepthUnsettledByFailure(answer)
+  if (answer.failure === undefined && answer.noAnswer !== true) return undefined;
+  const failed =
+    answer.failure !== undefined ? describeGitFailure(answer.failure, 'history-depth check') : HISTORY_DEPTH_NO_ANSWER;
+  return answer.depth !== 'shallow' && answer.depth !== 'complete'
     ? `${failed} Cejel could not read the history depth from the repository's files either.`
     : `${failed} Cejel read the history depth from the repository's own shallow file, which is the file git reads to answer.`;
 }

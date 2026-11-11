@@ -22,7 +22,7 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
-## 2026-11-11 (git failure states its limitation) — a scan reads its history depth once and every reader uses that answer; a failed history-depth check, HEAD committer-time read or v27 A1 builtin-copy listing is a stated scan limitation under every rubric; under v17 to v26 a score can move only where git's depth check fails, toward git's own answer, and A2 abstains where git failed and the depth cannot be known; under v27 A2 and B2 abstain only there (#574 item 3); where git succeeds every report is byte-identical; no published score moved
+## 2026-11-11 (git failure states its limitation) — a scan reads its history depth once and every reader uses that answer; a failed history-depth check, HEAD committer-time read or v27 A1 builtin-copy listing, or a depth check an old git does not answer, is a stated scan limitation under every rubric; under v17 to v26 a score can move only where git's depth check fails, toward git's own answer, and A2 abstains where git failed and the depth cannot be known; under v27 A2 and B2 abstain only there (#574 item 3); where git succeeds every report is byte-identical; no published score moved
 
 **Status.** A disclosure under every rubric; under every rubric, v17 included, a behaviour change
 on the failure path only (below); and a scoring change under
@@ -90,6 +90,25 @@ how it is treated.
   … A1 credited no copy of pytest's collected items made through a builtin, because the files that
   may replace the builtin could not be listed." The shallow-history disclosure quotes git's answer,
   so it is written only where git answered, as before.
+- **Every rubric: a depth check git did not answer is stated** (operator ruling of 11 Nov, item B
+  of the second review). A git too old to know `--is-shallow-repository` exits 0 and prints the
+  option back; the depth is then read from the `.git` files, as for a failure, and until this
+  ruling nothing said so. It now adds one scan limitation, worded as the failures are: "Cejel:
+  local git history-depth check gave no answer (git printed neither true nor false). Cejel read
+  the history depth from the repository's own shallow file, which is the file git reads to
+  answer.", or, where the files cannot settle it, "… Cejel could not read the history depth from
+  the repository's files either." (the report already withholds its verdict there with the
+  unknown-depth reason). It is not a failure: no criterion counts it as a failed read, so no
+  score, status, composite or verdict moves under any rubric. Any exit 0 without true or false
+  counts, an empty output included; `inventory-fallback.test.ts`, whose mock answers the depth
+  check with an empty output and has no `.git` entry, now expects this sentence beside its
+  inventory limitation. The other cases where git fails to
+  answer and the files settle the depth (a timeout, an output limit, a failed run) were already
+  stated, by the sentence above. An expected absence still adds none: with git not installed, or
+  git answering that the directory is no repository, the depth is the files' answer with no scan
+  limitation, as #560 and #568 decided for expected absences; where the files cannot settle it the
+  report withholds its verdict with the unknown-depth reason, which says git could not report the
+  depth, and with no `.git` entry visible it withholds it with the no-git reason.
 - **v17 to v26: a behaviour change on the failure path only.** Where git does not answer the
   depth check (a failure of any reason, an expected absence included, or an old git that echoes
   the option back instead of printing true or false), A2 and B2 now read the depth the `shallow`
@@ -150,6 +169,12 @@ fixture is excluded. The driver ran in five processes a side and is not committe
   verdict, A2 abstains (`insufficient_data`, score 0, where git answering gives `not_applicable`,
   score 0) under every rubric, v17 included, B2 is unchanged under v17 to v26, and under v27 B2
   abstains at 0.
+- With the second review's echo statement (item B) in place, five synthetic shapes where git
+  succeeds (a full clone of 14 commits, a one-commit repository, a depth-1 clone, a directory with
+  no `.git`, and the full clone with an ingested input), each built once and scored by main
+  `1da23c208` and by this branch under v17 and v27: 10 of 10 report JSON files byte-identical
+  (`cmp`). The echo statement is written only where git exits 0 without printing true or false
+  (a git older than 2.15, which added the option).
 - No pin moved; the fingerprint pins (`rubric-behaviour-fingerprint.test.ts`) and the v17
   scoring-surface golden pass. The full suite's counts are in the pull request.
 
@@ -163,7 +188,13 @@ mock, as #560's tests do, chosen by the calling function where one call is faile
 unsettled depth is made by pointing the files fallback at a `.git` file whose git directory is
 gone. The record test's two escapes (a new file calling `execGit`, and a second, aliased call in
 `public-scan.ts`) each pass the first version's test and fail this one; an unrelated edit passes.
-No test-only timeout option was added to `execGit`, so #583 stays open.
+No test-only timeout option was added to `execGit`, so #583 stays open. For the second review
+(operator ruling of 11 Nov, item B), the echo case is in `git-history-depth-one-answer-574.test.ts`,
+red first at `549014f4b`: 2 of 10 failed (the echo with the files settling the depth, on a full
+and a depth-1 clone, and the echo with the files unable to settle it, each first at v17 on the
+missing scan limitation); the git answer is injected through the same `execGit` mock as exit 0
+with the option printed back. Both pass now, under every selectable rubric, with the scores,
+statuses, composite and verdict unchanged.
 
 **The CI timing flake.** `scan-path-regex-bounds.test.ts`'s v27 pathological-input guard failed
 once on CI at 2,032 ms against 2,000 ms (v17 on that runner 653 ms). This change does not slow it.

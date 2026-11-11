@@ -123,6 +123,16 @@ rubric is pinned. v27 carries no precision or recall claim.
     ingested input, and, under v27, "Cejel: local git full tracked-file inventory … A1 credited no
     copy of pytest's collected items made through a builtin, because the files that may replace
     the builtin could not be listed."
+  - **Under every rubric, a depth check git does not answer is stated too.** A git too old to
+    know `--is-shallow-repository` exits 0 and prints the option back, and the depth is then read
+    from the `.git` files with, until now, nothing said. The scan now adds "Cejel: local git
+    history-depth check gave no answer (git printed neither true nor false). Cejel read the
+    history depth from the repository's own shallow file, which is the file git reads to answer."
+    (or "… Cejel could not read the history depth from the repository's files either." where they
+    cannot settle it). It is not counted as a failed read, so no score, status or verdict moves.
+    A timeout, output limit or failed run whose depth the files settle was already stated; git
+    missing or git saying there is no repository is an expected absence and still adds no scan
+    limitation.
   - **A v17 behaviour change, on the failure path only.** Where git does not answer the depth
     check, A2 and B2 under v17 to v26 now read the depth the `shallow` file gives, where they read
     "not shallow" before. A score can move only there, and only toward the reading git's own answer
