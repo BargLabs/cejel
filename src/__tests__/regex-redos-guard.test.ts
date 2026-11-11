@@ -56,6 +56,16 @@ const families = [
   // alternation `'(?:[^'\\\n]|\\.)*'|"…"` retried from every quote of the run).
   { name: 'escaped-double-quotes-unclosed', input: '"\\'.repeat(10_000) },
   { name: 'escaped-single-quotes-unclosed', input: "'\\".repeat(10_000) },
+  // Blank lines, then a blank that is no line's content (#550): `^\s*X` under `m`, and
+  // `(?:^|[{,])\s*X`, retried the whole run from every line start, because `\s` matches `\n`.
+  { name: 'blank-lines-then-tab', input: `${' \n'.repeat(10_000)}\t` },
+  // A long run of identifier characters, then a line terminator (#550, comment): the PEM
+  // assignment pattern's unanchored `([A-Za-z_$][\w$.-]*)` retried the run from each of its
+  // characters. The terminator is not what makes it slow; any non-`:`/`=` end does.
+  { name: 'word-then-cr', input: `${'a'.repeat(20_000)}\r` },
+  { name: 'word-then-ps', input: `${'a'.repeat(20_000)} ` },
+  { name: 'env-dots-then-ls', input: `${'.env.'.repeat(4_000)} ` },
+  { name: 'env-dots-then-nel', input: `${'.env.'.repeat(4_000)}\u0085` },
 ];
 
 test('scan regex literals finish each adversarial family within 50 ms', () => {
