@@ -18,6 +18,7 @@ import { renderWitanBadgeEndpoint } from '../badge.js';
 import { SHALLOW_HISTORY_FETCH_INSTRUCTION, WITAN_V27_SHALLOW_HISTORY_REASON } from '../history-depth.js';
 import { renderWitanHtmlReport } from '../html.js';
 import { renderWitanMarkdownReport } from '../markdown.js';
+import { rubricBehaviourFingerprint } from '../rubric-fingerprint.js';
 import { WITAN_RUBRIC_VERSION_V17, WITAN_RUBRIC_VERSION_V27 } from '../rubric-version.js';
 import { criterionOf } from './fixtures/shallow-history-matrix.js';
 import {
@@ -290,7 +291,16 @@ describe('complete clones are byte-identical under v17 and v27', () => {
     ['#556 deleted .env, missing blobs', V17, '8e28cafb789a62f45d0fd1f796c5b5d0fd4d2f36a3f48939116486f952db3bb3'],
     ['#556 deleted .env, missing blobs', V27, '98390b5da347c348f8089df14100b71e07b5fc6e9a610611d76f3d166d800782'],
   ];
+  // #622 (2026-11-11): the behaviour corpus gained two specimens, so every rubric's fingerprint
+  // moved and no score did. Each pin is still checked byte for byte, with only the fingerprint the
+  // pin was captured under put back in place (key order unchanged).
+  const FINGERPRINTS_BEFORE_622: Readonly<Record<string, string>> = {
+    [V17]: 'sha256:5cd48f8c642300ae8736a09d4a24ce3a4f8885f6e099b5f27f99d950e0c944b4',
+    [V27]: 'sha256:dfe4e7e9ba37666f60b1ebcee4eb44917110798e9038c81eef079718db9ee7b1',
+  };
   it.each(PINS)('%s under %s', (label, rubric, pin) => {
-    expect(sha256(reportOf(label, rubric))).toBe(pin);
+    const report = reportOf(label, rubric);
+    expect(report.rubricBehaviourFingerprint).toBe(rubricBehaviourFingerprint(rubric));
+    expect(sha256({ ...report, rubricBehaviourFingerprint: FINGERPRINTS_BEFORE_622[rubric] })).toBe(pin);
   });
 });

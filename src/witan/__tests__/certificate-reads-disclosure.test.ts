@@ -144,11 +144,26 @@ describe('the disclosure moves no score', () => {
   // compare to a keyed HMAC computation and the corpus gained two specimens, so every fingerprint
   // moved. F2 holds no HMAC; restoring only the previous fingerprint recovers each previous pin
   // (F2_PRE_HMAC_DIGEST_PINS) byte for byte.
+  // Re-pinned 2026-11-11 (#622): no rubric's behaviour changed; the corpus gained a depth-1 shallow
+  // clone and a publish-after-check workflow, so every fingerprint moved. Restoring only the
+  // previous fingerprint recovers each previous pin (F2_PRE_SHALLOW_CORPUS_PINS) byte for byte.
   const F2_PINS: Readonly<Record<string, string>> = {
+    [WITAN_RUBRIC_VERSION_V17]: 'ae6b218f45867a77fda52ec24ec5217f0a87f35f8ab6f79597a798f56f18bf77',
+    [WITAN_RUBRIC_VERSION_V22]: '9267587b583baf70a5d9f7bf4c14db197add33a0d23a6ca261e535507f3ff98b',
+    [WITAN_RUBRIC_VERSION_V23]: '7522da8b43c4a73e2597554c13b36f81ed817f7f65eb5117d45b43a4b6510398',
+    [WITAN_RUBRIC_VERSION_V25]: '6158a75ccde8b4f4f0985df1f847a708fc42701ca6c3c2d6a4b28d80e516928e',
+  };
+  const F2_PRE_SHALLOW_CORPUS_PINS: Readonly<Record<string, string>> = {
     [WITAN_RUBRIC_VERSION_V17]: '9513da1482fde3f08649a976eeb2869841920450aaeaae3a9e19cbb2d1548529',
     [WITAN_RUBRIC_VERSION_V22]: 'eafbaec3180902fe7b5ae9a242bc0e3d12e0e8e530f8ff821f215487a15610c7',
     [WITAN_RUBRIC_VERSION_V23]: '8eac2bc5b8da842e0645bf0238778dc37e4a9d0073c817ea24d4dd2da67a7e2f',
     [WITAN_RUBRIC_VERSION_V25]: '2f028761fe096077570704598d70695bbbc33d46df852fe8cba4f01c05285f9b',
+  };
+  const F2_PRE_SHALLOW_CORPUS_FINGERPRINTS: Readonly<Record<string, string>> = {
+    [WITAN_RUBRIC_VERSION_V17]: 'sha256:5cd48f8c642300ae8736a09d4a24ce3a4f8885f6e099b5f27f99d950e0c944b4',
+    [WITAN_RUBRIC_VERSION_V22]: 'sha256:34fb6ac5d1f6faf0912aa4d00924837eeee543614d7971247d005312b89928e1',
+    [WITAN_RUBRIC_VERSION_V23]: 'sha256:ce24235861ce0f0dc4dafd22059a78d31f348e5c741e4056475867c29cc8b814',
+    [WITAN_RUBRIC_VERSION_V25]: 'sha256:0f2638a5088f95a610a0e12012442f1067af3e985b955f96ec71853d549693b9',
   };
   const F2_PRE_HMAC_DIGEST_PINS: Readonly<Record<string, string>> = {
     [WITAN_RUBRIC_VERSION_V17]: 'ed524ff31db3d6c59d64ed2d3d19ca8832ecefea1a7ae41a3c23f4b528681101',
@@ -215,6 +230,9 @@ describe('the disclosure moves no score', () => {
     expect(createHash('sha256').update(JSON.stringify(report)).digest('hex')).toBe(
       F2_PINS[rubricVersion],
     );
+    const preShallowCorpus = { ...report, rubricBehaviourFingerprint: F2_PRE_SHALLOW_CORPUS_FINGERPRINTS[rubricVersion] };
+    expect(createHash('sha256').update(JSON.stringify(preShallowCorpus)).digest('hex'))
+      .toBe(F2_PRE_SHALLOW_CORPUS_PINS[rubricVersion]);
     const preHmacDigest = { ...report, rubricBehaviourFingerprint: F2_PRE_HMAC_DIGEST_FINGERPRINTS[rubricVersion] };
     expect(createHash('sha256').update(JSON.stringify(preHmacDigest)).digest('hex'))
       .toBe(F2_PRE_HMAC_DIGEST_PINS[rubricVersion]);

@@ -15,10 +15,27 @@ import {
 } from '../rubric-fingerprint.js';
 import {
   WITAN_LAST_CALIBRATED_RUBRIC_VERSION,
+  WITAN_RUBRIC_VERSION_V17,
+  WITAN_RUBRIC_VERSION_V18,
+  WITAN_RUBRIC_VERSION_V19,
+  WITAN_RUBRIC_VERSION_V20,
+  WITAN_RUBRIC_VERSION_V21,
+  WITAN_RUBRIC_VERSION_V22,
+  WITAN_RUBRIC_VERSION_V23,
+  WITAN_RUBRIC_VERSION_V24,
+  WITAN_RUBRIC_VERSION_V25,
+  WITAN_RUBRIC_VERSION_V26,
+  WITAN_RUBRIC_VERSION_V27,
   WITAN_SELECTABLE_RUBRIC_VERSIONS,
 } from '../rubric-version.js';
 import { WITAN_RUBRIC } from '../rubric.js';
-import { BEHAVIOUR_CORPUS, BEHAVIOUR_CORPUS_HEAD_SHAS, buildBehaviourFixture, fixtureHeadSha } from './fixtures/behaviour-corpus.js';
+import {
+  BEHAVIOUR_CORPUS,
+  BEHAVIOUR_CORPUS_ADDED_BY_622,
+  BEHAVIOUR_CORPUS_HEAD_SHAS,
+  buildBehaviourFixture,
+  fixtureHeadSha,
+} from './fixtures/behaviour-corpus.js';
 
 // THE BEHAVIOUR FINGERPRINT GUARD — detect a scoring change directly, not from a version string.
 //
@@ -215,6 +232,60 @@ describe('scoring behaviour has not moved under an unchanged rubric identifier',
           'of the component pins beside it. One was re-pinned and the other was not; the ' +
           'certificates this build emits would carry a number nothing measured.',
       ).toBe(WITAN_RUBRIC_BEHAVIOUR_FINGERPRINTS[rubricVersion]);
+    });
+  }
+});
+
+// #622's corpus extension moved every fingerprint, and the claim is that it moved them by its added
+// specimens alone: no rubric's behaviour changed. Measured, not claimed: scored without the added
+// specimens, the corpus reproduces under every rubric the fingerprint main carried before the
+// extension (main 773a265c6), so every earlier specimen's projected surface is unchanged under every
+// rubric, and the added specimens are the only difference. These are the old values, kept for this
+// proof; nothing emits them. A later change that moves an earlier specimen's surface fails here as
+// well as above: that change retires this block in its RUBRIC_CHANGELOG entry, because the proof
+// belongs to the extension and the extension's pins are the ones it replaced.
+const FINGERPRINTS_BEFORE_THE_622_EXTENSION: Readonly<Record<string, string>> = {
+  [WITAN_RUBRIC_VERSION_V17]: 'sha256:5cd48f8c642300ae8736a09d4a24ce3a4f8885f6e099b5f27f99d950e0c944b4',
+  [WITAN_RUBRIC_VERSION_V18]: 'sha256:4a5d17c84e265ec20cf54216d2e794dec1d299d859c69ac8ef1ab317fc479e2f',
+  [WITAN_RUBRIC_VERSION_V19]: 'sha256:73dc0282a9ea2a481db8e86a9a5dc227a8b108356c358de029901f2dc38cef79',
+  [WITAN_RUBRIC_VERSION_V20]: 'sha256:b5f4254a6056ff792d79a2d85892cdf05484eabded85ba13251a2c8fd5ac6336',
+  [WITAN_RUBRIC_VERSION_V21]: 'sha256:f599d06354adb45af018639594cb6f44e7cb40445b84a0dcdd4438b8d7d069d0',
+  [WITAN_RUBRIC_VERSION_V22]: 'sha256:34fb6ac5d1f6faf0912aa4d00924837eeee543614d7971247d005312b89928e1',
+  [WITAN_RUBRIC_VERSION_V23]: 'sha256:ce24235861ce0f0dc4dafd22059a78d31f348e5c741e4056475867c29cc8b814',
+  [WITAN_RUBRIC_VERSION_V24]: 'sha256:b221907d60d209cd3d57437892ae3dd873f4fa221ad8743954a30c8575d4e77c',
+  [WITAN_RUBRIC_VERSION_V25]: 'sha256:0f2638a5088f95a610a0e12012442f1067af3e985b955f96ec71853d549693b9',
+  [WITAN_RUBRIC_VERSION_V26]: 'sha256:4530317d56fc73eb89287e344ad626e2b9a96908ef12eb9e9c13b839bd599dae',
+  [WITAN_RUBRIC_VERSION_V27]: 'sha256:dfe4e7e9ba37666f60b1ebcee4eb44917110798e9038c81eef079718db9ee7b1',
+};
+
+describe('#622: the corpus extension moved every fingerprint by its added specimens alone', () => {
+  it('the added specimens come after every earlier one', () => {
+    const names = BEHAVIOUR_CORPUS.map(({ name }) => name);
+    expect(names.slice(names.length - BEHAVIOUR_CORPUS_ADDED_BY_622.length)).toEqual([...BEHAVIOUR_CORPUS_ADDED_BY_622]);
+  });
+
+  it('names a pre-extension fingerprint for exactly the selectable rubrics', () => {
+    expect(Object.keys(FINGERPRINTS_BEFORE_THE_622_EXTENSION).sort()).toEqual(
+      [...WITAN_SELECTABLE_RUBRIC_VERSIONS].sort(),
+    );
+  });
+
+  for (const rubricVersion of WITAN_SELECTABLE_RUBRIC_VERSIONS) {
+    it(`${rubricVersion}: without the added specimens the corpus reproduces the pre-extension fingerprint, and with them it does not`, () => {
+      const { entries, components } = measured.get(rubricVersion) as {
+        entries: WitanScoringSurfaceEntry[];
+        components: WitanRubricBehaviourComponents;
+      };
+      const earlier = entries.filter(({ name }) => !BEHAVIOUR_CORPUS_ADDED_BY_622.includes(name));
+      expect(earlier).toHaveLength(entries.length - BEHAVIOUR_CORPUS_ADDED_BY_622.length);
+      expect(
+        digestWitanRubricBehaviourComponents(computeWitanRubricBehaviourComponents(earlier)),
+        `${rubricVersion}: a specimen that was in the corpus before #622 no longer scores as it did, ` +
+          'so the re-pin is not explained by the added specimens alone',
+      ).toBe(FINGERPRINTS_BEFORE_THE_622_EXTENSION[rubricVersion]);
+      expect(digestWitanRubricBehaviourComponents(components)).not.toBe(
+        FINGERPRINTS_BEFORE_THE_622_EXTENSION[rubricVersion],
+      );
     });
   }
 });

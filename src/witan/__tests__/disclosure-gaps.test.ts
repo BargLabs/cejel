@@ -21,7 +21,7 @@ import {
   isPrintOnlyWorkflow,
   placeholderSetAsideDisclosure,
 } from '../repo-signals.js';
-import { projectWitanScoringSurface } from '../rubric-fingerprint.js';
+import { projectWitanScoringSurface, WITAN_PROJECTED_RUBRIC_PLACEHOLDER } from '../rubric-fingerprint.js';
 import { WITAN_RUBRIC_VERSION_V17, WITAN_SELECTABLE_RUBRIC_VERSIONS } from '../rubric-version.js';
 import {
   DISCLOSURE_GAP_FIXTURES,
@@ -561,9 +561,20 @@ describe('every disclosure is presentation only', () => {
       if (!canDenyReadAccess && NEEDS_READ_DENIAL.has(fixture.name)) continue;
       for (const rubricVersion of WITAN_SELECTABLE_RUBRIC_VERSIONS) {
         const key = `${fixture.name}@${rubricVersion}`;
-        const surface = createHash('sha256')
-          .update(JSON.stringify(projectWitanScoringSurface(report(fixture.name, rubricVersion))))
-          .digest('hex');
+        // #622: the projection writes WITAN_PROJECTED_RUBRIC_PLACEHOLDER where the shallow-clone
+        // reason quotes the rubric. These pins predate that, so the identifier is put back in place
+        // (key order unchanged) before hashing: the surface must still be the one main produced.
+        const projected = projectWitanScoringSurface(report(fixture.name, rubricVersion));
+        const asPinned =
+          projected.insufficientSourceReason === null
+            ? projected
+            : {
+                ...projected,
+                insufficientSourceReason: projected.insufficientSourceReason
+                  .split(WITAN_PROJECTED_RUBRIC_PLACEHOLDER)
+                  .join(rubricVersion),
+              };
+        const surface = createHash('sha256').update(JSON.stringify(asPinned)).digest('hex');
         if (pins[key] !== surface) moved.push(key);
       }
     }

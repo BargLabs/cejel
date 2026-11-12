@@ -81,7 +81,9 @@ export interface WitanScoringSurface {
  *   - `rubricVersion` itself. Putting the identifier inside the digest would let a rename move a
  *     number that is supposed to mean "behaviour moved", which is the whole defect this exists to
  *     answer. The consequence is deliberate: two rubrics that behave identically on this corpus
- *     get identical fingerprints, and that equality is a true statement about them.
+ *     get identical fingerprints, and that equality is a true statement about them. For the same
+ *     reason the report's own identifier is replaced by WITAN_PROJECTED_RUBRIC_PLACEHOLDER where
+ *     the abstention reason quotes it (#622).
  *   - prose: finding summaries, metric labels/units/descriptions, evidence labels, criterion
  *     titles and notes, `scanLimitations`. A wording improvement is not a scoring change, and a
  *     guard that fires on copy edits is a guard people learn to re-pin without reading. A finding
@@ -99,7 +101,9 @@ export function projectWitanScoringSurface(report: WitanReport): WitanScoringSur
     processTrustScore: report.processTrustScore,
     categoryScores: report.verdict === 'insufficient_source' ? null : report.categoryScores ?? null,
     insufficientSourceReason:
-      report.verdict === 'insufficient_source' ? report.insufficientSourceReason : null,
+      report.verdict === 'insufficient_source'
+        ? withoutOwnRubricIdentifier(report.insufficientSourceReason, report.rubricVersion)
+        : null,
     contentReadSummary: report.contentReadSummary
       ? {
           skipped: report.contentReadSummary.skipped,
@@ -123,6 +127,23 @@ export function projectWitanScoringSurface(report: WitanReport): WitanScoringSur
         .sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0)),
     })),
   };
+}
+
+/**
+ * The placeholder that stands for the report's own rubric identifier in a projected reason.
+ *
+ * #622: the shallow-history abstention reason opens "Under <rubricVersion> Cejel gives no composite
+ * score and no verdict ...". Projected verbatim, it put each rubric's identifier into the digest
+ * through the one corpus specimen that abstains that way, so two rubrics that behave identically
+ * could never share a fingerprint — the defect the exclusion of `rubricVersion` above exists to
+ * prevent. The rest of the reason, which is what the rubric decided, is kept.
+ */
+export const WITAN_PROJECTED_RUBRIC_PLACEHOLDER = '<rubricVersion>';
+
+function withoutOwnRubricIdentifier(reason: string | null, rubricVersion: string): string | null {
+  return reason === null || rubricVersion === ''
+    ? reason
+    : reason.split(rubricVersion).join(WITAN_PROJECTED_RUBRIC_PLACEHOLDER);
 }
 
 /** One fixture's projection, paired with the fixture that produced it. */
@@ -218,31 +239,36 @@ function sha256(value: string): string {
  * guard that can be silenced by rerunning a script is theatre.
  */
 export const WITAN_RUBRIC_BEHAVIOUR_FINGERPRINTS: Readonly<Record<string, string>> = Object.freeze({
+  // Re-pinned 2026-11-11 (#622), every entry: the corpus gained `history-shallow-depth-1` (a
+  // depth-1 clone of a repository whose full clone scores A2 and B2 from history) and
+  // `publish-after-check-workflow` (B3's check-before-publish shape, #620). No rubric's behaviour
+  // changed: scored without those two specimens, the corpus reproduces every previous value
+  // (rubric-behaviour-fingerprint.test.ts, "#622: the corpus extension ...").
   [WITAN_RUBRIC_VERSION_V17]:
-    'sha256:5cd48f8c642300ae8736a09d4a24ce3a4f8885f6e099b5f27f99d950e0c944b4',
+    'sha256:1017cbaa7a77b4cdf50177bd20536480d874e191b46a1fe65cd7aaedc794a375',
   [WITAN_RUBRIC_VERSION_V18]:
-    'sha256:4a5d17c84e265ec20cf54216d2e794dec1d299d859c69ac8ef1ab317fc479e2f',
+    'sha256:d4479647b2ea561db907f2a0e890e1ea789aeb0ba93e8367a0c115df0084ba01',
   [WITAN_RUBRIC_VERSION_V19]:
-    'sha256:73dc0282a9ea2a481db8e86a9a5dc227a8b108356c358de029901f2dc38cef79',
+    'sha256:afc007665ad29b348054699e560fb8b51ccfa9909964dd299a5eccf9156e7652',
   [WITAN_RUBRIC_VERSION_V20]:
-    'sha256:b5f4254a6056ff792d79a2d85892cdf05484eabded85ba13251a2c8fd5ac6336',
+    'sha256:2f81463b7b97591bfb5b22e25654d688947f19cc5a384f8b217a85a342475001',
   [WITAN_RUBRIC_VERSION_V21]:
-    'sha256:f599d06354adb45af018639594cb6f44e7cb40445b84a0dcdd4438b8d7d069d0',
+    'sha256:4afda89876135bc742511257e17f8c0b6db8c88ae90818adfc60ff382b8a49da',
   [WITAN_RUBRIC_VERSION_V22]:
-    'sha256:34fb6ac5d1f6faf0912aa4d00924837eeee543614d7971247d005312b89928e1',
+    'sha256:804ff598f785ef3a290d37db0617278f811755af49f9f14b1d68fa3d6299dfb2',
   [WITAN_RUBRIC_VERSION_V23]:
-    'sha256:ce24235861ce0f0dc4dafd22059a78d31f348e5c741e4056475867c29cc8b814',
+    'sha256:3d5a16189c49fc10d9c08e1f309f4966ba1c7a3d1dea86ec1e841f67752fab7e',
   [WITAN_RUBRIC_VERSION_V24]:
-    'sha256:b221907d60d209cd3d57437892ae3dd873f4fa221ad8743954a30c8575d4e77c',
+    'sha256:2b822b556a0ca073a0d7dc1ec7690a0b5b2b3e1581c00b03b4aebd987a4cbc0a',
   [WITAN_RUBRIC_VERSION_V25]:
-    'sha256:0f2638a5088f95a610a0e12012442f1067af3e985b955f96ec71853d549693b9',
+    'sha256:86da3a1603ddff9635033721fa41029d7eea06c4b2e39ed8b1da5dd703f177a2',
   // v25's closure plus v26 item 6 (docs/calibration/v26/ruling-item-6.md and its amendment 1).
   // The corpus holds no declared claim-reconciliation artifact, so the v25 A5 finding no longer
   // fires on it and, by amendment 1, A5 is scored without reconciliation_artifact_depth. The A5
   // component and the report components of the specimens whose code-trust score that moves differ
   // from v25's. A2 does not move on this corpus.
   [WITAN_RUBRIC_VERSION_V26]:
-    'sha256:4530317d56fc73eb89287e344ad626e2b9a96908ef12eb9e9c13b839bd599dae',
+    'sha256:0870e977698cf9fa3863c534007c8442fb9c61f274cbefa45fd724801bcc146f',
   // v17's closure plus the v27 false-assurance gate (#517-#520, #442, #527, #535). On this corpus
   // A4, B2 and B3 move against v17: specimens whose CI runs `npm ci` with no committed lockfile
   // score lockfile_coverage 0 under library norms, and `workspace-package-scripts`, whose only
@@ -250,9 +276,10 @@ export const WITAN_RUBRIC_BEHAVIOUR_FINGERPRINTS: Readonly<Record<string, string
   // leaderboard/RUBRIC_CHANGELOG.md). That specimen's report component differs from v17's.
   // Re-pinned 2026-10-26 (#517, #520 follow-up): the specimen whose CI runs `npm ci` with no
   // committed lockfile now also carries A4's warning finding citing that line, so the A4 component
-  // moves; no score, status or report component does. B3's publishing rule reaches no specimen.
+  // moves; no score, status or report component does. Until 2026-11-11 B3's publishing rule reached
+  // no specimen; since #622, `publish-after-check-workflow` holds the shape it counts.
   [WITAN_RUBRIC_VERSION_V27]:
-    'sha256:dfe4e7e9ba37666f60b1ebcee4eb44917110798e9038c81eef079718db9ee7b1',
+    'sha256:8fa9d87e3047afb80e8e09d08c5cb88a651c8e8b69b6b35184d2ab98ddd3a8fb',
 });
 
 /**

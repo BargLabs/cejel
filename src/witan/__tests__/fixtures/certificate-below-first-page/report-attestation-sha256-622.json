@@ -1,0 +1,18 @@
+{
+  "v17/bc/history-shallow-depth-1": {
+    "reportSha256": "1288c84d0f434a1919d76519cf3cc59caa24e911d55c594e1df47287e571ce8d",
+    "attestationSha256": "64959d9150f290ac004833bdfa2502b241c2bd861ae118dbf7b53e7eb43fcf4a"
+  },
+  "v17/bc/publish-after-check-workflow": {
+    "reportSha256": "daf09d40fd6704a5519c4f55961d30c83cb2c14938ab34a468e6d8d549cc4825",
+    "attestationSha256": "f1640f1bce954580757d999b2eeab9bfc4af9846a5950e53f5ccf342b79bfc57"
+  },
+  "v27/bc/history-shallow-depth-1": {
+    "reportSha256": "d166d37826fb2a35bd9460b9684a30ac0723d4663bb16c020b3dbeebba9c1111",
+    "attestationSha256": "33734ac9a362fb465c65a3fb2484291a8523fdb433e77fff47e766384bdfc931"
+  },
+  "v27/bc/publish-after-check-workflow": {
+    "reportSha256": "74100fc6d17c754be77680fd9ed4ddcd57d0a32130994a5e87542b37ec56611e",
+    "attestationSha256": "7f1b5d25382f6b13c4a9fa7061546dc4cca85d1d8aba384e0ea7665da8aa80aa"
+  }
+}

@@ -150,6 +150,10 @@ function reportLevel(report: WitanReport): string {
   } = report as WitanReport & { rubricBehaviourFingerprint?: string };
   const level = rest as Record<string, unknown>;
   for (const composite of A5_COMPOSITES) delete level[composite];
+  // #622: the shallow-clone abstention reason quotes the rubric identifier, which is excluded above.
+  if (typeof level.insufficientSourceReason === 'string') {
+    level.insufficientSourceReason = level.insufficientSourceReason.split(report.rubricVersion).join('<rubricVersion>');
+  }
   // An ingested signal on A5 records A5's score before and after its adjustment.
   if (Array.isArray(level.consumedSignals)) {
     level.consumedSignals = (level.consumedSignals as Record<string, unknown>[]).map((signal) =>
