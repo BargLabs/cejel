@@ -22,7 +22,7 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
-## 2026-11-11 (behaviour corpus: shallow clone and publish-after-check) — every behaviour fingerprint moved because the corpus changed, not because any rubric's behaviour did: the corpus gains a depth-1 shallow clone and a publishing workflow that runs a check before it publishes (#622, #559); without them the corpus reproduces all eleven previous fingerprints; no scoring code changed; no published score moved
+## 2026-11-11 (behaviour corpus: shallow clone and publish-after-check) — every behaviour fingerprint moved because the corpus changed, not because any rubric's behaviour did: the corpus gains a depth-1 shallow clone and a publishing workflow that runs a check before it publishes (#622, #559); without them the corpus reproduces all eleven previous fingerprints; the fingerprint's projection puts `<rubricVersion>` in place of the report's own rubric identifier in an abstention reason, so a rubric's own name is not behaviour (operator ruling, 12 Nov); no scoring code changed; no published score moved
 
 **Status.** A change to the behaviour corpus only, under every selectable rubric
 (goal_cejel_behaviour_corpus_shallow_clone_2026-11-10; operator ruling of 10 Nov, R3: land before
@@ -127,7 +127,11 @@ alone, and each is checked by putting the previous fingerprint back in place (ke
   (60 report and attestation pins) and `certificate-below-first-page.test.ts` (644 report and
   attestation pins over three fixture corpora): the pins are unchanged and still match with the
   previous fingerprint restored. Each report must carry this build's fingerprint. The two added
-  specimens have no main bytes and are left out of those three files' pins. The certificate does not
+  specimens have no main bytes, so they are pinned apart, at the head that added them, with this
+  build's fingerprint: `plain-summary-byte-identity-pins-622.json` (4 report and attestation pins)
+  and, for `certificate-below-first-page.test.ts`, `certificate-sha256-622.json` (4 certificates
+  below the first page) and `report-attestation-sha256-622.json` (4 report and attestation pins),
+  captured under Node 22 and the default Node with identical results. The certificate does not
   print the fingerprint, and all 644 pinned certificates are unchanged.
 
 **Published corpus.** Not re-run. No file that scores a repository changed: outside tests, the

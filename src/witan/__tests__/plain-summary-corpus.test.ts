@@ -36,6 +36,12 @@ import {
 // input would fail here too.
 
 const PINS_PATH = new URL('./fixtures/plain-summary-byte-identity-pins.json', import.meta.url);
+// The two specimens #622 added have no origin/main bytes. Their report.json and attestation.json
+// are pinned at the head that added them (this build's fingerprint, nothing put back), captured by
+// running this file with PLAIN_SUMMARY_BYTE_PINS_622 set to this path, under Node 22 and the
+// default Node with identical results.
+const PINS_622_PATH = new URL('./fixtures/plain-summary-byte-identity-pins-622.json', import.meta.url);
+const CAPTURE_622 = process.env.PLAIN_SUMMARY_BYTE_PINS_622;
 const GENERATED_AT = '2026-11-02T00:00:00.000Z';
 const TOOL_VERSION = '0.0.0-plain-summary-test';
 const RUBRICS = [WITAN_RUBRIC_VERSION_V17, WITAN_RUBRIC_VERSION_V27] as const;
@@ -99,6 +105,31 @@ describe('report.json and attestation.json are byte-identical to origin/main on 
     [WITAN_RUBRIC_VERSION_V17]: 'sha256:5cd48f8c642300ae8736a09d4a24ce3a4f8885f6e099b5f27f99d950e0c944b4',
     [WITAN_RUBRIC_VERSION_V27]: 'sha256:dfe4e7e9ba37666f60b1ebcee4eb44917110798e9038c81eef079718db9ee7b1',
   };
+  const added622 = (): [string, WitanReport][] =>
+    [...reports].filter(([key]) => BEHAVIOUR_CORPUS_ADDED_BY_622.includes(key.split('/')[1] ?? ''));
+  it.runIf(CAPTURE_622 !== undefined)('writes the pins of the #622 specimens', () => {
+    const pins = Object.fromEntries(
+      added622()
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([key, report]) => [
+          key,
+          { reportSha256: sha256(serializeWitanReport(report)), attestationSha256: sha256(attestationBytes(report)) },
+        ]),
+    );
+    writeFileSync(CAPTURE_622 ?? '', `${JSON.stringify(pins, null, 2)}\n`);
+  });
+  it.skipIf(CAPTURE_622 !== undefined)('the #622 specimens match the pins captured at the head that added them', () => {
+    const pins = JSON.parse(readFileSync(PINS_622_PATH, 'utf8')) as Record<string, BytePin>;
+    const added = added622();
+    expect(added).toHaveLength(BEHAVIOUR_CORPUS_ADDED_BY_622.length * RUBRICS.length);
+    expect(Object.keys(pins).sort()).toEqual(added.map(([key]) => key).sort());
+    for (const [key, report] of added) {
+      expect(report.rubricBehaviourFingerprint, key).toBe(rubricBehaviourFingerprint(report.rubricVersion));
+      expect(sha256(serializeWitanReport(report)), `${key} report.json`).toBe(pins[key]?.reportSha256);
+      expect(sha256(attestationBytes(report)), `${key} attestation.json`).toBe(pins[key]?.attestationSha256);
+    }
+  });
+
   it.skipIf(process.env.PLAIN_SUMMARY_BYTE_PINS !== undefined)('every fixture matches its pin', () => {
     const pins = JSON.parse(readFileSync(PINS_PATH, 'utf8')) as Record<string, BytePin>;
     const pinned = [...reports].filter(([key]) => !BEHAVIOUR_CORPUS_ADDED_BY_622.includes(key.split('/')[1] ?? ''));

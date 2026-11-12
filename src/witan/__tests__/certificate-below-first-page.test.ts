@@ -120,8 +120,13 @@ const pinFileName = (key: string): string => `${key.replaceAll('/', '__')}.html`
 // and every rubric's fingerprint moved while no score did. The certificate does not print the
 // fingerprint. report.json and attestation.json are compared with only the fingerprint the pins
 // were captured under put back in place (key order unchanged), and each report must carry this
-// build's fingerprint.
-const UNPINNED_ADDED_BY_622: readonly string[] = BEHAVIOUR_CORPUS_ADDED_BY_622.flatMap((name) =>
+// build's fingerprint. The two specimens are pinned apart, at the head that added them (below the
+// first page for the certificate, this build's fingerprint for the report and attestation), in
+// certificate-sha256-622.json and report-attestation-sha256-622.json. They were captured by running
+// this file with CEJEL_CERTIFICATE_PIN_CAPTURE_622 set to the pin directory, under Node 22 and the
+// default Node with identical results.
+const CAPTURE_622_DIR = process.env.CEJEL_CERTIFICATE_PIN_CAPTURE_622;
+const ADDED_BY_622: readonly string[] = BEHAVIOUR_CORPUS_ADDED_BY_622.flatMap((name) =>
   RUBRICS.map(([short]) => `${short}/bc/${name}`),
 );
 const FINGERPRINTS_BEFORE_622: Readonly<Record<string, string>> = {
@@ -211,6 +216,38 @@ describe.runIf(CAPTURE_DIR !== undefined)('capture (run against main, never agai
   });
 });
 
+describe.runIf(CAPTURE_622_DIR !== undefined)('capture of the #622 specimens (at the head that added them)', () => {
+  it('writes their certificate, report and attestation digests', () => {
+    const dir = CAPTURE_622_DIR ?? '';
+    const keys = [...ADDED_BY_622].sort();
+    const certificates = Object.fromEntries(keys.map((key) => [key, sha256(certificateBelowFirstPage(renders.get(key) ?? ''))]));
+    const reports = Object.fromEntries(keys.map((key) => [key, reportDigests.get(key)]));
+    writeFileSync(join(dir, 'certificate-sha256-622.json'), `${JSON.stringify(certificates, null, 2)}\n`);
+    writeFileSync(join(dir, 'report-attestation-sha256-622.json'), `${JSON.stringify(reports, null, 2)}\n`);
+  });
+});
+
+describe.skipIf(CAPTURE_DIR !== undefined || CAPTURE_622_DIR !== undefined)('the #622 specimens match the pins captured at the head that added them', () => {
+  it('certificate below the first page, report.json and attestation.json', () => {
+    const certificates = JSON.parse(readFileSync(new URL('certificate-sha256-622.json', PIN_DIR), 'utf8')) as Record<string, string>;
+    const reports = JSON.parse(readFileSync(new URL('report-attestation-sha256-622.json', PIN_DIR), 'utf8')) as Record<
+      string,
+      { reportSha256: string; attestationSha256: string }
+    >;
+    expect(ADDED_BY_622).toHaveLength(BEHAVIOUR_CORPUS_ADDED_BY_622.length * RUBRICS.length);
+    expect(Object.keys(certificates).sort()).toEqual([...ADDED_BY_622].sort());
+    expect(Object.keys(reports).sort()).toEqual([...ADDED_BY_622].sort());
+    for (const key of ADDED_BY_622) {
+      const html = renders.get(key);
+      expect(html, key).toBeDefined();
+      expect(html?.includes(FIRST_PAGE_START), `${key}: no first page to remove`).toBe(true);
+      expect(sha256(certificateBelowFirstPage(html ?? '')), `${key} certificate`).toBe(certificates[key]);
+      expect(reportDigests.get(key)?.reportSha256, `${key} report.json`).toBe(reports[key]?.reportSha256);
+      expect(reportDigests.get(key)?.attestationSha256, `${key} attestation.json`).toBe(reports[key]?.attestationSha256);
+    }
+  });
+});
+
 describe.skipIf(CAPTURE_DIR !== undefined)('the certificate below the first page is byte-identical to main', () => {
   it('the representative renders match their full pinned HTML', () => {
     const pinned = readdirSync(PIN_DIR).filter((name) => name.endsWith('.html')).sort();
@@ -236,10 +273,10 @@ describe.skipIf(CAPTURE_DIR !== undefined)('the certificate below the first page
       string
     >;
     expect(Object.keys(digests).sort()).toEqual(
-      [...renders.keys()].filter((key) => !UNPINNED_ADDED_BY_622.includes(key)).sort(),
+      [...renders.keys()].filter((key) => !ADDED_BY_622.includes(key)).sort(),
     );
     const moved = [...renders]
-      .filter(([key]) => !UNPINNED_ADDED_BY_622.includes(key))
+      .filter(([key]) => !ADDED_BY_622.includes(key))
       .filter(([key, html]) => sha256(certificateBelowFirstPage(html)) !== digests[key])
       .map(([key]) => key);
     expect(moved).toEqual([]);
@@ -252,9 +289,9 @@ describe.skipIf(CAPTURE_DIR !== undefined)('the certificate below the first page
     >;
     expect(unexpectedFingerprints).toEqual([]);
     expect(Object.keys(pins).sort()).toEqual(
-      [...reportDigestsBefore622.keys()].filter((key) => !UNPINNED_ADDED_BY_622.includes(key)).sort(),
+      [...reportDigestsBefore622.keys()].filter((key) => !ADDED_BY_622.includes(key)).sort(),
     );
-    const moved = [...reportDigestsBefore622].filter(([key]) => !UNPINNED_ADDED_BY_622.includes(key)).flatMap(([key, digest]) => [
+    const moved = [...reportDigestsBefore622].filter(([key]) => !ADDED_BY_622.includes(key)).flatMap(([key, digest]) => [
       ...(digest.reportSha256 !== pins[key]?.reportSha256 ? [`${key} report.json`] : []),
       ...(digest.attestationSha256 !== pins[key]?.attestationSha256 ? [`${key} attestation.json`] : []),
     ]);

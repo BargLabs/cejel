@@ -1,0 +1,18 @@
+{
+  "witan-rubric-v17-2026-07-24/history-shallow-depth-1": {
+    "reportSha256": "291315570c791ea85725a2506b84e423c367d21ff6015d60b0582c670f566922",
+    "attestationSha256": "89cf5f614cce4823d90ca0709b075bbd0942974b48a8b79b4ed7dc44d2e48768"
+  },
+  "witan-rubric-v17-2026-07-24/publish-after-check-workflow": {
+    "reportSha256": "d71200096303dc6a840f62fa6c2498c1b38a435f18dd6e10ea0f99fb5acd7ece",
+    "attestationSha256": "f885bddc1a2b0c7d312802da4cb034605592e955b95e83b6ae07ce4792d8790a"
+  },
+  "witan-rubric-v27-prospective-2026-10-19/history-shallow-depth-1": {
+    "reportSha256": "98e3efb5af21891c03c6bd62e775322ed3985e383f3f51faaa44bb09d67e7d66",
+    "attestationSha256": "68be7bed05b612e008f5f78184c3ac98a45be5cba8f57c906c1271c2760326da"
+  },
+  "witan-rubric-v27-prospective-2026-10-19/publish-after-check-workflow": {
+    "reportSha256": "fbb351210bd81292cf22bdb30d2505e5a973b976e018d89ec232cf69eea9a812",
+    "attestationSha256": "effd25cb9f97ad7e059313622f93dc6e1012eed454a4ed07b9e963391318b3e9"
+  }
+}
