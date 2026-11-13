@@ -1,0 +1,50 @@
+{
+  "schema": "cejel-public-delta-v2",
+  "corpusSha256": "dc723f53a201542e0febb98964093ba4a3e7173221e746ba56aab6f726400d00",
+  "publicRows": 23,
+  "scope": "public entries only; private implementation and reports excluded",
+  "generatedAt": "2026-11-13T00:00:00.000Z",
+  "runs": [
+    {
+      "name": "rc2-v17",
+      "commit": "0f85660ed3cd90abfac219df7512624a7f81d41f",
+      "rubric": "witan-rubric-v17-2026-07-24"
+    },
+    {
+      "name": "rc2-v27",
+      "commit": "0f85660ed3cd90abfac219df7512624a7f81d41f",
+      "rubric": "witan-rubric-v27-prospective-2026-10-19"
+    }
+  ],
+  "pairs": [
+    {
+      "name": "v27-shadow",
+      "before": "rc2-v17",
+      "after": "rc2-v27",
+      "allowedCriteria": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5",
+        "B1",
+        "B2",
+        "B3",
+        "B4",
+        "B5",
+        "B6"
+      ],
+      "presentationOnly": [
+        "rubricVersion",
+        "rubricBehaviourFingerprint",
+        "contentReadSummary"
+      ]
+    }
+  ],
+  "expected": {
+    "E0": "23 of 23 public rows complete in each of the two runs, with zero errors; target identity unchanged across runs; the source checkout at 0f85660ed3cd90abfac219df7512624a7f81d41f; an existing run output refused.",
+    "E1": "v27-shadow at 0f85660ed, by norise.mjs: no row has a composite (overall, code, process) or a criterion score higher under v27 than under v17, and no composite or criterion is scored under v27 where v17 left it null or absent.",
+    "E2": "v27-shadow: no row's verdict is better under v27 than under v17 (unverified < at_risk < conditional < verified); a verdict v27 sets where v17 had none is a rise. Read from paired-result.json.",
+    "E3": "v27-shadow: every scoring row, placement move, verdict move, unexpected criterion and undeclared field change is listed in result.md. Their number is recorded, not forecast."
+  }
+}
