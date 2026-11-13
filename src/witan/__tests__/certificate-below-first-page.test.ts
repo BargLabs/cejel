@@ -65,6 +65,14 @@ import { FALSE_ASSURANCE_FIXTURES, buildFalseAssuranceFixture } from './fixtures
 // attestation.json digests, and that last fixture's full v17 pin). Every other v17 entry and every
 // v27 entry is unchanged.
 //
+// Re-captured a third time, for goal_cejel_v27_b3_publishing_rule_gates_and_citations_2026-11-13
+// (refs #517): under v27, B3 cites every workflow it does not count and counts a publishing
+// workflow whose every publishing job declares an environment. The same kind of temporary file
+// rewrote only the moved entries and failed on any moved v17 entry. Exactly 82 v27 fixtures
+// moved: every fixture whose v27 B3 discounts a workflow (a citation added) or now counts a gated
+// one (82 certificate digests, 82 report.json and 82 attestation.json digests). Every v17 entry
+// and the 18 full HTML pins are unchanged.
+//
 // Fixtures are scored with no ingested files, the same product name and a fixed generatedAt and
 // CLI version, so the bytes depend only on the fixture and the code. One fixture is left out:
 // a false-assurance fixture with symlinksToHostDirectory commits a symlink whose target is a fresh

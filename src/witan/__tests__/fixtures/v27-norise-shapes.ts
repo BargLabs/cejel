@@ -62,6 +62,9 @@ const PYTEST_STEPS = '      - run: pip install pytest\n      - run: pytest\n';
 const PYPI_UPLOAD_ONLY =
   'name: publish\non:\n  push:\n    branches: [main]\njobs:\n  publish:\n    runs-on: ubuntu-latest\n    permissions:\n      id-token: write\n    steps:\n      - uses: actions/download-artifact@v4\n        with:\n          name: dist\n          path: dist\n      - uses: pypa/gh-action-pypi-publish@release/v1\n';
 
+const PAGES_DEPLOY_JOB = (environment: string): string =>
+  `  deploy:\n    runs-on: ubuntu-latest\n${environment}    permissions:\n      pages: write\n      id-token: write\n    steps:\n      - uses: actions/checkout@v4\n      - uses: actions/upload-pages-artifact@v3\n        with:\n          path: site\n      - uses: actions/deploy-pages@v4\n`;
+
 /**
  * Workflow shapes, path -> contents, written with LF endings (the line-ending dimension converts
  * them). Extend here: a new entry is a new value of the workflow dimension.
@@ -83,6 +86,23 @@ export const WORKFLOW_SHAPES: Readonly<Record<string, Readonly<Record<string, st
   'pr-test-and-publish-only': {
     '.github/workflows/ci.yml': `name: ci\n${PUSH_AND_PR}${job(PYTEST_STEPS)}`,
     '.github/workflows/publish.yml': PYPI_UPLOAD_ONLY,
+  },
+  // v27 B3 publishing gates (2026-11-13, refs #517): a push-to-main Pages deploy whose publishing
+  // job declares an environment (counted under v27), the same through a reusable workflow, and the
+  // same with no environment (not counted), each beside a pull-request test workflow.
+  'deploy-gated': {
+    '.github/workflows/ci.yml': `name: ci\n${PUSH_AND_PR}${job(PYTEST_STEPS)}`,
+    '.github/workflows/pages.yml': `name: pages\non:\n  push:\n    branches: [main]\njobs:\n${PAGES_DEPLOY_JOB('    environment: github-pages\n')}`,
+  },
+  'deploy-gated-reusable': {
+    '.github/workflows/ci.yml': `name: ci\n${PUSH_AND_PR}${job(PYTEST_STEPS)}`,
+    '.github/workflows/pages.yml':
+      'name: pages\non:\n  push:\n    branches: [main]\njobs:\n  deploy:\n    uses: ./.github/workflows/pages-reusable.yml\n',
+    '.github/workflows/pages-reusable.yml': `name: pages-reusable\non:\n  workflow_call:\njobs:\n${PAGES_DEPLOY_JOB('    environment: { name: release, url: https://example.invalid/release }\n')}`,
+  },
+  'deploy-ungated': {
+    '.github/workflows/ci.yml': `name: ci\n${PUSH_AND_PR}${job(PYTEST_STEPS)}`,
+    '.github/workflows/pages.yml': `name: pages\non:\n  push:\n    branches: [main]\njobs:\n${PAGES_DEPLOY_JOB('')}`,
   },
 };
 
