@@ -22,6 +22,141 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
+## 2026-11-13 (B3 publishing gates and citations) — under v27 a publishing workflow whose every publishing job declares an `environment:` has a deployment gate and is counted, and every workflow B3 does not count is cited at the line that decided it (refs #517, #600); v17-v26 byte-identical; v27 never above v17; no fingerprint moved; no published score moved
+
+**Status.** A scoring change under `witan-rubric-v27-prospective-2026-10-19` only, with no
+identifier change (goal_cejel_v27_b3_publishing_rule_gates_and_citations_2026-11-13; operator
+rulings of 13 Nov). No holdout or calibration ran for it, and this entry makes no precision or
+recall claim. The default stays v17. A changed v27 needs a new freeze.
+
+**Why.** #517 found that B3 credited an *ungated* publish as CI. Its repro ran a release workflow
+on every push to the default branch and deleted the publishing job's `environment:` block. #600's
+rule for v27 discounted every workflow with no pull-request trigger whose step publishes, releases
+or deploys on every run, and read the publishing job's `environment:` as note text only. The rule
+had three gaps, stated as properties of the rule:
+
+1. A publishing job that declares an environment has a deployment gate, so discounting it for
+   lacking a pull-request trigger misapplied #517.
+2. B3's cited evidence did not include the workflow it discounted, so a reader of the evidence
+   could not see why B3 fell.
+3. Discounting one deploy workflow can move B3 from `verified` to `warning` and add a finding while
+   other CI evidence remains. The operator ruled that this gap is investigated and handed back, not
+   changed here. The investigation is in the pull request: the status changes only where the
+   deploy was the one workflow B3 read as targeting the default branch, and `.travis.yml` is read
+   as CI under neither rubric.
+
+**Change.**
+
+- **Item A: the environment is a gate (v27 only).** A publishing workflow with no check before
+  every publish (the #517 correction's reading, unchanged) is counted when every job that
+  publishes, releases or deploys on every run declares a job-level `environment:` with a name.
+  - Accepted forms: string (`environment: github-pages`), flow mapping (`{ name: release, url: … }`)
+    or block mapping with `name:`, any name but a `${{ }}` expression.
+  - The jobs are read where they are: in the workflow, and in every reusable workflow in this
+    repository that its unconditional jobs call, to the depth the publishing reader follows
+    (`everyPublishingJobEnvironment`).
+  - One publishing job with no environment keeps the workflow excluded. So does anything not read:
+    a declaration the reader cannot place, an expression name (it may be empty), a call to another
+    repository's workflow or past the depth limit, or an unsplit line break. There, B3's note adds:
+    "Cejel could not read whether every job that publishes on every run declares an environment, so
+    no deployment gate is credited."
+  - Environment protection rules (required reviewers, wait timers, deployment branches) are
+    repository settings Cejel cannot read offline, so the declaration alone is credited. Where the
+    note credits a gate, it says so: "`<path>` is counted as CI verification because every job that
+    publishes, releases or deploys on every run declares an environment, a deployment gate whose
+    protection rules Cejel cannot read offline; it is triggered by …, and its publishing job
+    declares the environment …".
+- **B2.** B2 never applied the publishing rule. Since #517 (2026-10-26) the `publishes` reason has
+  been B3's alone (`publishingWorkflowReasons`). B2 and B3 still share `uncreditedCiWorkflowReason`
+  for the workflows not shown to run a check. So B2 counts every gated workflow before and after
+  this change; the new tests assert it, and it held on main too. The B2-and-B3 agreement test
+  (`false-assurance-v27.test.ts`) now admits the new counted sentence.
+- **Item B: cite what B3 discounts (v27 only).** Every workflow B3 does not count under v27, for
+  any v27 reason, gets a `ci_run` evidence pointer with its path and a line:
+  - a publishing workflow, at its first publishing step on every run, or at the `uses:` line of the
+    job calling the reusable workflow that holds it;
+  - a workflow not shown to run a check (publish-only or print-only), at its one `on:` line;
+  - another CI file, or a workflow with no single `on:` line, with `line: null`, since no single
+    line decides there.
+
+  The pointers come after every pointer B3 cited before. No evidence list has a cap, so none is
+  dropped. The first pointer, which a metric-derived finding anchors on, is unchanged, so no score,
+  status, finding or finding count moves from the citation alone.
+
+**The no-rise property.** Item A only stops excluding a workflow v17 counts: v17 counts every
+workflow and never reads the publishing rule. So a v27 B3 can rise toward v17's, never above it.
+Item B adds pointers to a criterion scored from metrics, which do not read the pointer count.
+
+**Measured** at `d77175cd4` (this branch's code) against main `64f2e574a`. The set the 2026-11-11
+(git failure) entry names, from this branch's fixture files, came out at the same counts:
+
+- false-assurance 269, CI-claims 71, B3 361 (the twelve-workflow shape included);
+- v27 A1 removal 39, hook outcome 38, allowlist 86, withhold 96 and run 58;
+- 1,018 synthetic repositories in all, plus this change's 17 new fixtures: 1,035.
+
+Each fixture was built separately for each side and scored under all eleven selectable rubrics:
+once with main's `src/witan/repo-signals.ts` checked out (the only file under `src/` outside the
+tests whose code this change touches; `rubric-version.ts` changes only its comment), and once with
+this branch's. Report JSON, HTML and Markdown were compared by hash, with 0 errors. The symlink
+fixture (`review4-a4-working-directory-through-tracked-symlink`) commits a link to a fresh
+temporary directory, so building it twice gives two head SHAs and it is left out: 1,034 compared.
+The driver ran in six processes a side and is not committed.
+
+- **v17 to v26:** 10,340 of 10,340 reports, HTML and Markdown certificates byte-identical to main.
+- **v27, main's 1,017 compared:** 634 byte-identical; 383 moved, all in B3:
+  - 379 gain only the item B citation (B3's evidence count; no score, status or finding);
+  - 3 only change B3's note (`b3-pypi-publish-gated`, `b3-npm-publish-gated`,
+    `f3b-publish-release-and-dispatch-environment-mapping`): a gated workflow now counted, whose
+    triggers do not target the default branch, so no count moves;
+  - 1 rises toward v17 (`f3b-publish-push-main-environment-pypi`): B3 1.0 to 1.6, `verified` both,
+    no finding added or lost; overall 1.8 to 2.0.
+  - By set: false-assurance 79, CI-claims 22, B3 282.
+- **v27, the 17 new fixtures:** all move against main's v27. The 6 gated shapes rise toward v17
+  (B3 1.0 to 1.6, `verified` both). The 11 others gain only the citation.
+- **v27 above v17 on the same repository:** 0, for the overall score and for B3's score and
+  status.
+- **Findings:** no criterion's finding count moves on any fixture. The driver compared counts, not
+  finding text. The no-rise check of `b3-publishing-gates.test.ts` (`lostFindings`) and the
+  generated suite also find no finding lost or made less severe on their shapes.
+
+**Glossary.** The v27-only definition of "PR-gate CI workflow count" gains two sentences, one for
+the environment gate (and that its protection rules cannot be read offline) and one saying each
+uncounted file is cited at the line that decided it. Every other rubric's glossary is unchanged.
+The measurement above ran before this text change. It changes v27 certificate text only, no
+report field.
+
+**Pins.** The certificate pins move under v27 only.
+- `certificate-below-first-page`, `report.json` and `attestation.json`: 82 v27 fixtures move,
+  each one whose v27 B3 discounts a workflow (now cited) or counts a gated one.
+- Certificate digests: with the glossary sentences, every v27 digest moves (322), as do the 9 full
+  v27 HTML pins and the 2 v27 digests of the #622 specimens.
+- Every v17 certificate, report and attestation digest is unchanged. `plain-summary-byte-identity-pins.json` moves one v27 entry,
+`workspace-package-scripts`, whose print-only workflow is now cited. Both were re-captured by a
+temporary file that rewrote only moved entries and failed on any moved v17 entry.
+
+**Fingerprint.** Re-measured, and no fingerprint moved. v27's stays
+`sha256:8fa9d87e3047afb80e8e09d08c5cb88a651c8e8b69b6b35184d2ab98ddd3a8fb`, and every other
+rubric's is unchanged. The fingerprint projection does not read evidence pointers, and no corpus
+specimen holds a publishing job that declares an environment. So neither item moves it on this
+corpus, and `rubric-behaviour-fingerprint.test.ts` passes unchanged.
+
+**Fixtures and tests.**
+
+- `b3-publishing-gates.test.ts`, with its fixtures in `fixtures/b3-publishing-gates-fixtures.ts`,
+  committed red first at `260e92ed8`: 11 of 21 tests failed against main.
+- Gated shapes, counted under v27: string, flow-mapping, block-mapping, a name with a space, two
+  gated jobs, and a reusable call whose called job is gated.
+- Controls that stay excluded: no environment, two jobs with one ungated, an ungated reusable job,
+  a gated job beside an ungated reusable call, an expression name, and a mapping with no name.
+- Citations: an ungated deploy at line 16, a reusable deploy at the caller's `uses:` line 7, and a
+  print-only workflow at its `on:` line 2.
+- A byte-identity test pins every v17 to v26 `report.json` on the 17 new fixtures to main
+  `64f2e574a` (170 hashes, `fixtures/b3-publishing-gates-main-pins.json`).
+- The generated no-rise suite (`fixtures/v27-norise-shapes.ts`) gains three workflow shapes,
+  `deploy-gated`, `deploy-gated-reusable` and `deploy-ungated`; its six shards pass.
+- The F3-b and B2-and-B3 agreement tests now expect `f3b-publish-push-main-environment-pypi` and
+  `f3b-publish-release-and-dispatch-environment-mapping` counted.
+
 ## 2026-11-11 (behaviour corpus: shallow clone and publish-after-check) — every behaviour fingerprint moved because the corpus changed, not because any rubric's behaviour did: the corpus gains a depth-1 shallow clone and a publishing workflow that runs a check before it publishes (#622, #559); without them the corpus reproduces all eleven previous fingerprints; the fingerprint's projection puts `<rubricVersion>` in place of the report's own rubric identifier in an abstention reason, so a rubric's own name is not behaviour (operator ruling, 12 Nov); no scoring code changed; no published score moved
 
 **Status.** A change to the behaviour corpus only, under every selectable rubric

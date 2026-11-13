@@ -71,7 +71,10 @@ import { FALSE_ASSURANCE_FIXTURES, buildFalseAssuranceFixture } from './fixtures
 // rewrote only the moved entries and failed on any moved v17 entry. Exactly 82 v27 fixtures
 // moved: every fixture whose v27 B3 discounts a workflow (a citation added) or now counts a gated
 // one (82 certificate digests, 82 report.json and 82 attestation.json digests). Every v17 entry
-// and the 18 full HTML pins are unchanged.
+// is unchanged. The same change adds two sentences to the v27-only PR-gate CI workflow count
+// glossary entry (the environment gate and the citation), so every v27 certificate digest (322),
+// the 9 full v27 HTML pins and the 2 v27 certificate digests of the #622 specimens were then
+// re-captured the same way; no v17 certificate, report or attestation digest moved.
 //
 // Fixtures are scored with no ingested files, the same product name and a fixed generatedAt and
 // CLI version, so the bytes depend only on the fixture and the code. One fixture is left out:
