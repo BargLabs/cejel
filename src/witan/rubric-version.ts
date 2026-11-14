@@ -320,6 +320,17 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     step on every run, or at the `uses:` line of the job calling the reusable workflow holding
 //     it; a workflow not shown to run a check at its one `on:` line (another CI file, or no single
 //     `on:` line, with no line); scores, statuses and findings do not move for the citation alone;
+//     from 2026-11-13 (goal_cejel_v27_b3_unread_ci_config_disclosure, operator ruling of 13 Nov on
+//     item C of the publishing-rule change: disclose only, refs #517), where the publishing rule
+//     leaves `default_branch_ci_depth` at 0 and a workflow it discounted targets pull requests or
+//     the default branch (so v17 counts above 0 on the same commit), B3's note ends with one
+//     sentence naming each CI configuration outside the list Cejel reads as CI (`.travis.yml`,
+//     `.drone.yml`, `bitbucket-pipelines.yml` and `appveyor.yml` at the scan root, and any file
+//     under `.buildkite/`) as "a CI configuration Cejel does not read", in path order, as many as
+//     the note's limit leaves room for and then a count of the rest, or nothing where not even the
+//     count fits; the files are matched by path, never read or credited, and a monorepo root's are
+//     not listed (the scan reads only the root's lockfiles, CI workflows and dependency-update
+//     configuration); note text only, so no score, status, finding, composite or verdict moves;
 //   - A1: conftest.py is not a concrete test file (not cited as one, and rated hollow where it
 //     asserts; from 2026-11-01 test_to_source_ratio counts it as test surface, as v17 does), and
 //     an unconditional run-wide pytest skip
