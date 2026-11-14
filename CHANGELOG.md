@@ -16,6 +16,8 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.7.0-rc.3]
+
 v17 remains the default rubric. Every scoring change below applies only when the prospective v27
 rubric is pinned. v27 carries no precision or recall claim.
 
