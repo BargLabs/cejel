@@ -6947,6 +6947,32 @@ function collectB3CiDisciplineEvidence(
         )
       : { printOnly: [] },
   );
+  // v27, disclosure only (operator ruling of 13 Nov on item C of the publishing-rule change, refs
+  // #517): where the publishing rule leaves no counted workflow that targets pull requests or the
+  // default branch, while a workflow it discounted targets them (so v17 counts above 0 on the same
+  // commit), B3's note names each CI configuration outside isCiWorkflow's list, matched by path.
+  // None is read or credited, so nothing but the note moves. The discounted workflows were already
+  // read under this signal by publishingWorkflowReasons, so a read here can restate a skip, never
+  // add one. A monorepo root's files are not listed: the scan reads only its lockfiles, CI
+  // workflows and dependency-update configuration (resolveMonorepoContext).
+  const unreadCiConfigurations =
+    useV27FalseAssuranceClosure && defaultBranchCiCount === 0 ? repoFiles.filter(isUnreadCiConfiguration).sort() : [];
+  const publishingRuleEmptiedCount =
+    unreadCiConfigurations.length > 0 &&
+    withContentReadSignal(
+      'B3',
+      'default_branch_ci_depth',
+      () =>
+        [...uncreditedWorkflows].some(
+          ([file, reason]) => reason === 'publishes' && workflowTargetsDefaultBranch(repoPath, file),
+        ) ||
+        (mono
+          ? [...uncreditedRootWorkflows].some(
+              ([file, reason]) => reason === 'publishes' && workflowTargetsDefaultBranch(mono.root, file),
+            )
+          : false),
+    );
+  const b3Notes = publishingRuleEmptiedCount ? b3NoteWithUnreadCiConfigurations(b3Note, unreadCiConfigurations) : b3Note;
 
   if (packageJson && scripts.has('test')) {
     evidence.push(evidenceForRelative(repoPath, packageJson, 'test_run', 'Test script'));
@@ -7136,7 +7162,7 @@ function collectB3CiDisciplineEvidence(
             : undefined,
       ),
     ],
-    ...(b3Note !== undefined ? { notes: b3Note } : {}),
+    ...(b3Notes !== undefined ? { notes: b3Notes } : {}),
     ...b3Disclosures(unshownCheckWorkflows, ...b3UncreditedDisclosures(b3Uncredited)),
   };
 }
@@ -7202,6 +7228,48 @@ function b3NoteWithCheckedPublishing(
     break;
   }
   return note === '' ? undefined : note;
+}
+
+/**
+ * v27 (operator ruling of 13 Nov, disclosure only): a CI configuration outside isCiWorkflow's list,
+ * by path alone. `.travis.yml`, `.drone.yml`, `bitbucket-pipelines.yml` and `appveyor.yml` at the
+ * scan root, and any file under the root's `.buildkite/`. Never read.
+ */
+function isUnreadCiConfiguration(file: string): boolean {
+  return /^(?:\.travis\.yml|\.drone\.yml|bitbucket-pipelines\.yml|appveyor\.yml|\.buildkite\/.+)$/u.test(file);
+}
+
+// The note's subject in the metric's own words: default_branch_ci_depth counts CI workflows that
+// target pull requests or the default branch.
+const UNREAD_CI_CONFIGURATION_LEAD =
+  'With the publishing workflows not counted, no workflow B3 counts targets pull requests or the default branch;';
+
+/**
+ * B3's v27 note with one sentence appended naming `files` (in path order) as CI configurations Cejel
+ * does not read: every name where the whole fits CRITERION_NOTES_MAX_LENGTH, otherwise as many as
+ * leave room for "and N more", otherwise the count alone, otherwise the note unchanged. The note
+ * before the sentence is never changed.
+ */
+function b3NoteWithUnreadCiConfigurations(note: string | undefined, files: readonly string[]): string | undefined {
+  const plural = files.length !== 1;
+  const sentence = (shown: number): string => {
+    const names =
+      shown === 0
+        ? `${files.length} file${plural ? 's' : ''}`
+        : shown === files.length
+          ? shown === 1
+            ? files[0]
+            : `${files.slice(0, shown - 1).join(', ')} and ${files[shown - 1]}`
+          : `${files.slice(0, shown).join(', ')} and ${files.length - shown} more`;
+    return `${UNREAD_CI_CONFIGURATION_LEAD} ${names} ${plural ? 'are each' : 'is'} a CI configuration Cejel does not read, matched by path alone with ${plural ? 'their' : 'its'} contents not read, so whether ${plural ? 'they check' : 'it checks'} pull requests or the default branch is not known.`;
+  };
+  const joined = (text: string) => (note === undefined || note === '' ? text : `${note} ${text}`);
+  // A name takes at least one character and a separator, so more than the limit can never fit.
+  for (let shown = Math.min(files.length, CRITERION_NOTES_MAX_LENGTH); shown >= 0; shown -= 1) {
+    const candidate = joined(sentence(shown));
+    if (candidate.length <= CRITERION_NOTES_MAX_LENGTH) return candidate;
+  }
+  return note;
 }
 
 /**
