@@ -35,6 +35,29 @@ rubric is pinned. v27 carries no precision or recall claim.
 
 ### Changed
 
+- **Prospective v27: where the publishing rule leaves B3 no workflow that targets pull requests or
+  the default branch, B3's note names the CI configurations Cejel does not read (refs #517).**
+  Under `witan-rubric-v27-prospective-2026-10-19` only, and in B3's note only. v17 and every other
+  rubric are unchanged, byte for byte.
+  - v27's B3 does not count a workflow with no pull-request trigger that publishes, releases or
+    deploys on every run. Where that workflow was the only one B3 read as targeting pull requests
+    or the default branch, the PR-gate CI workflow count falls to 0 and B3 shows a warning. The
+    repository may still run its checks on a CI system Cejel does not read, such as Travis CI.
+  - B3's note now ends with one sentence naming each such file as "a CI configuration Cejel does
+    not read": `.travis.yml`, `.drone.yml`, `bitbucket-pipelines.yml` and `appveyor.yml` at the
+    scan root, and any file under `.buildkite/`. The files are named in path order, as many as the
+    note has room for, then a count of the rest. They are matched by path only. Cejel does not
+    read them and gives them no credit.
+  - No score, status, finding, composite or verdict moves. The operator ruled on 13 Nov to
+    disclose only: counting these files as CI would let v27 score above v17, which is calibrated.
+  - Measured on 1,043 synthetic repositories against main:
+    - v17 to v26: 10,430 of 10,430 reports byte-identical.
+    - v27: 1,039 byte-identical, and the other 4 gain only the sentence.
+    - v27 is above v17 on none.
+    - No pin and no behaviour fingerprint moves.
+
+    See [`leaderboard/RUBRIC_CHANGELOG.md`](leaderboard/RUBRIC_CHANGELOG.md).
+
 - **Prospective v27: B3 counts a publishing workflow whose every publishing job declares an
   environment, and cites every workflow it does not count (refs #517).** Under
   `witan-rubric-v27-prospective-2026-10-19` only; v17 and every other rubric are unchanged, byte

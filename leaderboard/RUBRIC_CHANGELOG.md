@@ -22,6 +22,96 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
+## 2026-11-13 (B3 unread CI configuration disclosure) — under v27, where the publishing rule leaves B3 no counted workflow that targets pull requests or the default branch, B3's note names each CI configuration Cejel does not read, by path (refs #517); note text only; v17-v26 byte-identical; v27 never above v17; no score, status, finding, composite or verdict moved; no published score moved
+
+**Status.** A note change under `witan-rubric-v27-prospective-2026-10-19` only, with no identifier
+change (goal_cejel_v27_b3_unread_ci_config_disclosure_2026-11-13; operator ruling of 13 Nov on item
+C of the publishing-gates change: disclose only). No holdout or calibration ran for it, and this
+entry makes no precision or recall claim. The default stays v17. A changed v27 needs a new freeze.
+
+**Why.** Item C of the entry below found the following. Under v27 the publishing rule stops
+counting a push-to-default-branch deploy workflow. Where that workflow was the only one
+`workflowTargetsDefaultBranch` reads as targeting pull requests or the default branch,
+`default_branch_ci_depth` goes from 1 to 0 and B3 moves from `verified` to `warning`. The
+repository may still run its checks on a CI system `isCiWorkflow` does not recognise, such as
+Travis CI. No rubric reads that file, and the warning said nothing about it. The operator ruled to
+disclose only. Counting such files as CI under v27 would let v27 score above v17, which is
+calibrated, on a repository whose only CI is outside `isCiWorkflow`'s list.
+
+**Change (v27 only, B3's note only).** B3's note gains one sentence at its end when all of these
+hold:
+
+- under v27, `default_branch_ci_depth` is 0;
+- a workflow the publishing rule discounted (reason `publishes`) targets pull requests or the
+  default branch, as `workflowTargetsDefaultBranch` reads it, so v17 counts above 0 on the same
+  commit. A count taken to 0 by the not-shown-to-run-a-check rule alone gains nothing;
+- the scan root holds a CI configuration outside `isCiWorkflow`'s list. The list is `.travis.yml`,
+  `.drone.yml`, `bitbucket-pipelines.yml` and `appveyor.yml` at the root, and any file under
+  `.buildkite/`. Matching is by path, and no file is read. A nested copy (`packages/web/.travis.yml`)
+  or a different name (`.travis.yml.bak`) is not matched. A monorepo root's files are not listed,
+  because the scan reads only that root's lockfiles, CI workflows and dependency-update
+  configuration;
+- the note has room.
+
+The sentence reads: "With the publishing workflows not counted, no workflow B3 counts targets pull
+requests or the default branch; `.travis.yml` is a CI configuration Cejel does not read, matched by
+path alone with its contents not read, so whether it checks pull requests or the default branch is
+not known." Its subject uses the metric's own definition: the count is of workflows that target pull
+requests or the default branch. The files are named in path order. Where all of them do not fit
+within the note's 1,000 characters, the sentence names as many as fit and then says "and N more".
+Where no name fits, it gives the count alone. Where even that does not fit, the note is unchanged.
+The note before the sentence is never changed.
+
+**The no-rise property.** The change adds note text and reads nothing that a score, status,
+finding, composite or verdict depends on. The extra `workflowTargetsDefaultBranch` reads are of
+workflows that `publishingWorkflowReasons` already read under the same signal. A read failure there
+can only restate a skip that is already recorded.
+
+**Measured** at `466f77b4d` (this branch's code) against main `de9f86f59`, on the set the entry
+below names, from this branch's fixture files. It ran first at `14d1350b9` and again at
+`466f77b4d`, which renames one variable, with the same counts both times:
+
+- false-assurance 269, CI-claims 71, B3 361;
+- v27 A1 removal 39, hook outcome 38, allowlist 86, withhold 96 and run 58;
+- the 17 fixtures of the publishing-gates change;
+- this change's 8 new fixtures;
+- 1,043 synthetic repositories in all.
+
+Each fixture was built once. The same checkout was then scored under all eleven selectable rubrics,
+first by main's `src/witan/repo-signals.ts` and then by this branch's. Report JSON, HTML and
+Markdown were compared by hash, with 0 errors on either side. Because each fixture was built once,
+the symlink fixture has one head SHA, and no fixture was left out. The driver ran in six processes
+a side and is not committed.
+
+- **v17 to v26:** 10,430 of 10,430 reports, HTML and Markdown certificates byte-identical to main.
+- **v27:** 1,039 of 1,043 byte-identical. The other 4 differ only by the appended sentence: the
+  report without B3's note is byte-identical, every criterion's score, status, finding count and
+  metric values are equal, and so is the overall score. The 4 are
+  `investigate-travis-scripts-push-ci-ungated-deploy` (names `.travis.yml`), and three new
+  fixtures: the five-kinds fixture, the deploy-only fixture, and the 31-file Buildkite fixture
+  (8 names, "and 23 more").
+- The item C pull-request-CI fixture (count 2 to 1) and the 5 new controls are byte-identical
+  under v27.
+- **v27 above v17 on the same repository:** 0, for the overall score and for B3's score.
+
+**Pins.** Outside this change's fixtures, no test corpus holds any of the listed files. So no
+certificate, attestation, plain-summary or fingerprint pin moves, and none was re-captured. The
+behaviour fingerprints are unchanged.
+
+**Fixtures and tests.**
+
+- `b3-unread-ci-config.test.ts`, with its fixtures in `fixtures/b3-unread-ci-config-fixtures.ts`,
+  committed red first at `b23a0da9a`: 8 of 18 tests failed against main, all of them disclosure
+  tests. The controls, the no-rise check and the byte pins passed.
+- **Named:** the item C push-CI fixture; every listed kind, in path order; `.travis.yml` beside a
+  deploy-only repository; and 31 Buildkite files, capped.
+- **Not named:** the item C pull-request-CI fixture (count 2 to 1); a `.travis.yml` beside a counted
+  push-to-main workflow, with and without a deploy; no listed file; a count taken to 0 by a
+  print-only workflow; and nested or differently named files.
+- `fixtures/b3-unread-ci-config-main-pins.json` pins, from main `de9f86f59`, every v17 to v26 report
+  on the 10 fixtures. It also pins the whole v27 report where no sentence is added. Where one is
+  added, it pins the v27 report without B3's note, and B3's note with the sentence cut from its end.
+
 ## 2026-11-13 (B3 publishing gates and citations) — under v27 a publishing workflow whose every publishing job declares an `environment:` has a deployment gate and is counted, and every workflow B3 does not count is cited at the line that decided it (refs #517, #600); v17-v26 byte-identical; v27 never above v17; no fingerprint moved; no published score moved
 
 **Status.** A scoring change under `witan-rubric-v27-prospective-2026-10-19` only, with no
