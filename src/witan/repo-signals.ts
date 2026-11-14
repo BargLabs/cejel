@@ -6858,6 +6858,9 @@ function collectB3CiDisciplineEvidence(
   const rootPublishingDetails = new Map<string, string>();
   const checkedPublishingDetails = new Map<string, CheckedPublishingDetail>();
   const rootCheckedPublishingDetails = new Map<string, CheckedPublishingDetail>();
+  // Item B (13 Nov): the line each workflow B3 does not count is cited at.
+  const uncreditedLines = new Map<string, number | null>();
+  const rootUncreditedLines = new Map<string, number | null>();
   const uncreditedWorkflows: ReadonlyMap<string, UncreditedCiWorkflowReason> = useV27FalseAssuranceClosure
     ? withContentReadSignals('B3', ['ci_script_depth', 'default_branch_ci_depth'], () => {
         const inventory = ownPublishOnlyInventory(repoFiles);
@@ -6870,6 +6873,7 @@ function collectB3CiDisciplineEvidence(
           // Eighth pass (#659): v17's test-file list, the one A1 counts, read only when a runner is
           // given a positional word (testPathReader reads it once).
           checkReading(repoPath, inventory, () => findConcreteTestFiles(repoPath, repoFiles, WITAN_RUBRIC_VERSION_V17)),
+          uncreditedLines,
         );
       })
     : new Map();
@@ -6886,6 +6890,7 @@ function collectB3CiDisciplineEvidence(
             // scan's inventory, so none is read: the npm-family test script is not a check there
             // (item E), and no npm, pnpm, yarn or bun command is a check or a setup step (third pass).
             UNREAD_CHECK_READING,
+            rootUncreditedLines,
           ),
         )
       : new Map();
@@ -7002,6 +7007,25 @@ function collectB3CiDisciplineEvidence(
         ),
       ),
     );
+  }
+  // Item B (13 Nov), v27 only: each workflow B3 does not count is cited, after every pointer above
+  // (no list here has a cap, so the first pointer, which a metric-derived finding anchors on, is
+  // unchanged), at the line that decided it. These files were read above under these signals.
+  if (useV27FalseAssuranceClosure) {
+    withContentReadSignals('B3', ['ci_script_depth', 'default_branch_ci_depth'], () => {
+      for (const [file, reason] of uncreditedWorkflows) {
+        evidence.push(
+          evidenceForRelativeAtLine(repoPath, file, 'ci_run', b3UncreditedWorkflowLabel(reason, false), uncreditedLines.get(file) ?? null),
+        );
+      }
+      if (mono) {
+        for (const [file, reason] of uncreditedRootWorkflows) {
+          evidence.push(
+            evidenceForRelativeAtLine(mono.root, file, 'ci_run', b3UncreditedWorkflowLabel(reason, true), rootUncreditedLines.get(file) ?? null),
+          );
+        }
+      }
+    });
   }
 
   if (evidence.length === 0) return null;
@@ -7139,19 +7163,31 @@ function b3NoteWithCheckedPublishing(
   // the sentence says that Cejel does not read the tool's configuration, in each form it takes.
   const lintClause = (lint: boolean) => (lint ? LINT_CONFIGURATION_CLAUSE : '');
   const lintFrom = (index: number) => entries.slice(index).some(([, { lint }]) => lint);
-  const countSentence = (rest: number, more: boolean, lint: boolean) =>
-    `${rest}${more ? ' more' : ''} publishing workflow${rest === 1 ? ' is' : 's are'} counted as CI verification because a check runs before ${rest === 1 ? 'it publishes' : 'they publish'}${lint ? (rest === 1 ? LINT_CONFIGURATION_CLAUSE : LINT_CONFIGURATION_SOME_CLAUSE) : ''}.`;
+  // Item A (13 Nov): the count names the gate where a counted workflow is gated; with none gated it
+  // is the sentence it was before.
+  const gatedFrom = (index: number) => entries.slice(index).filter(([, { gated }]) => gated === true).length;
+  const countSentence = (rest: number, more: boolean, lint: boolean, gated = 0) => {
+    const workflows = `${rest}${more ? ' more' : ''} publishing workflow${rest === 1 ? ' is' : 's are'} counted as CI verification because`;
+    const lintClause = lint ? (rest - gated === 1 ? LINT_CONFIGURATION_CLAUSE : LINT_CONFIGURATION_SOME_CLAUSE) : '';
+    if (gated === 0) return `${workflows} a check runs before ${rest === 1 ? 'it publishes' : 'they publish'}${lintClause}.`;
+    if (gated === rest) return `${workflows} ${rest === 1 ? GATED_PUBLISHING_REASON : GATED_PUBLISHING_PLURAL_REASON}.`;
+    return `${workflows}, in each, a check runs before it publishes${lintClause}, or ${GATED_PUBLISHING_REASON}.`;
+  };
   let note =
     uncreditedNote === undefined
       ? ''
-      : uncreditedNote(entries.length === 0 ? undefined : CRITERION_NOTES_MAX_LENGTH - 1 - countSentence(entries.length, true, lintFrom(0)).length);
+      : uncreditedNote(entries.length === 0 ? undefined : CRITERION_NOTES_MAX_LENGTH - 1 - countSentence(entries.length, true, lintFrom(0), gatedFrom(0)).length);
   const joined = (base: string, sentence: string) => (base === '' ? sentence : `${base} ${sentence}`);
   const fits = (text: string) => text.length <= CRITERION_NOTES_MAX_LENGTH;
-  for (const [index, [name, { detail, lint }]] of entries.entries()) {
+  for (const [index, [name, { detail, lint, gated }]] of entries.entries()) {
     const rest = entries.length - index - 1;
     // Room is kept for the sentence counting what is left after this one, if anything is.
-    const leavesRoom = (text: string) => fits(text) && (rest === 0 || fits(joined(text, countSentence(rest, true, lintFrom(index + 1)))));
-    const counted = `${name} is counted as CI verification because a check runs before it publishes${lintClause(lint)}`;
+    const leavesRoom = (text: string) =>
+      fits(text) && (rest === 0 || fits(joined(text, countSentence(rest, true, lintFrom(index + 1), gatedFrom(index + 1)))));
+    const counted =
+      gated === true
+        ? `${name} is counted as CI verification because ${GATED_PUBLISHING_REASON}`
+        : `${name} is counted as CI verification because a check runs before it publishes${lintClause(lint)}`;
     const full = joined(note, `${counted}; it ${detail}`);
     if (leavesRoom(full)) {
       note = full;
@@ -7162,11 +7198,28 @@ function b3NoteWithCheckedPublishing(
       note = short;
       continue;
     }
-    note = joined(note, countSentence(rest + 1, index > 0, lintFrom(index)));
+    note = joined(note, countSentence(rest + 1, index > 0, lintFrom(index), gatedFrom(index)));
     break;
   }
   return note === '' ? undefined : note;
 }
+
+/**
+ * Item B (13 Nov): the label of B3's pointer at a workflow it does not count under v27, naming the
+ * reason and what the cited line is. Within EVIDENCE_LABEL_MAX_LENGTH for every reason.
+ */
+function b3UncreditedWorkflowLabel(reason: UncreditedCiWorkflowReason, monorepoRoot: boolean): string {
+  const subject = monorepoRoot ? 'Monorepo-root CI workflow not counted' : 'CI workflow not counted';
+  return reason === 'publishes'
+    ? `${subject}: publishes, releases or deploys with no pull-request trigger (cited at the publishing step, or the job calling the workflow that holds it)`
+    : `${subject}: not shown to run a check, it ${UNCREDITED_CI_WORKFLOW_REASON_TEXT[reason]} (cited at its on: trigger)`;
+}
+
+// Item A (13 Nov): why a gated publishing workflow is counted, and what Cejel cannot read of its gate.
+const GATED_PUBLISHING_REASON =
+  'every job that publishes, releases or deploys on every run declares an environment, a deployment gate whose protection rules Cejel cannot read offline';
+const GATED_PUBLISHING_PLURAL_REASON =
+  'every job in each that publishes, releases or deploys on every run declares an environment, a deployment gate whose protection rules Cejel cannot read offline';
 
 // Sixth pass (should-fix 6): what B3's note adds where a credited check is a lint or format command.
 const LINT_CONFIGURATION_CLAUSE = ' (a lint or format check, whose configuration Cejel does not read)';
@@ -7306,6 +7359,13 @@ function isPublishingCommand(input: readonly string[]): boolean {
  * (checksBeforeEveryPublish) is default-branch CI that also publishes, so it is not added; its
  * clause goes to `checkedDetails` instead, for B3's note to say it is counted and why.
  * `reading` is what the checkout says about the commands a check reading admits (checkReading).
+ *
+ * Item A (13 Nov, refs #517): a publishing workflow with no check before every publish whose every
+ * publishing job declares an environment (publishingGate) has a deployment gate, so it is not added
+ * either; its clause goes to `checkedDetails`, marked gated, for B3's note.
+ *
+ * Item B (13 Nov): `lines` gets, for every workflow returned, the 1-based line B3 cites it at
+ * (b3UncreditedWorkflowLine).
  */
 function publishingWorkflowReasons(
   root: string,
@@ -7314,12 +7374,14 @@ function publishingWorkflowReasons(
   details: Map<string, string>,
   checkedDetails: Map<string, CheckedPublishingDetail>,
   reading: CheckReading,
+  lines: Map<string, number | null>,
 ): Map<string, UncreditedCiWorkflowReason> {
   const reasons = new Map<string, UncreditedCiWorkflowReason>();
   for (const file of workflows) {
     const known = uncredited.get(file);
     if (known) {
       reasons.set(file, known);
+      lines.set(file, workflowTriggerLine(root, file));
       continue;
     }
     const read = publishingWorkflowDetail(root, file, reading);
@@ -7328,10 +7390,30 @@ function publishingWorkflowReasons(
       checkedDetails.set(file, { detail: read.detail, lint: read.lint });
       continue;
     }
+    if (read.gated) {
+      checkedDetails.set(file, { detail: read.detail, lint: false, gated: true });
+      continue;
+    }
     reasons.set(file, 'publishes');
     details.set(file, read.detail);
+    lines.set(file, read.line > 0 ? read.line : workflowTriggerLine(root, file));
   }
   return reasons;
+}
+
+/**
+ * Item B (13 Nov): the line B3 cites a workflow it does not count as not shown to run a check at: the
+ * one top-level `on:` key of a GitHub Actions workflow, which makes it CI the reader then finds runs
+ * no check. Null for any other CI file, or where `on:` is not one placed line: no single line
+ * decides there, and none is made up.
+ */
+function workflowTriggerLine(root: string, file: string): number | null {
+  if (!isGitHubActionsWorkflow(file)) return null;
+  const fullPath = join(root, file);
+  if (!isRegularFile(fullPath)) return null;
+  const lines = readRepoText(fullPath, 'utf8').split(/\r?\n/);
+  const at = lines.flatMap((line, index) => (WORKFLOW_ON_KEY_PATTERN.test(line) ? [index + 1] : []));
+  return at.length === 1 ? (at[0] ?? null) : null;
 }
 
 const RUNS_ON_KEY_PATTERN = /^[ \t]*runs-on:[ \t]*(.*)$/;
@@ -7711,57 +7793,23 @@ function publishingJobsOnEveryRun(
   depth: number,
   reading: CheckReading,
 ): PublishingJobsReading {
-  const none: PublishingJobsReading = { environments: [], checkedBeforePublish: false, notCredited: [], lintCredited: false };
+  const none: PublishingJobsReading = { environments: [], checkedBeforePublish: false, notCredited: [], lintCredited: false, line: 0 };
   const notCredited: string[] = [];
   const credit = { lint: false };
   if (YAML_LINE_BREAK_NOT_SPLIT_PATTERN.test(contents)) return none;
-  const isGuardLine = (line: string) => isStepOrJobGuard(line) && !isAlwaysTrueIfLine(line, context);
-  const jobs = workflowJobs(contents, isGuardLine);
-  const mayRun = (step: WorkflowRunStep) => !step.conditional && step.job !== -1;
-  const readsRunLines = runsOnlyOnHostedBashRunners(contents);
-  // The `steps:` line of each job that runs a publishing step.
-  const publishingStepsKeys = new Set<number>();
-  // Every placed publishing step, conditional or not, with the line of its publish: the steps a
-  // check must come before (#517 correction).
-  const publishes: PublishAt[] = [];
-  for (const step of githubActionsUsesSteps(contents, isGuardLine)) {
-    const value = unquoteYamlScalar(beforeShellComment(step.lines[0]?.text ?? ''));
-    const at = value.indexOf('@');
-    if (!(at > 0 && PUBLISHING_ACTIONS.has(value.slice(0, at).toLowerCase()))) continue;
-    if (step.job !== -1) publishes.push({ job: step.job, line: step.lines[0]?.line ?? 0, command: 0 });
-    if (mayRun(step)) publishingStepsKeys.add(step.job);
-  }
-  // Run lines are read for a publish on every runner: off a hosted bash runner such a step only
-  // needs a check before it, and never makes the workflow publishing (#564).
-  for (const step of githubActionsRunSteps(contents, isGuardLine)) {
-    const commands = joinShellContinuationLines(step.lines.map(({ text }) => text)).flatMap((text) =>
-      shellCommands(text).map((words) => ({ words })),
-    );
-    if (!commands.some(({ words }) => isPublishingCommand(words))) continue;
-    if (step.job !== -1) {
-      const line = step.lines.find(({ text }) => shellCommands(text).some(isPublishingCommand)) ?? step.lines[0];
-      publishes.push({ job: step.job, line: line?.line ?? 0, command: Math.max(0, shellCommands(line?.text ?? '').findIndex(isPublishingCommand)) });
-    }
-    if (readsRunLines && mayRun(step) && !stepShellIsConditional(step, commands)) publishingStepsKeys.add(step.job);
-  }
+  const { isGuardLine, jobs, publishingStepsKeys, publishes, firstPublishLine } = publishingStepsOnEveryRun(contents, context);
   if (publishingStepsKeys.size > 0) {
-    const lines = contents.split(/\r?\n/);
-    const indents = lines.map(lineIndent);
-    const inBlockScalar = blockScalarBodyLines(lines, indents);
     return {
-      environments: [...publishingStepsKeys]
-        .sort((left, right) => left - right)
-        .map((stepsKey) => {
-          const job = jobs.find(({ start, end }) => start < stepsKey && stepsKey < end);
-          return job ? jobEnvironment(lines, indents, inBlockScalar, job) : { kind: 'unread' };
-        }),
+      environments: publishingJobEnvironments(contents, jobs, publishingStepsKeys),
       checkedBeforePublish: depth === 0 && checksBeforeEveryPublish(contents, jobs, publishes, isGuardLine, reading, notCredited, credit),
       notCredited,
       lintCredited: credit.lint,
+      line: firstPublishLine,
     };
   }
   if (depth >= REUSABLE_WORKFLOW_MAX_DEPTH) return none;
-  for (const { target, conditional } of jobs) {
+  for (const job of jobs) {
+    const { target, conditional } = job;
     if (target === undefined || conditional) continue;
     const local = LOCAL_REUSABLE_WORKFLOW_PATTERN.exec(target);
     if (!local) continue;
@@ -7774,10 +7822,143 @@ function publishingJobsOnEveryRun(
         checkedBeforePublish: depth === 0 && checksBeforeEveryPublish(contents, jobs, publishes, isGuardLine, reading, notCredited, credit),
         notCredited,
         lintCredited: credit.lint,
+        // Item B: the calling job's `uses:` line in this file.
+        line: jobUsesLine(contents, job),
       };
     }
   }
   return none;
+}
+
+/**
+ * The publishing steps of a workflow that run on every run its triggers (`context`) start, as
+ * publishingJobsOnEveryRun reads them: the `steps:` line of each job holding one, every placed
+ * publishing step (conditional or not) for the check-before-publish reading, and the 1-based line
+ * of the first publishing step on every run (0 when there is none).
+ */
+function publishingStepsOnEveryRun(
+  contents: string,
+  context: WorkflowTriggerContext,
+): {
+  readonly isGuardLine: (line: string) => boolean;
+  readonly jobs: readonly WorkflowJob[];
+  readonly publishingStepsKeys: ReadonlySet<number>;
+  readonly publishes: readonly PublishAt[];
+  readonly firstPublishLine: number;
+} {
+  const isGuardLine = (line: string) => isStepOrJobGuard(line) && !isAlwaysTrueIfLine(line, context);
+  const jobs = workflowJobs(contents, isGuardLine);
+  const mayRun = (step: WorkflowRunStep) => !step.conditional && step.job !== -1;
+  const readsRunLines = runsOnlyOnHostedBashRunners(contents);
+  // The `steps:` line of each job that runs a publishing step.
+  const publishingStepsKeys = new Set<number>();
+  // Every placed publishing step, conditional or not, with the line of its publish: the steps a
+  // check must come before (#517 correction).
+  const publishes: PublishAt[] = [];
+  let firstPublishLine = 0;
+  const onEveryRun = (stepsKey: number, line: number) => {
+    publishingStepsKeys.add(stepsKey);
+    if (line > 0 && (firstPublishLine === 0 || line < firstPublishLine)) firstPublishLine = line;
+  };
+  for (const step of githubActionsUsesSteps(contents, isGuardLine)) {
+    const value = unquoteYamlScalar(beforeShellComment(step.lines[0]?.text ?? ''));
+    const at = value.indexOf('@');
+    if (!(at > 0 && PUBLISHING_ACTIONS.has(value.slice(0, at).toLowerCase()))) continue;
+    if (step.job !== -1) publishes.push({ job: step.job, line: step.lines[0]?.line ?? 0, command: 0 });
+    if (mayRun(step)) onEveryRun(step.job, step.lines[0]?.line ?? 0);
+  }
+  // Run lines are read for a publish on every runner: off a hosted bash runner such a step only
+  // needs a check before it, and never makes the workflow publishing (#564).
+  for (const step of githubActionsRunSteps(contents, isGuardLine)) {
+    const commands = joinShellContinuationLines(step.lines.map(({ text }) => text)).flatMap((text) =>
+      shellCommands(text).map((words) => ({ words })),
+    );
+    if (!commands.some(({ words }) => isPublishingCommand(words))) continue;
+    const line = step.lines.find(({ text }) => shellCommands(text).some(isPublishingCommand)) ?? step.lines[0];
+    if (step.job !== -1) {
+      publishes.push({ job: step.job, line: line?.line ?? 0, command: Math.max(0, shellCommands(line?.text ?? '').findIndex(isPublishingCommand)) });
+    }
+    if (readsRunLines && mayRun(step) && !stepShellIsConditional(step, commands)) onEveryRun(step.job, line?.line ?? 0);
+  }
+  return { isGuardLine, jobs, publishingStepsKeys, publishes, firstPublishLine };
+}
+
+/** What each job holding a publishing step declares as its environment, in file order. */
+function publishingJobEnvironments(
+  contents: string,
+  jobs: readonly WorkflowJob[],
+  publishingStepsKeys: ReadonlySet<number>,
+): PublishingJobEnvironment[] {
+  const lines = contents.split(/\r?\n/);
+  const indents = lines.map(lineIndent);
+  const inBlockScalar = blockScalarBodyLines(lines, indents);
+  return [...publishingStepsKeys]
+    .sort((left, right) => left - right)
+    .map((stepsKey) => {
+      const job = jobs.find(({ start, end }) => start < stepsKey && stepsKey < end);
+      return job ? jobEnvironment(lines, indents, inBlockScalar, job) : { kind: 'unread' };
+    });
+}
+
+/** The 1-based line of a job's own `uses:` key (a reusable workflow call), or its key's line. */
+function jobUsesLine(contents: string, job: WorkflowJob): number {
+  const lines = contents.split(/\r?\n/);
+  for (let index = job.start + 1; index < job.end; index += 1) {
+    if (JOB_USES_KEY_PATTERN.test(stripYamlComment(lines[index] ?? ''))) return index + 1;
+  }
+  return job.start + 1;
+}
+
+/**
+ * v27 B3, item A of the 13 Nov publishing-gate rulings (#517): what every job that publishes,
+ * releases or deploys on every run declares as its environment, in this workflow and in every
+ * reusable workflow in this repository its unconditional jobs call, followed to
+ * REUSABLE_WORKFLOW_MAX_DEPTH, each read where the publishing job is. `complete` is false when a
+ * file was not read: a line break the readers do not split, an unconditional job calling a
+ * workflow that is not a regular file in this repository (another repository's included), or a
+ * call past the depth limit. Linear in the files read.
+ */
+function everyPublishingJobEnvironment(
+  root: string,
+  contents: string,
+  context: WorkflowTriggerContext,
+  depth: number,
+): { readonly environments: readonly PublishingJobEnvironment[]; readonly complete: boolean } {
+  if (YAML_LINE_BREAK_NOT_SPLIT_PATTERN.test(contents)) return { environments: [], complete: false };
+  const { jobs, publishingStepsKeys } = publishingStepsOnEveryRun(contents, context);
+  const environments: PublishingJobEnvironment[] = publishingJobEnvironments(contents, jobs, publishingStepsKeys);
+  let complete = true;
+  for (const { target, conditional } of jobs) {
+    if (target === undefined || conditional) continue;
+    const local = LOCAL_REUSABLE_WORKFLOW_PATTERN.exec(target);
+    const calledPath = local ? join(root, local[1] ?? '') : '';
+    if (!local || depth >= REUSABLE_WORKFLOW_MAX_DEPTH || !isRegularFile(calledPath)) {
+      complete = false;
+      continue;
+    }
+    const called = everyPublishingJobEnvironment(root, readRepoText(calledPath, 'utf8'), context, depth + 1);
+    environments.push(...called.environments);
+    complete &&= called.complete;
+  }
+  return { environments, complete };
+}
+
+/**
+ * Item A: whether a publishing workflow has a deployment gate. 'gated' when every job that
+ * publishes on every run (everyPublishingJobEnvironment) declares a job-level `environment:` with
+ * a name, string or mapping form, that is not an expression; 'ungated' when one declares none;
+ * otherwise 'unknown' (a declaration or a file not read), which credits no gate. The environment's
+ * protection rules (required reviewers, wait timers, branch rules) live in the repository's
+ * settings, which Cejel cannot read offline: the declaration alone is credited.
+ */
+type PublishingGate = 'gated' | 'ungated' | 'unknown';
+
+function publishingGate(reading: { readonly environments: readonly PublishingJobEnvironment[]; readonly complete: boolean }): PublishingGate {
+  const { environments, complete } = reading;
+  if (environments.some(({ kind }) => kind === 'none')) return 'ungated';
+  const declared = (entry: PublishingJobEnvironment) =>
+    entry.kind === 'named' || (entry.kind === 'unnamed' && entry.expression !== true);
+  return complete && environments.length > 0 && environments.every(declared) ? 'gated' : 'unknown';
 }
 
 /** What publishingJobsOnEveryRun reads of a workflow's publishing jobs. */
@@ -7795,12 +7976,23 @@ interface PublishingJobsReading {
    * command, whose configuration the reader does not read, for B3's note.
    */
   readonly lintCredited: boolean;
+  /**
+   * Item B (13 Nov): the 1-based line that makes the workflow publishing, for B3's citation: its
+   * first publishing step on every run, or the `uses:` line of the job calling the reusable
+   * workflow that holds it. 0 when the workflow does not publish on every run.
+   */
+  readonly line: number;
 }
 
-/** Sixth pass (should-fix 6): a counted publishing workflow's F3-b clause, and whether a lint check is credited in it. */
+/**
+ * Sixth pass (should-fix 6): a counted publishing workflow's F3-b clause, and whether a lint check
+ * is credited in it. Item A (13 Nov): `gated` when it is counted because every publishing job
+ * declares an environment rather than because a check runs before it publishes.
+ */
 interface CheckedPublishingDetail {
   readonly detail: string;
   readonly lint: boolean;
+  readonly gated?: true;
 }
 
 /**
@@ -9291,7 +9483,7 @@ function publishingWorkflowDetail(
   root: string,
   file: string,
   reading: CheckReading,
-): { readonly detail: string; readonly checked: boolean; readonly lint: boolean } | undefined {
+): PublishingWorkflowDetail | undefined {
   if (!isGitHubActionsWorkflow(file)) return undefined;
   const fullPath = join(root, file);
   if (!isRegularFile(fullPath)) return undefined;
@@ -9307,15 +9499,52 @@ function publishingWorkflowDetail(
     triggers,
     pushBranches: triggers.has('push') ? githubPushBranchFilter(contents) : null,
   };
-  const { environments, checkedBeforePublish, notCredited, lintCredited } = publishingJobsOnEveryRun(root, contents, context, 0, reading);
+  const { environments, checkedBeforePublish, notCredited, lintCredited, line } = publishingJobsOnEveryRun(root, contents, context, 0, reading);
   if (environments.length === 0) return undefined;
-  const detail = `is triggered by ${publishingTriggerText(contents, triggers)}, and ${publishingEnvironmentText(environments)}.`;
+  const triggerText = publishingTriggerText(contents, triggers);
+  const detail = `is triggered by ${triggerText}, and ${publishingEnvironmentText(environments)}.`;
+  if (checkedBeforePublish) return { detail, checked: true, lint: lintCredited, gated: false, line };
+  // Item A (13 Nov): with no check before every publish, a workflow whose every publishing job
+  // declares an environment is gated and counted; its clause names every publishing job read for
+  // the gate, the reusable workflows' included.
+  const everyJob = everyPublishingJobEnvironment(root, contents, context, 0);
+  const gate = publishingGate(everyJob);
+  if (gate === 'gated') {
+    return {
+      detail: `is triggered by ${triggerText}, and ${publishingEnvironmentText(everyJob.environments)}.`,
+      checked: false,
+      lint: false,
+      gated: true,
+      line,
+    };
+  }
   return {
-    detail: checkedBeforePublish ? detail : `${detail}${notCreditedSentence(notCredited)}`,
-    checked: checkedBeforePublish,
-    lint: checkedBeforePublish && lintCredited,
+    detail: `${detail}${gate === 'unknown' ? PUBLISHING_GATE_NOT_READ_SENTENCE : ''}${notCreditedSentence(notCredited)}`,
+    checked: false,
+    lint: false,
+    gated: false,
+    line,
   };
 }
+
+/** What publishingWorkflowDetail reads of a publishing workflow (v27 B3). */
+interface PublishingWorkflowDetail {
+  /** The F3-b clause B3's note adds after the workflow's path. */
+  readonly detail: string;
+  /** A check runs before every publish (#517 correction): counted. */
+  readonly checked: boolean;
+  /** A credited check is a lint or format command (sixth pass). */
+  readonly lint: boolean;
+  /** Item A (13 Nov): every publishing job declares an environment, with no check before: counted. */
+  readonly gated: boolean;
+  /** Item B (13 Nov): the line that makes it publishing (PublishingJobsReading.line). */
+  readonly line: number;
+}
+
+// Item A (13 Nov): what B3's note adds for an excluded publishing workflow where Cejel could not read
+// whether every publishing job declares an environment.
+const PUBLISHING_GATE_NOT_READ_SENTENCE =
+  ' Cejel could not read whether every job that publishes on every run declares an environment, so no deployment gate is credited.';
 
 // Fourth pass (#627, #628): the most reasons B3's note gives for one workflow's uncredited check.
 const NOT_CREDITED_MAX_REASONS = 3;
@@ -9341,7 +9570,9 @@ function notCreditedSentence(reasons: readonly string[]): string {
 type PublishingJobEnvironment =
   | { readonly kind: 'none' }
   | { readonly kind: 'named'; readonly name: string }
-  | { readonly kind: 'unnamed' }
+  // Item A (13 Nov): `expression` when the name is a `${{ }}` expression, whose value Cejel cannot
+  // read offline (it may be empty, which declares no environment), so it is no gate.
+  | { readonly kind: 'unnamed'; readonly expression?: true }
   | { readonly kind: 'unread' };
 
 // A branch or environment name B3's note quotes: short, of plain characters, with no expression.
@@ -9363,7 +9594,8 @@ function joinWords(items: readonly string[], last: 'and' | 'or'): string {
 function environmentNamed(written: string): PublishingJobEnvironment {
   const name = unquoteYamlScalar(written);
   if (name === '') return { kind: 'unread' };
-  return PUBLISHING_NOTE_NAME_PATTERN.test(name) ? { kind: 'named', name } : { kind: 'unnamed' };
+  if (PUBLISHING_NOTE_NAME_PATTERN.test(name)) return { kind: 'named', name };
+  return name.includes('${{') ? { kind: 'unnamed', expression: true } : { kind: 'unnamed' };
 }
 
 /**

@@ -35,6 +35,36 @@ rubric is pinned. v27 carries no precision or recall claim.
 
 ### Changed
 
+- **Prospective v27: B3 counts a publishing workflow whose every publishing job declares an
+  environment, and cites every workflow it does not count (refs #517).** Under
+  `witan-rubric-v27-prospective-2026-10-19` only; v17 and every other rubric are unchanged, byte
+  for byte.
+  - **An environment is a gate.** Since #517, v27's B3 has not counted a workflow with no
+    pull-request trigger whose step publishes, releases or deploys on every run, and read the
+    publishing job's `environment:` only as note text. Such a workflow is now counted, as v17
+    counts it, when every job that publishes on every run declares a job-level `environment:` with
+    a name (string or mapping form, any name but a `${{ }}` expression), read where the job is,
+    reusable workflows in the same repository included. One job with no environment keeps it
+    excluded. So does anything Cejel did not read: an expression name, a mapping with no name, or a
+    call to another repository's workflow. In that case the note says the gate was not read.
+    Environment protection rules are repository settings Cejel cannot read offline, so the note
+    says so wherever it credits a gate. B2 never applied this rule and is unchanged.
+  - **Cited evidence.** Each workflow v27's B3 does not count is now in B3's evidence, at the line
+    that decided it: a publishing workflow at its first publishing step on every run (or the job
+    calling the reusable workflow that holds it), and a workflow not shown to run a check at its
+    `on:` line. The pointers come after the ones B3 cited before. No score, status or finding
+    moves for them.
+  - The v27 certificate's glossary entry for "PR-gate CI workflow count" says both.
+  - Measured on 1,035 synthetic repositories against main:
+    - v17 to v26: 10,340 of 10,340 reports byte-identical.
+    - v27: 634 of the 1,017 existing repositories compared are identical, and 379 gain only the
+      citation. 3 change only B3's note, and 1, like 6 of the 17 new fixtures, rises toward v17
+      (B3 1.0 to 1.6).
+    - v27 is above v17 on none.
+    - No behaviour fingerprint moves.
+
+    See [`leaderboard/RUBRIC_CHANGELOG.md`](leaderboard/RUBRIC_CHANGELOG.md).
+
 - **Every rubric's behaviour fingerprint moved because the behaviour corpus changed; no rubric's
   behaviour changed (#622).** The corpus that `rubricBehaviourFingerprint` is measured on gains two
   synthetic specimens: a depth-1 shallow clone of a repository whose full clone scores A2 and B2

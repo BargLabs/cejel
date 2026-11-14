@@ -302,6 +302,24 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     where Cejel cannot tell: a directory not known, no root pyproject.toml, a committed uv.toml,
 //     a `tool.uv` key other than package, dev-dependencies, required-version and index (so a
 //     workspace or sources), a key with a backslash, or `--package`, `--project` or `--directory`;
+//     from 2026-11-13 (goal_cejel_v27_b3_publishing_rule_gates_and_citations, operator rulings of
+//     13 Nov, refs #517), the environment is a gate, no longer note text only: a publishing workflow
+//     with no check before every publish is counted when every job that publishes, releases or
+//     deploys on every run declares a job-level `environment:` with a name (string, flow-mapping
+//     or block-mapping form, any name but a `${{ }}` expression), read where the publishing job is,
+//     in the workflow and in every reusable workflow in this repository its unconditional jobs call
+//     (to the same depth); one job that declares none, or anything not read (a declaration the
+//     reader cannot place, an expression name, a call to another repository's workflow or past the
+//     depth, an unsplit line break) keeps it excluded, the note saying where the gate was not read.
+//     Environment protection rules (required reviewers, wait timers, deployment branches) are
+//     repository settings Cejel cannot read offline: the declaration alone is credited, and the
+//     note says so where it credits a gate. B2 never applied the publishing rule (it is B3's
+//     alone), so it counts these workflows before and after. And every workflow B3 does not count
+//     under v27, for any v27 reason, is cited in B3's evidence after the pointers it cited before
+//     (no list has a cap), with its path and line: a publishing workflow at its first publishing
+//     step on every run, or at the `uses:` line of the job calling the reusable workflow holding
+//     it; a workflow not shown to run a check at its one `on:` line (another CI file, or no single
+//     `on:` line, with no line); scores, statuses and findings do not move for the citation alone;
 //   - A1: conftest.py is not a concrete test file (not cited as one, and rated hollow where it
 //     asserts; from 2026-11-01 test_to_source_ratio counts it as test surface, as v17 does), and
 //     an unconditional run-wide pytest skip

@@ -148,8 +148,8 @@
     "attestationSha256": "e9f07499c2d6b3815454aa05c7d3dc5f1d22d53a8aa015f953c10f0a7e32a42b"
   },
   "witan-rubric-v27-prospective-2026-10-19/workspace-package-scripts": {
-    "reportSha256": "32726594779c0ca65befcfa2fc8e6f55dfd64a04e521b560f768628d36c9dc3d",
-    "attestationSha256": "3a6a3b4f5ded7d2ba7df410f671cd73cd128465a6b5fd8e0bd6aaf38cc89c2fc"
+    "reportSha256": "6729a97ce7584cb96867a2382dac6ecc5ed8397ac87af158ea864d487b3e0374",
+    "attestationSha256": "566c7b999ac24d05b48d9f5e42b90f423ac53a0781f38150916b6b1cc6bdf0b9"
   },
   "witan-rubric-v17-2026-07-24/coverage-config-setup-cfg": {
     "reportSha256": "abf6aea554a649fca6512df878489d8773b55d5372b48894df8020cca0a8217c",

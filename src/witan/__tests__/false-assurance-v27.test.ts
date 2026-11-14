@@ -531,13 +531,8 @@ describe('F3-b — v27 B3 names what triggers a publishing workflow and whether 
 
   it.each([
     ['f3b-publish-push-main-no-environment', 'is triggered by push to main, and its publishing job declares no environment.'],
-    ['f3b-publish-push-main-environment-pypi', 'is triggered by push to main, and its publishing job declares the environment pypi.'],
     ['f3b-publish-on-tag-push', 'is triggered by push of a tag its filter matches, and its publishing job declares no environment.'],
     ['f3b-publish-workflow-dispatch-only', 'is triggered by workflow_dispatch, and its publishing job declares no environment.'],
-    [
-      'f3b-publish-release-and-dispatch-environment-mapping',
-      'is triggered by release and workflow_dispatch, and its publishing job declares the environment pypi.',
-    ],
   ])('%s: the earlier sentence stays a prefix; only the note changes', (name, detail) => {
     const v27 = criterion(name, V27, 'B3');
     expect(v27.notes).toBe(`${PUBLISHING_SENTENCE} .github/workflows/release.yml ${detail}`);
@@ -547,6 +542,25 @@ describe('F3-b — v27 B3 names what triggers a publishing workflow and whether 
     expect(v27.score).toBe(1);
     expect(metricValue(v27, 'default_branch_ci_depth')).toBe(1);
     expect(criterion(name, V17, 'B3').notes).toBeUndefined();
+  });
+
+  // Item A of 13 Nov (refs #517): a publishing job that declares an environment is gated, so the
+  // workflow is counted as under v17, and the note keeps the F3-b clause after saying why.
+  it.each([
+    ['f3b-publish-push-main-environment-pypi', 'is triggered by push to main, and its publishing job declares the environment pypi.'],
+    [
+      'f3b-publish-release-and-dispatch-environment-mapping',
+      'is triggered by release and workflow_dispatch, and its publishing job declares the environment pypi.',
+    ],
+  ])('%s: a declared environment is a gate, so the workflow is counted and the note says why', (name, detail) => {
+    const v27 = criterion(name, V27, 'B3');
+    expect(v27.notes).toBe(
+      `.github/workflows/release.yml is counted as CI verification because every job that publishes, releases or deploys on every run declares an environment, a deployment gate whose protection rules Cejel cannot read offline; it ${detail}`,
+    );
+    const v17 = criterion(name, V17, 'B3');
+    expect(metricValue(v27, 'default_branch_ci_depth')).toBe(metricValue(v17, 'default_branch_ci_depth'));
+    expect(v27.score).toBe(v17.score);
+    expect(v27.status).toBe(v17.status);
   });
 });
 
@@ -1704,11 +1718,13 @@ describe('B2 and B3 never disagree about which workflows are credited (v27)', ()
       expect(b3Notes.startsWith(shared)).toBe(true);
       // #517 correction (2026-11-01): B3's own sentences are either the publishing exclusion or, for
       // a publishing workflow counted because a check runs before it publishes, a sentence saying
-      // so. Such a workflow is counted by both criteria, so the counts below still agree.
+      // so. Such a workflow is counted by both criteria, so the counts below still agree. Item A of
+      // 13 Nov: or a publishing workflow counted because every publishing job declares an
+      // environment, which both criteria count too.
       const publishingSentence = b3Notes.slice(shared.length).trim();
       if (publishingSentence !== '') {
         expect(publishingSentence).toMatch(
-          /^(?:\d+ workflows? that publish(?:es)?, releases? or deploys? with no pull-request trigger |\S+ is counted as CI verification because a check runs before it publishes)/,
+          /^(?:\d+ workflows? that publish(?:es)?, releases? or deploys? with no pull-request trigger |\S+ is counted as CI verification because (?:a check runs before it publishes|every job that publishes, releases or deploys on every run declares an environment))/,
         );
       }
       // The counts agree too: B2 credits every CI workflow file B3 does not set aside.
