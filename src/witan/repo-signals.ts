@@ -6912,7 +6912,7 @@ function collectB3CiDisciplineEvidence(
     ...checkedPublishingDetails,
     ...[...rootCheckedPublishingDetails].map(([file, detail]) => [`${file} at the monorepo root`, detail] as const),
   ]);
-  const b3Note = b3NoteWithCheckedPublishing(
+  const b3NoteBeforeUnreadCi = b3NoteWithCheckedPublishing(
     b3Uncredited.size > 0 ? (budget) => b3UncreditedWorkflowsNote(b3Uncredited, b3PublishingDetails, budget) : undefined,
     b3CheckedPublishing,
   );
@@ -6972,7 +6972,9 @@ function collectB3CiDisciplineEvidence(
             )
           : false),
     );
-  const b3Notes = publishingRuleEmptiedCount ? b3NoteWithUnreadCiConfigurations(b3Note, unreadCiConfigurations) : b3Note;
+  const b3Note = publishingRuleEmptiedCount
+    ? b3NoteWithUnreadCiConfigurations(b3NoteBeforeUnreadCi, unreadCiConfigurations)
+    : b3NoteBeforeUnreadCi;
 
   if (packageJson && scripts.has('test')) {
     evidence.push(evidenceForRelative(repoPath, packageJson, 'test_run', 'Test script'));
@@ -7162,7 +7164,7 @@ function collectB3CiDisciplineEvidence(
             : undefined,
       ),
     ],
-    ...(b3Notes !== undefined ? { notes: b3Notes } : {}),
+    ...(b3Note !== undefined ? { notes: b3Note } : {}),
     ...b3Disclosures(unshownCheckWorkflows, ...b3UncreditedDisclosures(b3Uncredited)),
   };
 }
