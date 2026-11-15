@@ -587,6 +587,14 @@ const LIMITATION_TABLE: ReadonlyArray<{
       `${m[1]} more ${m[1] === '1' ? 'limit' : 'limits'} on what was read ${m[1] === '1' ? 'is' : 'are'} not listed, because the report keeps at most 16; the certificate below has the full counts.`,
   },
   {
+    // Follow-up to #726: capScanLimitations (repo-signals.ts) leaves out collected limitations,
+    // which contentReadSummary does not count, so this line points to no part of the certificate.
+    key: 'limitations-capped-unlisted',
+    pattern: /^(\d+) additional disclosed scan limitation\(s\) omitted at the 16-entry cap; the report does not list them\.$/,
+    plain: (m) =>
+      `${m[1]} more ${m[1] === '1' ? 'limit' : 'limits'} on what was read ${m[1] === '1' ? 'is' : 'are'} not listed, because the report keeps at most 16; the report does not list ${m[1] === '1' ? 'it' : 'them'} anywhere else.`,
+  },
+  {
     key: 'shallow-history',
     pattern: new RegExp(`^${escapeRegExp(SHALLOW_HISTORY_LIMITATION)}$`),
     plain: () =>
@@ -737,6 +745,8 @@ function scanLimitationKind(report: WitanReport, limitation: string): PlainScanL
       return 'stated-limit';
     case 'limitations-capped':
       return 'capped';
+    case 'limitations-capped-unlisted':
+      return 'capped-unlisted';
     default:
       return 'other';
   }
