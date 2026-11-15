@@ -173,6 +173,21 @@ rubric is pinned. v27 carries no precision or recall claim.
 
 ### Fixed
 
+- **A scan with more than 16 scan limitations writes its report again, and keeps the
+  history-depth sentence (#719).** The history-depth sentence (a failed or unanswered depth check,
+  or an old git echoing the option back) was added before every later limitation, and the list
+  reached the report with no limit. The existing 16-entry trim did nothing to a list that already
+  held more than 16, so, for example, 16 other limitations plus the depth sentence made 17. The
+  report then failed its own schema (`scanLimitations`, at most 16) and no report was written. This
+  predates #718. The cap now holds where the report's list is assembled, under every rubric. The
+  first 15 entries are kept in their order, and the history-depth sentence is always one of them.
+  The 16th entry is the existing overflow sentence ("N additional disclosed scan limitation(s)
+  omitted at the 16-entry cap — see contentReadSummary for full counts."), and its count includes
+  every entry left out. Its wording is unchanged, although on this path `contentReadSummary` does
+  not hold the omitted entries. **Only scans that previously failed validation change.** A list of
+  16 or fewer runs through the same code as before, so every report that validated keeps the same
+  entries in the same order, and no score, status, finding, composite or verdict moves.
+
 - **A failed or timed-out git call no longer silently changes which evidence a scan reads (#574
   item 3).** On main, four calls let a timeout, an output limit or a failed run pass with nothing
   stated, so the same commit could give a different report on a loaded machine than on an idle

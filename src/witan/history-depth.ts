@@ -314,8 +314,24 @@ export function historyDepthFailureLimitation(answer: HistoryDepthAnswer): strin
   const failed =
     answer.failure !== undefined ? describeGitFailure(answer.failure, 'history-depth check') : HISTORY_DEPTH_NO_ANSWER;
   return answer.depth !== 'shallow' && answer.depth !== 'complete'
-    ? `${failed} Cejel could not read the history depth from the repository's files either.`
-    : `${failed} Cejel read the history depth from the repository's own shallow file, which is the file git reads to answer.`;
+    ? `${failed}${HISTORY_DEPTH_UNSETTLED_SUFFIX}`
+    : `${failed}${HISTORY_DEPTH_SETTLED_BY_FILES_SUFFIX}`;
+}
+
+const HISTORY_DEPTH_LIMITATION_PREFIX = 'Cejel: local git history-depth check ';
+const HISTORY_DEPTH_UNSETTLED_SUFFIX = " Cejel could not read the history depth from the repository's files either.";
+const HISTORY_DEPTH_SETTLED_BY_FILES_SUFFIX =
+  " Cejel read the history depth from the repository's own shallow file, which is the file git reads to answer.";
+
+/**
+ * #719: true for a sentence historyDepthFailureLimitation writes, in either of its two forms. The
+ * report's 16-entry cap keeps this sentence, since it states why the history was not read.
+ */
+export function isHistoryDepthFailureLimitation(entry: string): boolean {
+  return (
+    entry.startsWith(HISTORY_DEPTH_LIMITATION_PREFIX) &&
+    (entry.endsWith(HISTORY_DEPTH_UNSETTLED_SUFFIX) || entry.endsWith(HISTORY_DEPTH_SETTLED_BY_FILES_SUFFIX))
+  );
 }
 
 /** A filesystem error that proves the entry is not there (as opposed to unreadable). */
