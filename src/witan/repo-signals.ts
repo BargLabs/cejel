@@ -78,6 +78,7 @@ import {
   type HistoryDepthAnswer,
   historyDepthAbstentionReason,
   historyDepthFailureLimitation,
+  isHistoryDepthFailureLimitation,
   isHistoryDepthUnsettledByFailure,
   isShallowHistoryDepth,
   readHistoryDepthAnswer,
@@ -421,16 +422,32 @@ export function buildWitanInputFromRepo(options: BuildWitanInputOptions): WitanR
       );
       return wholesaleCriterionAbstention(signal, reasons);
     });
-    const scanLimitations = [...(tracked.value.scanLimitations ?? [])];
-    if (readFailureCriteria.length > 0 && scanLimitations.length < 16) {
-      scanLimitations.push(
-        `${readFailureCriteria.length} ${readFailureCriteria.length === 1 ? 'criterion' : 'criteria'} abstained because relevant repository content could not be read. Counts and errno classes are recorded in contentReadSummary; file paths are intentionally omitted.`,
+    const collected = tracked.value.scanLimitations ?? [];
+    const readFailureLimitation =
+      readFailureCriteria.length > 0
+        ? `${readFailureCriteria.length} ${readFailureCriteria.length === 1 ? 'criterion' : 'criteria'} abstained because relevant repository content could not be read. Counts and errno classes are recorded in contentReadSummary; file paths are intentionally omitted.`
+        : undefined;
+    const coverageLimitedLimitation =
+      coverageLimitedCriteria.length > 0
+        ? `${coverageLimitedCriteria.length} ${coverageLimitedCriteria.length === 1 ? 'criterion' : 'criteria'} abstained because relevant repository content was declined under the repository content size limit or excluded from scanning by policy — a disclosed coverage limit, not a read failure. This does not affect the composite score.`
+        : undefined;
+    let scanLimitations: string[];
+    if (collected.length > SCAN_LIMITATIONS_CAP) {
+      // #719: only a list that already broke the cap reaches here; it failed the report schema
+      // before. Every list of 16 or fewer takes the branch below, unchanged.
+      scanLimitations = capScanLimitations(
+        [...collected, readFailureLimitation, coverageLimitedLimitation].filter(
+          (entry): entry is string => entry !== undefined,
+        ),
       );
-    }
-    if (coverageLimitedCriteria.length > 0 && scanLimitations.length < 16) {
-      scanLimitations.push(
-        `${coverageLimitedCriteria.length} ${coverageLimitedCriteria.length === 1 ? 'criterion' : 'criteria'} abstained because relevant repository content was declined under the repository content size limit or excluded from scanning by policy — a disclosed coverage limit, not a read failure. This does not affect the composite score.`,
-      );
+    } else {
+      scanLimitations = [...collected];
+      if (readFailureLimitation !== undefined && scanLimitations.length < 16) {
+        scanLimitations.push(readFailureLimitation);
+      }
+      if (coverageLimitedLimitation !== undefined && scanLimitations.length < 16) {
+        scanLimitations.push(coverageLimitedLimitation);
+      }
     }
     return {
       ...tracked.value,
@@ -593,19 +610,23 @@ export function buildWitanInputFromRepo(options: BuildWitanInputOptions): WitanR
   // doesn't all fit turns that into a disclosed omission instead of a silent one — the D4 shape
   // this repository's own doctrine treats as a worse defect than the recall gap it would hide.
   const availableSlots = Math.max(0, 16 - scanLimitations.length);
-  if (candidateScanLimitations.length <= availableSlots) {
+  if (scanLimitations.length > SCAN_LIMITATIONS_CAP) {
+    // #719: the list arrived above the cap, which failed the report schema before. The cap holds
+    // here, over the collected list and these candidates together. Every list of 16 or fewer takes
+    // the branches below, unchanged.
+    const capped = capScanLimitations([...scanLimitations, ...candidateScanLimitations]);
+    scanLimitations.length = 0;
+    scanLimitations.push(...capped);
+  } else if (candidateScanLimitations.length <= availableSlots) {
     scanLimitations.push(...candidateScanLimitations);
   } else if (availableSlots > 0) {
     const keep = availableSlots - 1;
     scanLimitations.push(...candidateScanLimitations.slice(0, keep));
-    scanLimitations.push(
-      `${candidateScanLimitations.length - keep} additional disclosed scan limitation(s) omitted at the 16-entry cap — see contentReadSummary for full counts.`,
-    );
+    scanLimitations.push(scanLimitationsOverflowSentence(candidateScanLimitations.length - keep));
   }
-  // availableSlots === 0: the array arrived already at the cap from limitations recorded
-  // elsewhere in the pipeline before this function ran. There is no slot left even for a
-  // truncation notice; this is the schema's own hard boundary (scanLimitations.max(16)), not a
-  // gap this function can close on its own.
+  // availableSlots === 0 with exactly 16 collected: the array arrived at the cap from limitations
+  // recorded elsewhere in the pipeline before this function ran. There is no slot left even for a
+  // truncation notice, and the list as it stands validates, so it is kept as it was.
 
   return {
     ...tracked.value,
@@ -613,6 +634,36 @@ export function buildWitanInputFromRepo(options: BuildWitanInputOptions): WitanR
     ...(scanLimitations.length > 0 ? { scanLimitations } : {}),
     contentReadSummary: tracked.summary,
   };
+}
+
+/** The report schema's bound on scanLimitations (schemas.ts, max(16)). */
+const SCAN_LIMITATIONS_CAP = 16;
+
+/** The one overflow sentence the 16-entry cap writes, at every site that writes it. */
+function scanLimitationsOverflowSentence(omitted: number): string {
+  return `${omitted} additional disclosed scan limitation(s) omitted at the 16-entry cap — see contentReadSummary for full counts.`;
+}
+
+/**
+ * #719: `entries` held to the report schema's 16-entry cap, for a list that has more than 16. The
+ * first 15 entries are kept in their order, except that the history-depth sentence
+ * (historyDepthFailureLimitation) is always among them, since it states why the history was not
+ * read; the 16th entry is the overflow sentence with the count of entries left out. A list of 16 or
+ * fewer is returned as it is. The collectors add the depth sentence before any other limitation but
+ * the inventory's, so in a scan it is already among the first 15; keeping it does not depend on that.
+ */
+export function capScanLimitations(entries: readonly string[]): string[] {
+  if (entries.length <= SCAN_LIMITATIONS_CAP) return [...entries];
+  const keep = SCAN_LIMITATIONS_CAP - 1;
+  const kept = new Set<number>();
+  entries.forEach((entry, index) => {
+    if (kept.size < keep && isHistoryDepthFailureLimitation(entry)) kept.add(index);
+  });
+  for (let index = 0; index < entries.length && kept.size < keep; index += 1) kept.add(index);
+  return [
+    ...entries.filter((_, index) => kept.has(index)),
+    scanLimitationsOverflowSentence(entries.length - keep),
+  ];
 }
 
 // Maps content-reads.ts's withheldRepoPaths() into the report.json shape. registerWithheldRepoPath
