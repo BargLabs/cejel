@@ -1,10 +1,14 @@
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { platform } from 'node:process';
 
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
+import { extractFirstPage, firstPageReadableText } from '../../__tests__/plain-first-page-helpers.js';
+import { buildPlainSummary } from '../../plain-summary.js';
+import { renderWitanHtmlReport } from '../html.js';
 import { scoreRepoWithPublicCejel } from '../public-scan.js';
 import {
   WITAN_RUBRIC_VERSION_V17,
@@ -73,8 +77,20 @@ const DEPTH_TIMEOUT =
   "Cejel: local git history-depth check exceeded the 30 second timeout. Cejel read the history depth from the repository's own shallow file, which is the file git reads to answer.";
 const DEPTH_ECHO =
   "Cejel: local git history-depth check gave no answer (git printed neither true nor false). Cejel read the history depth from the repository's own shallow file, which is the file git reads to answer.";
+// #726 follow-up: where capScanLimitations leaves entries out, they are collected limitations (git
+// failures, scan notes), with any content-read candidates after them. contentReadSummary counts
+// skipped file reads only, so the sentence points to no field for them.
 const overflow = (omitted: number) =>
+  `${omitted} additional disclosed scan limitation(s) omitted at the 16-entry cap; the report does not list them.`;
+// The content-read candidate path keeps the original sentence: every entry it leaves out is a
+// candidate built from the skipped reads contentReadSummary counts.
+const candidateOverflow = (omitted: number) =>
   `${omitted} additional disclosed scan limitation(s) omitted at the 16-entry cap — see contentReadSummary for full counts.`;
+const PLAIN_UNLISTED = (omitted: number) =>
+  `${omitted} more limits on what was read are not listed, because the report keeps at most 16; the report does not list them anywhere else.`;
+const PLAIN_CANDIDATE = (omitted: number) =>
+  `${omitted} more limits on what was read are not listed, because the report keeps at most 16; the certificate below has the full counts.`;
+const FULL_COUNTS_CLAIM = 'the certificate below has the full counts';
 const synthetic = (count: number) =>
   Array.from({ length: count }, (_, index) => `Synthetic scan limitation ${index + 1} for the #719 cap fixture.`);
 
@@ -102,11 +118,16 @@ afterAll(() => {
   rmSync(repo, { recursive: true, force: true });
 });
 
-function scan(rubricVersion: string, shallowCheck: 'timeout' | 'echo' | null, others: number): WitanReport {
+function scan(
+  rubricVersion: string,
+  shallowCheck: 'timeout' | 'echo' | null,
+  others: number,
+  repoPath: string = repo,
+): WitanReport {
   injected.shallowCheck = shallowCheck;
   injected.syntheticLimitations = synthetic(others);
   const report = scoreRepoWithPublicCejel({
-    repoPath: repo,
+    repoPath,
     productSlug: 'cap-fixture',
     productDisplayName: 'Cap fixture',
     generatedAt: '2026-11-15T00:00:00.000Z',
@@ -139,5 +160,92 @@ describe('#719: the 16-entry cap holds where the report list is assembled, and k
   it.each(RUBRICS)('17 other limitations and no depth sentence: the first 15 and the overflow sentence (%s)', (rubricVersion) => {
     const report = scan(rubricVersion, null, 17);
     expect(report.scanLimitations).toEqual([...synthetic(15), overflow(2)]);
+  });
+});
+
+function firstPageText(report: WitanReport): string {
+  const html = renderWitanHtmlReport(report, { cliVersion: '0.0.0', generatedAt: '2026-11-15T00:00:00.000Z' });
+  return firstPageReadableText(extractFirstPage(html));
+}
+
+const cappedCheckKeys = (report: WitanReport) =>
+  buildPlainSummary(report)
+    .checkNext.filter(({ key }) => key.startsWith('scan-limitation:capped'))
+    .map(({ key, text }) => ({ key, text }));
+
+describe('#726 follow-up: the overflow sentence points to contentReadSummary only where that field holds the omitted entries', () => {
+  it.each(RUBRICS)('over the cap from collected limitations: the plain first page says the report does not list them (%s)', (rubricVersion) => {
+    const report = scan(rubricVersion, 'timeout', 16);
+    expect(report.scanLimitations?.at(-1)).toBe(overflow(2));
+    const notKnown = buildPlainSummary(report).notKnown.map(({ text }) => text);
+    expect(notKnown).toContain(PLAIN_UNLISTED(2));
+    expect(notKnown.join('\n')).not.toContain(FULL_COUNTS_CLAIM);
+    const checks = cappedCheckKeys(report);
+    expect(checks.map(({ key }) => key)).toEqual(['scan-limitation:capped-unlisted']);
+    expect(checks[0]?.text).not.toMatch(/certificate below/);
+    const page = firstPageText(report);
+    expect(page).toContain(PLAIN_UNLISTED(2));
+    expect(page).not.toContain(FULL_COUNTS_CLAIM);
+  });
+
+  // chmod-based unreadable files do not deny access to root, or on Windows.
+  const canDenyReadAccess = platform !== 'win32' && process.getuid?.() !== 0;
+
+  describe.skipIf(!canDenyReadAccess)('the content-read candidate path', () => {
+    let candidateRepo = '';
+
+    beforeAll(() => {
+      // Two content-read candidates under v23: A1's coverage file cannot be read (a per-signal read
+      // failure) and A3's health-route file is over the content size limit (a per-signal large file).
+      candidateRepo = mkdtempSync(join(tmpdir(), 'cejel-719-candidates-'));
+      const git = (...args: string[]) => execFileSync('git', args, { cwd: candidateRepo, stdio: 'ignore' });
+      git('init', '--quiet');
+      git('config', 'user.email', 'test@example.com');
+      git('config', 'user.name', 'Test');
+      git('config', 'commit.gpgsign', 'false');
+      const healthRoute =
+        'export function health(request, response) {\n' +
+        "  if (request.url === '/healthz') return response.end('ok');\n" +
+        "  if (request.url === '/readyz') return response.end('ready');\n" +
+        '}\n';
+      const files: Record<string, string> = {
+        'package.json': '{"name":"candidate-fixture","scripts":{"start":"node src/main.js","test":"vitest run"}}\n',
+        'src/main.js':
+          "import http from 'node:http';\n" +
+          'http.createServer((request, response) => response.end(request.method)).listen(5300);\n',
+        'src/main.test.js': "import { expect, it } from 'vitest';\nit('runs', () => expect(1).toBe(1));\n",
+        'src/health.js': healthRoute + '// '.padEnd(512_001 - healthRoute.length, 'x') + '\n',
+        'coverage.json': JSON.stringify({ total: { lines: { pct: 92 } } }),
+      };
+      for (const [path, contents] of Object.entries(files)) {
+        mkdirSync(dirname(join(candidateRepo, path)), { recursive: true });
+        writeFileSync(join(candidateRepo, path), contents);
+      }
+      git('add', '.');
+      git('commit', '--quiet', '-m', 'fixture');
+      chmodSync(join(candidateRepo, 'coverage.json'), 0o000);
+    }, 60_000);
+
+    afterAll(() => {
+      if (!candidateRepo) return;
+      chmodSync(join(candidateRepo, 'coverage.json'), 0o644);
+      rmSync(candidateRepo, { recursive: true, force: true });
+    });
+
+    it('15 collected limitations and four candidates: the original sentence, translation and check-next line', () => {
+      // Alone, the fixture yields four content-read candidates (a wholesale read failure, a
+      // wholesale coverage limit, A1's unreadable signal and A3's large-file signals), all built from
+      // the skipped reads contentReadSummary counts. After 15 collected limitations one slot is left,
+      // so all four are left out and the slot holds the original sentence.
+      const alone = scan(WITAN_RUBRIC_VERSION_V23, null, 0, candidateRepo);
+      expect(alone.scanLimitations).toHaveLength(4);
+      const report = scan(WITAN_RUBRIC_VERSION_V23, null, 15, candidateRepo);
+      expect(report.contentReadSummary?.byReason.unreadable).toBe(1);
+      expect(report.contentReadSummary?.byReason.tooLarge).toBe(1);
+      expect(report.scanLimitations).toEqual([...synthetic(15), candidateOverflow(4)]);
+      expect(buildPlainSummary(report).notKnown.map(({ text }) => text)).toContain(PLAIN_CANDIDATE(4));
+      expect(cappedCheckKeys(report).map(({ key }) => key)).toEqual(['scan-limitation:capped']);
+      expect(firstPageText(report)).toContain(PLAIN_CANDIDATE(4));
+    });
   });
 });
