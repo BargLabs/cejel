@@ -639,18 +639,32 @@ export function buildWitanInputFromRepo(options: BuildWitanInputOptions): WitanR
 /** The report schema's bound on scanLimitations (schemas.ts, max(16)). */
 const SCAN_LIMITATIONS_CAP = 16;
 
-/** The one overflow sentence the 16-entry cap writes, at every site that writes it. */
+/**
+ * The overflow sentence for the content-read candidate path only: every entry it leaves out is a
+ * candidate built from the skipped reads contentReadSummary counts, so it points there.
+ */
 function scanLimitationsOverflowSentence(omitted: number): string {
   return `${omitted} additional disclosed scan limitation(s) omitted at the 16-entry cap — see contentReadSummary for full counts.`;
+}
+
+/**
+ * The overflow sentence capScanLimitations writes. The entries it leaves out are collected
+ * limitations (git failures and other scan notes), with any content-read candidates after them;
+ * contentReadSummary counts skipped file reads only and holds none of the collected ones, so the
+ * sentence points to no field (follow-up to #726).
+ */
+function unlistedScanLimitationsOverflowSentence(omitted: number): string {
+  return `${omitted} additional disclosed scan limitation(s) omitted at the 16-entry cap; the report does not list them.`;
 }
 
 /**
  * #719: `entries` held to the report schema's 16-entry cap, for a list that has more than 16. The
  * first 15 entries are kept in their order, except that the history-depth sentence
  * (historyDepthFailureLimitation) is always among them, since it states why the history was not
- * read; the 16th entry is the overflow sentence with the count of entries left out. A list of 16 or
- * fewer is returned as it is. The collectors add the depth sentence before any other limitation but
- * the inventory's, so in a scan it is already among the first 15; keeping it does not depend on that.
+ * read; the 16th entry is the overflow sentence with the count of entries left out, which says the
+ * report does not list them. A list of 16 or fewer is returned as it is. The collectors add the depth
+ * sentence before any other limitation but the inventory's, so in a scan it is already among the
+ * first 15; keeping it does not depend on that.
  */
 export function capScanLimitations(entries: readonly string[]): string[] {
   if (entries.length <= SCAN_LIMITATIONS_CAP) return [...entries];
@@ -662,7 +676,7 @@ export function capScanLimitations(entries: readonly string[]): string[] {
   for (let index = 0; index < entries.length && kept.size < keep; index += 1) kept.add(index);
   return [
     ...entries.filter((_, index) => kept.has(index)),
-    scanLimitationsOverflowSentence(entries.length - keep),
+    unlistedScanLimitationsOverflowSentence(entries.length - keep),
   ];
 }
 

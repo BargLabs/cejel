@@ -173,6 +173,21 @@ rubric is pinned. v27 carries no precision or recall claim.
 
 ### Fixed
 
+- **Where the 16-entry cap leaves collected limitations out, its sentence no longer points to
+  `contentReadSummary` (follow-up to #726, #719).** #726 reused the existing overflow sentence
+  ("… — see contentReadSummary for full counts.") where the report's list is assembled. The entries
+  left out there are collected limitations, such as git failures and other scan notes, with any
+  content-read limitations after them. `contentReadSummary` counts skipped file reads only and holds
+  none of the collected ones. That sentence now reads "N additional disclosed scan limitation(s)
+  omitted at the 16-entry cap; the report does not list them." The plain first page says the same
+  ("the report does not list them anywhere else"), not "the certificate below has the full counts",
+  and its check-next line does not point to the certificate. Where the cap leaves out only
+  content-read limitations, whose counts `contentReadSummary` holds, the sentence, its plain
+  translation and its check-next line are unchanged. **Only scans whose list went over the cap from
+  collected limitations change, and before #726 those scans wrote no report.** Every other report,
+  plain first page included, is byte-identical under every rubric, and no score, status, finding,
+  composite or verdict moves.
+
 - **A scan with more than 16 scan limitations writes its report again, and keeps the
   history-depth sentence (#719).** The history-depth sentence (a failed or unanswered depth check,
   or an old git echoing the option back) was added before every later limitation, and the list

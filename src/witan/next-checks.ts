@@ -78,10 +78,19 @@ export const PLAIN_READ_GAP_QUALIFIERS = [
  * What a scan limitation's check-next line follows (#654 review, should-fix 4): its own cause, from
  * its table entry in plain-summary.ts (LIMITATION_TABLE). Files that could not be read are narrowed
  * to unreadable files or Git LFS pointers when the report ties only that cause to them; a size limit
- * or rule is a stated limit; 'capped' is the line that says more limits were not listed; 'other' is
- * a limitation no entry knows, which takes the general line.
+ * or rule is a stated limit; 'capped' is the line that says more limits were not listed and the
+ * certificate counts them; 'capped-unlisted' says more were not listed and the report holds them
+ * nowhere (follow-up to #726); 'other' is a limitation no entry knows, which takes the general line.
  */
-export const PLAIN_SCAN_LIMITATION_KINDS = ['unreadable', 'lfs', 'read-failure', 'stated-limit', 'capped', 'other'] as const;
+export const PLAIN_SCAN_LIMITATION_KINDS = [
+  'unreadable',
+  'lfs',
+  'read-failure',
+  'stated-limit',
+  'capped',
+  'capped-unlisted',
+  'other',
+] as const;
 export type PlainScanLimitationKind = (typeof PLAIN_SCAN_LIMITATION_KINDS)[number];
 
 /**
@@ -230,6 +239,8 @@ const NEXT_CHECKS: Readonly<Record<string, string>> = {
     'Nothing in the repository needs fixing for this limit: Cejel sets it on what it reads. If the files it left out matter, look at them yourself.',
   'scan-limitation:capped':
     'The certificate below counts every skipped file by cause; look there for the limits not listed here.',
+  'scan-limitation:capped-unlisted':
+    'The report does not list the limits left out at its cap of 16. Fix the limits listed here that you can, then scan again: the list then has room for the ones left out.',
   'history-limitation': `To see results over the whole history, ${FULL_CLONE} and compare.`,
   'disclosure:placeholder-set-aside':
     'Look at the values listed in the certificate below and confirm they are examples, not real credentials.',
