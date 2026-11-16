@@ -1,6 +1,6 @@
 # ADR-0001: Coverage is disclosed, never discounted — and may later withhold a score
 
-**Status:** Accepted (four operator rulings recorded at the end: three of 2026-10-22, on v27 shallow-clone abstentions, #556's abstention, and its two further causes from #560's review; and one of 2026-10-23, on a `.git` that git cannot open; a 2026-10-28 note records where the v27 freeze change F1 departs from the first two, awaiting the operator's confirmation; and the 2026-11-02 ruling, under which history Cejel could not read gives no composite and no verdict under every rubric, with a note on what the Forces figures measure)
+**Status:** Accepted (four operator rulings recorded at the end: three of 2026-10-22, on v27 shallow-clone abstentions, #556's abstention, and its two further causes from #560's review; and one of 2026-10-23, on a `.git` that git cannot open; a 2026-10-28 note records where the v27 freeze change F1 departs from the first two, awaiting the operator's confirmation; and the 2026-11-02 ruling, under which history Cejel could not read gives no composite and no verdict under every rubric, with a note on what the Forces figures measure; and the 2026-11-16 ruling, under which Phase 3 lands without a holdout, by the correctness-only rule)
 **Date:** 2026-08-02
 **Deciders:** Houman Azimi
 **Supersedes:** nothing. First ADR in this repository.
@@ -467,3 +467,43 @@ detection recall or detection precision. Cycle 13 measured those for v17, in the
 recall: 41.1% (95% CI 20.6–67.8%)" and "Detection precision 64.3% (95% CI 38.4–87.6%)". That file
 explains how the two precision figures count different things, and says the gap between them is
 not yet explained.
+
+## Operator ruling (2026-11-16): Phase 3 lands without a holdout, by the correctness-only rule (#555)
+
+Recorded by an AI agent (Claude Opus 5.5, Claude Code) in #555, at the operator's instruction. The
+operator chose to amend this ADR, rather than retire Phase 3 or leave it parked. The agent drafted
+the gate below; it is the operative position once the operator merges this change. The Decision,
+Consequences and Action items above are left as written: this ruling replaces their holdout
+requirement.
+
+**Why.** The Decision above says "Landing Phase 3 requires re-running the 200-repository holdout",
+and Consequences calls that coupling non-negotiable. On 2026-10-22 the operator directed that no new
+holdout will run ("accept, no new holdouts", accepting the 2026-10-21 ruling in
+[`docs/reviews/v27-false-assurance-closure-2026-10-19.md`](../reviews/v27-false-assurance-closure-2026-10-19.md),
+#526). As written, Phase 3 could therefore never land.
+
+**What replaces the holdout.** Phase 3 may land without a holdout when all of the following hold.
+Parts 2 to 5 are the correctness-only rule of the 2026-10-21 ruling, applied to withholding.
+
+1. **Withholding only removes assertions.** Below the floor a certificate gets no composite and no
+   verdict, with an `Unrated:` label and a reason, as the 2026-11-02 ruling does for history Cejel
+   could not read. No score, status or composite is ever raised, and no criterion's evidence or
+   note changes. A rubric whose results it changes on a complete clone takes a new rubric
+   identifier, as `leaderboard/RUBRIC_CHANGELOG.md` requires of any scoring change.
+2. **The floor is preregistered** from the Phase 2 distribution before any certificate is scored
+   with it, and the preregistration commit stays a strict ancestor of the result commit.
+3. **A measured before/after** on the behaviour corpus, the calibration anchors, the regression
+   fixtures and the public board shows no score, status or composite rising, and names every row
+   that loses its composite.
+4. **An independent adversarial review**, not by the author, found no rise.
+5. **The rubric changelog carries the tables.**
+
+**The published accuracy figures.** In place of the re-run, the figures stay attached to what they
+measured: v17's finding-level agreement on the July free-core holdout (see the 2026-11-02 note on
+the 96.43%). Wherever they are cited after Phase 3 lands, they carry a note that Phase 3 changed
+which repositories receive a composite and that the holdout was not re-run, so they are not
+restated for the rubric that withholds. A certificate withheld under the floor carries no composite,
+so no figure applies to it.
+
+**What it does not change.** Phases 1 and 2 are unchanged, and nothing implements Phase 3 today, so
+no current certificate moves. "Coverage never discounts a score" stands.
