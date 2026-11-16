@@ -22,8 +22,8 @@ key names, nested/dynamic schema construction, YAML anchors, framework-consumed 
 config, reflection, or code outside the resolved local JavaScript/TypeScript graph.
 
 > **Deprecated (#419).** D-series detection was retired on 2026-08-02; these rules are a
-> taxonomy, not a production detector. The `@cejel/cejel/d-series` package subpath is deprecated
-> and will be removed in 0.7.0. This contract is kept as the rule's definition.
+> taxonomy, not a production detector. The `@cejel/cejel/d-series` package subpath was removed
+> in 0.7.0 (#423). This contract is kept as the rule's definition.
 
 This is a separate opt-in D-series pack entrypoint (`@cejel/cejel/d-series`). It does not feed the
 A1-B6 Witan rubric, alter certificate scores, or change the published leaderboard. The historical

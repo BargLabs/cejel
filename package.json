@@ -38,7 +38,6 @@
     "cejel-mcp": "dist/mcp/index.js"
   },
   "exports": {
-    "./d-series": "./dist/packs/d-series/index.js",
     "./decision-contracts": "./dist/packs/decision-contracts/index.js"
   },
   "files": [
@@ -56,12 +55,12 @@
     "build:sea-js": "tsup --config tsup.public-sea.config.ts",
     "check:dev-environment": "node scripts/assert-dev-environment.mjs --phase=verify",
     "audit:path-emission": "node --test scripts/criterion-path-emission-audit.node-test.mjs",
-    "gate:d1": "pnpm run build && node scripts/d1-precision-gate.mjs",
-    "gate:d2": "pnpm run build && node scripts/d2-precision-gate.mjs",
-    "gate:d3": "pnpm run build && node scripts/d3-precision-gate.mjs",
-    "gate:d4": "pnpm run build && node scripts/d4-precision-gate.mjs",
-    "gate:d5": "pnpm run build && node scripts/d5-precision-gate.mjs",
-    "gate:d6": "pnpm run build && node scripts/d6-precision-gate.mjs",
+    "gate:d1": "node --import tsx scripts/d1-precision-gate.mjs",
+    "gate:d2": "node --import tsx scripts/d2-precision-gate.mjs",
+    "gate:d3": "node --import tsx scripts/d3-precision-gate.mjs",
+    "gate:d4": "node --import tsx scripts/d4-precision-gate.mjs",
+    "gate:d5": "node --import tsx scripts/d5-precision-gate.mjs",
+    "gate:d6": "node --import tsx scripts/d6-precision-gate.mjs",
     "sbom:generate": "node scripts/sbom/generate-bundle-sbom.mjs",
     "sbom:check": "node scripts/sbom/check-sbom-inventory.mjs",
     "test:sbom": "node --test scripts/sbom/sbom.node-test.mjs",

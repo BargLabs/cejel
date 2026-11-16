@@ -10,7 +10,7 @@ import {
 } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
 
-import { scanUnassertedSetTransforms } from '../dist/packs/d-series/index.js';
+import { scanUnassertedSetTransforms } from '../src/packs/d-series/index.ts';
 
 const repoRoot = resolve(new URL('..', import.meta.url).pathname);
 const args = new Map();
