@@ -49,9 +49,19 @@ const CHILD = fileURLToPath(new URL('./fixtures/scan-repo-child.ts', import.meta
 // in code every rubric shares is still caught. The hard kill is wider only to absorb child start-up
 // (loading TypeScript through tsx) on a loaded CI runner; before the fix, neither fixture finishes
 // inside the kill window at all.
+//
+// A sample over its budget is not yet a failure (cejel #714, operator ruling 2026-11-16). In CI's
+// parallel suite the v27 scan and its v17 baseline run at different moments of suite load, and the
+// 200,000-line pytestmark case went over by 3 to 6 percent on unchanged code (v27/v17 about 3.1 to
+// 3.25 on CI, about 2.15 in isolation). So the guard then takes BUDGET_SAMPLES - 1 more samples,
+// each a fresh scan and, for rubrics other than v17, a fresh v17 baseline, and fails when the
+// median sample is over its budget, that is, when most samples are. The budget and the ratio are
+// unchanged. A real stall or super-linear reader is over budget on every sample, so it still fails
+// (the check below holds that), and a sample within budget is never re-measured.
 const SCAN_BUDGET_MS = 2_000;
 const V17_RATIO_LIMIT = 3;
 const KILL_AFTER_MS = 20_000;
+const BUDGET_SAMPLES = 3;
 
 function makeRepo(files: Readonly<Record<string, string>>): string {
   const repo = mkdtempSync(join(tmpdir(), 'cejel-scan-path-bounds-'));
@@ -95,23 +105,57 @@ function scanInChild(repo: string, rubricVersion: string, standIn: Readonly<Reco
   return JSON.parse(result.stdout) as ChildScan;
 }
 
-/** The budget a scan under `rubricVersion` is held to (see SCAN_BUDGET_MS), with the reason. */
+interface BudgetSample {
+  readonly elapsedMs: number;
+  readonly allowedMs: number;
+  readonly reading: string;
+}
+
+/** The budget one scan under `rubricVersion` is held to (see SCAN_BUDGET_MS), with the reason. */
+function budgetSample(
+  scan: ChildScan,
+  rubricVersion: string,
+  repo: string,
+  baselineStandIn: Readonly<Record<string, string>>,
+): BudgetSample {
+  if (rubricVersion === WITAN_RUBRIC_VERSION_V17) {
+    return {
+      elapsedMs: scan.elapsedMs,
+      allowedMs: SCAN_BUDGET_MS,
+      reading: `v17 ${Math.round(scan.elapsedMs)} ms against ${SCAN_BUDGET_MS} ms`,
+    };
+  }
+  const baseline = scanInChild(repo, WITAN_RUBRIC_VERSION_V17, baselineStandIn);
+  const allowedMs = Math.max(SCAN_BUDGET_MS, V17_RATIO_LIMIT * baseline.elapsedMs);
+  return {
+    elapsedMs: scan.elapsedMs,
+    allowedMs,
+    reading: `${Math.round(scan.elapsedMs)} ms against ${Math.round(allowedMs)} ms (v17 on this runner ${Math.round(baseline.elapsedMs)} ms)`,
+  };
+}
+
+/**
+ * Holds `scan` to its budget. A first sample within budget passes; one over it is re-measured
+ * BUDGET_SAMPLES - 1 more times, and the median sample decides (see BUDGET_SAMPLES).
+ */
 function expectWithinBudget(
   scan: ChildScan,
   rubricVersion: string,
   repo: string,
   baselineStandIn: Readonly<Record<string, string>> = {},
+  scanStandIn: Readonly<Record<string, string>> = {},
 ): void {
-  if (rubricVersion === WITAN_RUBRIC_VERSION_V17) {
-    expect(scan.elapsedMs, `v17 ${Math.round(scan.elapsedMs)} ms`).toBeLessThan(SCAN_BUDGET_MS);
-    return;
+  const first = budgetSample(scan, rubricVersion, repo, baselineStandIn);
+  if (first.elapsedMs < first.allowedMs) return;
+  const samples = [first];
+  while (samples.length < BUDGET_SAMPLES) {
+    samples.push(budgetSample(scanInChild(repo, rubricVersion, scanStandIn), rubricVersion, repo, baselineStandIn));
   }
-  const baseline = scanInChild(repo, WITAN_RUBRIC_VERSION_V17, baselineStandIn);
-  const allowed = Math.max(SCAN_BUDGET_MS, V17_RATIO_LIMIT * baseline.elapsedMs);
+  const shares = samples.map((sample) => sample.elapsedMs / sample.allowedMs).sort((a, b) => a - b);
   expect(
-    scan.elapsedMs,
-    `${Math.round(scan.elapsedMs)} ms against ${Math.round(allowed)} ms (v17 on this runner ${Math.round(baseline.elapsedMs)} ms)`,
-  ).toBeLessThan(allowed);
+    shares[Math.floor(shares.length / 2)],
+    `median of ${samples.length} samples over budget: ${samples.map((sample) => sample.reading).join('; ')}`,
+  ).toBeLessThan(1);
 }
 
 const PATHOLOGICAL_SCRIPT_NAME = `${'a'.repeat(40)}!`;
@@ -541,10 +585,21 @@ describe('timing guards: the relative budget itself (cejel #561)', () => {
 
   it('admits a v27 scan past the absolute budget when the same runner is that slow for v17 too', () => {
     const repo = makeRepo(SELECTOR_FIXTURE);
-    const scan = scanInChild(repo, WITAN_RUBRIC_VERSION_V27, { CEJEL_SCAN_CHILD_DELAY_MS: String(SCAN_BUDGET_MS + 200) });
+    const slowScan = { CEJEL_SCAN_CHILD_DELAY_MS: String(SCAN_BUDGET_MS + 200) };
+    const scan = scanInChild(repo, WITAN_RUBRIC_VERSION_V27, slowScan);
     expect(scan.elapsedMs).toBeGreaterThan(SCAN_BUDGET_MS);
-    expectWithinBudget(scan, WITAN_RUBRIC_VERSION_V27, repo, { CEJEL_SCAN_CHILD_DELAY_MS: '1000' });
+    expectWithinBudget(scan, WITAN_RUBRIC_VERSION_V27, repo, { CEJEL_SCAN_CHILD_DELAY_MS: '1000' }, slowScan);
   }, KILL_AFTER_MS + 10_000);
+
+  // cejel #714: re-measuring an over-budget sample must not let a scan that is slow every time pass.
+  it('still rejects a v27 scan that is over budget on every sample, after re-measuring it', () => {
+    const repo = makeRepo(SELECTOR_FIXTURE);
+    const slowScan = { CEJEL_SCAN_CHILD_DELAY_MS: String(SCAN_BUDGET_MS + 1_500) };
+    const scan = scanInChild(repo, WITAN_RUBRIC_VERSION_V27, slowScan);
+    expect(() => expectWithinBudget(scan, WITAN_RUBRIC_VERSION_V27, repo, {}, slowScan)).toThrow(
+      new RegExp(`median of ${BUDGET_SAMPLES} samples over budget`),
+    );
+  }, 2 * KILL_AFTER_MS + 10_000);
 });
 
 describe('scaling: the ratio check itself (cejel #642)', () => {
