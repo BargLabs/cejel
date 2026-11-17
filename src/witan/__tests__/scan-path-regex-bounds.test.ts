@@ -58,8 +58,15 @@ const CHILD = fileURLToPath(new URL('./fixtures/scan-repo-child.ts', import.meta
 // median sample is over its budget, that is, when most samples are. The budget and the ratio are
 // unchanged. A real stall or super-linear reader is over budget on every sample, so it still fails
 // (the check below holds that), and a sample within budget is never re-measured.
+//
+// The ratio is 4, not 3 (cejel #714, operator ruling 2026-11-17). With the median in place, the
+// 200,000-line pytestmark case still failed 5 of 6 CI runs on 2026-11-17 between 04:30 and 08:00
+// UTC: all eleven over-budget samples were 3.26 to 3.48 times the v17 baseline taken beside them,
+// 2,042 to 2,204 ms against v17 at 600 to 657 ms, on unchanged code. A limit of 4 leaves about 15
+// percent above the highest of those. A regex stall or super-linear reader is still far above it,
+// and the absolute budget and v17's own budget are unchanged.
 const SCAN_BUDGET_MS = 2_000;
-const V17_RATIO_LIMIT = 3;
+const V17_RATIO_LIMIT = 4;
 const KILL_AFTER_MS = 20_000;
 const BUDGET_SAMPLES = 3;
 
@@ -572,12 +579,14 @@ function scalingInputs<T>(build: (length: number) => T): (length: number) => T {
 }
 
 describe('timing guards: the relative budget itself (cejel #561)', () => {
-  // The guards above hold every rubric but v17 to the larger of SCAN_BUDGET_MS and three times a v17
-  // scan on the same runner. These two runs show that budget can still fail, and that it moves with
-  // the runner: the stand-in delay is added inside the child's timed span.
+  // The guards above hold every rubric but v17 to the larger of SCAN_BUDGET_MS and V17_RATIO_LIMIT
+  // times a v17 scan on the same runner. These two runs show that budget can still fail, and that it
+  // moves with the runner: the stand-in delay is added inside the child's timed span. The rejected
+  // scan's delay is SCAN_BUDGET_MS + 1,500 ms so that it stays over four times this small fixture's
+  // v17 scan on a slow runner (it was + 500 ms while the ratio was 3).
   it('rejects a v27 scan that alone takes far longer than the absolute budget', () => {
     const repo = makeRepo(SELECTOR_FIXTURE);
-    const scan = scanInChild(repo, WITAN_RUBRIC_VERSION_V27, { CEJEL_SCAN_CHILD_DELAY_MS: String(SCAN_BUDGET_MS + 500) });
+    const scan = scanInChild(repo, WITAN_RUBRIC_VERSION_V27, { CEJEL_SCAN_CHILD_DELAY_MS: String(SCAN_BUDGET_MS + 1_500) });
     const baseline = scanInChild(repo, WITAN_RUBRIC_VERSION_V17);
     const allowed = Math.max(SCAN_BUDGET_MS, V17_RATIO_LIMIT * baseline.elapsedMs);
     expect(scan.elapsedMs, `${Math.round(scan.elapsedMs)} ms against ${Math.round(allowed)} ms`).toBeGreaterThan(allowed);
