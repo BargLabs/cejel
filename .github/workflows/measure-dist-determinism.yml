@@ -67,7 +67,7 @@ jobs:
             (cd "$dist" && find . -type f -print0 | LC_ALL=C sort -z | xargs -0 sha256sum) > "$RUNNER_TEMP/files-$arch.txt"
             tree="$(sha256sum < "$RUNNER_TEMP/files-$arch.txt" | cut -c1-64)"
             echo "$CONDITION $RUN $arch tree $tree" >> "$rec"
-            grep -E ' \./(calibration/llm-detector\.js|packs/d-series/index\.js|packs/decision-contracts/index\.js)$' \
+            grep -E ' \./(calibration/llm-detector\.js|packs/decision-contracts/index\.js)$' \
               "$RUNNER_TEMP/files-$arch.txt" | while read -r h f; do echo "$CONDITION $RUN $arch file $h $f" >> "$rec"; done
           done
           cat "$rec"

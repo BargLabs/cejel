@@ -13,7 +13,7 @@ import { basename, join, resolve } from 'node:path';
 import {
   detectUnobservedControls,
   scanUnobservedControls,
-} from '../dist/packs/d-series/index.js';
+} from '../src/packs/d-series/index.ts';
 
 const repoRoot = resolve(new URL('..', import.meta.url).pathname);
 const args = new Map();

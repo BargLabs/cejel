@@ -22,8 +22,8 @@ callers that preserve or inspect failure. It makes no claim about the general D4
 statically decidable.
 
 > **Deprecated (#419).** D-series detection was retired on 2026-08-02; these rules are a
-> taxonomy, not a production detector. The `@cejel/cejel/d-series` package subpath is deprecated
-> and will be removed in 0.7.0. This contract is kept as the rule's definition.
+> taxonomy, not a production detector. The `@cejel/cejel/d-series` package subpath was removed
+> in 0.7.0 (#423). This contract is kept as the rule's definition.
 
 The rule is exported only from the opt-in `@cejel/cejel/d-series` entrypoint. It does not feed the
 A1-B6 Witan rubric, alter certificate scores, or change the published leaderboard. The additional
