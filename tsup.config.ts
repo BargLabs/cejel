@@ -13,7 +13,6 @@ export default defineConfig({
     'src/index.ts',
     'src/calibration/llm-detector.ts',
     'src/mcp/index.ts',
-    'src/packs/d-series/index.ts',
     'src/packs/decision-contracts/index.ts',
   ],
   format: ['esm'],

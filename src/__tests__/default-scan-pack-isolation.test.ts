@@ -8,8 +8,9 @@ import {
   toModuleGraphRepoPath,
 } from '../typescript-module-graph.js';
 
-// The d-series and decision-contracts packs are opt-in: reachable only by importing
-// '@cejel/cejel/d-series' or '@cejel/cejel/decision-contracts' directly. Neither is calibrated,
+// The d-series and decision-contracts packs are opt-in. The d-series pack is no longer published
+// (#423) and only the precision-gate scripts load it; decision-contracts is reachable only by
+// importing '@cejel/cejel/decision-contracts' directly. Neither is calibrated,
 // and neither may ever be pulled into `cejel scan` (src/index.ts), the shared scan core
 // (src/scan.ts), or the sealed public-scan path (src/witan/public-scan.ts) that both the CLI and
 // every published leaderboard row share. A future edit that adds so much as an unused import from

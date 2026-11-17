@@ -10,7 +10,7 @@ import {
 } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
 
-import { scanSwallowedErrors } from '../dist/packs/d-series/index.js';
+import { scanSwallowedErrors } from '../src/packs/d-series/index.ts';
 
 const repoRoot = resolve(new URL('..', import.meta.url).pathname);
 const args = new Map();

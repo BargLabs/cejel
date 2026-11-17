@@ -171,6 +171,18 @@ rubric is pinned. v27 carries no precision or recall claim.
   - v17 and every other rubric are unchanged. No holdout or calibration ran, and no published score
     moved.
 
+### Removed
+
+- **Breaking: the `@cejel/cejel/d-series` subpath is removed (#423).** It was deprecated in 0.6.2
+  (#419) and warned with `CEJEL_DEP_D_SERIES` on every load since. Importing it now fails with
+  Node's `ERR_PACKAGE_PATH_NOT_EXPORTED`, and the npm package no longer ships
+  `dist/packs/d-series/`. D-series detection was retired on 2026-08-02: the D1-D6 rules are a
+  taxonomy, not a production detector. Their source stays in this repository, and the
+  precision-gate scripts (`pnpm run gate:d1` … `gate:d6`) now load it from source through tsx
+  instead of from the build. Who is affected: code that imports `@cejel/cejel/d-series`; there is
+  no replacement export. `cejel scan`, `cejel-mcp`, `@cejel/cejel/decision-contracts`, scores,
+  bands and report fields are unchanged.
+
 ### Fixed
 
 - **Where the 16-entry cap leaves collected limitations out, its sentence no longer points to

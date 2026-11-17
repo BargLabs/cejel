@@ -38,8 +38,8 @@ boundary: it reports examined and abstained counts and expressly refuses the gen
 ## Registration and release status
 
 > **Deprecated (#419).** D-series detection was retired on 2026-08-02; these rules are a
-> taxonomy, not a production detector. The `@cejel/cejel/d-series` package subpath is deprecated
-> and will be removed in 0.7.0. This contract is kept as the rule's definition.
+> taxonomy, not a production detector. The `@cejel/cejel/d-series` package subpath was removed
+> in 0.7.0 (#423). This contract is kept as the rule's definition.
 
 Registration is export-only from `@cejel/cejel/d-series`. D6 is not wired into `cejel scan`, does not
 appear in a released certificate, does not feed the A1–B6 Witan rubric, and does not change scoring or
