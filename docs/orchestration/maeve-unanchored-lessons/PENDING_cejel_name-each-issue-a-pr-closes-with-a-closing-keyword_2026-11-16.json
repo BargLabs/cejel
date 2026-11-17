@@ -1,0 +1,24 @@
+[
+  {
+    "statement": "When a pull request resolves an issue, write a closing keyword for it in the body (`Closes #N`, one per issue); a number in the title or a sync line does not close anything. 2026-11-16: #710 named #674 and #653 only in its title and its body was the runner's draft placeholder, so both stayed open five days after the merge, and a later triage of 63 open later: issues against main had to re-derive from code and CHANGELOG that they were fixed. The same triage found a third issue settled by an operator ruling (#453) and two duplicates (#703 of #714, #493 of #480) that no session had closed. Fix: before opening a PR, list every issue it resolves and give each its own closing line; when a ruling or a later PR settles an issue, close it in the same session with a comment citing the commit.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "issue-hygiene"
+    ],
+    "tags": [
+      "closing-keyword",
+      "issue-triage",
+      "later-issues",
+      "write-through"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-11-16T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 728
+    }
+  }
+]
