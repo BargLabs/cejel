@@ -1,0 +1,25 @@
+[
+  {
+    "statement": "A guard that keeps a lint job a gate must pin what the linter is pointed at, not only how it reports. 2026-11-17: #735's workflow-lint guard refused --no-exit-codes, severity filters, continue-on-error and || true, but passed a workflow that narrowed zizmor's input from . to .github/workflows. That drops both Action definitions (21 files linted to 19) and the job stays green. Fix: refuse any input but the full root, and every other narrowing route the tool's --help offers (zizmor: --collect, working-directory, cd). Prove each refusal by running the old guard on the same mutation and showing it passed. Corollary: an ignore added in case the tool flags a line is a latent hole. Compare ignores the tool reports as used (36) against ignores written (37) and remove the unused one.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "ci-gates"
+    ],
+    "tags": [
+      "gate-softening",
+      "lint-input",
+      "zizmor",
+      "mutation-test",
+      "unused-ignore"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-11-17T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 735
+    }
+  }
+]
