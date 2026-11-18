@@ -9,8 +9,10 @@
 // - the workflow has no pull_request trigger, has a paths: or paths-ignore: filter, carries
 //   continue-on-error, swallows an exit status (|| true, || :, || exit 0, set +e), names zizmor's
 //   exit-code flag or a severity or confidence filter, does not run exactly one zizmor command with
-//   --offline, installs zizmor other than hash-checked from the requirements file, or runs zizmor
-//   before this script's node test;
+//   --offline, gives that command any input other than the repository root (.), names --collect,
+//   sets a working-directory or changes directory (each would drop a workflow or Action definition
+//   out of the lint), installs zizmor other than hash-checked from the requirements file, or runs
+//   zizmor before this script's node test;
 // - any ignore has no reason. An inline ignore is a YAML comment that begins with the marker
 //   `zizmor: ignore[<one rule>]` and carries at least three words after the bracket. zizmor does not
 //   read a marker that is appended to another comment, so that is refused too. A configuration
@@ -118,6 +120,46 @@ const ZIZMOR_COMMAND = /(?:^|[\s/"'])zizmor["']?(?=\s|$)/;
 const STEP_NAME = /^\s*-?\s*name\s*:/;
 const PIP_INSTALL = /\bpip3?["']?\s+install\b/;
 
+// zizmor 1.32.0's flags that take their value as the next word. Every other flag is read as standing
+// alone, so the value of a flag missing from this list shows up as a second input and is refused.
+const ZIZMOR_VALUE_FLAGS = new Set([
+  '-c',
+  '--config',
+  '--persona',
+  '--min-severity',
+  '--min-confidence',
+  '--format',
+  '--color',
+  '--render-links',
+  '--show-audit-urls',
+  '--gh-token',
+  '--gh-hostname',
+  '--cache-dir',
+  '--completions',
+]);
+
+/**
+ * The inputs (positional arguments) of one zizmor command: the words after the zizmor executable
+ * that are neither flags nor flag values, up to the end of that shell command.
+ */
+export function zizmorInputs(command) {
+  const match = ZIZMOR_COMMAND.exec(command);
+  if (!match) return [];
+  const words = command.slice(match.index + match[0].length).trim().split(/\s+/).filter(Boolean);
+  const inputs = [];
+  for (let i = 0; i < words.length; i += 1) {
+    if (/^(?:[;&|<>]|[0-9]?>)/.test(words[i])) break;
+    const word = words[i].replace(/^["']+|["';]+$/g, '');
+    if (word.startsWith('-')) {
+      if (ZIZMOR_VALUE_FLAGS.has(word)) i += 1;
+    } else if (word) {
+      inputs.push(word);
+    }
+    if (/;["']*$/.test(words[i] ?? '')) break;
+  }
+  return inputs;
+}
+
 export function checkWorkflow(text) {
   const problems = [];
   const refuse = (message) => problems.push(`${WORKFLOW_PATH}: ${message}`);
@@ -139,7 +181,16 @@ export function checkWorkflow(text) {
   }
   for (const { command } of runs) {
     if (!/(?:^|\s)--offline(?=\s|$|["'])/.test(command)) refuse(`the zizmor command lacks --offline: ${command.trim()}`);
+    const inputs = zizmorInputs(command);
+    if (inputs.length !== 1 || inputs[0] !== '.') {
+      refuse(
+        `the zizmor command must lint the repository root (.) and nothing else, or a workflow or Action definition drops out; its inputs are [${inputs.join(', ')}]: ${command.trim()}`,
+      );
+    }
   }
+  if (/--collect\b/.test(code)) refuse('names --collect, which narrows what zizmor lints');
+  if (/\bworking-directory\s*:/.test(code)) refuse('sets a working-directory, which moves the root zizmor lints');
+  if (/(?:^|[\s;&|("'])(?:cd|pushd)\s/.test(code)) refuse('changes directory in a run step, which can move the root zizmor lints');
 
   const installs = lines.filter((line) => PIP_INSTALL.test(line));
   if (installs.length === 0) refuse('installs no zizmor with pip --require-hashes from the requirements file');

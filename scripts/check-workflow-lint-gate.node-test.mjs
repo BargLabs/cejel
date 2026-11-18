@@ -11,13 +11,14 @@ import {
   checkWorkflow,
   configIgnores,
   inlineIgnores,
+  zizmorInputs,
 } from './check-workflow-lint-gate.mjs';
 
 const REPO = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 // Every ignore in the repository, inline and in .github/zizmor.yml. Adding or removing an ignore
 // changes this number, so the change shows up in a test a reviewer reads.
-const EXPECTED_IGNORE_COUNT = 37;
+const EXPECTED_IGNORE_COUNT = 36;
 
 const HASH = 'a'.repeat(64);
 const REQUIREMENTS = `zizmor==1.32.0 --hash=sha256:${HASH}\n`;
@@ -45,7 +46,7 @@ jobs:
       - name: Run the gate's own tests before trusting it
         run: node --test scripts/check-workflow-lint-gate.node-test.mjs
       - name: Install zizmor
-        run: | # zizmor: ignore[adhoc-packages] the install is pinned by sha256 in require-hashes mode
+        run: |
           python3 -m venv "$RUNNER_TEMP/zizmor-venv"
           "$RUNNER_TEMP/zizmor-venv/bin/pip" install --require-hashes --only-binary :all: -r .github/zizmor-requirements.txt
       - name: Lint every workflow and Action definition with zizmor
@@ -103,7 +104,7 @@ test('the fixture repository passes, with one inline and one configuration ignor
   try {
     const result = checkRepository(root);
     assert.deepEqual(result.problems, []);
-    assert.equal(result.ignores.length, 3);
+    assert.equal(result.ignores.length, 2);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -202,6 +203,54 @@ test('refuses a workflow with no zizmor run, or with two', () => {
   assertRefused({ '.github/workflows/workflow-lint.yml': two }, /exactly one zizmor/);
 });
 
+test('reads the inputs of a zizmor command, skipping flags and their values', () => {
+  assert.deepEqual(zizmorInputs('"$RUNNER_TEMP/zizmor-venv/bin/zizmor" --offline --config .github/zizmor.yml .\''), ['.']);
+  assert.deepEqual(zizmorInputs('zizmor --offline -c .github/zizmor.yml --format=github . .github/workflows'), [
+    '.',
+    '.github/workflows',
+  ]);
+  assert.deepEqual(zizmorInputs('zizmor --offline --persona pedantic action.yml; echo done'), ['action.yml']);
+  assert.deepEqual(zizmorInputs('zizmor --offline . > out.txt'), ['.']);
+});
+
+test('refuses a zizmor command that lints anything other than the repository root', () => {
+  const lint = "--config .github/zizmor.yml .'";
+  for (const narrowed of [
+    "--config .github/zizmor.yml .github/workflows'",
+    "--config .github/zizmor.yml action.yml'",
+    "--config .github/zizmor.yml ./'",
+    "--config .github/zizmor.yml . .github/workflows'",
+    "--config .github/zizmor.yml'",
+    "--config .github/zizmor.yml --some-new-flag .github/workflows .'",
+  ]) {
+    assertRefused({ '.github/workflows/workflow-lint.yml': WORKFLOW.replace(lint, narrowed) }, /repository root/);
+  }
+});
+
+test('refuses --collect, a working-directory and a change of directory', () => {
+  for (const collect of ['--collect=workflows', '--collect workflows', '--collect=default']) {
+    const text = WORKFLOW.replace('--offline', `--offline ${collect}`);
+    assertRefused({ '.github/workflows/workflow-lint.yml': text }, /--collect/);
+  }
+  const stepDir = WORKFLOW.replace(
+    '      - name: Lint every workflow and Action definition with zizmor\n',
+    '      - name: Lint every workflow and Action definition with zizmor\n        working-directory: .github/workflows\n',
+  );
+  assertRefused({ '.github/workflows/workflow-lint.yml': stepDir }, /working-directory/);
+  const defaultsDir = WORKFLOW.replace(
+    'permissions:\n',
+    'defaults:\n  run:\n    working-directory: .github/workflows\npermissions:\n',
+  );
+  assertRefused({ '.github/workflows/workflow-lint.yml': defaultsDir }, /working-directory/);
+  for (const move of ['cd .github/workflows && ', 'pushd .github; ']) {
+    const text = WORKFLOW.replace(
+      "        run: '\"$RUNNER_TEMP/zizmor-venv/bin/zizmor\"",
+      `        run: '${move}"$RUNNER_TEMP/zizmor-venv/bin/zizmor"`,
+    );
+    assertRefused({ '.github/workflows/workflow-lint.yml': text }, /changes directory/);
+  }
+});
+
 test('refuses a paths: or paths-ignore: filter', () => {
   for (const key of ['paths', 'paths-ignore']) {
     const text = WORKFLOW.replace('    branches: [main]\n  push:', `    branches: [main]\n    ${key}: ['.github/**']\n  push:`);
@@ -293,7 +342,7 @@ test('a missing configuration file is not a problem', () => {
   try {
     const result = checkRepository(root);
     assert.deepEqual(result.problems, []);
-    assert.equal(result.ignores.length, 2);
+    assert.equal(result.ignores.length, 1);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

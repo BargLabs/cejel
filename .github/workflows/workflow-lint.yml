@@ -5,8 +5,9 @@ name: Workflow lint
 # not ignored fails the job. zizmor is installed from PyPI by sha256 (.github/zizmor-requirements.txt);
 # no third-party action is added. Each ignore names one rule and gives its reason, inline beside the
 # line or in .github/zizmor.yml for files this workflow's pull request may not edit.
-# scripts/check-workflow-lint-gate.mjs refuses a softened gate or an ignore without a reason, and its
-# node test pins the number of ignores. --offline skips zizmor's online audits.
+# scripts/check-workflow-lint-gate.mjs refuses a softened gate, a narrowed input (zizmor must be given
+# the repository root, `.`, and nothing else) or an ignore without a reason, and its node test pins the
+# number of ignores. --offline skips zizmor's online audits.
 
 on:
   pull_request:
@@ -36,7 +37,7 @@ jobs:
       - name: Check the gate is a gate and every ignore has a reason
         run: node scripts/check-workflow-lint-gate.mjs
       - name: Install zizmor, hash-checked, into a virtual environment
-        run: | # zizmor: ignore[adhoc-packages] pinned to one wheel by sha256 in pip's require-hashes mode
+        run: |
           python3 -m venv "$RUNNER_TEMP/zizmor-venv"
           "$RUNNER_TEMP/zizmor-venv/bin/pip" install --no-deps --require-hashes --only-binary :all: -r .github/zizmor-requirements.txt
       - name: Lint workflows and Action definitions with zizmor
