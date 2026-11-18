@@ -15,6 +15,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
+import { PLAIN_NOT_COVERED } from '../plain-summary.js';
 import { WITAN_ABSTENTION_LABELS, WITAN_V27_A2_FAILED_HISTORY_NOTE_PREFIX } from '../witan/abstention.js';
 import {
   buildCacheLibraryOrigin,
@@ -209,6 +210,63 @@ describe('GitHub Action step summary', () => {
       expect(rendered).not.toContain('/4.0');
     },
   );
+
+  // The verdict travels into a pull request's job summary without the certificate. The certificate's
+  // first page, the terminal and summary.json already carry the CLI's one sentence on what a result
+  // does not cover (plainSummary.notCovered); the job summary showed the verdict alone.
+  const SCORED_SUMMARY = {
+    productDisplayName: 'fixture',
+    overallScore: 3.7,
+    codeTrustScore: 3.8,
+    processTrustScore: 3.6,
+    verdict: 'Verified',
+    findingCount: 0,
+    topFindings: [],
+  };
+
+  it('REGRESSION GUARD: a scored job summary says what the result does not cover, straight under the verdict', () => {
+    const rendered = renderStepSummary({ ...SCORED_SUMMARY, plainSummary: { notCovered: PLAIN_NOT_COVERED } });
+    const lines = rendered.split('\n');
+    const verdictLine = lines.findIndex((line) => line.startsWith('**Overall: 3.7/4.0 (Verified)**'));
+    const notCoveredLine = lines.indexOf(PLAIN_NOT_COVERED);
+    const findingsLine = lines.indexOf('No evidence-backed findings.');
+    expect(verdictLine).toBeGreaterThanOrEqual(0);
+    expect(notCoveredLine).toBeGreaterThan(verdictLine);
+    expect(notCoveredLine).toBeLessThan(findingsLine);
+  });
+
+  it('REGRESSION GUARD: an abstained job summary carries the same sentence', () => {
+    for (const verdict of ['Insufficient source', 'Unrated: shallow clone']) {
+      const rendered = renderStepSummary({
+        productDisplayName: 'fixture',
+        verdict,
+        insufficientSourceReason: 'A reason.',
+        findingCount: 0,
+        topFindings: [],
+        plainSummary: { notCovered: PLAIN_NOT_COVERED },
+      });
+      expect(rendered.split('\n'), verdict).toContain(PLAIN_NOT_COVERED);
+    }
+  });
+
+  it('keeps the sentence on one escaped Markdown line, since it is read from a file', () => {
+    const rendered = renderStepSummary({
+      ...SCORED_SUMMARY,
+      plainSummary: { notCovered: 'What this result does not cover: x.\n\n## Injected heading\n<script>alert(1)</script>' },
+    });
+    expect(rendered).not.toContain('\n## Injected heading');
+    expect(rendered).not.toContain('<script>');
+    expect(rendered).toContain('What this result does not cover: x. \\#\\# Injected heading');
+  });
+
+  it('adds nothing when summary.json carries no such sentence, and never prints a placeholder', () => {
+    const without = renderStepSummary(SCORED_SUMMARY);
+    for (const plainSummary of [undefined, null, {}, { notCovered: '' }, { notCovered: '   ' }, { notCovered: 42 }, 'text']) {
+      const rendered = renderStepSummary({ ...SCORED_SUMMARY, plainSummary });
+      expect(rendered, JSON.stringify(plainSummary)).toBe(without);
+    }
+    expect(without).not.toMatch(/undefined|null|\[object/);
+  });
 
   it('renders limitations in the step summary and machine-readable outputs', () => {
     const summary = {
@@ -599,6 +657,50 @@ function comparableArgv(argv: string[] | undefined): string[] {
 function outputsOf(run: ActionRun): Map<string, string> {
   return parseGithubOutputs(run.githubOutput);
 }
+
+describe('GitHub Action job summary, real CLI', () => {
+  it('REGRESSION GUARD: prints the sentence the CLI wrote to summary.json, under the default rubric and under v27', () => {
+    const fixtureRoot = mkdtempSync(join(tmpdir(), 'cejel-action-not-covered-'));
+    try {
+      const runnerPath = makeRealCliActionRunner(fixtureRoot);
+      const repoPath = join(fixtureRoot, 'repo');
+      writeSmallRepository(repoPath);
+
+      for (const [label, pin] of [['default', undefined], ['v27', V27]] as const) {
+        const run = runAction(fixtureRoot, runnerPath, repoPath, label, pin);
+        expect(run.status, label).toBe(0);
+        const summary = JSON.parse(readFileSync(join(run.exportDir, 'summary.json'), 'utf8')) as {
+          plainSummary?: { notCovered?: string };
+        };
+        // The Action reads the sentence; it holds no copy. If the CLI renames or drops the field,
+        // this fails here instead of the job summary going quiet.
+        expect(summary.plainSummary?.notCovered, label).toBe(PLAIN_NOT_COVERED);
+        expect(run.stepSummary.split('\n'), label).toContain(PLAIN_NOT_COVERED);
+      }
+
+      // The repository above has no git history, so those two summaries are abstained ones. With
+      // one commit the result is scored, and the scored summary is a separate branch of the
+      // renderer: the sentence follows the Code trust / Process trust table.
+      execFileSync('git', ['init', '--quiet'], { cwd: repoPath });
+      execFileSync('git', ['add', '.'], { cwd: repoPath });
+      execFileSync(
+        'git',
+        ['-c', 'user.name=t', '-c', 'user.email=t@example.invalid', '-c', 'commit.gpgsign=false', 'commit', '--quiet', '-m', 'x'],
+        { cwd: repoPath },
+      );
+      for (const [label, pin] of [['scored-default', undefined], ['scored-v27', V27]] as const) {
+        const run = runAction(fixtureRoot, runnerPath, repoPath, label, pin);
+        expect(run.status, label).toBe(0);
+        const lines = run.stepSummary.split('\n');
+        const table = lines.indexOf('| Code trust | Process trust |');
+        expect(table, label).toBeGreaterThan(-1);
+        expect(lines.slice(table, table + 5), label).toContain(PLAIN_NOT_COVERED);
+      }
+    } finally {
+      rmSync(fixtureRoot, { recursive: true, force: true });
+    }
+  }, 480_000);
+});
 
 describe('GitHub Action rubric-pin input', () => {
   it('forwards a v27 pin to the CLI as --rubric-pin, and the report names v27 as its rubric', () => {

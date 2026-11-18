@@ -35,6 +35,17 @@ rubric is pinned. v27 carries no precision or recall claim.
 
 ### Changed
 
+- **GitHub Action: the job summary says what a result does not cover.** Under the verdict and the
+  Code/Process table, the summary now prints the sentence the certificate's first page and the
+  terminal already carry: Cejel read the repository's files and history and did not run the code or
+  its tests, so the result does not show that the code works as intended or that it has no
+  vulnerabilities. A job summary is often read without the certificate, and until now it showed the
+  verdict alone. Abstained summaries carry the sentence too. The Action prints
+  `plainSummary.notCovered` from `summary.json` and holds no copy of the wording; with a
+  `summary.json` that has no such field it prints nothing extra. No scoring change: `report.json`,
+  `summary.json`, the HTML and Markdown reports, the Action's outputs and its pass/fail result are
+  unchanged.
+
 - **Prospective v27: where the publishing rule leaves B3 no workflow that targets pull requests or
   the default branch, B3's note names the CI configurations Cejel does not read (refs #517).**
   Under `witan-rubric-v27-prospective-2026-10-19` only, and in B3's note only. v17 and every other
