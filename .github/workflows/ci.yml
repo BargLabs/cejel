@@ -15,6 +15,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
 
@@ -116,6 +117,7 @@ jobs:
         with:
           path: cejel
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Make the workspace a caller that pins a different pnpm
         run: |
@@ -126,7 +128,7 @@ jobs:
       # change PNPM_HOME for the steps after it (#686): pnpm/action-setup prepended its pnpm to the
       # job-wide PATH, so a caller's later pnpm steps ran the Action's version instead of their own.
       - name: Give the caller its own pnpm
-        run: |
+        run: | # zizmor: ignore[adhoc-packages] a version-pinned pnpm install is the caller this job exists to test
           npm install --no-save --no-audit --no-fund --prefix "$RUNNER_TEMP/caller-pnpm" pnpm@10.0.0
           echo "$RUNNER_TEMP/caller-pnpm/node_modules/.bin" >> "$GITHUB_PATH"
           echo "CALLER_PNPM_HOME=${PNPM_HOME:-unset}" >> "$GITHUB_ENV"
@@ -165,7 +167,7 @@ jobs:
       - name: Wrong-pin Action from the caller workspace
         id: wrong-pin
         continue-on-error: true
-        uses: ./cejel-wrong-pin
+        uses: ./cejel-wrong-pin # zizmor: ignore[self-repository] tests a copy of this repository's own Action by local path
         with:
           repo-path: cejel
           out-dir: .cejel-wrong-pin
@@ -186,7 +188,7 @@ jobs:
           test "$(pnpm --version)" = "10.0.0"
 
       - name: Root Action from the caller workspace
-        uses: ./cejel
+        uses: ./cejel # zizmor: ignore[self-repository] tests this repository's own root Action by local path
         with:
           repo-path: cejel
           out-dir: .cejel-caller
@@ -198,7 +200,7 @@ jobs:
           test "${PNPM_HOME:-unset}" = "$CALLER_PNPM_HOME"
 
       - name: Nested Action from the caller workspace
-        uses: ./cejel/action
+        uses: ./cejel/action # zizmor: ignore[self-repository] tests this repository's own nested Action by local path
         with:
           repo-path: cejel
           out-dir: .cejel-caller-nested

@@ -1,0 +1,43 @@
+name: Workflow lint
+
+# Lints every workflow in .github/workflows and both Action definitions (action.yml and
+# action/action.yml) with zizmor, offline, on every pull request. It is a gate: any finding that is
+# not ignored fails the job. zizmor is installed from PyPI by sha256 (.github/zizmor-requirements.txt);
+# no third-party action is added. Each ignore names one rule and gives its reason, inline beside the
+# line or in .github/zizmor.yml for files this workflow's pull request may not edit.
+# scripts/check-workflow-lint-gate.mjs refuses a softened gate or an ignore without a reason, and its
+# node test pins the number of ignores. --offline skips zizmor's online audits.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # Named, not `guard` or `check`: branch protection selects a required check by its context name,
+  # and other workflows already expose those.
+  workflow-lint:
+    name: workflow-lint
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22.23.1
+      - name: Run the gate's own tests before trusting it
+        run: node --test scripts/check-workflow-lint-gate.node-test.mjs
+      - name: Check the gate is a gate and every ignore has a reason
+        run: node scripts/check-workflow-lint-gate.mjs
+      - name: Install zizmor, hash-checked, into a virtual environment
+        run: | # zizmor: ignore[adhoc-packages] pinned to one wheel by sha256 in pip's require-hashes mode
+          python3 -m venv "$RUNNER_TEMP/zizmor-venv"
+          "$RUNNER_TEMP/zizmor-venv/bin/pip" install --no-deps --require-hashes --only-binary :all: -r .github/zizmor-requirements.txt
+      - name: Lint workflows and Action definitions with zizmor
+        run: '"$RUNNER_TEMP/zizmor-venv/bin/zizmor" --offline --config .github/zizmor.yml .'
