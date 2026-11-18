@@ -20,7 +20,9 @@ jobs:
     steps:
       - name: Check or record CLA signature
         if: (github.event.comment.body == 'I have read the CLA Document and I hereby sign the CLA') || github.event_name == 'pull_request_target'
-        uses: contributor-assistant/github-action@ca4a40a7d1004f18d9960b404b97e5f30a505a08 # v2.6.1
+        # BargLabs/cla-action is BargLabs' fork of contributor-assistant/github-action, which GitHub
+        # archived on 2026-03-23. Same commit, same tree (f1edb7bf), so the same behaviour and signatures.
+        uses: BargLabs/cla-action@ca4a40a7d1004f18d9960b404b97e5f30a505a08 # v2.6.1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PERSONAL_ACCESS_TOKEN: ${{ secrets.CLA_SIGNATURES_TOKEN }}

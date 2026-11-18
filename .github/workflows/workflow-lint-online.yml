@@ -1,0 +1,37 @@
+name: Workflow lint (online audits)
+
+# The pull-request gate (.github/workflows/workflow-lint.yml) runs zizmor with --offline, which
+# skips the audits that need the GitHub API: a pinned SHA that is not in the named action's
+# repository (impostor-commit), a version comment that no longer matches its pin
+# (ref-version-mismatch), a known-vulnerable action version, and others. This workflow runs the
+# full audit set, online, once a week and on demand, against main. It is not a pull-request gate:
+# what it checks changes upstream, without any change in this repository. A red run is the signal.
+# zizmor is installed from PyPI by sha256 (.github/zizmor-requirements.txt), as the gate installs it.
+# It reads the GitHub API with this run's read-only token. Cejel's scan path stays offline; this
+# workflow only lints the workflows.
+
+on:
+  schedule:
+    - cron: '23 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  workflow-lint-online:
+    name: workflow-lint-online
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Install zizmor, hash-checked, into a virtual environment
+        run: |
+          python3 -m venv "$RUNNER_TEMP/zizmor-venv"
+          "$RUNNER_TEMP/zizmor-venv/bin/pip" install --no-deps --require-hashes --only-binary :all: -r .github/zizmor-requirements.txt
+      - name: Lint workflows and Action definitions with zizmor, online audits included
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: '"$RUNNER_TEMP/zizmor-venv/bin/zizmor" --collect=all --config .github/zizmor.yml .'

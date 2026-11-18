@@ -21,7 +21,7 @@ const REPO = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 // Every ignore in the repository, inline and in .github/zizmor.yml. Adding or removing an ignore
 // changes this number, so the change shows up in a test a reviewer reads.
-const EXPECTED_IGNORE_COUNT = 36;
+const EXPECTED_IGNORE_COUNT = 19;
 
 const HASH = 'a'.repeat(64);
 const REQUIREMENTS = `zizmor==1.32.0 --hash=sha256:${HASH}\n`;
