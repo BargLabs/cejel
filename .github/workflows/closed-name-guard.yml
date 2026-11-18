@@ -15,7 +15,7 @@ name: Closed-name guard
 # that a deleted or renamed workflow blocks rather than passes.
 
 on:
-  pull_request_target:
+  pull_request_target: # zizmor: ignore[dangerous-triggers] deliberate: the base branch judges the head, as the header explains
 
 permissions:
   contents: read

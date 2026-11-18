@@ -1,0 +1,27 @@
+[
+  {
+    "statement": "A guard that keeps a lint job a gate must pin what the linter is pointed at, not only how it reports. 2026-11-17: #735's workflow-lint guard refused --no-exit-codes, severity filters, continue-on-error and || true, but passed a workflow that narrowed zizmor's input from . to .github/workflows. That drops both Action definitions (21 files linted to 19) and the job stays green. The same drop came from two quieter routes: a .gitignore line, which zizmor's default collection honours, and the checkout step (path:, sparse-checkout, ref:, repository:). Fix: make the linter ignore ignore-files (zizmor --collect=all) and refuse every other route: any input but the root, a working-directory, a cd, and any checkout input but persist-credentials. Prove each refusal by running the old guard on the same mutation. Also remove any ignore written but never used (zizmor used 36 of 37).",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "ci-gates"
+    ],
+    "tags": [
+      "checkout",
+      "gate-softening",
+      "gitignore",
+      "lint-input",
+      "mutation-test",
+      "unused-ignore",
+      "zizmor"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-11-17T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 735
+    }
+  }
+]

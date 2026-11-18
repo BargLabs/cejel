@@ -167,6 +167,7 @@ jobs:
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '22'
+          package-manager-cache: false
 
       # The checker uses only Node built-ins: no dependency install in this privileged job.
       - name: Re-check the downloaded bundle SBOM before publishing
