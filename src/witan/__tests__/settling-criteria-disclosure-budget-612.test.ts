@@ -790,17 +790,18 @@ const REVIEWED: readonly ReviewedEntry[] = [
     role: 'producer', criteria: ['B2'], why: 'Uncredited CI workflows: one sentence.',
   },
   {
-    kind: 'site', file: RS, within: 'b3Disclosures', sha: '192409c2dc28#0',
-    role: 'producer', criteria: ['B3'], why: "B3's unshown-check and uncredited-workflow sentences.",
+    kind: 'site', file: RS, within: 'b3Disclosures', sha: 'ab06e9d4e365#0',
+    role: 'producer', criteria: ['B3'],
+    why: "B3's unshown-check, uncredited-workflow and ignored-test-failure sentences (at most 4, B3 only; no settling criterion).",
   },
   {
-    kind: 'call', file: RS, within: 'collectB3CiDisciplineEvidence', sha: 'c8160a831c11#0',
-    role: 'producer', criteria: ['B3'], why: "B3's scored return.",
+    kind: 'call', file: RS, within: 'collectB3CiDisciplineEvidence', sha: 'bd8fa36f3528#0',
+    role: 'producer', criteria: ['B3'], why: "B3's scored return, now passing the ignored-test-failure list to b3Disclosures.",
   },
   // Code that moves disclosures already on a signal, and adds none.
   {
-    kind: 'site', file: RS, within: 'withoutCountDisclosures', sha: '7c690d70b85b#0',
-    role: 'pass-through', criteria: ANY, why: "Filters the abstaining signal's own list.",
+    kind: 'site', file: RS, within: 'withoutCountDisclosures', sha: 'b2b486178b23#0',
+    role: 'pass-through', criteria: ANY, why: "Filters the abstaining signal's own list, the ignored-test-failure count sentence among them.",
   },
   {
     kind: 'call', file: RS, within: 'wholesaleCriterionAbstention', sha: 'edc6fcc22ab0#0',

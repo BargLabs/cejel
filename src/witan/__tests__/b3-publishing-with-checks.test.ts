@@ -442,6 +442,10 @@ describe('no rise against v17 on these fixtures', () => {
 // "writes the pin". The second pass re-pinned at main's fe8c261de with every fixture here. The
 // fourth pass (#627-#630) re-pinned at main's d2d178233 with its fixtures added: every earlier
 // entry, and the HTML pin, came out byte-identical.
+// The B3 ignored-test-failure disclosure (every rubric, presentation only) re-pinned the JSON at
+// 4f7f50011, its first implementing commit: eight entries gained one B3 disclosure each and
+// differ from the earlier pin in nothing else; every other entry, and the HTML pin, came out
+// byte-identical. The commit field above still names the commit the other entries were scored by.
 
 interface CriterionProjection {
   readonly score: number;
