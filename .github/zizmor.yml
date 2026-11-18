@@ -20,10 +20,6 @@ rules:
       - cla.yml:4 # the CLA flow records a signature from a pull-request comment
       - cla.yml:6 # the CLA flow must comment on pull requests from forks
 
-  archived-uses:
-    ignore:
-      - cla.yml:23 # replacing the archived CLA action is a decision of its own, left open
-
   artipacked:
     ignore:
       - llm-calibration.yml:79 # dispatch only, and its bytes are pinned by calibration freeze records
