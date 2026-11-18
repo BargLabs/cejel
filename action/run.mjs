@@ -71,6 +71,19 @@ export function actionLimitations(summary) {
   return [...limitations, `${summary.verdict}:${reason}`];
 }
 
+/**
+ * The CLI's one sentence on what a result does not cover (summary.json `plainSummary.notCovered`),
+ * as the lines to print under the verdict. The certificate's first page and the terminal already
+ * carry it; a job summary shows the verdict without the certificate, so it carries it too. This
+ * file holds no copy of the sentence: it prints what the CLI wrote, escaped onto one line, and
+ * prints nothing when summary.json has none.
+ */
+function notCoveredLines(summary) {
+  const notCovered = summary.plainSummary?.notCovered;
+  if (typeof notCovered !== 'string' || notCovered.trim() === '') return [];
+  return [renderMarkdownInline(notCovered), ''];
+}
+
 export function renderStepSummary(s) {
   const abstained = ACTION_ABSTENTION_VERDICTS.includes(s.verdict);
   const unrated = isUnratedVerdict(s.verdict);
@@ -97,6 +110,7 @@ export function renderStepSummary(s) {
         s.insufficientSourceReason ?? 'No ratable source or measurable evidence was found.',
       ),
       '',
+      ...notCoveredLines(s),
       ...limitationLines,
     ].join('\n')}\n`;
   }
@@ -116,6 +130,7 @@ export function renderStepSummary(s) {
     '|---|---|',
     `| ${s.codeTrustScore.toFixed(1)}/4.0 | ${s.processTrustScore.toFixed(1)}/4.0 |`,
     '',
+    ...notCoveredLines(s),
     ...limitationLines,
   ];
   if (s.topFindings.length === 0) {

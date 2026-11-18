@@ -677,10 +677,29 @@ describe('GitHub Action job summary, real CLI', () => {
         expect(summary.plainSummary?.notCovered, label).toBe(PLAIN_NOT_COVERED);
         expect(run.stepSummary.split('\n'), label).toContain(PLAIN_NOT_COVERED);
       }
+
+      // The repository above has no git history, so those two summaries are abstained ones. With
+      // one commit the result is scored, and the scored summary is a separate branch of the
+      // renderer: the sentence follows the Code trust / Process trust table.
+      execFileSync('git', ['init', '--quiet'], { cwd: repoPath });
+      execFileSync('git', ['add', '.'], { cwd: repoPath });
+      execFileSync(
+        'git',
+        ['-c', 'user.name=t', '-c', 'user.email=t@example.invalid', '-c', 'commit.gpgsign=false', 'commit', '--quiet', '-m', 'x'],
+        { cwd: repoPath },
+      );
+      for (const [label, pin] of [['scored-default', undefined], ['scored-v27', V27]] as const) {
+        const run = runAction(fixtureRoot, runnerPath, repoPath, label, pin);
+        expect(run.status, label).toBe(0);
+        const lines = run.stepSummary.split('\n');
+        const table = lines.indexOf('| Code trust | Process trust |');
+        expect(table, label).toBeGreaterThan(-1);
+        expect(lines.slice(table, table + 5), label).toContain(PLAIN_NOT_COVERED);
+      }
     } finally {
       rmSync(fixtureRoot, { recursive: true, force: true });
     }
-  }, 240_000);
+  }, 480_000);
 });
 
 describe('GitHub Action rubric-pin input', () => {

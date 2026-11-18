@@ -555,8 +555,8 @@ Or commit/link the static SVG directly:
 ## GitHub Action
 
 See [`action/action.yml`](./action/action.yml) — runs Cejel on `push`/`pull_request`,
-posts the score + top findings to the job summary, and can optionally fail the check below
-a configurable `min-score` threshold. The scoring step makes no network calls and needs no
+posts the score, one sentence on what the result does not cover, and the top findings to the
+job summary, and can optionally fail the check below a configurable `min-score` threshold. The scoring step makes no network calls and needs no
 secrets.
 
 ```yaml
