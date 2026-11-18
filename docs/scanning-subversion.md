@@ -57,8 +57,8 @@ npx @cejel/cejel@0.6.11 scan apr-mirror --out out-apr-mirror --product-name apr
 ```
 
 The run installed `@cejel/cejel@0.6.11` from npm into a working directory and ran the scans
-with `npx cejel scan`. The commands here name the pinned package, so they run the version this
-record describes.
+with the `cejel` binary it installed. The commands here name the pinned package, so they run the
+version this record describes.
 
 The first command gave r1921159, the last revision that changed trunk on or before 17 Nov 2024,
 so the conversion holds two years of trunk history.
