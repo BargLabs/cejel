@@ -50,7 +50,7 @@ jobs:
           python3 -m venv "$RUNNER_TEMP/zizmor-venv"
           "$RUNNER_TEMP/zizmor-venv/bin/pip" install --require-hashes --only-binary :all: -r .github/zizmor-requirements.txt
       - name: Lint every workflow and Action definition with zizmor
-        run: '"$RUNNER_TEMP/zizmor-venv/bin/zizmor" --offline --config .github/zizmor.yml .'
+        run: '"$RUNNER_TEMP/zizmor-venv/bin/zizmor" --offline --collect=all --config .github/zizmor.yml .'
 `;
 
 const CONFIG = `rules:
@@ -190,9 +190,10 @@ test('refuses the exit-code flag and every severity or confidence filter', () =>
 
 test('refuses a flag on a continuation line of the zizmor command', () => {
   const continued = WORKFLOW.replace(
-    "        run: '\"$RUNNER_TEMP/zizmor-venv/bin/zizmor\" --offline --config .github/zizmor.yml .'\n",
-    '        run: |\n          "$RUNNER_TEMP/zizmor-venv/bin/zizmor" --offline \\\n            --no-exit-codes --config .github/zizmor.yml .\n',
+    "        run: '\"$RUNNER_TEMP/zizmor-venv/bin/zizmor\" --offline --collect=all --config .github/zizmor.yml .'\n",
+    '        run: |\n          "$RUNNER_TEMP/zizmor-venv/bin/zizmor" --offline --collect=all \\\n            --no-exit-codes --config .github/zizmor.yml .\n',
   );
+  assert.notEqual(continued, WORKFLOW);
   assertRefused({ '.github/workflows/workflow-lint.yml': continued }, /exit-code/);
 });
 
@@ -227,11 +228,52 @@ test('refuses a zizmor command that lints anything other than the repository roo
   }
 });
 
-test('refuses --collect, a working-directory and a change of directory', () => {
-  for (const collect of ['--collect=workflows', '--collect workflows', '--collect=default']) {
-    const text = WORKFLOW.replace('--offline', `--offline ${collect}`);
-    assertRefused({ '.github/workflows/workflow-lint.yml': text }, /--collect/);
+test('refuses a zizmor command without --collect=all, or with another --collect', () => {
+  const without = WORKFLOW.replace(' --collect=all', '');
+  assertRefused({ '.github/workflows/workflow-lint.yml': without }, /--collect=all/);
+  for (const collect of ['--collect=workflows', '--collect workflows', '--collect=default', '--collect=all,actions']) {
+    const text = WORKFLOW.replace('--collect=all', collect);
+    assertRefused({ '.github/workflows/workflow-lint.yml': text }, /--collect=all/);
   }
+  const twice = WORKFLOW.replace('--collect=all', '--collect=all --collect=workflows');
+  assertRefused({ '.github/workflows/workflow-lint.yml': twice }, /--collect=all/);
+});
+
+test('refuses a checkout that moves, narrows or replaces the tree zizmor lints', () => {
+  const checkout = '        with:\n          persist-credentials: false\n';
+  for (const input of [
+    'path: repo',
+    'sparse-checkout: .github',
+    'sparse-checkout-cone-mode: false',
+    'ref: main',
+    'repository: someone/else',
+  ]) {
+    const text = WORKFLOW.replace(checkout, `${checkout}          ${input}\n`);
+    assertRefused({ '.github/workflows/workflow-lint.yml': text }, new RegExp(`checkout sets ${input.split(':')[0]}:`));
+  }
+  const multiline = WORKFLOW.replace(checkout, `${checkout}          sparse-checkout: |\n            .github\n            action.yml\n`);
+  assertRefused({ '.github/workflows/workflow-lint.yml': multiline }, /checkout sets sparse-checkout:/);
+  const flow = WORKFLOW.replace(checkout, '        with: { persist-credentials: false, path: repo }\n');
+  assertRefused({ '.github/workflows/workflow-lint.yml': flow }, /must be a block/);
+  const nameFirst = WORKFLOW.replace(
+    '      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4\n',
+    '      - name: Check out\n        with:\n          path: repo\n        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4\n',
+  ).replace(checkout, '');
+  assertRefused({ '.github/workflows/workflow-lint.yml': nameFirst }, /checkout sets path:/);
+});
+
+test('refuses a workflow with no checkout, or with two', () => {
+  const none = WORKFLOW.replace(/ {6}- uses: actions\/checkout@\S+ # v4\n {8}with:\n {10}persist-credentials: false\n/, '');
+  assert.notEqual(none, WORKFLOW);
+  assertRefused({ '.github/workflows/workflow-lint.yml': none }, /exactly one actions\/checkout step; found 0/);
+  const two = WORKFLOW.replace(
+    "      - name: Run the gate's own tests",
+    "      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4\n      - name: Run the gate's own tests",
+  );
+  assertRefused({ '.github/workflows/workflow-lint.yml': two }, /exactly one actions\/checkout step; found 2/);
+});
+
+test('refuses a working-directory and a change of directory', () => {
   const stepDir = WORKFLOW.replace(
     '      - name: Lint every workflow and Action definition with zizmor\n',
     '      - name: Lint every workflow and Action definition with zizmor\n        working-directory: .github/workflows\n',

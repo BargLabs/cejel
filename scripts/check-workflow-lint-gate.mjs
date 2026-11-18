@@ -9,10 +9,12 @@
 // - the workflow has no pull_request trigger, has a paths: or paths-ignore: filter, carries
 //   continue-on-error, swallows an exit status (|| true, || :, || exit 0, set +e), names zizmor's
 //   exit-code flag or a severity or confidence filter, does not run exactly one zizmor command with
-//   --offline, gives that command any input other than the repository root (.), names --collect,
-//   sets a working-directory or changes directory (each would drop a workflow or Action definition
-//   out of the lint), installs zizmor other than hash-checked from the requirements file, or runs
-//   zizmor before this script's node test;
+//   --offline, or does anything that would drop a workflow or Action definition out of the lint:
+//   gives zizmor any input other than the repository root (.), runs it without --collect=all (its
+//   default collection honours .gitignore) or with another --collect, sets a working-directory,
+//   changes directory, or checks out other than once with only persist-credentials set (path:,
+//   sparse-checkout, ref: and repository: are refused); installs zizmor other than hash-checked
+//   from the requirements file; or runs zizmor before this script's node test;
 // - any ignore has no reason. An inline ignore is a YAML comment that begins with the marker
 //   `zizmor: ignore[<one rule>]` and carries at least three words after the bracket. zizmor does not
 //   read a marker that is appended to another comment, so that is refused too. A configuration
@@ -160,6 +162,55 @@ export function zizmorInputs(command) {
   return inputs;
 }
 
+const CHECKOUT_USES = /^(\s*)(-\s+)?uses\s*:\s*["']?actions\/checkout@/;
+
+/**
+ * The checkout must put the whole pull-request tree at the workspace root, where zizmor lints `.`:
+ * exactly one actions/checkout step, whose with: block sets persist-credentials and nothing else.
+ * path: moves the tree out of the root, sparse-checkout leaves files out, and ref: or repository:
+ * lints a different tree.
+ */
+export function checkoutProblems(lines) {
+  const problems = [];
+  const at = lines.map((line, index) => (CHECKOUT_USES.test(line) ? index : -1)).filter((index) => index !== -1);
+  if (at.length !== 1) {
+    problems.push(`must check out the repository with exactly one actions/checkout step; found ${at.length}`);
+    return problems;
+  }
+  const [, lead, dash] = CHECKOUT_USES.exec(lines[at[0]]);
+  const keyIndent = lead.length + (dash ? dash.length : 0);
+  const dashIndent = keyIndent - 2;
+  let start = at[0];
+  if (!dash) {
+    while (start > 0 && !(lines[start].search(/\S/) === dashIndent && /^\s*-\s/.test(lines[start]))) start -= 1;
+  }
+  let end = at[0] + 1;
+  while (end < lines.length && (!lines[end].trim() || lines[end].search(/\S/) > dashIndent)) end += 1;
+
+  const keys = [];
+  for (let i = start; i < end; i += 1) {
+    const key = /^\s*(?:-\s+)?([\w-]+)\s*:\s*(.*)$/.exec(lines[i]);
+    if (!key) continue;
+    const indent = i === start ? keyIndent : lines[i].search(/\S/);
+    if (indent !== keyIndent || key[1] !== 'with') continue;
+    if (key[2].trim()) problems.push(`the checkout's with: must be a block, one input per line; found ${key[2].trim()}`);
+    let inputIndent = -1;
+    for (let j = i + 1; j < end && (!lines[j].trim() || lines[j].search(/\S/) > keyIndent); j += 1) {
+      if (!lines[j].trim()) continue;
+      if (inputIndent === -1) inputIndent = lines[j].search(/\S/);
+      if (lines[j].search(/\S/) !== inputIndent) continue;
+      const input = /^\s*([\w-]+)\s*:/.exec(lines[j]);
+      keys.push(input ? input[1] : lines[j].trim());
+    }
+  }
+  for (const key of keys) {
+    if (key !== 'persist-credentials') {
+      problems.push(`the checkout sets ${key}:, which can change or narrow the tree zizmor lints; only persist-credentials is allowed`);
+    }
+  }
+  return problems;
+}
+
 export function checkWorkflow(text) {
   const problems = [];
   const refuse = (message) => problems.push(`${WORKFLOW_PATH}: ${message}`);
@@ -188,7 +239,15 @@ export function checkWorkflow(text) {
       );
     }
   }
-  if (/--collect\b/.test(code)) refuse('names --collect, which narrows what zizmor lints');
+  // zizmor's default collection honours .gitignore, so one ignore line would drop a workflow or an
+  // Action definition from the lint; --collect=all ignores .gitignore. Any other kind narrows it.
+  const collects = code.match(/--collect\b\S*/g) ?? [];
+  if (collects.length !== 1 || !runs.some(({ command }) => /(?:^|\s)--collect=all(?=\s|$|["'])/.test(command))) {
+    refuse(
+      `the zizmor command must carry --collect=all, once, so .gitignore cannot drop a file from the lint; found [${collects.join(', ')}]`,
+    );
+  }
+  problems.push(...checkoutProblems(lines).map((problem) => `${WORKFLOW_PATH}: ${problem}`));
   if (/\bworking-directory\s*:/.test(code)) refuse('sets a working-directory, which moves the root zizmor lints');
   if (/(?:^|[\s;&|("'])(?:cd|pushd)\s/.test(code)) refuse('changes directory in a run step, which can move the root zizmor lints');
 

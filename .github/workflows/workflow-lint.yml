@@ -7,7 +7,8 @@ name: Workflow lint
 # line or in .github/zizmor.yml for files this workflow's pull request may not edit.
 # scripts/check-workflow-lint-gate.mjs refuses a softened gate, a narrowed input (zizmor must be given
 # the repository root, `.`, and nothing else) or an ignore without a reason, and its node test pins the
-# number of ignores. --offline skips zizmor's online audits.
+# number of ignores. --offline skips zizmor's online audits. --collect=all makes zizmor ignore
+# .gitignore, which its default collection honours, so an ignore line cannot drop a file from the lint.
 
 on:
   pull_request:
@@ -41,4 +42,4 @@ jobs:
           python3 -m venv "$RUNNER_TEMP/zizmor-venv"
           "$RUNNER_TEMP/zizmor-venv/bin/pip" install --no-deps --require-hashes --only-binary :all: -r .github/zizmor-requirements.txt
       - name: Lint workflows and Action definitions with zizmor
-        run: '"$RUNNER_TEMP/zizmor-venv/bin/zizmor" --offline --config .github/zizmor.yml .'
+        run: '"$RUNNER_TEMP/zizmor-venv/bin/zizmor" --offline --collect=all --config .github/zizmor.yml .'
