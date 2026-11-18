@@ -21,6 +21,18 @@ rubric is pinned. v27 carries no precision or recall claim.
 
 ### Added
 
+- **B3 names a counted CI workflow in which a failing test command is ignored, under every rubric.**
+  Where a workflow the PR-gate CI workflow count includes runs its tests with
+  `continue-on-error: true` on the step or its job, or ends the test command with a fallback that
+  always exits 0 (`|| true`, `|| :`, `|| exit 0`, `|| echo ...`), one of B3's disclosures names the
+  workflow and the line, and says the count still includes it. The certificate lists it under
+  "What was not established", and the first page says in plain words that a failing test can leave
+  such a check passing. Cejel does not check whether another step fails the run. A
+  `continue-on-error` set by an expression is not read as true, and a fallback is not read on a
+  workflow that names Windows or a shell other than bash or sh. No scoring change: the count, B3's
+  score and status, and every other score are unchanged, and a report with no such workflow is
+  byte-identical.
+
 - **GitLab: Cejel's scores as a metrics report, so a merge request shows the scores that changed.**
   `cejel export gitlab-metrics <report.json> [-o metrics.txt]` writes one `<name> <value>` line
   each for the overall score, process trust, code trust and every criterion

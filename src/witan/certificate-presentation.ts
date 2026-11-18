@@ -7,6 +7,7 @@ import {
   WITAN_A4_LOCKFILE_COVERAGE_NOT_COMPUTED_PREFIX,
   WITAN_A4_LOCKFILE_REQUIREMENT_NOT_DETERMINED_PREFIX,
   WITAN_B2_UNCREDITED_CI_WORKFLOW_PREFIX,
+  WITAN_B3_IGNORED_TEST_FAILURE_PREFIX,
   WITAN_B3_UNCREDITED_CI_WORKFLOW_PREFIX,
   WITAN_B3_PUBLISHING_CI_WORKFLOW_PREFIX,
   WITAN_B3_UNSHOWN_CHECK_PREFIX,
@@ -1015,6 +1016,14 @@ function unshownCheckWorkflowDisclosures(report: WitanReport): string[] {
   return criterionDisclosures(report, 'B3', WITAN_B3_UNSHOWN_CHECK_PREFIX);
 }
 
+// Every rubric: the B3 disclosure naming counted PR-gate workflows in which a failing test command
+// is ignored. Listed only while B3 is scored, since only then does the count show.
+function ignoredTestFailureDisclosures(report: WitanReport): string[] {
+  const b3 = report.criteria.find((criterion) => criterion.id === 'B3');
+  if (!b3 || b3.status === 'not_applicable' || b3.status === 'insufficient_data') return [];
+  return criterionDisclosures(report, 'B3', WITAN_B3_IGNORED_TEST_FAILURE_PREFIX);
+}
+
 // Every rubric (#556): A2 was marked not applicable while its history evidence was incomplete
 // (shallow clone or a failed history read). Listed only while A2 is not applicable, since that is
 // the result the sentence qualifies. The sentence is built from Cejel's own words only.
@@ -1142,6 +1151,7 @@ export function buildRelyingPartySummary(report: WitanReport): RelyingPartySumma
   gaps.push(...placeholderSetAsideDisclosures(report));
   gaps.push(...historyApplicabilityDisclosures(report));
   gaps.push(...unshownCheckWorkflowDisclosures(report));
+  gaps.push(...ignoredTestFailureDisclosures(report));
   gaps.push(...uncreditedCiWorkflowDisclosures(report));
   gaps.push(...lockfileCoverageNotComputedDisclosures(report));
   const withheldPathsSentence = buildWithheldPathsGapSentence(report);

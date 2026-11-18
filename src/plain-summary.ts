@@ -7,6 +7,7 @@ import {
   WITAN_A4_LOCKFILE_REQUIREMENT_NOT_DETERMINED_PREFIX,
   WITAN_A5_RECONCILIATION_UNSETTLED_DISCLOSURE,
   WITAN_B2_UNCREDITED_CI_WORKFLOW_PREFIX,
+  WITAN_B3_IGNORED_TEST_FAILURE_PREFIX,
   WITAN_B3_PUBLISHING_CI_WORKFLOW_PREFIX,
   WITAN_B3_UNCREDITED_CI_WORKFLOW_PREFIX,
   WITAN_B3_UNSHOWN_CHECK_PREFIX,
@@ -393,6 +394,7 @@ const SETTLING_SENTENCES: ReadonlyArray<{ criterionId: string; sentence: string;
 const DISCLOSURE_PREFIXES: ReadonlyArray<{ prefix: string; kind: Exclude<PlainDisclosureKind, 'other'> }> = [
   { prefix: WITAN_A2_PLACEHOLDER_SET_ASIDE_PREFIX, kind: 'placeholder-set-aside' },
   { prefix: WITAN_B3_UNSHOWN_CHECK_PREFIX, kind: 'unshown-check' },
+  { prefix: WITAN_B3_IGNORED_TEST_FAILURE_PREFIX, kind: 'ignored-test-failure' },
   { prefix: WITAN_A2_HISTORY_APPLICABILITY_PREFIX, kind: 'history-applicability' },
   { prefix: WITAN_B2_UNCREDITED_CI_WORKFLOW_PREFIX, kind: 'uncredited-ci' },
   { prefix: WITAN_B3_UNCREDITED_CI_WORKFLOW_PREFIX, kind: 'uncredited-ci' },
@@ -405,6 +407,8 @@ const DISCLOSURE_SENTENCES: Readonly<Record<Exclude<PlainDisclosureKind, 'other'
   'placeholder-set-aside':
     'Cejel set aside some password- or key-like values as documentation examples rather than real secrets.',
   'unshown-check': 'Some workflows were counted as automated checks although Cejel did not see them run a check.',
+  'ignored-test-failure':
+    'Some workflows counted as automated checks run the tests in a way that lets a failing test leave the check passing.',
   'history-applicability': 'Cejel decided this area does not apply after reading only part of the commit history.',
   'uncredited-ci': 'Some workflows were not counted because Cejel did not see them run a check.',
   'publishing-ci':
