@@ -1,10 +1,11 @@
 # zizmor configuration for .github/workflows/workflow-lint.yml.
 #
-# Ignores live here only for files that the pull request adding this gate may not edit: the release
-# and publish workflows, the CLA workflow, the two standing-constraints workflows (they change
-# together with a sibling in another repository), the LLM calibration workflow (its bytes are
-# hashed into calibration freeze records), the dated dist-determinism measurement, both Action
-# definitions, and two ci.yml lines whose exact text scripts/validate-distribution-metadata.mjs
+# Ignores live here only for lines that cannot carry an inline comment, or whose files should not
+# change for a lint: the npm publish workflow's npm install (the clean fix moves npm into the
+# lockfile, a release-path change), the CLA workflow, the two standing-constraints workflows (they
+# change together with a sibling in another repository), the LLM calibration workflow (its bytes
+# are hashed into calibration freeze records), the preregistered dist-determinism measurement, both
+# Action definitions, and two ci.yml lines whose exact text scripts/validate-distribution-metadata.mjs
 # requires. Every other ignore is an inline comment beside its line.
 #
 # One entry per finding, as <file>:<line>, with the reason as a comment. zizmor matches the entry
@@ -25,16 +26,6 @@ rules:
 
   artipacked:
     ignore:
-      - publish-distribution.yml:42 # release workflow, not run by a pull request; fixed with a release dry run
-      - publish-distribution.yml:84 # release workflow, not run by a pull request; fixed with a release dry run
-      - publish-distribution.yml:137 # release workflow, not run by a pull request; fixed with a release dry run
-      - publish-distribution.yml:254 # release workflow, not run by a pull request; fixed with a release dry run
-      - publish-distribution.yml:300 # release workflow, not run by a pull request; fixed with a release dry run
-      - publish-distribution.yml:352 # release workflow, not run by a pull request; fixed with a release dry run
-      - publish-distribution.yml:403 # release workflow, not run by a pull request; fixed with a release dry run
-      - publish-npm.yml:30 # release workflow, not run by a pull request; fixed with a release dry run
-      - release-binaries.yml:44 # release workflow, not run by a pull request; fixed with a release dry run
-      - release-binaries.yml:161 # release workflow, not run by a pull request; fixed with a release dry run
       - llm-calibration.yml:79 # dispatch only, and its bytes are pinned by calibration freeze records
       - measure-dist-determinism.yml:32 # a dated, preregistered measurement; not run by a pull request
       - standing-constraints-pr.yml:29 # sibling of a workflow in another repository; the two change together
@@ -47,7 +38,7 @@ rules:
 
   adhoc-packages:
     ignore:
-      - publish-npm.yml:164 # release workflow, not run by a pull request; fixed with a release dry run
+      - publish-npm.yml:165 # zizmor flags every npm install, even of a sha512-checked tarball; the clean fix moves npm into the lockfile
       - action.yml:139 # the published Action installs its sha512-checked pnpm; changing it is a product change
       - action.yml:140 # the published nested Action installs its sha512-checked pnpm; a product change
       - action.yml:166 # the published Action installs its sha512-checked pnpm; changing it is a product change

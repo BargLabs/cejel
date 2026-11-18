@@ -35,7 +35,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-        with: # zizmor: ignore[artipacked] dispatch only; fixed with the release and dispatch workflows
+        with:
+          persist-credentials: false
           ref: ${{ inputs.release_tag }}
 
       - name: Create fixture repo with fixed author/committer identity and dates
@@ -72,7 +73,9 @@ jobs:
 
       - name: Record fixture commit
         shell: bash
-        run: echo "${{ steps.fixture.outputs.commit }}" > "$RUNNER_TEMP/fixture-commit.txt" # zizmor: ignore[template-injection] dispatch only; the value is a commit id an earlier step wrote
+        env:
+          FIXTURE_COMMIT: ${{ steps.fixture.outputs.commit }}
+        run: echo "$FIXTURE_COMMIT" > "$RUNNER_TEMP/fixture-commit.txt"
 
       - name: Upload fixture commit id
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -334,10 +337,12 @@ jobs:
 
       - name: Run npm package against the same fixture
         shell: bash
-        run: | # zizmor: ignore[template-injection] dispatch only; the version comes from the checked release tag
+        env:
+          PACKAGE_VERSION: ${{ steps.version.outputs.version }}
+        run: |
           set -euo pipefail
           set +e
-          npx --yes "@cejel/cejel@${{ steps.version.outputs.version }}" "$RUNNER_TEMP/fixture" --out "$RUNNER_TEMP/out-npm" > "$RUNNER_TEMP/npm-stdout.txt" 2>"$RUNNER_TEMP/npm-stderr.txt"
+          npx --yes "@cejel/cejel@$PACKAGE_VERSION" "$RUNNER_TEMP/fixture" --out "$RUNNER_TEMP/out-npm" > "$RUNNER_TEMP/npm-stdout.txt" 2>"$RUNNER_TEMP/npm-stderr.txt"
           echo "exit_code=$?" > "$RUNNER_TEMP/npm-exit.txt"
           set -e
           echo "---exit code---"
