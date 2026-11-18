@@ -35,11 +35,12 @@ jobs:
           node-version: 22.23.1
       - name: Run the gate's own tests before trusting it
         run: node --test scripts/check-workflow-lint-gate.node-test.mjs
-      - name: Check the gate is a gate and every ignore has a reason
-        run: node scripts/check-workflow-lint-gate.mjs
       - name: Install zizmor, hash-checked, into a virtual environment
         run: |
           python3 -m venv "$RUNNER_TEMP/zizmor-venv"
           "$RUNNER_TEMP/zizmor-venv/bin/pip" install --no-deps --require-hashes --only-binary :all: -r .github/zizmor-requirements.txt
+      # Directly before zizmor: --ci also checks that the tree is exactly the commit under test.
+      - name: Check the gate is a gate, every ignore has a reason, and the tree is the commit
+        run: node scripts/check-workflow-lint-gate.mjs --ci
       - name: Lint workflows and Action definitions with zizmor
         run: '"$RUNNER_TEMP/zizmor-venv/bin/zizmor" --offline --collect=all --config .github/zizmor.yml .'

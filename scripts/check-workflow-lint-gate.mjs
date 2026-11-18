@@ -1,8 +1,9 @@
 #!/usr/bin/env node
-// The workflow-lint gate's own guard (.github/workflows/workflow-lint.yml runs it, after its node
-// test and before zizmor). zizmor lints cejel's workflows and both Action definitions on every pull
-// request. This script keeps that a gate and keeps every exception visible. It reads files only and
-// needs no network. It fails when:
+// The workflow-lint gate's own guard (.github/workflows/workflow-lint.yml runs it with --ci, after its
+// node test and as the step directly before zizmor). zizmor lints cejel's workflows and Action
+// definitions on every pull request. This script keeps that a gate and keeps every exception
+// visible. It reads files, and with --ci asks the local git for the checkout's state; it needs no
+// network. It fails when:
 //
 // - .github/zizmor-requirements.txt is not exactly one zizmor==<version> requirement carrying exactly
 //   one sha256 hash, so pip's require-hashes mode installs only the wheel that was reviewed;
@@ -15,6 +16,14 @@
 //   changes directory, or checks out other than once with only persist-credentials set (path:,
 //   sparse-checkout, ref: and repository: are refused); installs zizmor other than hash-checked
 //   from the requirements file; or runs zizmor before this script's node test;
+// - the workflow lets anything between the checkout and zizmor change what zizmor reads: this
+//   script must run as `node scripts/check-workflow-lint-gate.mjs --ci` in the step directly before
+//   zizmor's, zizmor's step must run its command alone, and the workflow may not carry if:, shell:,
+//   a uses: other than actions/checkout and actions/setup-node, a PATH key, or GITHUB_ENV,
+//   GITHUB_PATH or GITHUB_SHA;
+// - with --ci: HEAD is not the commit the run is for ($GITHUB_SHA), or the working tree differs from
+//   it in any way, tracked, untracked or ignored. So no earlier step deleted, emptied, edited or
+//   added a file zizmor would read;
 // - any ignore has no reason. An inline ignore is a YAML comment that begins with the marker
 //   `zizmor: ignore[<one rule>]` and carries at least three words after the bracket. zizmor does not
 //   read a marker that is appended to another comment, so that is refused too. A configuration
@@ -25,6 +34,7 @@
 // The number of ignores is pinned in scripts/check-workflow-lint-gate.node-test.mjs, so adding one
 // changes a test that a reviewer reads.
 
+import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -162,6 +172,56 @@ export function zizmorInputs(command) {
   return inputs;
 }
 
+const GUARD_COMMAND = /\bnode\s+(?:\.\/)?scripts\/check-workflow-lint-gate\.mjs\b/;
+const ALLOWED_USES = /^(?:actions\/checkout|actions\/setup-node)@[0-9a-f]{40}$/;
+
+/**
+ * Nothing may change what zizmor reads between the checkout and zizmor's step. This script runs with
+ * --ci in the step directly before zizmor's and checks the tree against $GITHUB_SHA; zizmor's step
+ * runs its command alone; and the workflow carries nothing that skips a step (if:), reinterprets a
+ * run (shell:), runs code that this check cannot read (a uses: beyond checkout and setup-node), or
+ * redirects a tool or the commit (a PATH key, GITHUB_ENV, GITHUB_PATH, GITHUB_SHA).
+ */
+export function sequenceProblems(lines, runs) {
+  const problems = [];
+  const code = lines.join('\n');
+  if (/^\s*(?:-\s+)?if\s*:/m.test(code)) problems.push('carries an if:, which can skip the guard or zizmor');
+  if (/^\s*(?:-\s+)?shell\s*:/m.test(code)) problems.push('sets a shell:, which changes how a run step is executed');
+  if (/^\s*PATH\s*:/m.test(code)) problems.push('sets PATH, which can swap the git, node or zizmor this gate runs');
+  for (const name of ['GITHUB_ENV', 'GITHUB_PATH', 'GITHUB_SHA']) {
+    if (code.includes(name)) problems.push(`names ${name}, which can redirect a later step or the commit the guard checks`);
+  }
+  for (const line of lines) {
+    const uses = /^\s*(?:-\s+)?uses\s*:\s*["']?([^\s"']+)/.exec(line);
+    if (uses && !ALLOWED_USES.test(uses[1])) {
+      problems.push(`uses ${uses[1]}; only actions/checkout and actions/setup-node pinned to a commit may run here`);
+    }
+  }
+
+  const guards = lines.map((line, index) => (GUARD_COMMAND.test(line) ? index : -1)).filter((index) => index !== -1);
+  if (guards.length !== 1 || !/^\s*(?:-\s+)?run\s*:\s*node\s+scripts\/check-workflow-lint-gate\.mjs\s+--ci\s*$/.test(lines[guards[0]])) {
+    problems.push('must run the guard exactly once, as `run: node scripts/check-workflow-lint-gate.mjs --ci`');
+    return problems;
+  }
+  if (runs.length !== 1) return problems;
+  const zizmorLine = lines[runs[0].index];
+  const alone = /^\s*(?:-\s+)?run\s*:\s*'?"?[^\s'"]*zizmor["']?\s(.*)$/.exec(zizmorLine);
+  if (!alone || /[;&|<>`]|\$\(/.test(alone[1]) || /\\\s*$/.test(zizmorLine)) {
+    problems.push(`zizmor's step must run the zizmor command alone, on its run: line: ${zizmorLine.trim()}`);
+  }
+  const at = lines.findIndex((line) => /^\s*steps\s*:\s*$/.test(line));
+  const first = lines.findIndex((line, index) => index > at && line.trim());
+  const dashIndent = first === -1 ? -1 : lines[first].search(/\S/);
+  const starts = lines
+    .map((line, index) => (index > at && line.search(/\S/) === dashIndent && /^\s*-\s/.test(line) ? index : -1))
+    .filter((index) => index !== -1);
+  const stepOf = (index) => starts.filter((start) => start <= index).length - 1;
+  if (at === -1 || stepOf(runs[0].index) !== stepOf(guards[0]) + 1) {
+    problems.push("must run the guard in the step directly before zizmor's, so no step between them can change the tree");
+  }
+  return problems;
+}
+
 const CHECKOUT_USES = /^(\s*)(-\s+)?uses\s*:\s*["']?actions\/checkout@/;
 
 /**
@@ -250,6 +310,8 @@ export function checkWorkflow(text) {
   problems.push(...checkoutProblems(lines).map((problem) => `${WORKFLOW_PATH}: ${problem}`));
   if (/\bworking-directory\s*:/.test(code)) refuse('sets a working-directory, which moves the root zizmor lints');
   if (/(?:^|[\s;&|("'])(?:cd|pushd)\s/.test(code)) refuse('changes directory in a run step, which can move the root zizmor lints');
+
+  problems.push(...sequenceProblems(lines, runs).map((problem) => `${WORKFLOW_PATH}: ${problem}`));
 
   const installs = lines.filter((line) => PIP_INSTALL.test(line));
   if (installs.length === 0) refuse('installs no zizmor with pip --require-hashes from the requirements file');
@@ -413,7 +475,13 @@ export function configIgnores(text, files = null) {
 
 // --- the repository ------------------------------------------------------------------------------
 
-/** What zizmor lints when given the repository root: the workflows and every Action definition. */
+/**
+ * What zizmor 1.32.0 lints with --collect=all given the repository root: the workflows directly in
+ * .github/workflows, .github/dependabot.yml, the root pre-commit files, and every action.yml or
+ * action.yaml, hidden directories included. It skips .git, node_modules and nested repositories
+ * (a directory holding its own .git, such as a local worktree). zizmor lints those too when they
+ * are present, but in CI they are not: --ci refuses any file the checkout did not put there.
+ */
 export function lintTargets(root) {
   const targets = [];
   const workflows = join(root, '.github', 'workflows');
@@ -422,11 +490,19 @@ export function lintTargets(root) {
       if (entry.isFile() && /\.ya?ml$/.test(entry.name)) targets.push(join(workflows, entry.name));
     }
   }
+  for (const path of [
+    join('.github', 'dependabot.yml'),
+    join('.github', 'dependabot.yaml'),
+    '.pre-commit-config.yaml',
+    '.pre-commit-hooks.yaml',
+  ]) {
+    if (existsSync(join(root, path))) targets.push(join(root, path));
+  }
   const walk = (directory) => {
     for (const entry of readdirSync(directory, { withFileTypes: true })) {
       const path = join(directory, entry.name);
       if (entry.isDirectory()) {
-        if (entry.name === 'node_modules' || (entry.name.startsWith('.') && entry.name !== '.github')) continue;
+        if (entry.name === '.git' || entry.name === 'node_modules' || existsSync(join(path, '.git'))) continue;
         walk(path);
       } else if (entry.isFile() && /^action\.ya?ml$/.test(entry.name)) {
         targets.push(path);
@@ -473,10 +549,37 @@ export function checkRepository(root) {
   return { problems, ignores, targets };
 }
 
+/**
+ * --ci: the tree zizmor will read is exactly the commit the run is for. HEAD must be `sha`
+ * ($GITHUB_SHA) and `git status` must report nothing, ignored files included, so no earlier step
+ * deleted, emptied, edited or added a file. `git` runs a git command in `root` and returns stdout.
+ */
+export function checkoutStateProblems(root, sha, git = (args) => execFileSync('git', args, { cwd: root, encoding: 'utf8' })) {
+  if (!/^[0-9a-f]{40}$/.test(sha ?? '')) return ['--ci needs GITHUB_SHA, the 40-hex commit this run is for'];
+  let head;
+  let status;
+  try {
+    head = git(['rev-parse', 'HEAD']).trim();
+    status = git(['status', '--porcelain=v1', '--ignored', '--untracked-files=all']);
+  } catch (error) {
+    return [`--ci could not read the checkout with git: ${String(error.message).split('\n')[0]}`];
+  }
+  const problems = [];
+  if (head !== sha) problems.push(`HEAD is ${head}, not ${sha}, the commit this run is for`);
+  const changed = status.split('\n').filter(Boolean);
+  if (changed.length > 0) {
+    problems.push(
+      `the working tree differs from the checked-out commit, so zizmor would not read what was committed:\n  ${changed.slice(0, 20).join('\n  ')}`,
+    );
+  }
+  return problems;
+}
+
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const rootAt = process.argv.indexOf('--root');
   const root = rootAt === -1 ? join(dirname(fileURLToPath(import.meta.url)), '..') : resolve(process.argv[rootAt + 1]);
   const { problems, ignores, targets } = checkRepository(root);
+  if (process.argv.includes('--ci')) problems.push(...checkoutStateProblems(root, process.env.GITHUB_SHA));
   if (problems.length > 0) {
     console.error(`workflow-lint gate: ${problems.length} problem(s):`);
     for (const problem of problems) console.error(`- ${problem}`);

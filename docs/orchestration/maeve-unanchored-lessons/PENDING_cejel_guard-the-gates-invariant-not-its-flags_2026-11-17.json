@@ -1,0 +1,25 @@
+[
+  {
+    "statement": "When a guard keeps a CI gate honest, check the invariant the gate depends on, not a list of known softening flags. 2026-11-17: after #735 and two review rounds, cejel's workflow-lint guard refused about fifteen named softenings of zizmor. It still passed `if: ${{ false }}` on the zizmor step, which skips the lint entirely, and a step that empties action/action.yml before zizmor runs. Each new list entry closed one route; the invariant closed the class. In #739 the guard runs directly before zizmor and checks with git that HEAD is $GITHUB_SHA and the working tree is clean, ignored files included. The workflow may carry no if:, no shell: and no action beyond checkout and setup-node. Before trusting a gate, write the invariant it relies on (here: the commit, unmodified, fully linted), check that invariant at run time, and keep enumeration for what cannot be checked at run time.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "ci-gates"
+    ],
+    "tags": [
+      "gate-softening",
+      "invariant-check",
+      "mutation-test",
+      "workflow-lint",
+      "zizmor"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-11-17T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 739
+    }
+  }
+]
