@@ -2595,14 +2595,19 @@ function collectA1TestIntegrityEvidence(
   // v27 (goal_cejel_v27_a1_test_count_overmatch_2026-11-01, item A): each file a v27 rule rated
   // hollow is cited with its rule, the first eight as the test files are, so a reviewer can check
   // that the rule's condition held. Empty under every other rubric.
+  // goal_cejel_v27_a1_fixture_data_not_cited_as_test_2026-11-19, item B: these are the files that
+  // move the share, so they are cited first (see positiveEvidence below); the findings above have
+  // already taken their pointers from the list in its built order, which stays as it was.
+  const ratedHollowPointers: WitanEvidencePointer[] = [];
   for (const rated of nonHollowShare.ratedHollow.slice(0, A1_NOTE_EVIDENCE_LIMIT)) {
     const label = `Rated hollow under this rubric: runs no test (${rated.rule})`;
-    evidence.push(
+    ratedHollowPointers.push(
       rated.line === null
         ? evidenceForRelative(repoPath, rated.path, 'test_run', label)
         : evidenceForRelativeAtLine(repoPath, rated.path, 'test_run', label, rated.line),
     );
   }
+  evidence.push(...ratedHollowPointers);
   // v27 (goal_cejel_v27_a1_restore_proof_and_hookwrapper_2026-11-02, item E): each hook the note
   // names (not read, putting the items back, or rebinding them) is cited at its `def`, in the
   // note's order, so its path is exact. goal_cejel_v27_a1_pytest_runs_and_config_2026-11-02, item
@@ -2657,9 +2662,17 @@ function collectA1TestIntegrityEvidence(
     });
   }
 
+  // v27 (item B): each file a v27 rule rated hollow (at most A1_NOTE_EVIDENCE_LIMIT; the note
+  // counts the rest) is cited before the detected test files. The pointers and their count are
+  // unchanged; only their order moves. Every other rubric rates no file hollow by rule.
+  const orderedEvidence =
+    useV27FalseAssuranceClosure && ratedHollowPointers.length > 0
+      ? [...ratedHollowPointers, ...evidence.filter((pointer) => !ratedHollowPointers.includes(pointer))]
+      : evidence;
+
   return {
     criterionId: 'A1',
-    positiveEvidence: evidence,
+    positiveEvidence: orderedEvidence,
     findings,
     metrics: [
       metric(

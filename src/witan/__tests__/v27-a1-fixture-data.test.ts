@@ -165,7 +165,18 @@ describe('item B — under v27 a file a v27 rule rates hollow is cited before th
       Array.from({ length: 8 }, (_unused, index) => `tests/pkg${String(index).padStart(2, '0')}/conftest.py`),
     );
     expect(score.evidence.filter(({ label }) => label === CONFTEST_HOLLOW)).toHaveLength(8);
-    expect(score.notes ?? '').toContain('10 files that v17 rates non-hollow are rated hollow here because they run no test');
+    const notes = score.notes ?? '';
+    expect(notes).toContain('10 files that v17 rates non-hollow are rated hollow here because they run no test: ');
+    // The note says how many of the ten carry no citation: those listed past the first eight, and
+    // those not listed at all.
+    const listed = /rated hollow here because they run no test: (.*?)(?:, and (\d+) more not listed)?(?:; the (\d+) listed after the first 8 carry no evidence pointer)?\.(?: |$)/.exec(notes);
+    expect(listed, notes).not.toBeNull();
+    const shown = (listed?.[1] ?? '').split(/, (?=tests\/)/).length;
+    const notListed = Number(listed?.[2] ?? 0);
+    const pointerless = Number(listed?.[3] ?? 0);
+    expect(shown + notListed).toBe(10);
+    expect(pointerless).toBe(Math.max(0, shown - 8));
+    expect(pointerless + notListed).toBe(2);
   });
 
   it('under v17 no file is rated hollow, and the detected test files come first', () => {
