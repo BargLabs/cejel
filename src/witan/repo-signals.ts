@@ -7424,6 +7424,26 @@ function defaultBranchTriggerLine(contents: string): number | null {
   return starts.length === 0 ? null : lineAtIndex(lower, Math.min(...starts));
 }
 
+/**
+ * v27 (19 Nov): the label of B3's pointer at a workflow v27 does not discount, saying what it earned:
+ * `targets` is workflowTargetsDefaultBranch's reading (default_branch_ci_depth), `categories` the
+ * ci_script_depth command categories it names, in that metric's order. "Not read as" rather than
+ * "has no", since a trigger that reading does not match (pull_request_target) is still a trigger.
+ * Within EVIDENCE_LABEL_MAX_LENGTH for every input (b3-cites-every-workflow.test.ts).
+ */
+export function b3WorkflowCitationLabel(monorepoRoot: boolean, targets: boolean, categories: readonly string[]): string {
+  const subject = monorepoRoot ? 'Monorepo-root CI workflow' : 'CI workflow';
+  const names = joinCategoryNames(categories);
+  const commands = categories.length === 1 ? `runs a ${names} command` : `runs ${names} commands`;
+  if (targets) {
+    return `${subject} counted: targets pull requests or the default branch (cited at that line); ${categories.length > 0 ? commands : 'no test, lint, type-check or build command'}`;
+  }
+  if (categories.length > 0) {
+    return `${subject} counted for its commands: ${commands} (cited at the first one); not read as a pull-request or default-branch workflow`;
+  }
+  return `${subject} read, earns no credit: not read as a pull-request or default-branch workflow, and no test, lint, type-check or build command (cited at its on: trigger)`;
+}
+
 /** `names` joined as prose: "test", "test and lint", "test, lint and build". */
 function joinCategoryNames(names: readonly string[]): string {
   return names.length <= 1 ? (names[0] ?? '') : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
@@ -7448,7 +7468,6 @@ function b3WorkflowCitations(sets: readonly B3WorkflowSet[]): {
 } {
   const groups: [B3WorkflowCitation[], B3WorkflowCitation[], B3WorkflowCitation[]] = [[], [], []];
   for (const { root, workflows, uncredited, lines, monorepoRoot } of sets) {
-    const subject = monorepoRoot ? 'Monorepo-root CI workflow' : 'CI workflow';
     for (const file of workflows) {
       const reason = uncredited.get(file);
       if (reason !== undefined) {
@@ -7461,32 +7480,15 @@ function b3WorkflowCitations(sets: readonly B3WorkflowSet[]): {
         const match = pattern.exec(contents);
         return match ? [{ name, line: lineAtIndex(contents, match.index) }] : [];
       });
-      const names = joinCategoryNames(categories.map(({ name }) => name));
-      const commands = categories.length === 1 ? `runs a ${names} command` : `runs ${names} commands`;
-      if (workflowTargetsDefaultBranch(root, file)) {
-        groups[0].push({
-          root,
-          file,
-          label: `${subject} counted: targets pull requests or the default branch (cited at that line); ${categories.length > 0 ? commands : 'no test, lint, type-check or build command'}`,
-          line: defaultBranchTriggerLine(contents),
-          monorepoRoot,
-        });
+      const names = categories.map(({ name }) => name);
+      const targets = workflowTargetsDefaultBranch(root, file);
+      const label = b3WorkflowCitationLabel(monorepoRoot, targets, names);
+      if (targets) {
+        groups[0].push({ root, file, label, line: defaultBranchTriggerLine(contents), monorepoRoot });
       } else if (categories.length > 0) {
-        groups[0].push({
-          root,
-          file,
-          label: `${subject} counted for its commands: ${commands} (cited at the first one); no pull-request or default-branch trigger`,
-          line: Math.min(...categories.map(({ line }) => line)),
-          monorepoRoot,
-        });
+        groups[0].push({ root, file, label, line: Math.min(...categories.map(({ line }) => line)), monorepoRoot });
       } else {
-        groups[1].push({
-          root,
-          file,
-          label: `${subject} read, earns no credit: no pull-request or default-branch trigger and no test, lint, type-check or build command (cited at its on: trigger)`,
-          line: workflowTriggerLine(root, file),
-          monorepoRoot,
-        });
+        groups[1].push({ root, file, label, line: workflowTriggerLine(root, file), monorepoRoot });
       }
     }
   }

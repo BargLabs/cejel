@@ -7,7 +7,7 @@ import type { WitanCriterionScore, WitanEvidencePointer, WitanReport } from '../
 
 import { serializeWitanReport } from '../attestation.js';
 import { scoreRepoWithPublicCejel } from '../public-scan.js';
-import { ciWorkflowCitationLabel } from '../repo-signals.js';
+import { b3WorkflowCitationLabel, ciWorkflowCitationLabel } from '../repo-signals.js';
 import {
   WITAN_RUBRIC_VERSION_V17,
   WITAN_RUBRIC_VERSION_V27,
@@ -113,7 +113,7 @@ describe('item A — under v27 B3 cites every workflow it read, with how it was 
     expect(ci?.line).toBe(3);
     const stale = byPath.get('.github/workflows/stale.yml');
     expect(stale?.label).toBe(
-      'CI workflow read, earns no credit: no pull-request or default-branch trigger and no test, lint, type-check or build command (cited at its on: trigger)',
+      'CI workflow read, earns no credit: not read as a pull-request or default-branch workflow, and no test, lint, type-check or build command (cited at its on: trigger)',
     );
     expect(stale?.line).toBe(2);
     expect(byPath.get('.github/workflows/docs.yml')?.label).toMatch(/^CI workflow not counted: publishes/);
@@ -133,9 +133,31 @@ describe('item A — under v27 B3 cites every workflow it read, with how it was 
     const b3 = criterion('c-semantic-release-tests-first', V27, 'B3');
     const release = workflowPointers(b3).find(({ path }) => path === '.github/workflows/release.yml');
     expect(release?.label).toBe(
-      'CI workflow counted for its commands: runs a test command (cited at the first one); no pull-request or default-branch trigger',
+      'CI workflow counted for its commands: runs a test command (cited at the first one); not read as a pull-request or default-branch workflow',
     );
     expect(release?.line).toBe(13);
+  });
+
+  it('every workflow label, for a repository or a monorepo root and every category subset, is within 180 characters', () => {
+    const all = ['test', 'lint', 'type-check', 'build'];
+    const subsets = Array.from({ length: 16 }, (_, mask) => all.filter((_name, index) => (mask >> index) & 1));
+    for (const monorepoRoot of [false, true]) {
+      for (const targets of [false, true]) {
+        for (const categories of subsets) {
+          const label = b3WorkflowCitationLabel(monorepoRoot, targets, categories);
+          expect(label.length, label).toBeLessThanOrEqual(180);
+        }
+      }
+    }
+    expect(b3WorkflowCitationLabel(true, false, all)).toBe(
+      'Monorepo-root CI workflow counted for its commands: runs test, lint, type-check and build commands (cited at the first one); not read as a pull-request or default-branch workflow',
+    );
+  });
+
+  it('a labeller on pull_request_target is cited as read and earning no credit, and its label does not say it has no trigger', () => {
+    const v27 = workflowPointers(criterion('b-labeller-pull-request-target', V27, 'B3')).find(({ path }) => path === '.github/workflows/labeler.yml');
+    expect(v27?.label).toMatch(/^CI workflow read, earns no credit: not read as a pull-request or default-branch workflow/);
+    expect(v27?.line).toBe(2);
   });
 
   it('every pointer label on every new fixture is within the schema\'s 180 characters', () => {
