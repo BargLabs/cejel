@@ -552,9 +552,13 @@ const LIMITATION_TABLE: ReadonlyArray<{
   {
     key: 'content-unreadable',
     pattern:
-      /^(\d+) (?:criterion|criteria) abstained because relevant repository content could not be read(?: and the affected signal could not be isolated)?\. Counts and errno classes are recorded in contentReadSummary; file paths are intentionally omitted\.$/,
+      /^(\d+) (?:criterion|criteria) abstained because relevant repository content could not be read(?: and the affected signal could not be isolated)?\. Counts and errno classes are recorded in contentReadSummary(?:; file paths are intentionally omitted|(, which lists no file paths; each criterion that abstained on a Git LFS pointer cites the pointer paths in its evidence))\.$/,
+    // v27 (#519 follow-up): the second form is written only where an area cites the Git LFS pointers
+    // it abstained on, so "does not name them" would be false there.
     plain: (m) =>
-      `${areas(m[1] ?? '')} gave no score because files ${m[1] === '1' ? 'it reads' : 'they read'} could not be read; the certificate below counts those files by cause and does not name them.`,
+      m[2] !== undefined
+        ? `${areas(m[1] ?? '')} gave no score because files ${m[1] === '1' ? 'it reads' : 'they read'} could not be read; the certificate below counts those files by cause, and the evidence of each area that read a Git LFS pointer names it.`
+        : `${areas(m[1] ?? '')} gave no score because files ${m[1] === '1' ? 'it reads' : 'they read'} could not be read; the certificate below counts those files by cause and does not name them.`,
   },
   {
     key: 'content-declined',

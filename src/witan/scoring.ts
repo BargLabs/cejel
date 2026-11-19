@@ -29,6 +29,7 @@ import {
   WITAN_AUTHENTICATED_A1_ABSENCE_SUMMARY,
   WITAN_DIRECTORY_WALK_AUTHENTICATED_A1_ABSENCE_SUMMARY,
   WITAN_LEGACY_AUTHENTICATED_A1_ABSENCE_SUMMARY,
+  WITAN_LFS_POINTER_CITATION_LABEL,
   WITAN_NO_MEASUREMENT_REASON,
 } from './abstention.js';
 import { dropMarkedCitations, isCitablePointer, markOverLimitPaths } from './path-limits.js';
@@ -584,7 +585,12 @@ function scoreCriterion(
     return {
       score: 0,
       status: unmeasuredStatus(rubricVersion),
-      evidence: [],
+      // v27 (#519 follow-up): an abstention on Git LFS pointers cites each pointer it rests on.
+      // Only those citations pass through, only under v27; score and status are as before.
+      evidence:
+        rubricVersion === WITAN_RUBRIC_VERSION_V27
+          ? signal.positiveEvidence.filter(({ label }) => label === WITAN_LFS_POINTER_CITATION_LABEL)
+          : [],
       findings: [],
       metrics: [],
     };

@@ -1,3 +1,5 @@
+import { rmSync } from 'node:fs';
+
 import { describe, expect, it } from 'vitest';
 
 import type { WitanReport } from '../schemas.js';
@@ -17,6 +19,8 @@ import {
   shapeName,
   validPairs,
 } from './fixtures/v27-norise-shapes.js';
+import { buildFalseAssuranceFixture } from './fixtures/false-assurance-fixtures.js';
+import { V27_LFS_POINTER_FIXTURES } from './fixtures/v27-lfs-pointer-fixtures.js';
 import {
   type IntroducedAbstention,
   checkNoRise,
@@ -117,9 +121,46 @@ function describeGenerator(): void {
   });
 }
 
+// #519 follow-up (2026-11-19): the curated Git LFS pointer fixtures, which the generated shapes do not
+// cover (their pointers sit in A1's and B2/B3's inputs, never at binary assets or A2's surface). Each
+// pair must show no rise and no lost finding, every abstention v27 introduces must be a recognised
+// read failure (checkNoRise), and every criterion v27 marks not applicable must be one v17 marks not
+// applicable on the same commit: the not-applicable gate is a path out of the denominator too.
+function describeLfsPointerFixtures(): void {
+  describe('curated Git LFS pointer fixtures (#519 follow-up): no rise on any path out of the denominator', () => {
+    let keptNotApplicable = 0;
+    let introducedAbstentions = 0;
+    for (const fixture of V27_LFS_POINTER_FIXTURES) {
+      it(fixture.name, () => {
+        const repoPath = buildFalseAssuranceFixture(fixture);
+        try {
+          const before = score(repoPath, WITAN_RUBRIC_VERSION_V17);
+          const after = score(repoPath, WITAN_RUBRIC_VERSION_V27);
+          const result = checkNoRise(before, after);
+          expect(result.problems, record(fixture.name, result.problems)).toEqual([]);
+          expect(lostFindings(before, after)).toEqual([]);
+          expect(result.introducedAbstentions.filter(({ denominator }) => denominator !== 'kept')).toEqual([]);
+          introducedAbstentions += result.introducedAbstentions.length;
+          for (const v27 of after.criteria.filter(({ status }) => status === 'not_applicable')) {
+            expect(before.criteria.find(({ id }) => id === v27.id)?.status, `${fixture.name} ${v27.id}`).toBe('not_applicable');
+            if ((v27.disclosures ?? []).some((sentence) => sentence.includes('are Git LFS pointers'))) keptNotApplicable += 1;
+          }
+        } finally {
+          rmSync(repoPath, { recursive: true, force: true });
+        }
+      });
+    }
+    it('the fixtures exercised both moves: a kept not-applicable result and an introduced abstention', () => {
+      expect(keptNotApplicable).toBeGreaterThan(0);
+      expect(introducedAbstentions).toBeGreaterThan(0);
+    });
+  });
+}
+
 /** Registers shard `index` (0-based) of the generated no-rise shapes. */
 export function describeGeneratedNoRiseShard(index: number): void {
   if (index === 0) describeGenerator();
+  if (index === 0) describeLfsPointerFixtures();
   const shapes: NoRiseShape[] = noRiseShard(ALL_SHAPES, index, NO_RISE_SHARDS);
 
   // What the shapes made v27 do, gathered as they run, so the last test can show the property was

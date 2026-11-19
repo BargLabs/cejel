@@ -51,6 +51,9 @@ import {
   WITAN_A2_TENANT_ISOLATION_UNSETTLED_DISCLOSURE,
   WITAN_B2_UNCREDITED_CI_WORKFLOW_PREFIX,
   WITAN_B3_IGNORED_TEST_FAILURE_PREFIX,
+  WITAN_LFS_POINTER_CITATION_LABEL,
+  WITAN_V27_LFS_POINTER_NOT_APPLICABLE_PREFIX,
+  WITAN_V27_LFS_POINTER_READ_FAILURE_PATHS_SENTENCE,
   WITAN_B3_UNCREDITED_CI_WORKFLOW_PREFIX,
   WITAN_B3_PUBLISHING_CI_WORKFLOW_PREFIX,
   WITAN_A4_LOCKFILE_COVERAGE_NOT_COMPUTED_PREFIX,
@@ -317,11 +320,18 @@ export interface BuildWitanInputOptions {
 function wholesaleCriterionAbstention(
   signal: WitanCriterionSignalPayload,
   reasons?: ReadonlySet<ContentReadSkipReason>,
+  // v27 (#519 follow-up): the Git LFS pointers attributed to this criterion, cited as its evidence.
+  // Empty under every other rubric, since only v27 attributes a pointer read.
+  lfsPointerCitations: readonly WitanEvidencePointer[] = [],
 ): WitanCriterionSignalPayload {
   const { insufficientDataReason } = classifyAbstentionReason(reasons);
+  const pointers = lfsPointerCitations.length;
+  const pointerCount = `${pointers} Git LFS pointer${pointers === 1 ? '' : 's'}`;
   return {
     criterionId: signal.criterionId,
-    positiveEvidence: [],
+    // Scoring ignores an abstaining signal's evidence for its score and status; it passes these
+    // citations, and only these, through to the report (scoreCriterion in scoring.ts).
+    positiveEvidence: [...lfsPointerCitations],
     findings: [],
     metrics: [],
     insufficientData: true as const,
@@ -336,9 +346,86 @@ function wholesaleCriterionAbstention(
       insufficientDataReason !== undefined
         ? 'Cejel abstained on this criterion because relevant repository content was declined under the repository content size limit or excluded from scanning by policy. This is a disclosed coverage limit, not a read failure, and does not affect the composite score.'
         : reasons?.size === 1 && reasons.has('lfs_pointer')
-          ? 'Cejel abstained on this criterion because relevant files in this checkout are Git LFS pointers, so their content was not read. Fetch the LFS content (git lfs pull) and re-scan.'
-          : 'Cejel abstained on this criterion because one or more relevant repository files could not be read. Resolve the content-read limitations and re-scan.',
+          ? pointers > 0
+            ? `Cejel abstained on this criterion because relevant files in this checkout are Git LFS pointers, so their content was not read. This abstention rests on ${pointerCount}, cited in this criterion's evidence. Fetch the LFS content (git lfs pull) and re-scan.`
+            : 'Cejel abstained on this criterion because relevant files in this checkout are Git LFS pointers, so their content was not read. Fetch the LFS content (git lfs pull) and re-scan.'
+          : pointers > 0
+            ? `Cejel abstained on this criterion because one or more relevant repository files could not be read. ${pointers === 1 ? 'One of them is a Git LFS pointer' : `${pointers} of them are Git LFS pointers`}, cited in this criterion's evidence. Resolve the content-read limitations and re-scan.`
+            : 'Cejel abstained on this criterion because one or more relevant repository files could not be read. Resolve the content-read limitations and re-scan.',
   };
+}
+
+/**
+ * v27 (#519 follow-up): one evidence pointer per Git LFS pointer attributed to `criterionId`, in path
+ * order. Each is cited like any other evidence path (evidenceForRelative), labelled as a pointer
+ * whose content is not in this checkout. Empty under every rubric but v27.
+ */
+function lfsPointerCitations(
+  repoPath: string,
+  criterionId: WitanCriterionId,
+  tracked: Pick<TrackedContentReads<unknown>, 'lfsPointerPaths'>,
+): WitanEvidencePointer[] {
+  return [...(tracked.lfsPointerPaths.get(criterionId) ?? [])]
+    .sort((left, right) => left.localeCompare(right))
+    .map((path) => evidenceForRelative(repoPath, path, 'artifact', WITAN_LFS_POINTER_CITATION_LABEL));
+}
+
+/**
+ * v27 (#519 follow-up, item B): whether the real content at `path` could change A2's not-applicable
+ * decision, judged from the reads A2's applicability gate makes (collectA2IsolationEvidence), not
+ * from a list of file types of its own:
+ * - the `.gitignore`, read for an `.env` rule (gitignoreHasEnvRule);
+ * - an env-format file, whose content decides whether it is a committed `.env` (hasTemplateOnlyEnvContent);
+ * - an implementation file, read by the signing, HMAC and secret-comparison detector
+ *   (collectCryptoHygieneEvidence) and for a DB client import (dbLayerImportFile);
+ * - a credential-shaped path (isCredentialHistoryPath), whose current value A2 fingerprints;
+ * - any file of a type Cejel reads as content (isPotentialContentPath), since the committed-secret
+ *   scan reads it as text and a confirmed secret there makes A2 applicable. A file of any other type
+ *   is one the report already says Cejel does not read as content ("excluded by extension"); the
+ *   secret scan's text grammar is written for content, so a binary asset (an image, a font, an
+ *   archive, an installer, audio, model weights) cannot supply what this gate looks for.
+ * Every other A2 applicability input reads a path only (migration directories, `.env` templates, a
+ * committed `.env` path) or reads history, never a checked-out pointer.
+ */
+function a2ApplicabilityReadsPointerContent(path: string): boolean {
+  return (
+    basename(path) === '.gitignore' ||
+    /(?:^|\/)\.env(?:\.|$)/i.test(path) ||
+    isImplementationFile(path) ||
+    isCredentialHistoryPath(path, true, false) ||
+    isPotentialContentPath(path)
+  );
+}
+
+/**
+ * v27 (#519 follow-up, item B): A2 reached not-applicable from the content it did read, and every
+ * Git LFS pointer attributed to it is at a path whose real content could not change that decision
+ * (a2ApplicabilityReadsPointerContent). A2 then keeps v17's not-applicable result and names the
+ * pointers in a disclosure. Returns undefined, so A2 abstains as before, for any other criterion, any
+ * pointer that could change the decision, or a disclosure list already at the schema's four.
+ * Applied to A2 alone: no other criterion's not-applicable gate has been shown to read pointers only
+ * at paths its own selection predicate could not use (see the v27 declaration in rubric-version.ts).
+ */
+function lfsPointerKeepsA2NotApplicable(
+  signal: WitanCriterionSignalPayload,
+  pointerPaths: readonly string[],
+): WitanCriterionSignalPayload | undefined {
+  if (signal.criterionId !== 'A2' || signal.notApplicable !== true || pointerPaths.length === 0) return undefined;
+  if (pointerPaths.some(a2ApplicabilityReadsPointerContent)) return undefined;
+  const existing = signal.disclosures ?? [];
+  if (existing.length >= 4) return undefined;
+  return { ...signal, disclosures: [...existing, lfsPointerNotApplicableDisclosure(pointerPaths)] };
+}
+
+function lfsPointerNotApplicableDisclosure(pointerPaths: readonly string[]): string {
+  const sorted = [...pointerPaths].sort((left, right) => left.localeCompare(right));
+  const tail = `. None is a file A2's applicability checks read for a ratable surface (a .gitignore, an env file, implementation source, a credential file, or a file of a type Cejel reads as content, which the committed-secret scan reads as text), so ${sorted.length === 1 ? 'its' : 'their'} content could not change this not-applicable result.`;
+  for (let shown = sorted.length; shown > 0; shown -= 1) {
+    const more = sorted.length - shown;
+    const sentence = `${WITAN_V27_LFS_POINTER_NOT_APPLICABLE_PREFIX}${sorted.slice(0, shown).join(', ')}${more > 0 ? ` and ${more} more` : ''}${tail}`;
+    if (sentence.length <= 1000) return sentence;
+  }
+  return `${WITAN_V27_LFS_POINTER_NOT_APPLICABLE_PREFIX}${sorted.length} files${tail}`.slice(0, 1000);
 }
 
 function withoutCountDisclosures(disclosures: readonly string[] | undefined): { disclosures?: string[] } {
@@ -403,31 +490,51 @@ export function buildWitanInputFromRepo(options: BuildWitanInputOptions): WitanR
     // critical finding, and an abstention there would let a pointer-shaped file erase a confirmed
     // one. Such a criterion scores exactly as v17 does, and is dropped from
     // contentReadSummary.affectedCriteria, since it did not abstain. A not-applicable result is
-    // NOT kept: applicability is decided from what a collector fails to find in content, and a
-    // pointer is content it did not read.
+    // kept only where the criterion's own applicability checks could not have read any of the
+    // pointers' content (lfsPointerKeepsA2NotApplicable, A2 only, #519 follow-up): applicability is
+    // decided from what a collector fails to find in content, and a pointer elsewhere is content it
+    // did not read.
     const lfsKept = new Set<WitanCriterionId>();
+    // v27 (#519 follow-up): whether any abstaining criterion cites its Git LFS pointers, in which
+    // case the read-failure limitation no longer says the report omits file paths.
+    let citesLfsPointers = false;
     const signals = (tracked.value.signals ?? []).map((signal) => {
       if (!affectedCriteria.has(signal.criterionId)) return signal;
       const reasons = skipReasonsForCriterion(signal.criterionId, tracked);
+      const lfsOnly = reasons.size > 0 && [...reasons].every((reason) => reason === 'lfs_pointer');
       if (
         usesV27FalseAssuranceClosure(rubricVersion) &&
-        reasons.size > 0 &&
-        [...reasons].every((reason) => reason === 'lfs_pointer') &&
+        lfsOnly &&
         (signal.findings ?? []).some(({ severity }) => severity === 'critical')
       ) {
         lfsKept.add(signal.criterionId);
         return signal;
       }
+      if (usesV27FalseAssuranceClosure(rubricVersion) && lfsOnly && signal.notApplicable === true) {
+        const kept = lfsPointerKeepsA2NotApplicable(signal, [
+          ...(tracked.lfsPointerPaths.get(signal.criterionId) ?? []),
+        ]);
+        if (kept !== undefined) {
+          lfsKept.add(signal.criterionId);
+          return kept;
+        }
+      }
       const { insufficientDataReason } = classifyAbstentionReason(reasons);
       (insufficientDataReason !== undefined ? coverageLimitedCriteria : readFailureCriteria).push(
         signal.criterionId,
       );
-      return wholesaleCriterionAbstention(signal, reasons);
+      const citations = lfsPointerCitations(options.repoPath, signal.criterionId, tracked);
+      if (citations.length > 0 && insufficientDataReason === undefined) citesLfsPointers = true;
+      return wholesaleCriterionAbstention(signal, reasons, citations);
     });
     const collected = tracked.value.scanLimitations ?? [];
     const readFailureLimitation =
       readFailureCriteria.length > 0
-        ? `${readFailureCriteria.length} ${readFailureCriteria.length === 1 ? 'criterion' : 'criteria'} abstained because relevant repository content could not be read. Counts and errno classes are recorded in contentReadSummary; file paths are intentionally omitted.`
+        ? `${readFailureCriteria.length} ${readFailureCriteria.length === 1 ? 'criterion' : 'criteria'} abstained because relevant repository content could not be read. ${
+            citesLfsPointers
+              ? WITAN_V27_LFS_POINTER_READ_FAILURE_PATHS_SENTENCE
+              : 'Counts and errno classes are recorded in contentReadSummary; file paths are intentionally omitted.'
+          }`
         : undefined;
     const coverageLimitedLimitation =
       coverageLimitedCriteria.length > 0

@@ -7,6 +7,8 @@ import type { WitanCriterionScore, WitanReport } from '../schemas.js';
 
 import { serializeWitanReport } from '../attestation.js';
 import { buildRelyingPartySummary } from '../certificate-presentation.js';
+import { renderWitanHtmlReport } from '../html.js';
+import { renderWitanMarkdownReport } from '../markdown.js';
 import { buildPlainSummary } from '../../plain-summary.js';
 import { scoreRepoWithPublicCejel } from '../public-scan.js';
 import {
@@ -106,6 +108,17 @@ describe('item A — a v27 abstention on Git LFS pointers cites the pointers it 
     expect(b6.status).toBe('insufficient_data');
     expect(pointerPaths(b6)).toEqual(['src/sign.ts']);
     expect(b6.evidence.every(({ label }) => label === POINTER_LABEL)).toBe(true);
+  });
+
+  it('the Markdown and HTML certificates list the citations and still say the criterion was not measured', () => {
+    const scored = report('lfs-a2-surface-sign-pointer', V27);
+    const markdown = renderWitanMarkdownReport(scored);
+    expect(markdown).toContain('- A2: Insufficient data');
+    expect(markdown).toMatch(/- A2: .*Git LFS pointer; its content is not in this checkout.*src\/sign\.ts/);
+    const html = renderWitanHtmlReport(scored);
+    expect(html).toContain('<strong>A2 - ');
+    expect(html).toContain('Insufficient data — no measurable signal; excluded from composite (unmeasured, not inapplicable).');
+    expect(html).toContain('<code>src/sign.ts:1');
   });
 
   it('the scan limitation no longer says file paths are omitted where pointer paths are cited', () => {
