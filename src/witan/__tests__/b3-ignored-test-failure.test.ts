@@ -228,7 +228,7 @@ describe('B3: counted workflows in which a failing test command is ignored are n
     const plain = buildPlainSummary(report('itf-or-true'));
     const item = plain.notKnown.find((entry) => entry.source.kind === 'disclosure' && entry.area !== undefined && entry.text.includes('failing test'));
     expect(item?.text).toBe(
-      'Some workflows counted as automated checks run the tests in a way that lets a failing test leave the check passing.',
+      'Some workflows counted as automated checks run the tests in a way that can let a failing test leave the check passing.',
     );
     const next = plain.checkNext.find((entry) => entry.for === item?.id);
     expect(next?.key).toBe('disclosure:ignored-test-failure');

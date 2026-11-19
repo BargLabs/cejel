@@ -94,10 +94,14 @@ Stable in report format v1:
   whenever ingested signals adjusted a criterion. When it differs from `status`, imported evidence
   moved the status; consumers must not present that status as a native finding.
 - criterion disclosures: `criteria[].disclosures` (report format 1.8), up to four sentences, each
-  naming something the criterion's collector read and set aside, or counted without seeing it do
-  what it is counted for. A2 names credential-shaped values it set aside as documentation
-  placeholders (by count and path, never the value); B3 names counted PR-gate workflows it did not
-  see run a check. A2 also states when it was marked not applicable after an incomplete read of the
+  naming something the criterion's collector read and set aside, counted without seeing it do
+  what it is counted for, or counted although it was seen not to do it. A2 names credential-shaped
+  values it set aside as documentation placeholders (by count and path, never the value); B3 names
+  counted PR-gate workflows it did not see run a check, and counted PR-gate workflows in which a
+  failing test command is ignored (`continue-on-error: true` on the test step, or a fallback that
+  always exits 0, such as `|| true`), each with the line, and says it did not check whether another
+  step fails the run. That B3 sentence is a new kind within the same field and limit, so the report
+  format stays 1.8: a report with no such workflow is byte-identical. A2 also states when it was marked not applicable after an incomplete read of the
   commit history (#556): the clone is shallow, one of its reads of earlier commits failed (the scan
   limitations name each; a read that stopped at one of Cejel's own limits is named as such), the
   history secret scan stopped at its 5,000-file cap (named in the sentence, not in the scan

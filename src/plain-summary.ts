@@ -408,7 +408,7 @@ const DISCLOSURE_SENTENCES: Readonly<Record<Exclude<PlainDisclosureKind, 'other'
     'Cejel set aside some password- or key-like values as documentation examples rather than real secrets.',
   'unshown-check': 'Some workflows were counted as automated checks although Cejel did not see them run a check.',
   'ignored-test-failure':
-    'Some workflows counted as automated checks run the tests in a way that lets a failing test leave the check passing.',
+    'Some workflows counted as automated checks run the tests in a way that can let a failing test leave the check passing.',
   'history-applicability': 'Cejel decided this area does not apply after reading only part of the commit history.',
   'uncredited-ci': 'Some workflows were not counted because Cejel did not see them run a check.',
   'publishing-ci':
