@@ -21,7 +21,7 @@ import { buildDisclosureGapFixture, removeDisclosureGapFixtures } from './fixtur
 import { IGNORED_TEST_FAILURE_FIXTURES, ignoredTestFailureFixture } from './fixtures/ignored-test-failure-fixtures.js';
 
 // B3, every rubric, presentation only: a counted PR-gate workflow in which a failing test command
-// is ignored (continue-on-error: true on its step or job, or the command's exit status discarded
+// is ignored (continue-on-error: true on its step, or the command's exit status discarded
 // by `|| true`, `|| :`, `|| exit 0` and the like) is named in one of B3's disclosures. The PR-gate
 // count, B3's score, its status and every other scoring field stay as main left them: each
 // fixture's scoring surface under every selectable rubric is pinned below to the value origin/main
@@ -86,17 +86,54 @@ describe('the ignored-test-failure reader', () => {
     ['&& before the fallback', '      - run: pnpm test && pnpm run build || true\n', 8, '|| true'],
     ['a continued line', '      - run: |\n          pnpm test \\\n            --reporter dot || true\n', 9, '|| true'],
     ['an env assignment first', '      - run: CI=1 pnpm test || true\n', 8, '|| true'],
+    ['behind npx', '      - run: npx jest --ci || true\n', 8, '|| true'],
+    ['behind poetry run', '      - run: poetry run pytest -q || true\n', 8, '|| true'],
+    ['behind python -m', '      - run: python -m pytest || true\n', 8, '|| true'],
+    ['a runner named by its path', '      - run: ./node_modules/.bin/jest || true\n', 8, '|| true'],
+    ['a binary run through pnpm', '      - run: pnpm vitest run || true\n', 8, '|| true'],
+    ['a test script with a suffix', '      - run: npm run test:unit || true\n', 8, '|| true'],
+    ['later lines only print', '      - run: |\n          pytest || true\n          echo "done" >> "$GITHUB_STEP_SUMMARY"\n', 9, '|| true'],
   ])('names a test command whose exit status is discarded: %s', (_label, steps, line, how) => {
     expect(findIgnoredTestFailures(wf(steps))).toEqual([{ line, how }]);
   });
 
-  it('names continue-on-error: true on the step, and on the job, at the test command line', () => {
+  it('names continue-on-error: true on the step at the test command line, and not on the job', () => {
     expect(findIgnoredTestFailures(wf('      - continue-on-error: true\n        run: pnpm test\n'))).toEqual([
       { line: 9, how: 'continue-on-error: true on its step' },
     ]);
-    expect(findIgnoredTestFailures(wf('      - run: pnpm test\n', '    continue-on-error: true\n'))).toEqual([
-      { line: 9, how: 'continue-on-error: true on its job' },
+    // On a job, GitHub still marks the job failed while the run passes, so whether a failing test
+    // leaves a required check passing depends on which check is required: not named.
+    expect(findIgnoredTestFailures(wf('      - run: pnpm test\n', '    continue-on-error: true\n'))).toEqual([]);
+    // A fallback in that job is still named.
+    expect(findIgnoredTestFailures(wf('      - run: pnpm test || true\n', '    continue-on-error: true\n'))).toEqual([
+      { line: 9, how: '|| true' },
     ]);
+  });
+
+  // Review of #741: each of these made the reader state that a failing test is ignored when the
+  // shape does not show it. A false sentence here is worse than a missed one.
+  it.each([
+    ['an install that names a runner', '      - run: pip install pytest pytest-cov || true\n'],
+    ['a directory named after a runner', '      - run: mkdir -p jest-results || true\n'],
+    ['a file named after a runner', '      - run: rm -f jest.config.js || true\n'],
+    ['a runner name inside another word', '      - run: pytest-cov-report || true\n'],
+    ['a later line greps the result', '      - run: |\n          pytest | tee out.log || true\n          ! grep -q FAILED out.log\n'],
+    ['a later line re-runs the tests', '      - run: |\n          pytest || true\n          pytest --lf\n'],
+    ['a later line fails', '      - run: |\n          npm test || echo failed\n          false\n'],
+    ['the line is heredoc data', "      - run: |\n          cat <<EOF > run.sh\n          pytest || true\n          EOF\n          bash run.sh\n"],
+    ['a folded block joins the next line', '      - run: >-\n          pytest || true\n          && false\n'],
+    ['continue-on-error on a setup step', '      - continue-on-error: true\n        run: pip install pytest-xdist\n      - run: pytest\n'],
+    ['continue-on-error under env', '      - env:\n          continue-on-error: true\n        run: pnpm test\n'],
+    ['a run: under with:', '      - uses: some/action@v1\n        with:\n          run: pnpm test || true\n'],
+  ])('names nothing the shape does not show: %s', (_label, steps) => {
+    expect(findIgnoredTestFailures(wf(steps))).toEqual([]);
+  });
+
+  it('labels a job-level continue-on-error by the job, never by a key nested in the step', () => {
+    // The job's key is not named, and the nested one under env: is not the step's.
+    expect(
+      findIgnoredTestFailures(wf('      - env:\n          continue-on-error: true\n        run: npm test\n', '    continue-on-error: true\n')),
+    ).toEqual([]);
   });
 
   it.each([
@@ -154,7 +191,6 @@ describe('the disclosure sentence', () => {
 describe('B3: counted workflows in which a failing test command is ignored are named', () => {
   it.each([
     ['itf-step-continue-on-error', '.github/workflows/test.yml line 14 (continue-on-error: true on its step)'],
-    ['itf-job-continue-on-error', '.github/workflows/test.yml line 13 (continue-on-error: true on its job)'],
     ['itf-or-true', '.github/workflows/test.yml line 12 (|| true)'],
     ['itf-or-exit-0-in-block', '.github/workflows/ci.yml line 14 (|| exit 0)'],
   ])('%s, under v17 and v27', (name, named) => {
@@ -181,6 +217,7 @@ describe('B3: counted workflows in which a failing test command is ignored are n
     'itf-control-not-counted',
     'itf-control-windows-runner',
     'itf-control-quoted',
+    'itf-job-continue-on-error',
   ])('names nothing in the control %s, under any selectable rubric', (name) => {
     for (const rubricVersion of WITAN_SELECTABLE_RUBRIC_VERSIONS) {
       expect(ignoredDisclosure(name, rubricVersion), rubricVersion).toBeUndefined();
