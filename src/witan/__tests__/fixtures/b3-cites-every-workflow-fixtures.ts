@@ -61,7 +61,8 @@ const SEMANTIC_RELEASE = (testFirst: boolean, branch = 'release'): string =>
 
 const fixture = (name: string, purpose: string, files: Readonly<Record<string, string>>): FalseAssuranceFixture => ({
   name,
-  issue: '#600',
+  // The fixture type lists the issues fixtures belong to; the rule cited here is #517's (refs #600).
+  issue: '#517',
   purpose,
   commits: [{ ...PY_PROJECT, ...files }],
 });

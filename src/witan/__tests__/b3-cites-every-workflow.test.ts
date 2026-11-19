@@ -7,6 +7,7 @@ import type { WitanCriterionScore, WitanEvidencePointer, WitanReport } from '../
 
 import { serializeWitanReport } from '../attestation.js';
 import { scoreRepoWithPublicCejel } from '../public-scan.js';
+import { ciWorkflowCitationLabel } from '../repo-signals.js';
 import {
   WITAN_RUBRIC_VERSION_V17,
   WITAN_RUBRIC_VERSION_V27,
@@ -90,7 +91,7 @@ function v27Outcome(name: string): Record<string, unknown> {
 }
 
 const workflowPointers = (b3: WitanCriterionScore): WitanEvidencePointer[] =>
-  b3.evidence.filter(({ path, label }) => path.startsWith('.github/workflows/') && !/^CI workflow( \(|$)/.test(label));
+  b3.evidence.filter(({ path, label }) => (path ?? '').startsWith('.github/workflows/') && !/^CI workflow( \(|$)/.test(label));
 const summaryPointer = (b3: WitanCriterionScore): WitanEvidencePointer | undefined =>
   b3.evidence.find(({ label }) => /^CI workflow( \(|$)/.test(label));
 
@@ -120,8 +121,9 @@ describe('item A — under v27 B3 cites every workflow it read, with how it was 
     expect(byPath.get('.github/workflows/release.yml')?.label).toMatch(/^CI workflow not counted: publishes/);
     expect(byPath.get('.github/workflows/release.yml')?.line).toBe(TAG_RELEASE_LINE);
     for (const pointer of b3.evidence) expect(pointer.kind).toMatch(/^(ci_run|test_run)$/);
-    // The read-count label stays true: four read, four cited, at the credited workflow.
-    expect(summaryPointer(b3)?.label).toBe('CI workflow (4 workflow files read; 4 cited)');
+    // The read-count label stays true. It is silent where every workflow read is cited
+    // (ciWorkflowCitationLabel, unchanged), and it now sits at the credited workflow.
+    expect(summaryPointer(b3)?.label).toBe('CI workflow');
     expect(summaryPointer(b3)?.path).toBe('.github/workflows/ci.yml');
   });
 
@@ -131,7 +133,7 @@ describe('item A — under v27 B3 cites every workflow it read, with how it was 
     const b3 = criterion('c-semantic-release-tests-first', V27, 'B3');
     const release = workflowPointers(b3).find(({ path }) => path === '.github/workflows/release.yml');
     expect(release?.label).toBe(
-      'CI workflow counted toward verification depth only: runs test commands (cited at the first line naming one); no pull-request or default-branch trigger',
+      'CI workflow counted for its commands: runs a test command (cited at the first one); no pull-request or default-branch trigger',
     );
     expect(release?.line).toBe(13);
   });
@@ -148,10 +150,12 @@ describe('item A — under v27 B3 cites every workflow it read, with how it was 
       if (workflows.length > 16) continue;
       const cited = new Set(workflowPointers(criterion(name, V27, 'B3')).map(({ path }) => path));
       expect([...cited].sort(), name).toEqual([...workflows].sort());
-      expect(summaryPointer(criterion(name, V27, 'B3'))?.label, name).toBe(
-        workflows.length === 1 ? 'CI workflow' : `CI workflow (${workflows.length} workflow files read; ${workflows.length} cited)`,
-      );
+      expect(summaryPointer(criterion(name, V27, 'B3'))?.label, name).toBe('CI workflow');
       expect(workflowPointers(criterion(name, V17, 'B3')), name).toEqual([]);
+      // v17 keeps the label that says one of several is cited.
+      if (workflows.length > 1) {
+        expect(summaryPointer(criterion(name, V17, 'B3'))?.label, name).toBe(`CI workflow (${workflows.length} workflow files read; 1 cited)`);
+      }
     }
   });
 });
@@ -170,9 +174,35 @@ describe('item A, cap — past the citation limit the credited workflows come fi
     expect(pointers.some(({ path }) => path === '.github/workflows/aa-release.yml')).toBe(false);
     expect(b3.notes ?? '').toContain('.github/workflows/aa-release.yml');
     expect(summaryPointer(b3)?.label).toBe(
-      `CI workflow (${read} workflow files read; 16 cited; ${read - 16} not cited, over B3's citation limit of 16)`,
+      `CI workflow (${read} workflow files read; 16 cited; ${read - 16} not cited (citation limit 16))`,
     );
     expect(summaryPointer(b3)?.path).toBe('.github/workflows/zz-ci.yml');
+    // Under v17 the one pointer stays at the first workflow in path order.
+    expect(summaryPointer(criterion(CAP_FIXTURE.name, V17, 'B3'))?.path).toBe('.github/workflows/aa-release.yml');
+  });
+
+  it('the read-count label stays within 180 characters at its largest, dropping the limit figure last', () => {
+    // The four longest skip reasons (at most four reach a workflow count, as the function says).
+    // Counts below 10,000, as the function's own bound says.
+    const unread: Parameters<typeof ciWorkflowCitationLabel>[4] = new Map([
+      ['non_regular_file', 2499],
+      ['denied_path', 2500],
+      ['lfs_pointer', 2500],
+      ['unreadable', 2500],
+    ] as const);
+    for (const delegated of [
+      { crossRepositoryReusableWorkflows: 0, compositeActions: 0 },
+      { crossRepositoryReusableWorkflows: 4999, compositeActions: 5000 },
+    ]) {
+      const label = ciWorkflowCitationLabel('CI workflow (monorepo root)', 'read', 9999, 16, unread, delegated, 9983);
+      expect(label.length, label).toBeLessThanOrEqual(180);
+      expect(label).toContain('9983 not cited');
+    }
+    // A label with room keeps the limit's figure; with nothing past the limit, nothing is added.
+    expect(ciWorkflowCitationLabel('CI workflow', 'read', 20, 16, new Map(), undefined, 4)).toBe(
+      'CI workflow (20 workflow files read; 16 cited; 4 not cited (citation limit 16))',
+    );
+    expect(ciWorkflowCitationLabel('CI workflow', 'read', 4, 1, new Map())).toBe('CI workflow (4 workflow files read; 1 cited)');
   });
 });
 
