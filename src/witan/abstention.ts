@@ -61,11 +61,14 @@ export const WITAN_LFS_POINTER_CITATION_LABEL = 'Git LFS pointer; its content is
 // of the report; contentReadSummary itself still lists none.
 export const WITAN_V27_LFS_POINTER_READ_FAILURE_PATHS_SENTENCE =
   'Counts and errno classes are recorded in contentReadSummary, which lists no file paths; each criterion that abstained on a Git LFS pointer cites the pointer paths in its evidence.';
-// v27 only (#519 follow-up, 2026-11-19): A2 kept its not-applicable result although it read Git LFS
-// pointers, because every one is at a path whose content A2's applicability checks do not read for
-// a ratable surface (lfsPointerKeepsA2NotApplicable in repo-signals.ts). One of A2's
-// criteria[].disclosures, naming the pointers; listed under "What was not established".
-export const WITAN_V27_LFS_POINTER_NOT_APPLICABLE_PREFIX = 'Files A2 read are Git LFS pointers whose content is not in this checkout: ';
+// v27 only (#519 follow-up, 2026-11-19): A2 or B4 kept its not-applicable result although it read
+// Git LFS pointers, because every one is at a path whose content its applicability checks do not
+// read (lfsPointerKeepsNotApplicable in repo-signals.ts). One of that criterion's
+// criteria[].disclosures, naming the pointers and starting with this prefix; listed under "What was
+// not established".
+export function witanV27LfsPointerNotApplicablePrefix(criterionId: string): string {
+  return `Files ${criterionId} read are Git LFS pointers whose content is not in this checkout: `;
+}
 // Every rubric, presentation only (#556): A2 was marked not applicable after an incomplete read of
 // the commit history: the clone is shallow, one of A2's history reads failed (it stopped at one of
 // Cejel's own output or time limits, or could not read an object, as on a partial clone), the

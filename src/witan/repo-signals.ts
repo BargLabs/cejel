@@ -52,8 +52,8 @@ import {
   WITAN_B2_UNCREDITED_CI_WORKFLOW_PREFIX,
   WITAN_B3_IGNORED_TEST_FAILURE_PREFIX,
   WITAN_LFS_POINTER_CITATION_LABEL,
-  WITAN_V27_LFS_POINTER_NOT_APPLICABLE_PREFIX,
   WITAN_V27_LFS_POINTER_READ_FAILURE_PATHS_SENTENCE,
+  witanV27LfsPointerNotApplicablePrefix,
   WITAN_B3_UNCREDITED_CI_WORKFLOW_PREFIX,
   WITAN_B3_PUBLISHING_CI_WORKFLOW_PREFIX,
   WITAN_A4_LOCKFILE_COVERAGE_NOT_COMPUTED_PREFIX,
@@ -398,34 +398,73 @@ function a2ApplicabilityReadsPointerContent(path: string): boolean {
 }
 
 /**
- * v27 (#519 follow-up, item B): A2 reached not-applicable from the content it did read, and every
- * Git LFS pointer attributed to it is at a path whose real content could not change that decision
- * (a2ApplicabilityReadsPointerContent). A2 then keeps v17's not-applicable result and names the
- * pointers in a disclosure. Returns undefined, so A2 abstains as before, for any other criterion, any
- * pointer that could change the decision, or a disclosure list already at the schema's four.
- * Applied to A2 alone: no other criterion's not-applicable gate has been shown to read pointers only
- * at paths its own selection predicate could not use (see the v27 declaration in rubric-version.ts).
+ * v27 (#519 follow-up, item B): B4's two not-applicable gates (no audit-trail artifact, or only a
+ * security-policy artifact) decide from paths alone (isAuditFile, isFreshnessRatableAuditFile). On
+ * either path the only content B4 reads is an audit file's, for its evidence hash
+ * (collectB4AuditEvidence), so no such pointer's content could change the result. A pointer at any
+ * other path would come from a read this reasoning does not cover, and keeps the abstention.
  */
-function lfsPointerKeepsA2NotApplicable(
+function b4ApplicabilityReadsPointerContent(path: string): boolean {
+  return !isAuditFile(path);
+}
+
+/**
+ * The criteria whose not-applicable gate item B was shown to hold for, from the gate's own reads,
+ * and the sentence that says why. Every other criterion's not-applicable result is still replaced by
+ * the abstention: A3's, A5's and B6's gates read content a pointer could hold (see the v27
+ * declaration in rubric-version.ts), and B1's and B5's read nothing.
+ */
+const LFS_POINTER_NOT_APPLICABLE_RULES: Partial<
+  Record<WitanCriterionId, { readonly readsPointerContent: (path: string) => boolean; readonly reason: string }>
+> = {
+  A2: {
+    readsPointerContent: a2ApplicabilityReadsPointerContent,
+    reason:
+      "None is a file A2's applicability checks read for a ratable surface (a .gitignore, an env file, implementation source, a credential file, or a file of a type Cejel reads as content, which the committed-secret scan reads as text)",
+  },
+  B4: {
+    readsPointerContent: b4ApplicabilityReadsPointerContent,
+    reason: "B4's not-applicable result is decided from which audit-trail files exist, by path alone",
+  },
+};
+
+/**
+ * v27 (#519 follow-up, item B): the criterion reached not-applicable from the content it did read,
+ * and every Git LFS pointer attributed to it is at a path whose real content could not change that
+ * decision (LFS_POINTER_NOT_APPLICABLE_RULES). It then keeps v17's not-applicable result and names
+ * the pointers in a disclosure. Returns undefined, so the criterion abstains as before, for a
+ * criterion with no rule, any pointer that could change the decision, or a disclosure list already
+ * at the schema's four.
+ */
+function lfsPointerKeepsNotApplicable(
   signal: WitanCriterionSignalPayload,
   pointerPaths: readonly string[],
 ): WitanCriterionSignalPayload | undefined {
-  if (signal.criterionId !== 'A2' || signal.notApplicable !== true || pointerPaths.length === 0) return undefined;
-  if (pointerPaths.some(a2ApplicabilityReadsPointerContent)) return undefined;
+  const rule = LFS_POINTER_NOT_APPLICABLE_RULES[signal.criterionId];
+  if (!rule || signal.notApplicable !== true || pointerPaths.length === 0) return undefined;
+  if (pointerPaths.some(rule.readsPointerContent)) return undefined;
   const existing = signal.disclosures ?? [];
   if (existing.length >= 4) return undefined;
-  return { ...signal, disclosures: [...existing, lfsPointerNotApplicableDisclosure(pointerPaths)] };
+  return {
+    ...signal,
+    disclosures: [...existing, lfsPointerNotApplicableDisclosure(signal.criterionId, rule.reason, pointerPaths)],
+  };
 }
 
-function lfsPointerNotApplicableDisclosure(pointerPaths: readonly string[]): string {
+function lfsPointerNotApplicableDisclosure(
+  criterionId: WitanCriterionId,
+  reason: string,
+  pointerPaths: readonly string[],
+): string {
+  const prefix = witanV27LfsPointerNotApplicablePrefix(criterionId);
   const sorted = [...pointerPaths].sort((left, right) => left.localeCompare(right));
-  const tail = `. None is a file A2's applicability checks read for a ratable surface (a .gitignore, an env file, implementation source, a credential file, or a file of a type Cejel reads as content, which the committed-secret scan reads as text), so ${sorted.length === 1 ? 'its' : 'their'} content could not change this not-applicable result.`;
+  const tail = `. ${reason}, so ${sorted.length === 1 ? 'its' : 'their'} content could not change this not-applicable result.`;
   for (let shown = sorted.length; shown > 0; shown -= 1) {
     const more = sorted.length - shown;
-    const sentence = `${WITAN_V27_LFS_POINTER_NOT_APPLICABLE_PREFIX}${sorted.slice(0, shown).join(', ')}${more > 0 ? ` and ${more} more` : ''}${tail}`;
+    const sentence = `${prefix}${sorted.slice(0, shown).join(', ')}${more > 0 ? ` and ${more} more` : ''}${tail}`;
     if (sentence.length <= 1000) return sentence;
   }
-  return `${WITAN_V27_LFS_POINTER_NOT_APPLICABLE_PREFIX}${sorted.length} files${tail}`.slice(0, 1000);
+  return `${prefix}${sorted.length} files${tail}`;
 }
 
 function withoutCountDisclosures(disclosures: readonly string[] | undefined): { disclosures?: string[] } {
@@ -491,7 +530,7 @@ export function buildWitanInputFromRepo(options: BuildWitanInputOptions): WitanR
     // one. Such a criterion scores exactly as v17 does, and is dropped from
     // contentReadSummary.affectedCriteria, since it did not abstain. A not-applicable result is
     // kept only where the criterion's own applicability checks could not have read any of the
-    // pointers' content (lfsPointerKeepsA2NotApplicable, A2 only, #519 follow-up): applicability is
+    // pointers' content (lfsPointerKeepsNotApplicable, A2 and B4, #519 follow-up): applicability is
     // decided from what a collector fails to find in content, and a pointer elsewhere is content it
     // did not read.
     const lfsKept = new Set<WitanCriterionId>();
@@ -511,7 +550,7 @@ export function buildWitanInputFromRepo(options: BuildWitanInputOptions): WitanR
         return signal;
       }
       if (usesV27FalseAssuranceClosure(rubricVersion) && lfsOnly && signal.notApplicable === true) {
-        const kept = lfsPointerKeepsA2NotApplicable(signal, [
+        const kept = lfsPointerKeepsNotApplicable(signal, [
           ...(tracked.lfsPointerPaths.get(signal.criterionId) ?? []),
         ]);
         if (kept !== undefined) {

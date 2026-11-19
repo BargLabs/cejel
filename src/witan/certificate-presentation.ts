@@ -1,7 +1,7 @@
 import {
   WITAN_A2_PLACEHOLDER_SET_ASIDE_PREFIX,
   WITAN_A2_HISTORY_APPLICABILITY_PREFIX,
-  WITAN_V27_LFS_POINTER_NOT_APPLICABLE_PREFIX,
+  witanV27LfsPointerNotApplicablePrefix,
   WITAN_A2_TENANT_ISOLATION_UNSETTLED_DISCLOSURE,
   WITAN_A3_BUILD_STEP_UNSETTLED_DISCLOSURE,
   WITAN_A5_RECONCILIATION_UNSETTLED_DISCLOSURE,
@@ -1033,13 +1033,15 @@ function historyApplicabilityDisclosures(report: WitanReport): string[] {
   return criterionDisclosures(report, 'A2', WITAN_A2_HISTORY_APPLICABILITY_PREFIX);
 }
 
-// Prospective v27 (#519 follow-up): A2 stayed not applicable although it read Git LFS pointers, none
-// at a path its applicability checks read for content. Listed only while A2 is not applicable, since
-// that is the result the sentence qualifies.
+// Prospective v27 (#519 follow-up): A2 or B4 stayed not applicable although it read Git LFS
+// pointers, none at a path its applicability checks read for content. Listed only while that
+// criterion is not applicable, since that is the result the sentence qualifies.
 function lfsPointerNotApplicableDisclosures(report: WitanReport): string[] {
-  const a2 = report.criteria.find((criterion) => criterion.id === 'A2');
-  if (!a2 || a2.status !== 'not_applicable') return [];
-  return criterionDisclosures(report, 'A2', WITAN_V27_LFS_POINTER_NOT_APPLICABLE_PREFIX);
+  return ['A2', 'B4'].flatMap((criterionId) => {
+    const criterion = report.criteria.find((entry) => entry.id === criterionId);
+    if (!criterion || criterion.status !== 'not_applicable') return [];
+    return criterionDisclosures(report, criterionId, witanV27LfsPointerNotApplicablePrefix(criterionId));
+  });
 }
 
 // Prospective v27 (#527, #535): the B2 and B3 disclosures naming CI workflows not counted because

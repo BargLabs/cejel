@@ -136,6 +136,19 @@ export const V27_LFS_POINTER_FIXTURES: readonly FalseAssuranceFixture[] = [
     ],
   },
   {
+    name: 'lfs-b4-security-policy-pointer',
+    issue: '#519',
+    purpose:
+      'Item B, B4: the only audit-trail artifact is SECURITY.md, a Git LFS pointer. B4\'s security-policy-only gate decides from paths alone, so under v27 B4 stays not applicable and names the pointer.',
+    commits: [
+      {
+        ...TS_LIBRARY,
+        '.gitattributes': 'SECURITY.md filter=lfs diff=lfs merge=lfs -text\n',
+        'SECURITY.md': lfsPointerFor('# Security\n\nReport vulnerabilities to the maintainers.\n'),
+      },
+    ],
+  },
+  {
     name: 'lfs-a3-docker-compose-with-image-and-font-pointers',
     issue: '#519',
     purpose:

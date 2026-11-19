@@ -90,6 +90,7 @@ const NAMES = V27_LFS_POINTER_FIXTURES.map(({ name }) => name);
 // Item B keeps A2 not applicable on these; every other criterion keeps main's v27 scoring surface.
 const KEPT_NOT_APPLICABLE = new Set([
   'lfs-a2-binary-asset-pointers',
+  'lfs-b4-security-policy-pointer',
   'lfs-a3-docker-compose-with-image-and-font-pointers',
 ]);
 
@@ -180,6 +181,22 @@ describe('item B — under v27 a not-applicable result stands where no pointer A
     const a2 = criterion('review-a2-lfs-data-in-not-applicable-library', V27, 'A2');
     expect(a2.status).toBe('insufficient_data');
     expect(pointerPaths(a2)).toEqual(['data/sample.json']);
+  });
+
+  it('B4: a SECURITY.md pointer leaves B4 not applicable, since its security-policy-only gate decides from paths', () => {
+    const name = 'lfs-b4-security-policy-pointer';
+    const b4 = criterion(name, V27, 'B4');
+    expect(b4.status).toBe('not_applicable');
+    expect(b4.disclosures?.some((sentence) => sentence.startsWith('Files B4 read are Git LFS pointers') && sentence.includes('SECURITY.md'))).toBe(true);
+    expect(report(name, V27).contentReadSummary?.affectedCriteria).not.toContain('B4');
+    const { disclosures: _disclosures, ...rest } = b4;
+    expect(rest).toEqual(criterion(name, V17, 'B4'));
+    // A5 and B6 read SECURITY.md for its content (a claim source, a governance document), so they
+    // still abstain on it and cite it; A2 does not read it.
+    expect(report(name, V27).contentReadSummary?.affectedCriteria).toEqual(['A5', 'B6']);
+    expect(pointerPaths(criterion(name, V27, 'A5'))).toEqual(['SECURITY.md']);
+    expect(pointerPaths(criterion(name, V27, 'B6'))).toEqual(['SECURITY.md']);
+    expect(criterion(name, V27, 'A2')).toEqual(criterion(name, V17, 'A2'));
   });
 
   it('the certificate lists the disclosure, and its LFS sentence names the not-applicable case', () => {
