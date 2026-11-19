@@ -187,7 +187,7 @@ describe('item B — under v27 a file a v27 rule rates hollow is cited before th
 });
 
 describe('item C — how a fixture data file is counted, as the code stands (no code change)', () => {
-  const metric = (score: WitanCriterionScore, name: string): [number, number] | undefined => {
+  const metric = (score: WitanCriterionScore, name: string): [number, number | undefined] | undefined => {
     const found = score.metrics.find((entry) => entry.name === name);
     return found ? [found.value, found.max] : undefined;
   };
