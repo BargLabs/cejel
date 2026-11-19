@@ -496,13 +496,15 @@ describe('runWitanFreeCli (zero-config end-to-end)', () => {
     // "0.6.9" in place reproduces the 0.6.9 pin (3c08d846...) byte for byte.
     // Re-pinned for 0.6.11: only the version bump reaches this fixture. Setting toolVersion back to
     // "0.6.10" in place reproduces the 0.6.10 pin (00c77b5c...) byte for byte.
+    // Re-pinned for 0.6.12: only the version bump reaches this fixture. Setting toolVersion back to
+    // "0.6.11" in place reproduces the 0.6.11 pin (75b4aad3...) byte for byte, asserted below.
     // A release candidate (X.Y.Z-rc.N) is tagged from a release branch whose one commit must be
     // exactly scripts/bump-release-version.mjs's output on main (docs/release-process.md,
     // "Prerelease"), so it cannot re-pin this test. Its report must instead equal the pinned final
     // release's report byte for byte once toolVersion is set back to PINNED_TOOL_VERSION in place:
     // the version bump is the only change a release candidate can carry. A final release re-pins
     // as before and moves PINNED_TOOL_VERSION with the pin.
-    const PINNED_TOOL_VERSION = '0.6.11';
+    const PINNED_TOOL_VERSION = '0.6.12';
     const releaseCandidate = /^\d+\.\d+\.\d+-rc\.[1-9]\d*$/.test(
       String((firstReport as { toolVersion?: string }).toolVersion),
     );
@@ -512,10 +514,17 @@ describe('runWitanFreeCli (zero-config end-to-end)', () => {
     // depth-1 shallow clone and a publish-after-check workflow, so v17's fingerprint moved. This
     // fixture is a complete repository with no workflow. Made mechanical below: restoring the
     // previous v17 fingerprint in place (key order unchanged) reproduces the previous pin
-    // (ea0315a8...) byte for byte, and every older restoration starts from that report.
+    // (ea0315a8...) byte for byte, and every older restoration starts from that report. Since 0.6.12
+    // that restoration also sets toolVersion back to "0.6.11", the version ea0315a8 was pinned at.
     expect(createHash('sha256').update(pinnedReportJson).digest('hex')).toBe(
-      '75b4aad3045d41848c8e42189a4f46c6b3815e29357fa21d1b66c51f024e0b85',
+      '9cbc5b48493bfa3e944c8584f020c7a83514defba48cf0ede87c12a690cb5920',
     );
+    expect(
+      createHash('sha256')
+        .update(JSON.stringify({ ...pinnedReport, toolVersion: '0.6.11' }, null, 2))
+        .digest('hex'),
+      'the 0.6.11 report bytes must be recoverable by resetting exactly the toolVersion field',
+    ).toBe('75b4aad3045d41848c8e42189a4f46c6b3815e29357fa21d1b66c51f024e0b85');
     expect((firstReport as { rubricBehaviourFingerprint?: string }).rubricBehaviourFingerprint).toBe(
       'sha256:1017cbaa7a77b4cdf50177bd20536480d874e191b46a1fe65cd7aaedc794a375',
     );
@@ -524,7 +533,13 @@ describe('runWitanFreeCli (zero-config end-to-end)', () => {
       'sha256:5cd48f8c642300ae8736a09d4a24ce3a4f8885f6e099b5f27f99d950e0c944b4';
     expect(
       createHash('sha256')
-        .update(JSON.stringify({ ...pinnedReport, rubricBehaviourFingerprint: V17_FINGERPRINT_BEFORE_SHALLOW_CORPUS }, null, 2))
+        .update(
+          JSON.stringify(
+            { ...pinnedReport, toolVersion: '0.6.11', rubricBehaviourFingerprint: V17_FINGERPRINT_BEFORE_SHALLOW_CORPUS },
+            null,
+            2,
+          ),
+        )
         .digest('hex'),
       'the pre-2026-11-11 report bytes must be recoverable by restoring exactly the previous v17 fingerprint',
     ).toBe('ea0315a8d14f83e9937a39b1cdbbc769f5e47c5f610d2b500a2b43ace6fcbbd1');
