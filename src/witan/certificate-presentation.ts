@@ -1017,10 +1017,9 @@ function unshownCheckWorkflowDisclosures(report: WitanReport): string[] {
 }
 
 // Every rubric: the B3 disclosure naming counted PR-gate workflows in which a failing test command
-// is ignored. Listed only while B3 is scored, since only then does the count show.
+// is ignored. Listed whenever B3 carries it, as the unshown-check disclosure is and as the plain
+// summary lists it, so the two surfaces agree: the sentence is true whatever B3's status.
 function ignoredTestFailureDisclosures(report: WitanReport): string[] {
-  const b3 = report.criteria.find((criterion) => criterion.id === 'B3');
-  if (!b3 || b3.status === 'not_applicable' || b3.status === 'insufficient_data') return [];
   return criterionDisclosures(report, 'B3', WITAN_B3_IGNORED_TEST_FAILURE_PREFIX);
 }
 
