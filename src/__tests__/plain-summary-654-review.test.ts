@@ -291,8 +291,10 @@ describe('nits', () => {
   it('"1 area gave no score because files it reads", not "files they read"', () => {
     const plain = buildPlainSummary(fixtureReport('v27/fa/a1-js-suite-as-lfs-pointers'));
     const limitation = plain.notKnown.find((item) => item.source.kind === 'scan-limitation');
+    // #519 follow-up (2026-11-19): under v27 an abstention on Git LFS pointers cites them, so the
+    // sentence no longer says the files are not named.
     expect(limitation?.text).toBe(
-      '1 area gave no score because files it reads could not be read; the certificate below counts those files by cause and does not name them.',
+      '1 area gave no score because files it reads could not be read; the certificate below counts those files by cause, and the evidence of each area that read a Git LFS pointer names it.',
     );
     const declined = buildPlainSummary(
       variant(declinedReport(), (draft) => {

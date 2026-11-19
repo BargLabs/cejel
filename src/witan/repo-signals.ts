@@ -433,8 +433,8 @@ const LFS_POINTER_NOT_APPLICABLE_RULES: Partial<
  * and every Git LFS pointer attributed to it is at a path whose real content could not change that
  * decision (LFS_POINTER_NOT_APPLICABLE_RULES). It then keeps v17's not-applicable result and names
  * the pointers in a disclosure. Returns undefined, so the criterion abstains as before, for a
- * criterion with no rule, any pointer that could change the decision, or a disclosure list already
- * at the schema's four.
+ * criterion with no rule, any pointer that could change the decision, or a disclosure list with no
+ * room under #612's budget.
  */
 function lfsPointerKeepsNotApplicable(
   signal: WitanCriterionSignalPayload,
@@ -444,7 +444,10 @@ function lfsPointerKeepsNotApplicable(
   if (!rule || signal.notApplicable !== true || pointerPaths.length === 0) return undefined;
   if (pointerPaths.some(rule.readsPointerContent)) return undefined;
   const existing = signal.disclosures ?? [];
-  if (existing.length >= 4) return undefined;
+  // #612's budget: an A2, A3 or A5 signal carries at most 2 collector disclosures, so the at most 2
+  // dropped-path statements still fit the schema's four and never reach its notes. Elsewhere the
+  // schema's four bound it. Where there is no room the criterion abstains as before.
+  if (existing.length + 1 > (['A2', 'A3', 'A5'].includes(signal.criterionId) ? 2 : 4)) return undefined;
   return {
     ...signal,
     disclosures: [...existing, lfsPointerNotApplicableDisclosure(signal.criterionId, rule.reason, pointerPaths)],
