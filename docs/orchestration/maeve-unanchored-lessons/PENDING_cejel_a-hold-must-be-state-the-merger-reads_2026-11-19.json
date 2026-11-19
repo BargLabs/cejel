@@ -1,0 +1,25 @@
+[
+  {
+    "statement": "A merge hold written only in prose does not stop an automated merger; make it state the merger reads. 2026-11-19: the operator told cejel's session that #741's hold condition was met. The session found the 0.6.x final not yet cut, and on a second ruling re-imposed 'merge after the cut' in #741's description and in later: issue #746. A runner acting on the first message merged #741 at 6b4392627 before the cut. The release then had to be re-ruled to include it. Fix: when a hold is set or re-imposed, change something a merger checks before merging (convert the PR to draft, or add a blocking label or required check) in the same step, and undo it only when the condition is met. A sentence in a PR body is read by people, not by the next agent's merge call.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "multi-agent-coordination"
+    ],
+    "tags": [
+      "draft-pr",
+      "merge-hold",
+      "release",
+      "runner",
+      "write-through"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-11-19T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 747
+    }
+  }
+]
