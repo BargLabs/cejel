@@ -2596,8 +2596,11 @@ function collectA1TestIntegrityEvidence(
   // hollow is cited with its rule, the first eight as the test files are, so a reviewer can check
   // that the rule's condition held. Empty under every other rubric.
   // goal_cejel_v27_a1_fixture_data_not_cited_as_test_2026-11-19, item B: these are the files that
-  // move the share, so they are cited first (see positiveEvidence below); the findings above have
-  // already taken their pointers from the list in its built order, which stays as it was.
+  // move the share, so they are cited first (see positiveEvidence below). The findings built here
+  // have already taken their pointers from the list in its built order, which stays as it was. The
+  // one finding scoring adds from this list (ensureFindingsExplainStatus: "A1 metric-derived score
+  // is ...", where the status is warning or critical with no finding to explain it) cites the
+  // reordered list's first pointer: under v27, the first file a rule rated hollow.
   const ratedHollowPointers: WitanEvidencePointer[] = [];
   for (const rated of nonHollowShare.ratedHollow.slice(0, A1_NOTE_EVIDENCE_LIMIT)) {
     const label = `Rated hollow under this rubric: runs no test (${rated.rule})`;
@@ -2664,7 +2667,8 @@ function collectA1TestIntegrityEvidence(
 
   // v27 (item B): each file a v27 rule rated hollow (at most A1_NOTE_EVIDENCE_LIMIT; the note
   // counts the rest) is cited before the detected test files. The pointers and their count are
-  // unchanged; only their order moves. Every other rubric rates no file hollow by rule.
+  // unchanged; only their order moves. Every other rubric rates no file hollow by rule. Built after
+  // the evidence-reading findings above, so their pointers do not move.
   const orderedEvidence =
     useV27FalseAssuranceClosure && ratedHollowPointers.length > 0
       ? [...ratedHollowPointers, ...evidence.filter((pointer) => !ratedHollowPointers.includes(pointer))]
