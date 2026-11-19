@@ -48,6 +48,11 @@ export const WITAN_A2_PLACEHOLDER_SET_ASIDE_PREFIX = 'Cejel read and set aside '
 // see run a check (b3UnshownCheckDisclosure in repo-signals.ts). One of B3's criteria[].disclosures,
 // listed under "What was not established". The count itself is unchanged.
 export const WITAN_B3_UNSHOWN_CHECK_PREFIX = 'B3 counted workflows Cejel did not see run a check: ';
+// Every rubric, presentation only: B3 names counted PR-gate workflows in which a failing test
+// command is ignored, by continue-on-error: true on its step or by a fallback that discards its
+// exit status (b3IgnoredTestFailureDisclosure in repo-signals.ts). One of B3's
+// criteria[].disclosures, listed under "What was not established". The count itself is unchanged.
+export const WITAN_B3_IGNORED_TEST_FAILURE_PREFIX = 'B3 counted workflows in which a failing test command is ignored: ';
 // Every rubric, presentation only (#556): A2 was marked not applicable after an incomplete read of
 // the commit history: the clone is shallow, one of A2's history reads failed (it stopped at one of
 // Cejel's own output or time limits, or could not read an object, as on a partial clone), the

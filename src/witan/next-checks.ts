@@ -42,6 +42,7 @@ export type NextCheckKind =
 export const PLAIN_DISCLOSURE_KINDS = [
   'placeholder-set-aside',
   'unshown-check',
+  'ignored-test-failure',
   'history-applicability',
   'uncredited-ci',
   'publishing-ci',
@@ -246,6 +247,8 @@ const NEXT_CHECKS: Readonly<Record<string, string>> = {
     'Look at the values listed in the certificate below and confirm they are examples, not real credentials.',
   'disclosure:unshown-check':
     'Open the workflows named in the certificate below and confirm each one runs a test, lint or build step.',
+  'disclosure:ignored-test-failure':
+    'Open the workflow lines named in the certificate below; if failing tests should fail the check, remove continue-on-error or the fallback after the test command.',
   'disclosure:history-applicability': `Before relying on this area being out of scope here, ${FULL_CLONE}.`,
   'disclosure:uncredited-ci':
     'Open the workflows named in the certificate below; if they do run checks, make the check step visible in the workflow file.',

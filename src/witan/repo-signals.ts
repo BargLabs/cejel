@@ -50,6 +50,7 @@ import {
   WITAN_V27_A2_FAILED_HISTORY_NOTE_PREFIX,
   WITAN_A2_TENANT_ISOLATION_UNSETTLED_DISCLOSURE,
   WITAN_B2_UNCREDITED_CI_WORKFLOW_PREFIX,
+  WITAN_B3_IGNORED_TEST_FAILURE_PREFIX,
   WITAN_B3_UNCREDITED_CI_WORKFLOW_PREFIX,
   WITAN_B3_PUBLISHING_CI_WORKFLOW_PREFIX,
   WITAN_A4_LOCKFILE_COVERAGE_NOT_COMPUTED_PREFIX,
@@ -344,6 +345,7 @@ function withoutCountDisclosures(disclosures: readonly string[] | undefined): { 
   const kept = (disclosures ?? []).filter(
     (text) =>
       !text.startsWith(WITAN_B3_UNSHOWN_CHECK_PREFIX) &&
+      !text.startsWith(WITAN_B3_IGNORED_TEST_FAILURE_PREFIX) &&
       !text.startsWith(WITAN_A2_HISTORY_APPLICABILITY_PREFIX) &&
       !text.startsWith(WITAN_B2_UNCREDITED_CI_WORKFLOW_PREFIX) &&
       !text.startsWith(WITAN_B3_UNCREDITED_CI_WORKFLOW_PREFIX) &&
@@ -7012,6 +7014,14 @@ function collectB3CiDisciplineEvidence(
         )
       : { printOnly: [] },
   );
+  // Presentation only, every rubric: the counted workflows in which a failing test command is
+  // ignored, the repository's own and a monorepo root's (named as such).
+  const ignoredTestFailures = [
+    ...findB3IgnoredTestFailures(repoPath, defaultBranchCiWorkflows),
+    ...(mono
+      ? findB3IgnoredTestFailures(mono.root, rootDefaultBranchCiWorkflows, (file) => `${file} at the monorepo root`)
+      : []),
+  ];
   // v27, disclosure only (operator ruling of 13 Nov on item C of the publishing-rule change, refs
   // #517): where the publishing rule leaves no counted workflow that targets pull requests or the
   // default branch, while a workflow it discounted targets them (so v17 counts above 0 on the same
@@ -7230,7 +7240,7 @@ function collectB3CiDisciplineEvidence(
       ),
     ],
     ...(b3Note !== undefined ? { notes: b3Note } : {}),
-    ...b3Disclosures(unshownCheckWorkflows, ...b3UncreditedDisclosures(b3Uncredited)),
+    ...b3Disclosures(unshownCheckWorkflows, ignoredTestFailures, ...b3UncreditedDisclosures(b3Uncredited)),
   };
 }
 
@@ -7360,10 +7370,18 @@ const GATED_PUBLISHING_PLURAL_REASON =
 const LINT_CONFIGURATION_CLAUSE = ' (a lint or format check, whose configuration Cejel does not read)';
 const LINT_CONFIGURATION_SOME_CLAUSE = ' (some on a lint or format check, whose configuration Cejel does not read)';
 
-function b3Disclosures(unshown: B3UnshownCheckWorkflows, ...uncredited: string[]): { disclosures?: string[] } {
-  const sentences = [b3UnshownCheckDisclosure(unshown, CRITERION_DISCLOSURE_MAX_LENGTH), ...uncredited].filter(
-    (sentence) => sentence !== '',
-  );
+function b3Disclosures(
+  unshown: B3UnshownCheckWorkflows,
+  ignored: readonly B3IgnoredTestFailure[],
+  ...uncredited: string[]
+): { disclosures?: string[] } {
+  // The ignored-test-failure sentence goes last, so a report that has none keeps every other
+  // disclosure at the index it had before.
+  const sentences = [
+    b3UnshownCheckDisclosure(unshown, CRITERION_DISCLOSURE_MAX_LENGTH),
+    ...uncredited,
+    b3IgnoredTestFailureDisclosure(ignored, CRITERION_DISCLOSURE_MAX_LENGTH),
+  ].filter((sentence) => sentence !== '');
   return sentences.length > 0 ? { disclosures: sentences } : {};
 }
 
@@ -13146,6 +13164,302 @@ export function b3UnshownCheckDisclosure(
     if (sentence.length <= budget) return sentence;
   }
   const countOnly = `${WITAN_B3_UNSHOWN_CHECK_PREFIX}${count} workflow${count === 1 ? '' : 's'}.${tail}`;
+  return countOnly.length <= budget ? countOnly : '';
+}
+
+// ---- B3: counted workflows in which a failing test command is ignored (every rubric, presentation only)
+//
+// A workflow the PR-gate count includes can run its tests in a way that cannot fail its check:
+// continue-on-error: true on the test step, or a fallback after the test command that always exits
+// 0 (`|| true`, `|| :`, `|| exit 0`, `|| echo ...`). The count is a scoring question
+// left to a prospective rubric; what changes here is that the certificate names such a workflow.
+// Nothing here feeds a metric, a finding or a score.
+//
+// The reader claims only what it can place, since a false sentence here is worse than a missed one.
+// A test command is one whose command word is a test runner, not a line that mentions one
+// (`pip install pytest`). A continue-on-error set by an expression may be false and is not read as
+// true, and one on the job is not named (GitHub still marks the job failed). A step is not read when
+// its `run:` is not the step's own key, holds a heredoc, or is a folded block. A fallback is read
+// only on a runner whose default shell is bash: a workflow that names Windows anywhere, or sets a
+// shell other than bash or sh, is not read for one. A fallback is named only when it ends the line
+// and every later line of the step only prints and none reads the exit status; whether another
+// step fails the run is not checked, and the disclosure says so.
+
+/** One test command line in a workflow whose failure is ignored, and how. */
+export interface IgnoredTestFailure {
+  /** 1-based line of the test command (the first line of a continued command). */
+  readonly line: number;
+  /** "continue-on-error: true on its step", or the fallback, as `|| true`. */
+  readonly how: string;
+}
+
+const CONTINUE_ON_ERROR_TRUE_PATTERN = /^[ \t]*(?:-[ \t]+)?continue-on-error:[ \t]*(?:true|'true'|"true")[ \t]*(?:#[^]*)?$/;
+const NON_BASH_SHELL_PATTERN = /^[ \t]*(?:-[ \t]+)?shell:[ \t]*(?!(?:bash|sh)(?:[ \t]|$|['"#]))\S/m;
+const WINDOWS_PATTERN = /windows/i;
+const ALWAYS_ZERO_FALLBACK_PATTERN = /^(true|:|\/bin\/true|\/usr\/bin\/true|exit[ \t]+0|echo|printf)(?:[ \t]|$)/;
+const PRINT_COMMAND_PATTERN = /^(?:echo|printf|:|true)(?:[ \t]|$)/;
+const ENV_ASSIGNMENT_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*=\S*[ \t]+/;
+const LATER_STATUS_PATTERN = /\$\?|PIPESTATUS|\bexit\b(?![ \t]+0(?:[ \t;]|$))/;
+
+interface ShellSegment {
+  /** The segment with every quoted span blanked, trimmed. */
+  readonly bare: string;
+}
+
+/**
+ * A command line split at `||`, `&&`, `;`, `|` and `&` outside quotes, each segment with quoted
+ * text blanked, and the operators between segments. A `#` that starts a word outside quotes ends
+ * the line. `&` after `>` or `<`, or before `>`, is a redirection, not a separator. One pass.
+ */
+function shellSegments(line: string): { segments: ShellSegment[]; operators: string[] } {
+  const segments: ShellSegment[] = [];
+  const operators: string[] = [];
+  let bare = '';
+  let quote: '"' | "'" | null = null;
+  const close = (operator: string | null) => {
+    segments.push({ bare: bare.trim() });
+    bare = '';
+    if (operator !== null) operators.push(operator);
+  };
+  for (let index = 0; index < line.length; index += 1) {
+    const char = line[index] ?? '';
+    if (quote !== null) {
+      if (char === '\\' && quote === '"') {
+        index += 1;
+      } else if (char === quote) {
+        quote = null;
+        bare += char;
+        continue;
+      }
+      bare += ' ';
+      continue;
+    }
+    if (char === '\\') {
+      bare += '  ';
+      index += 1;
+      continue;
+    }
+    if (char === '"' || char === "'") {
+      quote = char;
+      bare += char;
+      continue;
+    }
+    if (char === '#' && (index === 0 || /[ \t]/.test(line[index - 1] ?? ''))) break;
+    const next = line[index + 1] ?? '';
+    if (char === '|' && next === '|') {
+      close('||');
+      index += 1;
+    } else if (char === '&' && next === '&') {
+      close('&&');
+      index += 1;
+    } else if (char === '|') {
+      close('|');
+      if (next === '&') index += 1;
+    } else if (char === ';') {
+      close(';');
+    } else if (char === '&' && next !== '>' && !/[<>]/.test(line[index - 1] ?? '')) {
+      close('&');
+    } else {
+      bare += char;
+    }
+  }
+  close(null);
+  return { segments, operators };
+}
+
+// Words that run the command after them: a test command behind one is still the command run.
+const TEST_LAUNCHER_PATTERN =
+  /^(?:sudo|env|time|xvfb-run(?:[ \t]+-a)?|timeout[ \t]+\S+|npx(?:[ \t]+(?:--yes|-y))?|pnpx|bunx|(?:uv|poetry|pipenv|hatch|pdm|rye)[ \t]+run|bundle[ \t]+exec|(?:pnpm|yarn|npm)[ \t]+exec|pnpm|yarn|python3?[ \t]+-m|py[ \t]+-m|coverage[ \t]+run[ \t]+-m)[ \t]+/;
+
+/**
+ * A segment whose command is a test command: the test command's words come first, after any
+ * environment assignments and launchers (`npx`, `poetry run`, `python -m`, ...), and the runner's
+ * name is a whole word there. A segment that only mentions a runner, such as `pip install pytest`,
+ * `mkdir -p jest-results` or `echo pytest`, does not run one.
+ */
+function runsTestCommand(segment: ShellSegment): boolean {
+  let text = segment.bare.replace(/^[({!][ \t]*/, '');
+  for (;;) {
+    // A runner named by its path (./node_modules/.bin/jest, vendor/bin/phpunit) is that runner.
+    text = text.replace(/^(?:\.{0,2}\/)?(?:[\w.-]+\/)+(?=[\w.-])/, '');
+    const test = CI_TEST_COMMAND_PATTERN.exec(text);
+    if (test !== null && test.index === 0 && /^(?:$|[ \t:])/.test(text.slice(test[0].length))) return true;
+    const prefix = ENV_ASSIGNMENT_PATTERN.exec(text) ?? TEST_LAUNCHER_PATTERN.exec(text);
+    if (!prefix) return false;
+    text = text.slice(prefix[0].length);
+  }
+}
+
+/** A command line that only prints: every segment is echo, printf, `:` or true. */
+function onlyPrints(text: string): boolean {
+  return shellSegments(text).segments.every(({ bare }) => bare === '' || PRINT_COMMAND_PATTERN.test(bare));
+}
+
+/**
+ * The fallback that discards a test command's exit status on this line, as `|| true`; undefined
+ * when there is none. The fallback must follow the test command through `&&`, `|` or `||` only,
+ * and end the line.
+ */
+function discardingFallback(line: string): string | undefined {
+  const { segments, operators } = shellSegments(line);
+  const test = segments.findIndex(runsTestCommand);
+  if (test === -1) return undefined;
+  const last = segments.length - 1;
+  if (last <= test || operators[last - 1] !== '||') return undefined;
+  const between = operators.slice(test, last);
+  if (between.some((operator) => operator === ';' || operator === '&')) return undefined;
+  const fallback = ALWAYS_ZERO_FALLBACK_PATTERN.exec(segments[last]?.bare ?? '');
+  if (!fallback) return undefined;
+  const word = (fallback[1] ?? '').replace(/[ \t]+/, ' ');
+  return `|| ${word}`;
+}
+
+/** A step's command lines, with a line ending in an unescaped backslash joined to the next. */
+function logicalCommandLines(lines: readonly { readonly line: number; readonly text: string }[]): { line: number; text: string }[] {
+  const joined: { line: number; text: string }[] = [];
+  let open: { line: number; text: string } | null = null;
+  for (const { line, text } of lines) {
+    const trailing = /(\\+)[ \t]*$/.exec(text)?.[1]?.length ?? 0;
+    const continues = trailing % 2 === 1;
+    const piece = continues ? text.replace(/\\[ \t]*$/, ' ') : text;
+    // The space that replaced the backslash is kept, so `pnpm test \` + `--reporter dot` joins as
+    // `pnpm test --reporter dot`, not `pnpm test--reporter dot`.
+    if (open) open.text += piece.trimStart();
+    else open = { line, text: continues ? piece.trimStart() : piece.trim() };
+    if (!continues) {
+      joined.push(open);
+      open = null;
+    }
+  }
+  if (open) joined.push(open);
+  return joined;
+}
+
+/**
+ * Each placed `run:` step of a GitHub Actions workflow whose test command's failure is ignored:
+ * the first such test command line, and how. One entry per step at most; continue-on-error is
+ * named before a fallback.
+ */
+export function findIgnoredTestFailures(contents: string): IgnoredTestFailure[] {
+  if (YAML_LINE_BREAK_NOT_SPLIT_PATTERN.test(contents)) return [];
+  const lines = contents.split(/\r?\n/);
+  const indents = lines.map(lineIndent);
+  const inBlockScalar = blockScalarBodyLines(lines, indents);
+  const readFallbacks = !WINDOWS_PATTERN.test(contents) && !NON_BASH_SHELL_PATTERN.test(contents);
+  const found: IgnoredTestFailure[] = [];
+  for (const step of githubActionsRunSteps(contents, (line) => CONTINUE_ON_ERROR_TRUE_PATTERN.test(line))) {
+    // Only a `run:` that is the step's own key runs commands; one under `with:` or `env:` is data.
+    if (step.itemLine === 0 || !step.ownKey) continue;
+    // Not placeable: a heredoc's body is data written somewhere, not commands the step runs, and
+    // YAML joins a folded (`>`) block's lines into one before the shell sees them.
+    if (step.lines.some(({ text }) => beforeShellComment(text).includes('<<'))) continue;
+    if (runValueIsFolded(lines, inBlockScalar, step.lines[0]?.line ?? 0)) continue;
+    const commands = logicalCommandLines(step.lines).filter(({ text }) => text !== '' && !text.startsWith('#'));
+    // continue-on-error is named only on the step itself: a failing step then passes and so does
+    // its job's check. On a job, GitHub still marks the job failed while the run passes, so whether
+    // a failing test leaves a required check passing depends on which check is required: not
+    // named, though a fallback in the same job still is.
+    if (step.conditional && continueOnErrorOnStep(lines, indents, inBlockScalar, step.itemLine - 1)) {
+      const first = commands.find(({ text }) => shellSegments(text).segments.some(runsTestCommand));
+      if (first) {
+        found.push({ line: first.line, how: 'continue-on-error: true on its step' });
+        continue;
+      }
+    }
+    if (!readFallbacks) continue;
+    for (const [index, command] of commands.entries()) {
+      const how = discardingFallback(command.text);
+      if (how === undefined) continue;
+      // Named only when nothing later in the step can fail it: every later line only prints, and
+      // none reads the exit status. Under bash -e any other later command, such as
+      // `! grep -q FAILED out.log` or a re-run, may fail the step on the tests' result.
+      if (commands.slice(index + 1).some(({ text }) => !onlyPrints(text) || LATER_STATUS_PATTERN.test(text))) break;
+      found.push({ line: command.line, how });
+      break;
+    }
+  }
+  return found;
+}
+
+/** Whether the `run:` value whose first command line is `firstLine` (1-based) is a folded block. */
+function runValueIsFolded(lines: readonly string[], inBlockScalar: readonly boolean[], firstLine: number): boolean {
+  for (let index = firstLine - 1; index >= 0; index -= 1) {
+    if (inBlockScalar[index] || (lines[index] ?? '').trim() === '') continue;
+    const key = RUN_KEY_PATTERN.exec(lines[index] ?? '');
+    return key !== null && /^>/.test(beforeShellComment(key[2] ?? '').trim());
+  }
+  return false;
+}
+
+/**
+ * Whether a continue-on-error: true key is one of the own keys of the step whose `- ` item is at
+ * `itemIndex`: at the step's key column, not in a mapping nested under it such as `env:`.
+ */
+function continueOnErrorOnStep(
+  lines: readonly string[],
+  indents: readonly number[],
+  inBlockScalar: readonly boolean[],
+  itemIndex: number,
+): boolean {
+  const itemIndent = indents[itemIndex] ?? 0;
+  const keyColumn = workflowKeyIndent(lines[itemIndex] ?? '', itemIndent);
+  for (let index = itemIndex; index < lines.length; index += 1) {
+    const raw = lines[index] ?? '';
+    if (index > itemIndex && raw.trim() !== '' && !inBlockScalar[index] && (indents[index] ?? 0) <= itemIndent) break;
+    if (inBlockScalar[index] || !CONTINUE_ON_ERROR_TRUE_PATTERN.test(raw)) continue;
+    if (workflowKeyIndent(raw, indents[index] ?? 0) === keyColumn) return true;
+  }
+  return false;
+}
+
+/** A counted workflow and the first line in it whose failing test command is ignored. */
+export interface B3IgnoredTestFailure {
+  readonly file: string;
+  readonly line: number;
+  readonly how: string;
+}
+
+/**
+ * B3: of the workflows default_branch_ci_depth counted, those in which a failing test command is
+ * ignored. Reads only files that count already read.
+ */
+function findB3IgnoredTestFailures(
+  root: string,
+  counted: readonly string[],
+  describePath: (file: string) => string = (file) => file,
+): B3IgnoredTestFailure[] {
+  const found: B3IgnoredTestFailure[] = [];
+  for (const file of counted.filter((path) => /^\.github\/workflows\//.test(path))) {
+    const fullPath = join(root, file);
+    if (!isRegularFile(fullPath)) continue;
+    const contents = withoutContentReadAttribution(() => readRepoText(fullPath, 'utf8'));
+    const first = findIgnoredTestFailures(contents)[0];
+    if (first) found.push({ file: describePath(file), line: first.line, how: first.how });
+  }
+  return found;
+}
+
+/**
+ * B3's disclosure, starting with WITAN_B3_IGNORED_TEST_FAILURE_PREFIX; the certificate lists it
+ * under "What was not established". `budget` is the schema's room for one disclosure: fewer
+ * workflows are named, then only their count, until it fits.
+ */
+export function b3IgnoredTestFailureDisclosure(
+  ignored: readonly B3IgnoredTestFailure[],
+  budget = Number.POSITIVE_INFINITY,
+): string {
+  const count = ignored.length;
+  if (count === 0) return '';
+  const tail = ` Cejel did not check whether another step fails the run. The PR-gate CI workflow count still includes ${count === 1 ? 'it' : 'them'}.`;
+  for (let shown = count; shown > 0; shown -= 1) {
+    const named = ignored
+      .slice(0, shown)
+      .map(({ file, line, how }) => `${file} line ${line} (${how})`)
+      .join('; ');
+    const sentence = `${WITAN_B3_IGNORED_TEST_FAILURE_PREFIX}${named}${count > shown ? ` and ${count - shown} more` : ''}.${tail}`;
+    if (sentence.length <= budget) return sentence;
+  }
+  const countOnly = `${WITAN_B3_IGNORED_TEST_FAILURE_PREFIX}${count} workflow${count === 1 ? '' : 's'}.${tail}`;
   return countOnly.length <= budget ? countOnly : '';
 }
 

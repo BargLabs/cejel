@@ -566,7 +566,9 @@
           "score": 2,
           "status": "verified",
           "notes": null,
-          "disclosures": [],
+          "disclosures": [
+            "B3 counted workflows in which a failing test command is ignored: .github/workflows/release.yml line 14 (continue-on-error: true on its step). Cejel did not check whether another step fails the run. The PR-gate CI workflow count still includes it."
+          ],
           "metrics": {
             "ci_script_depth": 2,
             "default_branch_ci_depth": 2
@@ -684,7 +686,9 @@
           "score": 2,
           "status": "verified",
           "notes": null,
-          "disclosures": [],
+          "disclosures": [
+            "B3 counted workflows in which a failing test command is ignored: .github/workflows/release.yml line 14 (|| true). Cejel did not check whether another step fails the run. The PR-gate CI workflow count still includes it."
+          ],
           "metrics": {
             "ci_script_depth": 2,
             "default_branch_ci_depth": 2
@@ -15911,7 +15915,9 @@
           "score": 1.6,
           "status": "verified",
           "notes": null,
-          "disclosures": [],
+          "disclosures": [
+            "B3 counted workflows in which a failing test command is ignored: .github/workflows/publish.yaml line 12 (|| true). Cejel did not check whether another step fails the run. The PR-gate CI workflow count still includes it."
+          ],
           "metrics": {
             "ci_script_depth": 1,
             "default_branch_ci_depth": 2
@@ -16034,7 +16040,9 @@
           "score": 1.6,
           "status": "verified",
           "notes": null,
-          "disclosures": [],
+          "disclosures": [
+            "B3 counted workflows in which a failing test command is ignored: .github/workflows/publish.yaml line 12 (|| true). Cejel did not check whether another step fails the run. The PR-gate CI workflow count still includes it."
+          ],
           "metrics": {
             "ci_script_depth": 1,
             "default_branch_ci_depth": 2
@@ -16152,7 +16160,9 @@
           "score": 1.6,
           "status": "verified",
           "notes": null,
-          "disclosures": [],
+          "disclosures": [
+            "B3 counted workflows in which a failing test command is ignored: .github/workflows/release.yml line 14 (|| true). Cejel did not check whether another step fails the run. The PR-gate CI workflow count still includes it."
+          ],
           "metrics": {
             "ci_script_depth": 1,
             "default_branch_ci_depth": 2
@@ -17361,7 +17371,9 @@
           "score": 2,
           "status": "verified",
           "notes": null,
-          "disclosures": [],
+          "disclosures": [
+            "B3 counted workflows in which a failing test command is ignored: .github/workflows/release.yml line 14 (|| true). Cejel did not check whether another step fails the run. The PR-gate CI workflow count still includes it."
+          ],
           "metrics": {
             "ci_script_depth": 2,
             "default_branch_ci_depth": 2
@@ -17479,7 +17491,9 @@
           "score": 2,
           "status": "verified",
           "notes": null,
-          "disclosures": [],
+          "disclosures": [
+            "B3 counted workflows in which a failing test command is ignored: .github/workflows/release.yml line 15 (|| true). Cejel did not check whether another step fails the run. The PR-gate CI workflow count still includes it."
+          ],
           "metrics": {
             "ci_script_depth": 2,
             "default_branch_ci_depth": 2
@@ -17597,7 +17611,9 @@
           "score": 2,
           "status": "verified",
           "notes": null,
-          "disclosures": [],
+          "disclosures": [
+            "B3 counted workflows in which a failing test command is ignored: .github/workflows/release.yml line 12 (|| true). Cejel did not check whether another step fails the run. The PR-gate CI workflow count still includes it."
+          ],
           "metrics": {
             "ci_script_depth": 2,
             "default_branch_ci_depth": 2
