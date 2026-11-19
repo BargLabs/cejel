@@ -119,6 +119,7 @@ function describeGenerator(): void {
       expect(sharded.map(shapeName).sort()).toEqual(ALL_SHAPES.map(shapeName).sort());
     });
   });
+  describeLfsPointerFixtures();
 }
 
 // #519 follow-up (2026-11-19): the curated Git LFS pointer fixtures, which the generated shapes do not
@@ -160,7 +161,6 @@ function describeLfsPointerFixtures(): void {
 /** Registers shard `index` (0-based) of the generated no-rise shapes. */
 export function describeGeneratedNoRiseShard(index: number): void {
   if (index === 0) describeGenerator();
-  if (index === 0) describeLfsPointerFixtures();
   const shapes: NoRiseShape[] = noRiseShard(ALL_SHAPES, index, NO_RISE_SHARDS);
 
   // What the shapes made v27 do, gathered as they run, so the last test can show the property was
