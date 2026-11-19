@@ -94,8 +94,7 @@ hash, with 0 errors on either side. The driver ran in six shards a side and is n
   - 139 of the 144, all from the existing sets, differ only in order: the same labelled pointers,
     with the rated-hollow ones first.
   - The other 5 are this change's fixtures, where a label changes as well.
-  - No fixture in the existing sets holds a fixture data path that A1 cites, so item A moves
-    nothing there.
+  - In the existing sets no A1 label changed, so item A moves nothing there.
 - **A1's findings in the 144 v27 reports, pointers included:**
   - 25 reports carry the same findings, unchanged.
   - 1 changes only a label: the no-coverage finding's pointer, now labelled scaffolding
@@ -115,7 +114,12 @@ hash, with 0 errors on either side. The driver ran in six shards a side and is n
 
 **Pins.** `src/witan/__tests__/fixtures/behaviour-corpus.ts` names no `conftest.py` and no
 fixture data path. So no fingerprint moves, and the v27 fingerprint pin was not re-measured into
-the pins file. No certificate, attestation or plain-summary pin was re-captured.
+the pins file. In `certificate-below-first-page.test.ts`, 26 v27 false-assurance fixtures move:
+every one has a file a v27 rule rates hollow, so A1's evidence order changes, and with it the
+metric-derived finding's pointer. That is 26 certificate digests and 26 report.json and 26
+attestation.json digests. They were re-captured from this branch by a temporary file that rewrote
+only the moved entries and failed on any moved v17 entry. No v17 entry and none of the 18 full
+HTML pins moved. The test's header records the re-capture.
 
 **Fixtures and tests.** `v27-a1-fixture-data.test.ts`, with its fixtures in
 `fixtures/v27-a1-fixture-data-fixtures.ts`, was committed red first at `88330fcb8`. Against main, 6
