@@ -87,6 +87,23 @@ export const FIXTURE_DATA_FIXTURES: readonly FalseAssuranceFixture[] = [
     'Control: no conftest.py and eight tests sort before tests/fixtures/, so no slot is freed; the fixture data file is past the cap under every rubric.',
     { ...NINE_TESTS, 'tests/api/test_hotel.py': pyTest('hotel_api'), 'tests/fixtures/auth.fixtures.ts': AUTH_FIXTURES_TS },
   ),
+  {
+    name: 'a1-fixture-data-under-dunder-tests',
+    issue: '#518',
+    purpose:
+      'Item C: fixture data under src/__tests__/__fixtures__/, which every rubric reads as name-shaped and so rates hollow in the share.',
+    commits: [
+      {
+        'package.json': `${JSON.stringify({ name: 'userlist', version: '1.0.0', type: 'module', scripts: { test: 'node --test' } }, null, 2)}\n`,
+        'src/index.ts': "export const count = (items: readonly unknown[]): number => items.length;\n",
+        'src/__tests__/users.test.ts':
+          "import { test } from 'node:test';\nimport assert from 'node:assert/strict';\nimport { users } from './__fixtures__/users.js';\n\ntest('users', () => {\n  assert.equal(users.length, 2);\n});\n",
+        'src/__tests__/__fixtures__/users.ts': "export const users = [\n  { id: 'u1', name: 'Ada' },\n  { id: 'u2', name: 'Lin' },\n];\n",
+        'README.md': '# userlist\n',
+        LICENSE: 'MIT\n',
+      },
+    ],
+  },
   fixture(
     'a1-fixture-data-ten-conftests',
     'Ten rated-hollow conftest.py files and nine tests: under v27 the first eight rated-hollow citations come first, and the note counts the rest.',

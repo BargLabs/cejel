@@ -186,6 +186,27 @@ describe('item B — under v27 a file a v27 rule rates hollow is cited before th
   });
 });
 
+describe('item C — how a fixture data file is counted, as the code stands (no code change)', () => {
+  const metric = (score: WitanCriterionScore, name: string): [number, number] | undefined => {
+    const found = score.metrics.find((entry) => entry.name === name);
+    return found ? [found.value, found.max] : undefined;
+  };
+
+  it.each(WITAN_SELECTABLE_RUBRIC_VERSIONS)('%s: tests/fixtures/auth.fixtures.ts is counted in test_to_source_ratio and left out of the share\'s denominator', (rubricVersion) => {
+    const score = a1(CARD_REPOSITORY, rubricVersion);
+    // 9 tests, the conftest.py and the fixture data file, over 2 source files.
+    expect(metric(score, 'test_to_source_ratio')).toEqual([11, 2]);
+    // The 9 tests and the conftest.py; v27 rates the conftest.py hollow.
+    expect(metric(score, 'non_hollow_test_share')).toEqual([rubricVersion === V27 ? 9 : 10, 10]);
+  });
+
+  it.each(WITAN_SELECTABLE_RUBRIC_VERSIONS)('%s: src/__tests__/__fixtures__/users.ts is counted in both, rated hollow in the share', (rubricVersion) => {
+    const score = a1('a1-fixture-data-under-dunder-tests', rubricVersion);
+    expect(metric(score, 'test_to_source_ratio')).toEqual([2, 1]);
+    expect(metric(score, 'non_hollow_test_share')).toEqual([1, 2]);
+  });
+});
+
 describe('no rise — v27 never above v17 on any fixture here', () => {
   it('checkNoRise and lostFindings find nothing', () => {
     for (const { name } of FIXTURE_DATA_FIXTURES) {
