@@ -73,12 +73,23 @@ const sha256 = (text: string): string => createHash('sha256').update(text, 'utf8
 const labelOf = (score: WitanCriterionScore, path: string): string[] =>
   score.evidence.filter((pointer) => pointer.path === path).map((pointer) => pointer.label);
 
-/** The v27 report with A1's evidence removed, serialized. */
+/**
+ * The v27 report with A1's evidence, and the pointer each A1 finding cites, removed, serialized:
+ * every score, status, metric, note and finding's severity and summary stays in it.
+ */
 function withoutA1Evidence(name: string): string {
   const scored = report(name, V27);
   return serializeWitanReport({
     ...scored,
-    criteria: scored.criteria.map((entry) => (entry.id === 'A1' ? { ...entry, evidence: [] } : entry)),
+    criteria: scored.criteria.map((entry) =>
+      entry.id === 'A1'
+        ? {
+            ...entry,
+            evidence: [],
+            findings: entry.findings.map((finding) => ({ ...finding, evidence: { kind: 'test_run', label: 'removed', path: 'removed' } })),
+          }
+        : entry,
+    ),
   });
 }
 
@@ -107,6 +118,23 @@ describe('item A — under v27 a fixture data file with no test in it is not cit
 
   it('where v17 cites a fixture data file, it still calls it a detected test file (v17 is unchanged)', () => {
     expect(labelOf(a1('a1-fixture-data-dunder-fixtures-dir', V17), 'tests/__fixtures__/users.py')).toEqual([DETECTED]);
+  });
+
+  it('the no-coverage finding cites a detected test file under v27 where one is cited, and the fixture data file where it is the only one', () => {
+    const coverageFinding = (name: string, rubricVersion: string) =>
+      a1(name, rubricVersion).findings.find(({ summary }) => summary.includes('no coverage configuration'));
+    expect(coverageFinding('a1-fixture-data-dunder-fixtures-dir', V17)?.evidence).toMatchObject({
+      path: 'tests/__fixtures__/users.py',
+      label: DETECTED,
+    });
+    expect(coverageFinding('a1-fixture-data-dunder-fixtures-dir', V27)?.evidence).toMatchObject({
+      path: 'tests/test_alpha.py',
+      label: DETECTED,
+    });
+    expect(coverageFinding('a1-fixture-data-only-test-shaped-file', V27)?.evidence).toMatchObject({
+      path: 'tests/fixtures/auth.fixtures.ts',
+      label: SCAFFOLDING,
+    });
   });
 
   it('control: a file under tests/fixtures/ that holds a test stays a detected test file', () => {
