@@ -99,7 +99,9 @@ A session's context can be compressed between any two turns, with no warning to 
 1. **Nothing lives only in context past the turn that produced it.** Before a turn ends, write each of these to its home:
    - Findings, decisions, operator rulings, and numbers read from a record: a commit on your branch, pushed.
    - Lessons: a seed in `docs/orchestration/maeve-unanchored-lessons/`.
-   - Anything deferred: a `later:` issue.
+   - Anything deferred: an issue whose title starts with `later:`, filed in the repository the note
+     concerns, with a body that points at the record holding the evidence. Nothing deferred is left
+     only in chat, a handback, a PR body or a review comment.
    - Work in progress: a pushed WIP commit, which also satisfies the persist-before-verify rule.
    A turn whose result exists only in chat is an unfinished turn.
 2. **Sessions that keep a handover** keep it current as they work, not only at close.
