@@ -22,6 +22,161 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
+## 2026-11-19 (B3 cites every workflow read) — under v27, B3's evidence cites every CI workflow it read, the counted ones first, each with how it was counted or why it was not (refs #600); evidence only; v17-v26 byte-identical; v27 never above v17; no score, status, finding, metric, composite or verdict moved; no fingerprint moved; no published score moved
+
+**Status.** An evidence change under `witan-rubric-v27-prospective-2026-10-19` only, with no
+identifier change (goal_cejel_v27_b3_cites_every_workflow_read_2026-11-19). No holdout or
+calibration ran for it, and this entry makes no precision or recall claim. The default stays v17.
+A changed v27 needs a new freeze.
+
+**Why.** B3 cited one workflow with a label of the form "CI workflow (N workflow files read; 1
+cited)". Since the entry below it, it also cited each workflow v27 does not count. Two gaps
+remained, stated as properties of the rule:
+
+1. The one workflow cited was the first in path order. It could be one that runs no check, such as
+   a stale-issue closer. Meanwhile the workflows that decided the rating went uncited: the
+   pull-request CI that runs tests and lint, or a release workflow with no gate. A reader of the
+   cited evidence could not see why B3 scored what it did.
+2. Where pull-request CI already runs tests and lint and v27 discounts a docs-deploy or
+   semantic-release workflow, the lowering read as unsupported. Whether it should stand is the
+   operator's ruling. It was measured and handed back in the pull request, with no change here.
+
+**Change (v27 only, B3's evidence only).**
+
+- B3 cites every CI workflow it read, the repository's own and a monorepo root's, one pointer each,
+  up to 16 (`b3WorkflowCitations`), in three groups:
+  - **Credited first.** A workflow counted toward `default_branch_ci_depth` is cited at the line
+    `workflowTargetsDefaultBranch` matched: "CI workflow counted: targets pull requests or the
+    default branch (cited at that line); runs test and lint commands". A workflow counted toward
+    `ci_script_depth` only is cited at the first line naming a test, lint, type-check or build
+    command: "CI workflow counted for its commands: runs a test command (cited at the first one);
+    not read as a pull-request or default-branch workflow".
+  - **Then each read that earns neither**, at its one `on:` line: "CI workflow read, earns no
+    credit: not read as a pull-request or default-branch workflow, and no test, lint, type-check
+    or build command (cited at its on: trigger)". The wording is "not read as" because a trigger
+    that reading does not match, such as `pull_request_target`, is still a trigger.
+  - **Then each workflow v27 does not count**, with the label and line of the entry below.
+- The read-count pointer sits at the first workflow cited, and its `cited` figure is the number
+  cited. Past the limit it adds "K not cited (citation limit 16)". It is silent, as before, where
+  every workflow read is cited and none was withheld or delegated (`ciWorkflowCitationLabel`,
+  whose new count is a no-op at zero for every other caller).
+- Every label is within the schema's 180 characters. Where the read-count label would not fit, the
+  limit figure is dropped first, then the skip reasons' names; every count stays.
+- The decisions are the ones the depth metrics make, with the same predicates over the same files.
+  B2 and B3 still decide credit with `uncreditedCiWorkflowReason`. Nothing new is read: every file
+  was read under the same content-read signals, so a read failure can only restate a skip.
+
+**The no-rise property.** The change adds pointers to a criterion scored from metrics, which do not
+read the pointer count. No metric value moves, so no score can.
+
+**Measured** at `89201cab2` (this branch's code) against main `6b4392627`. The set was the one the
+entry below names, from this branch's fixture files, plus this change's 13 new fixtures:
+
+- false-assurance 268, CI-claims 71, B3 361;
+- v27 A1 removal 39, hook outcome 38, allowlist 86, withhold 96 and run 58;
+- the 17 fixtures of the publishing-gates change and the 8 of the unread-CI-configuration change;
+- 1,055 synthetic repositories in all.
+
+The symlink fixture (`review4-a4-working-directory-through-tracked-symlink`) was left out. Each
+fixture was built separately for each side, and a build of that one commits a link to a fresh
+temporary directory, so its head SHA differs between builds. That is why false-assurance counts 268
+here against 269 below.
+
+Each fixture was scored under all eleven selectable rubrics, first with main's code (before any
+source change of this branch) and then with this branch's. Report JSON, HTML and Markdown were
+compared by hash, with 0 errors on either side. The driver ran in six processes a side and is not
+committed.
+
+- **v17 to v26:** 10,550 of 10,550 reports, HTML and Markdown certificates byte-identical to main.
+- **v27:** 9 of 1,055 reports byte-identical. 4 have no CI workflow. In the other 5, every workflow
+  read is one v27 does not count, which the entry below already cited, so nothing is added. The
+  other 1,046
+  differ only in B3's evidence: the report with B3's evidence removed is byte-identical. Every
+  criterion's score, status, metric values and findings are equal, and so is the overall score, on
+  all 1,055.
+  - By set: false-assurance 260, CI-claims 71, B3 361, A1 removal 39, hook outcome 38, allowlist
+    86, withhold 96, run 58, publishing gates 17, unread CI configuration 7, this change 13.
+  - Pointers added to B3: 1 on 897 fixtures, 2 on 131, 3 on 15, 4 on 1, 13 on 1 (twelve checked
+    publishing workflows), and 15 on 1 (`cite-over-the-limit`). On that last fixture main's v27
+    cited the discounted release; it now falls past the limit and is named in the note and
+    disclosure only.
+  - Every v27 HTML and Markdown certificate differs, because the v27 glossary sentence changed (see
+    below).
+- **v27 above v17 on the same repository:** 0, for the overall score and for B3's score.
+
+**Glossary.** In the v27-only definition of "PR-gate CI workflow count", the sentence "Each workflow
+file not counted is cited in the criterion's evidence at the line that decided it." becomes "Each
+workflow file read, up to 16, is cited in the criterion's evidence, the counted ones first: a
+counted file at the line that earned its credit, with what it earned, and a file not counted at the
+line that decided it, with why." Every other rubric's glossary is unchanged. This changes v27
+certificate text only, no report field.
+
+**Pins.** Only v27 entries move. Each pin file was re-captured by a temporary file that rewrote only
+moved entries and failed on any moved v17 entry; none moved.
+
+- `certificate-below-first-page`:
+  - all 322 v27 certificate digests (the glossary sentence);
+  - the 9 full v27 HTML pins;
+  - the 2 v27 certificate digests of the #622 specimens;
+  - 282 of 322 v27 `report.json` and `attestation.json` digests, each a fixture with a CI workflow,
+    and both v27 report digests of the #622 specimens.
+- `plain-summary-byte-identity-pins.json`: 7 v27 entries. The `-622` file: 2 v27 entries.
+- `b3-unread-ci-config-main-pins.json`: 9 v27 entries, re-captured with that test's own capture
+  mode. Every v17 to v26 entry is unchanged in the diff, and so is each `b3-note-before-sentence`
+  entry.
+- `unread-ci-disclosure.test.ts`'s label-free v27 digest stays main's: the test now leaves out this
+  change's per-workflow pointers before hashing.
+
+**Fingerprint.** Re-measured, and no fingerprint moved. v27's stays
+`sha256:8fa9d87e3047afb80e8e09d08c5cb88a651c8e8b69b6b35184d2ab98ddd3a8fb`, and every other
+rubric's is unchanged. The projection does not read evidence pointers, and
+`rubric-behaviour-fingerprint.test.ts` passes unchanged.
+
+**Fixtures and tests.**
+
+- `b3-cites-every-workflow.test.ts`, with its fixtures in `fixtures/b3-cites-every-workflow-fixtures.ts`,
+  was committed red first at `30b91d715`. Against main, 4 of 10 tests failed, every one an item A
+  citation test.
+- The four-workflow repository: pull-request CI that runs tests and lint, a stale-issue closer, a
+  docs deploy on push to main and a release on tag. Each is cited once: at line 3, line 2, the
+  deploy step (line 18) and the release step (line 12).
+- The limit: twenty stale closers and a discounted release, all named before the one credited
+  workflow. The credited one is cited first, then fifteen of the closers, and the label says "6 not
+  cited (citation limit 16)".
+- Every label combination is within 180 characters, and the largest read-count label fits.
+- The byte pins (`fixtures/b3-cites-every-workflow-main-pins.json`, from main `6b4392627`) cover
+  every v17 to v26 `report.json` on the 13 new fixtures (130 hashes), and each fixture's v27
+  scores, statuses, metric values and findings.
+- Some existing tests asserted that v27's B3 deep-equals v17's, to show a workflow kept its credit.
+  They are in `false-assurance-v27.test.ts`, `ci-claims-followups.test.ts` and
+  `ci-claims-publish-and-lockfile.test.ts`. They now compare B3 without its workflow pointers
+  (`withoutB3WorkflowPointers` in `v27-no-rise.ts`) and assert that no v27 pointer says "not
+  counted". In `unread-ci-disclosure.test.ts`, the read-count label
+  says two cited under v27 where two workflows are read.
+**Investigated, no code change (handed back for rulings).** The fixtures are in the same file, and
+the test's dump mode prints these figures. Every figure was the same under v17 and v27 unless a
+pair is given.
+
+- *A counted workflow that runs no check.* Each fixture has pull-request CI that runs tests, plus
+  one other workflow. A labeller on `pull_request` and a workflow that only comments on pull
+  requests (through `actions/github-script`, or through `gh pr comment`) are counted toward
+  `default_branch_ci_depth`. Against the pull-request CI alone, 1 becomes 2, and B3 goes from 1.0
+  to 1.6.
+  - `workflowTargetsDefaultBranch` matches `\bpull_request\b` anywhere in the file and reads no
+    step.
+  - v27's not-shown-to-run-a-check reader (`isPrintOnlyWorkflow`) does not reach any of them,
+    since it admits only checkout and print steps.
+  - A scheduled stale-issue closer and a labeller on `pull_request_target` are counted toward
+    neither depth metric.
+  - B2's CI component counts all five extra workflows: against the pull-request CI alone, 1 becomes
+    2, and B2 goes from 1.6 to 3.2.
+- *The depth lowering where pull-request CI tests and lints.*
+  - Discounted and lowered: a docs deploy on push to main (`default_branch_ci_depth` v17 2, v27 1;
+    B3 2.0 to 1.5, `verified` both) and semantic-release on push to main (the same figures).
+  - Not lowered: semantic-release on push to a release branch, with or without tests before the
+    publish step (depth 1 under both). v17 never counted that workflow, since it does not target the
+    default branch.
+
 ## 2026-11-13 (B3 unread CI configuration disclosure) — under v27, where the publishing rule leaves B3 no counted workflow that targets pull requests or the default branch, B3's note names each CI configuration Cejel does not read, by path (refs #517); note text only; v17-v26 byte-identical; v27 never above v17; no score, status, finding, composite or verdict moved; no published score moved
 
 **Status.** A note change under `witan-rubric-v27-prospective-2026-10-19` only, with no identifier
