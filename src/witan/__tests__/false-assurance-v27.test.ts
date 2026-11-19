@@ -29,7 +29,13 @@ import {
   falseAssuranceFixture,
   lfsPointerFor,
 } from './fixtures/false-assurance-fixtures.js';
-import { checkNoRise, evidenceIdentity, lostFindings } from './v27-no-rise.js';
+import {
+  b3NotCountedPointers,
+  checkNoRise,
+  evidenceIdentity,
+  lostFindings,
+  withoutB3WorkflowPointers,
+} from './v27-no-rise.js';
 
 // #517, #518, #519, #520, #442: places where a v17 certificate asserted more than Cejel read.
 // Synthetic fixtures only (fixtures/false-assurance-fixtures.ts), built from each issue's repro.
@@ -174,19 +180,10 @@ const SET_ASIDE_AS_PUBLISHING: ReadonlySet<string> = new Set([
   'review10-upload-only-self-hosted-runner',
 ]);
 
-// v27 (19 Nov, refs #600): B3 cites every workflow it read, one pointer each, and the read-count
-// pointer ("CI workflow (N workflow files read; M cited)") counts them. Neither is in v17's B3, so
-// "v27 scores B3 as v17 does" compares B3 without them: every score, status, metric, note,
-// disclosure, finding and other pointer must still be equal.
-const B3_WORKFLOW_POINTER_LABEL = /^(?:Monorepo-root )?CI workflow(?: \(|$| counted| read, earns no credit| not counted)/;
-
-function withoutWorkflowPointers(score: WitanCriterionScore): WitanCriterionScore {
-  return { ...score, evidence: score.evidence.filter(({ label }) => !B3_WORKFLOW_POINTER_LABEL.test(label)) };
-}
-
 /**
- * `id` under v27 scores `name` as v17 does. For B3 that is apart from its workflow pointers, and no
- * v27 workflow pointer says a workflow is not counted, so every workflow kept its credit.
+ * `id` under v27 scores `name` as v17 does. For B3 that is apart from its workflow pointers (19 Nov,
+ * refs #600; withoutB3WorkflowPointers), and no v27 pointer says a workflow is not counted, so every
+ * workflow kept its credit.
  */
 function expectAsV17(name: string, id: string, message = `${name} ${id}`): void {
   const v27 = criterion(name, V27, id);
@@ -195,8 +192,8 @@ function expectAsV17(name: string, id: string, message = `${name} ${id}`): void 
     expect(v27, message).toEqual(v17);
     return;
   }
-  expect(withoutWorkflowPointers(v27), message).toEqual(withoutWorkflowPointers(v17));
-  expect(v27.evidence.filter(({ label }) => label.includes(' not counted')), message).toEqual([]);
+  expect(withoutB3WorkflowPointers(v27), message).toEqual(withoutB3WorkflowPointers(v17));
+  expect(b3NotCountedPointers(v27), message).toEqual([]);
 }
 
 /**
