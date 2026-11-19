@@ -553,7 +553,23 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     does every such option where any conftest.py declares an option through a name or *args;
 //   - every criterion: a read of a Git LFS pointer is a content-read skip, so the criterion that
 //     read it abstains as a read failure instead of scoring the pointer text, unless its
-//     collector made a critical finding (it then scores as under v17);
+//     collector made a critical finding (it then scores as under v17). From 2026-11-19 (#519
+//     follow-up, item A) the abstention cites, in the criterion's evidence, each pointer path
+//     attributed to it, labelled as a Git LFS pointer whose content is not in this checkout, and
+//     its note says how many pointers it rests on; the read-failure scan limitation then says
+//     contentReadSummary lists no file paths and the abstaining criteria cite the pointer paths,
+//     in place of "file paths are intentionally omitted". Scores, statuses and finding counts are
+//     unchanged by this. From the same date (item B) A2 keeps its not-applicable result, as under
+//     v17, where its collector reached it from the content it read and every pointer attributed
+//     to it is at a path whose real content A2's applicability checks do not read (not a
+//     .gitignore, an env-format file, an implementation file, a credential-shaped path, or a file
+//     of a type Cejel reads as content, which the committed-secret scan reads as text); A2 then
+//     names the pointers in a disclosure and is left out of contentReadSummary.affectedCriteria.
+//     B4 does the same, since both its not-applicable gates decide from paths alone and the only
+//     content it reads on either is an audit file's, for its evidence hash. A3's, A5's and B6's
+//     gates read content a pointer could hold (entry points, workflows and Dockerfiles; claim
+//     and reconciliation documents; SQL, source and governance files), and B1's and B5's read
+//     nothing, so their not-applicable results are still replaced by the abstention;
 //   - A4: under library norms, lockfile_coverage is 0 rather than omitted when the repository's
 //     own CI (or, from 2026-10-26, its tox configuration) requires a lockfile and none is
 //     committed, and (#520, 2026-10-26) under any norms that requirement is a warning finding
