@@ -1,0 +1,25 @@
+[
+  {
+    "statement": "A vocabulary built to credit a repository is not safe to reuse for accusing one. 2026-11-19: #741's B3 reader named workflows in which 'a failing test command is ignored'. It decided a line ran tests by matching CI_TEST_COMMAND_PATTERN anywhere on the line. That pattern credits CI test commands, so a loose match there only over-credits. Reused to assert a defect, it named `pip install pytest pytest-cov || true`, `mkdir -p jest-results || true` and `rm -f jest.config.js || true` as ignored test runs, and it ignored later lines that fail the step on the result (`! grep -q FAILED out.log`). Both CI and the PR's 396-pair comparison were green: every fixture had been built to match. Fix: a reader that asserts a defect anchors on the command word, abstains on anything it cannot place (heredocs, folded blocks, keys not the step's own, job-level semantics it has not verified), and gets negative fixtures written by someone other than its author.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "false-assertion"
+    ],
+    "tags": [
+      "abstain-rather-than-guess",
+      "b3",
+      "disclosure",
+      "negative-fixtures",
+      "vocabulary-reuse"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-11-19T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 741
+    }
+  }
+]
