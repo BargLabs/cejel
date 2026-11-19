@@ -2353,8 +2353,14 @@ function collectA1TestIntegrityEvidence(
     // Every rubric (#519): a Git LFS pointer is named as one, so the evidence does not present
     // pointer text as a test. The file is read here exactly as evidenceForRelative reads it.
     const testPath = join(repoPath, file);
-    const isLfsPointer =
-      isRegularFile(testPath) && isGitLfsPointerText(readRepoText(testPath, 'utf8'));
+    const testText = isRegularFile(testPath) ? readRepoText(testPath, 'utf8') : undefined;
+    const isLfsPointer = testText !== undefined && isGitLfsPointerText(testText);
+    // v27 (goal_cejel_v27_a1_fixture_data_not_cited_as_test_2026-11-19, item A): a fixture data
+    // file with no test in it is mock data, not evidence about the tests, so it is not called a
+    // test file. It keeps its place in the list, labelled for what it is, so the evidence count
+    // and every score, status and finding count stay as they are.
+    const isFixtureData =
+      useV27FalseAssuranceClosure && testText !== undefined && !isLfsPointer && isV27FixtureDataWithNoTest(file, testText);
     evidence.push(
       evidenceForRelative(
         repoPath,
@@ -2362,7 +2368,9 @@ function collectA1TestIntegrityEvidence(
         'test_run',
         isLfsPointer
           ? 'Detected test file (Git LFS pointer; its content is not in this checkout)'
-          : 'Detected test file',
+          : isFixtureData
+            ? A1_FIXTURE_DATA_LABEL
+            : 'Detected test file',
       ),
     );
   }
@@ -2509,6 +2517,8 @@ function collectA1TestIntegrityEvidence(
         );
       }
     } else {
+      // v27 (item A): where evidence[0] is a fixture data file, this finding keeps citing it, now
+      // labelled as scaffolding: v27 keeps every v17 finding at v17's pointer (v27-no-rise.ts).
       const firstEvidence = evidence[0];
       if (!firstEvidence) return null;
       findings.push(
@@ -2741,6 +2751,9 @@ function a1WithheldSentence(clauses: readonly string[], shown: number, pointed: 
   }.`;
   return `${text.charAt(0).toUpperCase()}${text.slice(1)}`;
 }
+
+/** v27 (item A): the label of a detected test file that is fixture data with no test in it. */
+const A1_FIXTURE_DATA_LABEL = 'Test support scaffolding (fixture data with no test in it), not a test file';
 
 /** A1's v27 evidence cites at most this many rated-hollow files, and as many clauses the note names. */
 const A1_NOTE_EVIDENCE_LIMIT = 8;
@@ -15203,6 +15216,37 @@ interface RatedHollowFile {
   readonly line: number | null;
 }
 
+/**
+ * Whether a test-shaped file holds an assertion, as non_hollow_test_share reads it: the share's
+ * one test of whether a file has a test in it. Used again only by v27's fixture data citation
+ * (isV27FixtureDataWithNoTest), so both read a file the same way.
+ */
+function readsAsAsserting(contents: string, masked: () => MaskedSource): boolean {
+  return (
+    JS_TEST_ASSERTION_PATTERN.test(contents) ||
+    CPP_TEST_ASSERTION_PATTERN.test(contents) ||
+    MULTI_ECOSYSTEM_TEST_ASSERTION_PATTERN.test(contents) ||
+    hasLiveAvaAssertion(contents) ||
+    hasLiveFrameworkAssertion(masked())
+  );
+}
+
+// v27 (goal_cejel_v27_a1_fixture_data_not_cited_as_test_2026-11-19): a fixture data path, by the
+// conventions test suites use for mock data: a fixtures/ or __fixtures__/ directory, or a file
+// named *.fixture.* or *.fixtures.*. Matched case-sensitively, as the conventions are written.
+const FIXTURE_DATA_PATH_PATTERN = /(^|\/)(?:fixtures|__fixtures__)\/|(^|\/)[^/]+\.fixtures?\.[^/]+$/;
+
+/**
+ * v27 only: a detected test file that is fixture data with no test in it (by the share's own
+ * reading, readsAsAsserting). It is cited as test support scaffolding, not as a test file. The
+ * caller has already read `contents` from a regular file that is not a Git LFS pointer.
+ */
+function isV27FixtureDataWithNoTest(file: string, contents: string): boolean {
+  if (!FIXTURE_DATA_PATH_PATTERN.test(file)) return false;
+  let maskedSource: MaskedSource | undefined;
+  return !readsAsAsserting(contents, () => (maskedSource ??= maskCommentsAndStrings(contents)));
+}
+
 function measureNonHollowTestShare(
   repoPath: string,
   files: readonly string[],
@@ -15222,12 +15266,7 @@ function measureNonHollowTestShare(
     let maskedSource: MaskedSource | undefined;
     const masked = () => (maskedSource ??= maskCommentsAndStrings(contents));
     const frameworkSuiteSkipped = /\bIgnored?\b/.test(contents) && hasFrameworkSuiteLevelSkip(masked());
-    const asserting =
-      JS_TEST_ASSERTION_PATTERN.test(contents) ||
-      CPP_TEST_ASSERTION_PATTERN.test(contents) ||
-      MULTI_ECOSYSTEM_TEST_ASSERTION_PATTERN.test(contents) ||
-      hasLiveAvaAssertion(contents) ||
-      hasLiveFrameworkAssertion(masked());
+    const asserting = readsAsAsserting(contents, masked);
     const suiteSkipped = SUITE_LEVEL_SKIP_PATTERN.test(contents);
     // What v17 rates the file, before any v27 rule.
     const nonHollowUnderV17 = asserting && !suiteSkipped && !frameworkSuiteSkipped;

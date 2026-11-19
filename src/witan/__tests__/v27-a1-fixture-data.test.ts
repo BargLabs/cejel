@@ -120,21 +120,13 @@ describe('item A — under v27 a fixture data file with no test in it is not cit
     expect(labelOf(a1('a1-fixture-data-dunder-fixtures-dir', V17), 'tests/__fixtures__/users.py')).toEqual([DETECTED]);
   });
 
-  it('the no-coverage finding cites a detected test file under v27 where one is cited, and the fixture data file where it is the only one', () => {
+  it('the no-coverage finding keeps v17\'s pointer under v27; where that is a fixture data file, only its label changes', () => {
     const coverageFinding = (name: string, rubricVersion: string) =>
       a1(name, rubricVersion).findings.find(({ summary }) => summary.includes('no coverage configuration'));
-    expect(coverageFinding('a1-fixture-data-dunder-fixtures-dir', V17)?.evidence).toMatchObject({
-      path: 'tests/__fixtures__/users.py',
-      label: DETECTED,
-    });
-    expect(coverageFinding('a1-fixture-data-dunder-fixtures-dir', V27)?.evidence).toMatchObject({
-      path: 'tests/test_alpha.py',
-      label: DETECTED,
-    });
-    expect(coverageFinding('a1-fixture-data-only-test-shaped-file', V27)?.evidence).toMatchObject({
-      path: 'tests/fixtures/auth.fixtures.ts',
-      label: SCAFFOLDING,
-    });
+    const v17 = coverageFinding('a1-fixture-data-dunder-fixtures-dir', V17)?.evidence;
+    const v27 = coverageFinding('a1-fixture-data-dunder-fixtures-dir', V27)?.evidence;
+    expect(v17).toMatchObject({ path: 'tests/__fixtures__/users.py', label: DETECTED });
+    expect(v27).toEqual({ ...v17, label: SCAFFOLDING });
   });
 
   it('control: a file under tests/fixtures/ that holds a test stays a detected test file', () => {
