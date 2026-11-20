@@ -101,12 +101,13 @@ describe('item A — under v27 B3 cites every workflow it read, with how it was 
     const byPath = new Map(workflowPointers(b3).map((pointer) => [pointer.path, pointer]));
     // Since the v27 housekeeping and publishing-depth change (19 Nov, items A and B): the docs deploy
     // counts toward default-branch depth, so it is among the credited, and the stale closer is not
-    // counted as housekeeping, cited at its first housekeeping step.
+    // counted as housekeeping, cited at its first housekeeping step. Credited workflows come first;
+    // the two not counted (the tag release and the stale closer) follow in the order they were read.
     expect([...byPath.keys()]).toEqual([
       '.github/workflows/ci.yml',
       '.github/workflows/docs.yml',
-      '.github/workflows/stale.yml',
       '.github/workflows/release.yml',
+      '.github/workflows/stale.yml',
     ]);
     expect(workflowPointers(b3)).toHaveLength(4);
     const ci = byPath.get('.github/workflows/ci.yml');
