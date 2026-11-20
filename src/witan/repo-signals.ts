@@ -2191,7 +2191,6 @@ function collectRepoSignals(
       reviewableSourceProof,
       inventoryAbsenceContext,
       useV27FalseAssuranceClosure,
-      scanLimitations,
     ),
   );
   const a2Signal = collectCriterion('A2', () =>
@@ -2326,7 +2325,6 @@ function collectA1TestIntegrityEvidence(
   reviewableSourceProof?: ReviewableSourceProof,
   inventoryAbsenceContext: InventoryAbsenceContext = LEGACY_INVENTORY_ABSENCE_CONTEXT,
   useV27FalseAssuranceClosure = false,
-  scanLimitations: Set<string> = new Set(),
 ): WitanCriterionSignalPayload | null {
   const evidence: WitanEvidencePointer[] = [];
   const findings: WitanCriterionSignalPayload['findings'] = [];
@@ -2363,7 +2361,7 @@ function collectA1TestIntegrityEvidence(
   // where it puts the items back and, for a file, where a pytest run that collects it disables
   // pytest's skipping plugin (a hook that skips) or does not load the hook's conftest.py
   // (goal_cejel_v27_a1_test_count_overmatch_v2_2026-11-02, as fixed after the #626 review).
-  const runWideHooks = pytestSettings ? findPytestRunWideSkips(repoPath, repoFiles, scanLimitations) : [];
+  const runWideHooks = pytestSettings ? findPytestRunWideSkips(repoPath, repoFiles) : [];
   const runWideSkips = runWideHooks.filter((skip) => skip.withheld === undefined);
   const hookWithheldFor = (skip: PytestRunWideSkip, file: string): PytestReason | undefined => {
     if (skip.withheld !== undefined) {
@@ -20762,89 +20760,15 @@ interface PythonStrictHelper {
 // `conftest.list = ...`), and the file list A1 walks leaves out vendor/, build/, dist/, venv/,
 // coverage/ and the like. So a builtin copy is credited only where no file the repository tracks,
 // in any directory, is a Python source (read under NFKC, code, strings and comments alike) naming
-// one of PYTHON_BUILTINS_REACH_PATTERN, or a compiled or archived module Cejel cannot read; and
-// where those files can be listed and read. A module installed from outside the repository (an
-// entry-point plugin, a sitecustomize, a .pth file in site-packages) is not read, nor is a way of
-// reaching builtins the pattern does not list.
+// one of a list of patterns, or a compiled or archived module Cejel cannot read; and where those
+// files can be listed and read. A module installed from outside the repository (an entry-point
+// plugin, a sitecustomize, a .pth file in site-packages) was not read, nor was a way of reaching
+// builtins the pattern did not list.
+// goal_cejel_v27_a1_builtin_copy_withhold_2026-11-17 (#664, operator ruling of 17 Nov, option B):
+// that credit rested on code the scan cannot see, so v27 never credits a copy made through a
+// builtin. The hook is named as not read at the statement, and the repository-wide search that
+// decided the credit is removed: no file decides it any more.
 const PYTHON_BUILTIN_COPY_CALL_PATTERN = /^(?:list|tuple)[ \t]*\(/;
-// One sweep for: `builtins` anywhere (builtins, __builtins__, f_builtins); a module, frame or
-// namespace reached by a computed name; Python's own exec, eval, compile, globals, vars and locals,
-// not an attribute (`re.compile`); an attribute named list or tuple that is not called.
-const PYTHON_BUILTINS_REACH_PATTERN =
-  /builtins|(?<![A-Za-z0-9_])(?:modules|__dict__|__globals__|__getattr__|__getattribute__|__setattr__|__delattr__|__import__|importlib|setattr|delattr|getattr|attrgetter|_getframe|currentframe|f_globals|f_locals|f_back|tb_frame|gi_frame|cr_frame|ag_frame|gc|ctypes|__subclasses__|pickle|marshal|runpy|__loader__|__spec__)(?![A-Za-z0-9_])|(?<![A-Za-z0-9_.])(?:exec|eval|compile|globals|vars|locals)(?![A-Za-z0-9_])|\.[ \t]*(?:list|tuple)(?![A-Za-z0-9_])(?![ \t]*\()/;
-const PYTHON_SOURCE_FILE_PATTERN = /\.(?:py|pyw|pyx|pxd|pxi)$/i;
-// A module Python can import whose code Cejel cannot read: bytecode, an extension, an archive, a .pth.
-const PYTHON_UNREAD_MODULE_FILE_PATTERN = /\.(?:pyc|pyo|so|pyd|egg|whl|zip|pth)$/i;
-
-/**
- * The review of #655, blocker 3: every file the repository tracks, in any directory (A1's file list
- * leaves out vendor/, build/, dist/, venv/, coverage/ and the like), or undefined where they cannot
- * be listed. Outside Git, every file under the root but .git. Linear in the files.
- * #574 item 3 (item C of the review of b67489a96): where git fails for a reason other than an
- * expected absence, the failed listing is a scan limitation, as every other failed `ls-files` is.
- */
-function filesIncludingExcluded(repoPath: string, scanLimitations: Set<string>): readonly string[] | undefined {
-  const tracked = readGitTrackedFileOutput(repoPath);
-  if (tracked.ok) return tracked.stdout.split('\n').filter((line) => line !== '');
-  if (!isExpectedGitAbsence(tracked)) {
-    scanLimitations.add(
-      `${describeGitFailure(tracked.reason, 'full tracked-file inventory')} A1 credited no copy of pytest's collected items made through a builtin, because the files that may replace the builtin could not be listed.`,
-    );
-    return undefined;
-  }
-  const files: string[] = [];
-  const pending = [''];
-  for (let next = pending.pop(); next !== undefined; next = pending.pop()) {
-    let entries: Dirent[];
-    try {
-      entries = readdirSync(join(repoPath, next), { withFileTypes: true });
-    } catch {
-      return undefined;
-    }
-    for (const entry of entries) {
-      const path = next === '' ? entry.name : `${next}/${entry.name}`;
-      if (entry.isDirectory()) {
-        if (entry.name !== '.git') pending.push(path);
-      } else files.push(path);
-    }
-  }
-  return files;
-}
-
-/**
- * The review of #655, blocker 3: why a builtin copy is not credited, as the words after "calls a
- * builtin": the first tracked file that may replace the builtin, or that the files could not be
- * listed; undefined where no file may. Linear in the files.
- */
-function builtinCopyReplacedBy(repoPath: string, scanLimitations: Set<string>): string | undefined {
-  const files = filesIncludingExcluded(repoPath, scanLimitations);
-  if (files === undefined) return "and the repository's files could not be listed";
-  for (const listed of files) {
-    // git quotes a path holding unusual characters; such a file is named, not read.
-    const quoted = listed.startsWith('"') && listed.endsWith('"') && listed.length > 1;
-    const file = quoted ? listed.slice(1, -1) : listed;
-    const unread = PYTHON_UNREAD_MODULE_FILE_PATTERN.test(file);
-    if (!unread && !PYTHON_SOURCE_FILE_PATTERN.test(file)) continue;
-    const replaces = `which ${a1NotePath(file)} may replace`;
-    if (unread || quoted) return replaces;
-    const fullPath = join(repoPath, file);
-    let size: number;
-    try {
-      const stat = lstatSync(fullPath);
-      if (!stat.isFile()) return replaces;
-      size = stat.size;
-    } catch {
-      return replaces;
-    }
-    if (size > MAX_REPOSITORY_CONTENT_BYTES) return replaces;
-    const text = readRepoText(fullPath, 'utf8');
-    if (isGitLfsPointerText(text)) return replaces;
-    // Python folds identifiers under NFKC (`ｂuiltins` is builtins); ASCII text is already folded.
-    const folded = /[^\x00-\x7f]/.test(text) ? text.normalize('NFKC') : text;
-    if (PYTHON_BUILTINS_REACH_PATTERN.test(folded)) return replaces;
-  }
-  return undefined;
-}
 
 /** What the allowlist needs to know about a conftest.py's module: read on demand, each once. */
 interface PythonModuleFacts {
@@ -21153,20 +21077,18 @@ function pytestMentionsItems(code: string): boolean {
 
 type PytestHookReading =
   | { readonly kind: 'skip' | 'clear' | 'restores' | 'rebinds' }
-  /** `builtins`: why a copy through a builtin is not credited, the words after "calls a builtin" (item A; #655 review, blocker 3). */
-  | { readonly kind: 'not read'; readonly reason: string; readonly builtins?: string };
+  /**
+   * `builtin`: set where the reason is a copy of the items made through a builtin call, which v27
+   * never credits (goal_cejel_v27_a1_builtin_copy_withhold_2026-11-17, #664 option B).
+   */
+  | { readonly kind: 'not read'; readonly reason: string; readonly builtin?: true };
 
 /**
  * Reads the last top-level `pytest_collection_modifyitems` of a conftest.py, at line `index`: what
  * the run-wide skip rule may say about it, or undefined where it has nothing to say (the hook takes
- * no `items`, never names it, or never empties or skips it). `builtinsNamedIn` says why a builtin
- * copy may not be the items (builtinCopyReplacedBy), read only where a credit rests on one.
+ * no `items`, never names it, or never empties or skips it).
  */
-function readPytestCollectionHook(
-  source: PythonSourceLines,
-  index: number,
-  builtinsNamedIn: () => string | undefined = () => undefined,
-): PytestHookReading | undefined {
+function readPytestCollectionHook(source: PythonSourceLines, index: number): PytestHookReading | undefined {
   const lines = source.raw;
   const masked = source.masked;
   // pytest passes the collected items only to a hook that names an `items` parameter (#621); the
@@ -21262,9 +21184,9 @@ function readPytestCollectionHook(
   // Outcome 2 only for a body the allowlist reads whole, and the list reading agrees.
   const allowlist = pytestHookRestoreAllowlist(read, beforeYield, parameters, pythonModuleFacts(source));
   if (allowlist.restores && reading.state === 'restored' && reading.cleared) {
-    // item A (#646): a copy through a builtin call is the builtin's result, which another file may patch.
-    const named = allowlist.builtin === undefined ? undefined : builtinsNamedIn();
-    if (allowlist.builtin !== undefined && named !== undefined) return { kind: 'not read', reason: allowlist.builtin.shown, builtins: named };
+    // item A (#646): a copy through a builtin call is the builtin's result, which a module the scan
+    // cannot see may replace; #664 (option B): it is never credited, whatever the repository holds.
+    if (allowlist.builtin !== undefined) return { kind: 'not read', reason: allowlist.builtin.shown, builtin: true };
     return { kind: 'restores' };
   }
   if (reading.state === 'unknown') return notRead(reading.reason ?? 'items');
@@ -21311,23 +21233,9 @@ const A1_HOOK_NOT_READ = 'hook not read: ';
  * Exported for the scaling check in scan-path-regex-bounds.test.ts
  * (goal_cejel_v27_conftest_timing_guard_2026-11-02, item C).
  */
-export function findPytestRunWideSkips(
-  repoPath: string,
-  repoFiles: readonly string[],
-  scanLimitations: Set<string> = new Set(),
-): PytestRunWideSkip[] {
+export function findPytestRunWideSkips(repoPath: string, repoFiles: readonly string[]): PytestRunWideSkip[] {
   const found: Omit<PytestRunWideSkip, 'beyondScope'>[] = [];
   let ignoresCollection = false;
-  // item A (#646): read once, and only where a credit rests on a builtin copy.
-  let builtinsRead = false;
-  let builtinsFile: string | undefined;
-  const builtinsNamedIn = (): string | undefined => {
-    if (!builtinsRead) {
-      builtinsRead = true;
-      builtinsFile = builtinCopyReplacedBy(repoPath, scanLimitations);
-    }
-    return builtinsFile;
-  };
   for (const file of repoFiles) {
     // Test directories are where a conftest.py lives, so only generated or vendored copies are
     // excluded here, not test paths.
@@ -21415,11 +21323,12 @@ export function findPytestRunWideSkips(
       });
     }
     if (last === -1) continue;
-    const reading = readPytestCollectionHook(source, last, builtinsNamedIn);
+    const reading = readPytestCollectionHook(source, last);
     if (reading === undefined) continue;
     const where = { path: file, line: last + 1, scope: scope === '.' ? '' : scope };
     if (reading.kind === 'not read') {
-      const because = reading.builtins === undefined ? '' : ` calls a builtin, ${reading.builtins}`;
+      // #664 (option B): the reason names no file, because no file decides it.
+      const because = reading.builtin === true ? ' copies the collected items through a builtin, which v27 does not credit' : '';
       found.push({
         ...where,
         kind: 'unread',
