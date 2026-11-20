@@ -18,6 +18,22 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- **Prospective v27: a Git LFS pointer abstains A3 only where unread content could still change
+  the rating (refs #519, #753).** This applies under `witan-rubric-v27-prospective-2026-10-19`
+  only, to A3 only. v17, the default, and every other rubric are unchanged, byte for byte, and
+  every other criterion keeps #519's behaviour.
+  - Where A3's only content-read skips are Git LFS pointer reads and A3 was scored, it abstains, as
+    before, if a read of a pointer was attributed to no metric (for example a citation line, or the
+    runtime-container read) or to a metric below its maximum. Otherwise it keeps v17's score,
+    status, metrics, findings and evidence, cites each pointer after that evidence, and adds one
+    disclosure naming the pointers and the metrics that read them. The certificate lists the
+    disclosure under what was not established.
+  - A not-applicable A3 that read a pointer still abstains: its gate's reads are the one place
+    unread content can contradict what A3 asserts.
+  - A kept reading equals v17's, and an abstention is 0, so v27 stays at or below v17.
+  - A guard test fails if any A3 content read can lower a scored A3, the property the rule rests on,
+    and requires a fixture pair for every A3 content read.
+
 - **Prospective v27: a workflow that only labels, comments on or closes issues and pull requests
   earns no CI credit, and a discounted publishing workflow keeps its PR-gate count where
   pull-request CI tests and lints (refs #600, #748, #536, #565).** This applies under
