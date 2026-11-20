@@ -28,6 +28,7 @@ import {
   abstainSignalOnWithheldPaths,
   classifyAbstentionReason,
   type ContentReadSkipReason,
+  type LfsPointerReadAttribution,
   contentReadSignalKey,
   isGitLfsPointerText,
   readRepoText,
@@ -470,6 +471,65 @@ function lfsPointerNotApplicableDisclosure(
   return `${prefix}${sorted.length} files${tail}`;
 }
 
+/**
+ * v27 (operator ruling of 20 Nov on #753): a scored A3 whose only content-read skips are Git LFS
+ * pointer reads abstains only where unread content could still change its rating. #753 found that
+ * no A3 content read can lower a scored A3 (a pointer, read as text, matches none of A3's patterns),
+ * so the content behind a pointer can only raise a metric that read it, and cannot raise one
+ * already at its maximum (v27-a3-pointer-floor-guard.test.ts fails if a read stops being a floor).
+ *
+ * A3 keeps v17's reading only where every read of every pointer was attributed to a signal
+ * (withContentReadSignal) that names one of A3's metrics, and every such metric's value is at its
+ * maximum. It then keeps v17's score, status, metrics, findings and evidence, appends the pointer
+ * citations after v17's evidence, and adds one disclosure naming the pointers. Returns undefined,
+ * so A3 abstains as before, for any other criterion, a not-applicable A3 (whose gate's reads are
+ * the one place unread content can contradict what A3 asserts), any read attributed to no signal or
+ * to a signal that is not a metric, any such metric below its maximum, or no room under #612's
+ * budget.
+ */
+function lfsPointerKeepsScoredA3(
+  signal: WitanCriterionSignalPayload,
+  reads: ReadonlyMap<string, Readonly<LfsPointerReadAttribution>> | undefined,
+  citations: readonly WitanEvidencePointer[],
+): WitanCriterionSignalPayload | undefined {
+  if (signal.criterionId !== 'A3' || signal.notApplicable === true || signal.insufficientData === true) {
+    return undefined;
+  }
+  if (!reads || reads.size === 0 || citations.length !== reads.size) return undefined;
+  const metrics = new Map((signal.metrics ?? []).map((entry) => [entry.name, entry]));
+  const readers = new Set<string>();
+  for (const read of reads.values()) {
+    if (read.unattributed || read.signals.size === 0) return undefined;
+    for (const name of read.signals) {
+      const found = metrics.get(name);
+      if (!found || found.max === undefined || found.value < found.max) return undefined;
+      readers.add(name);
+    }
+  }
+  const existing = signal.disclosures ?? [];
+  // #612's budget: an A2, A3 or A5 signal carries at most 2 collector disclosures.
+  if (existing.length + 1 > 2) return undefined;
+  return {
+    ...signal,
+    positiveEvidence: [...signal.positiveEvidence, ...citations],
+    disclosures: [...existing, lfsPointerAtMaximumDisclosure([...reads.keys()], [...readers])],
+  };
+}
+
+function lfsPointerAtMaximumDisclosure(pointerPaths: readonly string[], metricNames: readonly string[]): string {
+  const prefix = witanV27LfsPointerNotApplicablePrefix('A3');
+  const sorted = [...pointerPaths].sort((left, right) => left.localeCompare(right));
+  const names = [...metricNames].sort((left, right) => left.localeCompare(right));
+  const one = sorted.length === 1;
+  const tail = `. Only ${names.length === 1 ? `the metric ${names[0]}` : `the metrics ${names.join(' and ')}`} read ${one ? 'it' : 'them'}, and ${names.length === 1 ? 'it is already at its' : 'all of them are already at their'} maximum, so ${one ? 'its' : 'their'} content could not change this rating.`;
+  for (let shown = sorted.length; shown > 0; shown -= 1) {
+    const more = sorted.length - shown;
+    const sentence = `${prefix}${sorted.slice(0, shown).join(', ')}${more > 0 ? ` and ${more} more` : ''}${tail}`;
+    if (sentence.length <= 1000) return sentence;
+  }
+  return `${prefix}${sorted.length} files${tail}`;
+}
+
 function withoutCountDisclosures(disclosures: readonly string[] | undefined): { disclosures?: string[] } {
   const kept = (disclosures ?? []).filter(
     (text) =>
@@ -559,6 +619,19 @@ export function buildWitanInputFromRepo(options: BuildWitanInputOptions): WitanR
         if (kept !== undefined) {
           lfsKept.add(signal.criterionId);
           return kept;
+        }
+      }
+      // v27 (operator ruling of 20 Nov on #753): a scored A3 keeps v17's reading where every
+      // pointer read was attributed to a metric already at its maximum (lfsPointerKeepsScoredA3).
+      if (usesV27FalseAssuranceClosure(rubricVersion) && lfsOnly && signal.criterionId === 'A3') {
+        const keptScored = lfsPointerKeepsScoredA3(
+          signal,
+          tracked.lfsPointerReads.get(signal.criterionId),
+          lfsPointerCitations(options.repoPath, signal.criterionId, tracked),
+        );
+        if (keptScored !== undefined) {
+          lfsKept.add(signal.criterionId);
+          return keptScored;
         }
       }
       const { insufficientDataReason } = classifyAbstentionReason(reasons);

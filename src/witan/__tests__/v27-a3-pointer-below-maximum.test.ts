@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { WitanCriterionScore, WitanReport } from '../schemas.js';
 
 import { WITAN_LFS_POINTER_CITATION_LABEL, witanV27LfsPointerNotApplicablePrefix } from '../abstention.js';
+import { buildRelyingPartySummary } from '../certificate-presentation.js';
 import { scoreRepoWithPublicCejel } from '../public-scan.js';
 import { WITAN_RUBRIC_VERSION_V17, WITAN_RUBRIC_VERSION_V27 } from '../rubric-version.js';
 import { A3_BELOW_MAXIMUM_FIXTURES, A3_POINTER_FIXTURES } from './fixtures/a3-pointer-fixtures.js';
@@ -126,6 +127,16 @@ describe('v27 A3: an LFS pointer abstains only where unread content could still 
     const v17Overall = report(name, V17).overallScore;
     const v27Overall = report(name, V27).overallScore;
     if (v17Overall !== null && v27Overall !== null) expect(v27Overall).toBeLessThanOrEqual(v17Overall);
+  });
+
+  it('the certificate lists the disclosure under what was not established, under v27 only', () => {
+    const name = 'a3-rollback-at-maximum-docs-image-pointer';
+    const v27 = buildRelyingPartySummary(report(name, V27)).notEstablished;
+    const disclosure = a3(name, V27).disclosures?.[0] ?? '';
+    expect(disclosure).not.toBe('');
+    expect(v27).toContain(disclosure);
+    expect(v27).toContain('kept its rating where every metric that read one is already at its maximum');
+    expect(buildRelyingPartySummary(report(name, V17)).notEstablished).not.toContain(A3_POINTER_PREFIX);
   });
 
   it('v17 never carries the disclosure', () => {
