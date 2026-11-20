@@ -748,6 +748,7 @@ interface ReviewedEntry {
 }
 
 const RS = 'witan/repo-signals.ts';
+const A2_LFS_POINTER_PREFIX = witanV27LfsPointerNotApplicablePrefix('A2');
 const ANY = ['*'];
 
 // Reviewed 10 Nov at the head of #706. Each collector (collectRepoSignals in repo-signals.ts) emits
@@ -756,17 +757,20 @@ const REVIEWED: readonly ReviewedEntry[] = [
   {
     kind: 'site', file: RS, within: 'lfsPointerKeepsNotApplicable', sha: 'c6b7dc1382fd#0',
     role: 'producer', criteria: ['A2', 'B4'], most: 2,
+    reachedBy: 'a2-set-aside-with-binary-lfs-pointers', marker: A2_LFS_POINTER_PREFIX,
     why: "v27: a not-applicable result kept on Git LFS pointers carries its own disclosures plus one naming the pointers, added only where that stays within the budget (existing + 1 <= 2 on A2, A3 and A5).",
   },
   {
     kind: 'call', file: RS, within: 'buildWitanInputFromRepo', sha: '7ea12f5fa738#0',
     role: 'producer', criteria: ['A2', 'B4'], most: 2,
+    reachedBy: 'a2-set-aside-with-binary-lfs-pointers', marker: A2_LFS_POINTER_PREFIX,
     why: 'The call that keeps a not-applicable result on Git LFS pointers (lfsPointerKeepsNotApplicable), within the same budget.',
   },
   // A2: the only criterion of the three with collector disclosures today.
   {
     kind: 'site', file: RS, within: 'placeholderSetAsideDisclosures', sha: '4dc96e169fb7#0',
     role: 'producer', criteria: ['A2'], most: 1,
+    reachedBy: 'a2-not-applicable-with-set-aside (no .git)', marker: WITAN_A2_PLACEHOLDER_SET_ASIDE_PREFIX,
     why: 'One sentence naming the documentation placeholders A2 read and set aside.',
   },
   {
@@ -777,16 +781,19 @@ const REVIEWED: readonly ReviewedEntry[] = [
   {
     kind: 'call', file: RS, within: 'collectA2IsolationEvidence', sha: '112037139ecd#0',
     role: 'producer', criteria: ['A2'], most: 1,
+    reachedBy: 'a2-doc-example-pair-in-committed-env-file (no .git)', marker: WITAN_A2_PLACEHOLDER_SET_ASIDE_PREFIX,
     why: 'A2 abstains on a directory with no git history (shallowHistoryAbstention carries none), plus the placeholder sentence.',
   },
   {
     kind: 'call', file: RS, within: 'collectA2IsolationEvidence', sha: '495870336548#0',
     role: 'producer', criteria: ['A2'], most: 1,
+    reachedBy: 'a2-not-applicable-with-set-aside (no .git)', marker: WITAN_A2_PLACEHOLDER_SET_ASIDE_PREFIX,
     why: 'The same abstention where A2 would have been not applicable, plus the placeholder sentence.',
   },
   {
     kind: 'call', file: RS, within: 'collectA2IsolationEvidence', sha: '9b3e7a728939#0',
     role: 'producer', criteria: ['A2'], most: 1,
+    reachedBy: 'a2-set-aside-with-binary-lfs-pointers-depth-1', marker: WITAN_A2_PLACEHOLDER_SET_ASIDE_PREFIX,
     why: 'Abstention after an incomplete history read (v27A2HistoryAbstention carries none), plus the placeholder sentence.',
   },
   {
