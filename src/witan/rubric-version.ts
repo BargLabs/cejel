@@ -341,6 +341,25 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     cited, and adds "K not cited (citation limit 16)" past the limit; it is silent, as before,
 //     where every workflow read is cited and none was withheld or delegated. Evidence only: no
 //     score, status, finding, composite or verdict moves;
+//     from 2026-11-19 (goal_cejel_v27_b2_b3_housekeeping_and_publishing_depth, operator rulings of
+//     19 Nov on items B and C of #748, refs #600, #536, #565), B2 and B3 share two more reasons a
+//     workflow earns no CI credit, through the one predicate (`uncreditedCiWorkflowReason`): a
+//     workflow whose every step is checkout, print, `actions/labeler`, `actions/stale` or
+//     `actions/first-interaction` (pinned by tag or SHA, with only `with:` keys taking text,
+//     labels, globs or numbers) or a `gh pr comment`, `gh issue comment` or `gh pr edit
+//     --add-label/--remove-label` line whose every argument is inert text, cited at its first such
+//     step as one that "only labels, comments on or closes issues and pull requests"
+//     (`actions/github-script` stays counted: its script is inline code); and a workflow file in a
+//     subfolder of `.github/workflows/`, which GitHub does not run, cited by path; and a
+//     publishing workflow the rule above discounts still counts toward `default_branch_ci_depth`
+//     (never `ci_script_depth`, and B2 is unchanged) where `workflowTargetsDefaultBranch` accepts
+//     it and one counted workflow whose `on:` names a pull-request trigger runs both a test and a
+//     lint command outside comments (for this condition only, a lint command also includes `npm run
+//     lint`, `pnpm [run] lint`, `yarn lint` and `bun run lint` where the root or a declared
+//     workspace package has a `lint` script, and `biome check` or `biome lint`), its pointer and
+//     B3's note saying so; the accepted cost is that on such a repository v27 no longer resists
+//     #517's evasion of making a release workflow run on every push to the default branch without
+//     its gate;
 //   - A1: conftest.py is not a concrete test file (not cited as one, and rated hollow where it
 //     asserts; from 2026-11-01 test_to_source_ratio counts it as test surface, as v17 does), and
 //     an unconditional run-wide pytest skip

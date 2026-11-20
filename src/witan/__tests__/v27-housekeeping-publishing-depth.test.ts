@@ -7,6 +7,7 @@ import type { WitanCriterionScore, WitanEvidencePointer, WitanReport } from '../
 
 import { serializeWitanReport } from '../attestation.js';
 import { scoreRepoWithPublicCejel } from '../public-scan.js';
+import { isHousekeepingGhCommand, isPrintOnlyWorkflow, readHousekeepingOrPrintOnlyWorkflow } from '../repo-signals.js';
 import {
   WITAN_RUBRIC_VERSION_V17,
   WITAN_RUBRIC_VERSION_V27,
@@ -142,6 +143,73 @@ describe('item A — a housekeeping workflow earns no CI credit under v27, for B
 // The card's wording ("publishes, releases or deploys ...; counted for default-branch depth because
 // <file> runs tests and lint on pull requests") is 203 characters after the "CI workflow" subject with
 // a 24-character path, over the schema's 180, so the label says it in fewer words.
+describe('item A — the reader admits only what it places, and any doubt keeps the credit', () => {
+  const env = new Map([
+    ['GH_TOKEN', '${{ github.token }}'],
+    ['PR', '${{ github.event.pull_request.html_url }}'],
+  ]);
+  it.each([
+    'gh pr comment "$PR" --body "Thanks!"',
+    'gh issue comment ${{ github.event.issue.number }} --body \'Thanks for the report\'',
+    'gh pr edit ${{ github.event.pull_request.number }} --add-label triage --remove-label stale',
+    'gh pr comment "$PR" -b "Looks good" -R owner/name',
+  ])('admits %s', (line) => {
+    expect(isHousekeepingGhCommand(line, env)).toBe(true);
+  });
+
+  it.each([
+    'gh pr comment "$PR" --body "Thanks!" | tee log',
+    'gh pr comment "$PR" --body "Thanks!" && make test',
+    'gh pr comment "$PR" --body "$(make test)"',
+    'gh pr comment "$PR" --body "`make test`"',
+    'gh pr comment "$OTHER" --body "Thanks!"',
+    'gh pr comment $PR --body "Thanks!"',
+    'gh pr comment "$PR" --body-file notes.md',
+    'gh pr comment "$PR"',
+    'gh pr edit 1 --title "New title"',
+    'gh pr edit 1 --add-label ${{ github.event.label.name }}',
+    'gh issue edit 1 --add-label triage',
+    'gh pr merge 1 --body "x"',
+    'gh pr comment 1 2 --body "x"',
+    'gh pr comment "$PR" --body "Thanks!" > out.txt',
+  ])('refuses %s', (line) => {
+    expect(isHousekeepingGhCommand(line, env)).toBe(false);
+  });
+
+  const workflow = (steps: string, top = '') =>
+    `name: x\non:\n  pull_request:\n${top}jobs:\n  job:\n    runs-on: ubuntu-latest\n    steps:\n${steps}`;
+
+  it.each([
+    ['labeller by tag', '      - uses: actions/labeler@v5\n'],
+    ['labeller by SHA', `      - uses: actions/labeler@${'a'.repeat(40)}\n`],
+    ['stale with text and number inputs', "      - uses: actions/stale@v9\n        with:\n          days-before-stale: 30\n          stale-issue-message: 'This issue is stale.'\n          repo-token: ${{ secrets.GITHUB_TOKEN }}\n"],
+    ['first-interaction', "      - uses: actions/checkout@v4\n      - uses: actions/first-interaction@v1\n        with:\n          issue-message: 'Welcome'\n"],
+  ])('reads %s as housekeeping', (_name, steps) => {
+    expect(readHousekeepingOrPrintOnlyWorkflow(workflow(steps))?.reason).toBe('housekeeping');
+    expect(isPrintOnlyWorkflow(workflow(steps))).toBe(false);
+  });
+
+  it.each([
+    ['github-script', "      - uses: actions/github-script@v7\n        with:\n          script: console.log(1)\n"],
+    ['labeller by branch', '      - uses: actions/labeler@main\n'],
+    ['another owner', '      - uses: someone/labeler@v5\n'],
+    ['a with: key outside the set', '      - uses: actions/labeler@v5\n        with:\n          sync-labels: true\n'],
+    ['an expression in a with: value', "      - uses: actions/stale@v9\n        with:\n          stale-issue-message: ${{ github.event.issue.title }}\n"],
+    ['a block with: value', '      - uses: actions/stale@v9\n        with:\n          stale-issue-message: |\n            Stale.\n'],
+    ['env on an action step', '      - uses: actions/labeler@v5\n        env:\n          X: y\n'],
+    ['BASH_ENV on a gh step', '      - run: gh pr comment 1 --body "x"\n        env:\n          BASH_ENV: ./setup.sh\n'],
+    ['a test beside a label', '      - uses: actions/labeler@v5\n      - run: pytest\n'],
+    ['an if on the step', '      - uses: actions/labeler@v5\n        if: always()\n'],
+    ['an empty with:', '      - uses: actions/labeler@v5\n        with:\n'],
+  ])('keeps the credit of %s', (_name, steps) => {
+    expect(readHousekeepingOrPrintOnlyWorkflow(workflow(steps))).toBeNull();
+  });
+
+  it('a print-only workflow keeps its print_only reason', () => {
+    expect(readHousekeepingOrPrintOnlyWorkflow(workflow('      - run: echo ok\n'))?.reason).toBe('print_only');
+  });
+});
+
 const KEPT_DOCS_LABEL =
   'CI workflow not counted for script depth: publishes with no pull-request trigger; counted for PR-gate depth because .github/workflows/ci.yml runs tests and lint on pull requests';
 const KEPT_DOCS_LABEL_PATTERN = /^CI workflow not counted for script depth: publishes with no pull-request trigger; counted for PR-gate depth /;
