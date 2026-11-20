@@ -28,6 +28,7 @@ import { buildBehaviourFixture } from './fixtures/behaviour-corpus.js';
 import { ALL_BUILD_STEP_FIXTURES } from './fixtures/build-step-evidence-fixtures.js';
 import { disclosureGapFixture } from './fixtures/disclosure-gap-fixtures.js';
 import { lfsPointerFor } from './fixtures/false-assurance-fixtures.js';
+import { SETTLING_BUDGET_FIXTURES, removeSettlingBudgetFixtures } from './fixtures/settling-budget-fixtures.js';
 import { SETTLING_EVIDENCE_FIXTURES } from './fixtures/settling-evidence-fixtures.js';
 
 // #612 guard (operator ruling of 10 Nov, review of #706). Where a criterion already holds the four
@@ -66,7 +67,9 @@ import { SETTLING_EVIDENCE_FIXTURES } from './fixtures/settling-evidence-fixture
 //      followed to its own callers;
 //   3. a property over the synthetic fixtures that reach the three "cannot be settled" branches
 //      and A2's no_git_history abstentions (a directory with no .git): no scored report puts more
-//      than the budget on A2, A3 or A5.
+//      than the budget on A2, A3 or A5. Each A2, A3 or A5 producer in part 2 names the fixture
+//      that reaches it at its `most` (`reachedBy`, with the `marker` its disclosure starts with),
+//      or states why none can (`unreachable`, with the `closest` fixture), and part 3 checks it.
 // What part 2 still cannot see: a key assembled at run time from pieces or read from data rather
 // than written as the literal 'disclosures'; a signal object moved by a spread or a parameter
 // without its `disclosures` being named (its list was written at a listed place, and a spread
@@ -787,6 +790,7 @@ const REVIEWED: readonly ReviewedEntry[] = [
   {
     kind: 'call', file: RS, within: 'collectA2IsolationEvidence', sha: '32f107db13eb#0',
     role: 'producer', criteria: ['A2'], most: 1,
+    reachedBy: 'a2-scored-with-set-aside', marker: WITAN_A2_PLACEHOLDER_SET_ASIDE_PREFIX,
     why: 'Scored A2: the placeholder sentence is its only disclosure. This is the return whose notes end with the tenant-isolation "cannot be settled" sentence.',
   },
   {
@@ -810,11 +814,13 @@ const REVIEWED: readonly ReviewedEntry[] = [
   {
     kind: 'call', file: RS, within: 'collectA2IsolationEvidence', sha: '52aae5465217#0',
     role: 'producer', criteria: ['A2'], most: 2,
+    reachedBy: 'a2-set-aside-treeless-clone', marker: WITAN_A2_PLACEHOLDER_SET_ASIDE_PREFIX,
     why: 'Not-applicable A2: the placeholder sentence and the history-applicability sentence. Its notes carry no "cannot be settled" sentence, and the certificate reads none from a not-applicable criterion.',
   },
   {
     kind: 'site', file: RS, within: 'collectA2IsolationEvidence', sha: '057d7bffd41b#0',
     role: 'producer', criteria: ['A2'], most: 2,
+    reachedBy: 'a2-set-aside-treeless-clone', marker: WITAN_A2_HISTORY_APPLICABILITY_PREFIX,
     why: 'The not-applicable return above, written as `{ disclosures }`: the two sentences of that array.',
   },
   // Criteria outside A2, A3 and A5. A3 and A5 have no entry: their collectors write no disclosure.
@@ -1087,6 +1093,7 @@ function withoutGit(name: string, files: Readonly<Record<string, string>>): stri
 
 afterAll(() => {
   for (const dir of created) rmSync(dir, { recursive: true, force: true });
+  removeSettlingBudgetFixtures();
 });
 
 describe('#612 guard: no scored fixture puts more than the budget on A2, A3 or A5', () => {
@@ -1111,6 +1118,13 @@ describe('#612 guard: no scored fixture puts more than the budget on A2, A3 or A
         reports.push({ fixture: fixture.name, label: `${fixture.name}@${rubricVersion}`, report: score(dir, rubricVersion) });
       }
     }
+    for (const fixture of SETTLING_BUDGET_FIXTURES) {
+      const dir = fixture.build();
+      created.push(dir);
+      for (const rubricVersion of RUBRICS) {
+        reports.push({ fixture: fixture.name, label: `${fixture.name}@${rubricVersion}`, report: score(dir, rubricVersion) });
+      }
+    }
     for (const { name, files, wouldBeNotApplicable } of NO_GIT_FIXTURES) {
       const dir = withoutGit(name, files);
       created.push(dir);
@@ -1128,7 +1142,9 @@ describe('#612 guard: no scored fixture puts more than the budget on A2, A3 or A
   }, 600_000);
 
   it('scored every fixture under every rubric', () => {
-    expect(reports.length).toBe((FIXTURES.length + NO_GIT_FIXTURES.length) * RUBRICS.length);
+    expect(reports.length).toBe(
+      (FIXTURES.length + SETTLING_BUDGET_FIXTURES.length + NO_GIT_FIXTURES.length) * RUBRICS.length,
+    );
   });
 
   it("reaches both of A2's no_git_history abstentions, each carrying a collector disclosure", () => {
