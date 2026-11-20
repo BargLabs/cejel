@@ -735,6 +735,15 @@ interface ReviewedEntry {
    * on the return path this entry is on, counting every other producer on that path.
    */
   readonly most?: number;
+  /**
+   * For a producer on A2, A3 or A5: a part-3 fixture (FIXTURES by name, NO_GIT_FIXTURES as
+   * `<name> (no .git)`) one of whose rubrics' reports puts exactly `most` disclosures on one of
+   * the entry's criteria, at least one of them starting with `marker`. Without it a `most` is a
+   * number taken on trust: part 3 measures only the paths its fixtures reach.
+   */
+  readonly reachedBy?: string;
+  /** The text, or the leading prefix, of the disclosure this entry's site writes. */
+  readonly marker?: string;
   readonly why: string;
 }
 
@@ -989,6 +998,45 @@ const NO_GIT_FIXTURES = [
   },
 ] as const;
 
+/** The name a NO_GIT_FIXTURES case goes by in REVIEWED's `reachedBy`. */
+const noGitFixtureName = (name: string): string => `${name} (no .git)`;
+
+/** One rubric's scored report of one part-3 fixture, as much of it as reachProblems reads. */
+interface ScoredFixture {
+  readonly fixture: string;
+  readonly criteria: readonly { readonly id: string; readonly disclosures?: readonly string[] }[];
+}
+
+/**
+ * Why one producer entry on A2, A3 or A5 is not shown to be reached at its `most` by the scored
+ * part-3 fixtures; empty when it is. Some rubric's report of its `reachedBy` fixture must put
+ * exactly `most` disclosures on one of the entry's settling criteria, one starting with `marker`.
+ */
+function reachProblems(entry: ReviewedEntry, scored: readonly ScoredFixture[]): string[] {
+  const key = entryKey(entry);
+  const settling = entry.criteria.filter((id) => (SETTLING_CRITERIA as readonly string[]).includes(id));
+  if (entry.reachedBy === undefined) {
+    return [`${key}: names no part-3 fixture that reaches it at its most (reachedBy)`];
+  }
+  const { marker, most } = entry;
+  if (marker === undefined || marker === '') return [`${key}: names no marker`];
+  const reports = scored.filter(({ fixture }) => fixture === entry.reachedBy);
+  if (reports.length === 0) return [`${key}: reachedBy ${entry.reachedBy} is not a fixture in the part-3 set`];
+  const counts = reports.flatMap(({ criteria }) =>
+    criteria
+      .filter(({ id }) => settling.includes(id))
+      .map(({ disclosures }) => disclosures ?? [])
+      .filter((list) => list.some((text) => text.startsWith(marker)))
+      .map((list) => list.length),
+  );
+  return counts.includes(most as number)
+    ? []
+    : [
+        `${key}: no rubric's report of ${entry.reachedBy} puts ${most} disclosures, one starting with its marker, ` +
+          `on ${settling.join(' or ')} (counts carrying the marker: ${counts.join(', ') || 'none'})`,
+      ];
+}
+
 /** The fixture's files in a fresh directory with no .git. */
 function withoutGit(name: string, files: Readonly<Record<string, string>>): string {
   const dir = mkdtempSync(join(tmpdir(), `cejel-settling-budget-no-git-${name}-`));
@@ -1004,7 +1052,7 @@ afterAll(() => {
 });
 
 describe('#612 guard: no scored fixture puts more than the budget on A2, A3 or A5', () => {
-  const reports: { readonly label: string; readonly report: WitanReport }[] = [];
+  const reports: { readonly fixture: string; readonly label: string; readonly report: WitanReport }[] = [];
   const noGitReports: { readonly label: string; readonly report: WitanReport; readonly wouldBeNotApplicable: boolean }[] = [];
   const score = (repoPath: string, rubricVersion: string): WitanReport =>
     scoreRepoWithPublicCejel({
@@ -1022,14 +1070,19 @@ describe('#612 guard: no scored fixture puts more than the budget on A2, A3 or A
       const dir = buildBehaviourFixture({ ...fixture, purpose: 'settling-criteria disclosure budget' });
       created.push(dir);
       for (const rubricVersion of RUBRICS) {
-        reports.push({ label: `${fixture.name}@${rubricVersion}`, report: score(dir, rubricVersion) });
+        reports.push({ fixture: fixture.name, label: `${fixture.name}@${rubricVersion}`, report: score(dir, rubricVersion) });
       }
     }
     for (const { name, files, wouldBeNotApplicable } of NO_GIT_FIXTURES) {
       const dir = withoutGit(name, files);
       created.push(dir);
       for (const rubricVersion of RUBRICS) {
-        const entry = { label: `${name} (no .git)@${rubricVersion}`, report: score(dir, rubricVersion), wouldBeNotApplicable };
+        const entry = {
+          fixture: noGitFixtureName(name),
+          label: `${noGitFixtureName(name)}@${rubricVersion}`,
+          report: score(dir, rubricVersion),
+          wouldBeNotApplicable,
+        };
         reports.push(entry);
         noGitReports.push(entry);
       }
@@ -1095,5 +1148,19 @@ describe('#612 guard: no scored fixture puts more than the budget on A2, A3 or A
         );
       }
     }
+  });
+
+  // A producer's `most` (part 2) is reviewed, not measured: the property above sees only the paths
+  // these fixtures reach. Each A2, A3 or A5 producer therefore names the fixture that reaches it at
+  // its most, so making its site write one disclosure more moves a scored report.
+  it('reaches every A2, A3 or A5 producer at its most, with its own disclosure among them', () => {
+    const settling = new Set<string>(SETTLING_CRITERIA);
+    const producers = REVIEWED.filter(
+      ({ role, criteria }) => role === 'producer' && criteria.some((id) => settling.has(id)),
+    );
+    expect(producers.length).toBeGreaterThan(0);
+    const scored = reports.map(({ fixture, report }) => ({ fixture, criteria: report.criteria }));
+    const problems = producers.flatMap((entry) => reachProblems(entry, scored));
+    expect(problems, `${BUDGET_NOTE}\n${problems.join('\n')}`).toEqual([]);
   });
 });
