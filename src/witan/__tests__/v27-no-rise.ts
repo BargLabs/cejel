@@ -146,11 +146,31 @@ export const READ_FAILURE_NOTES: readonly string[] = [
   'Cejel abstained on this criterion because one or more relevant repository files could not be read. Resolve the content-read limitations and re-scan.',
 ];
 
+// v27 (#519 follow-up, 2026-11-19): the same two notes where the abstention cites the Git LFS
+// pointers it rests on, with their count. Recognised only with that many pointer citations in the
+// criterion's evidence, so a note cannot claim citations the report does not carry.
+export const READ_FAILURE_NOTES_CITING_POINTERS: readonly RegExp[] = [
+  /^Cejel abstained on this criterion because relevant files in this checkout are Git LFS pointers, so their content was not read\. This abstention rests on (\d+) Git LFS pointers?, cited in this criterion's evidence\. Fetch the LFS content \(git lfs pull\) and re-scan\.$/,
+  /^Cejel abstained on this criterion because one or more relevant repository files could not be read\. (?:One of them is a Git LFS pointer|(\d+) of them are Git LFS pointers), cited in this criterion's evidence\. Resolve the content-read limitations and re-scan\.$/,
+];
+
+const LFS_POINTER_CITATION_LABEL = 'Git LFS pointer; its content is not in this checkout';
+
+function isReadFailureNote(criterion: WitanCriterionScore): boolean {
+  const notes = criterion.notes ?? '';
+  if (READ_FAILURE_NOTES.includes(notes)) return true;
+  const cited = criterion.evidence.filter(({ label }) => label === LFS_POINTER_CITATION_LABEL).length;
+  return READ_FAILURE_NOTES_CITING_POINTERS.some((pattern) => {
+    const match = pattern.exec(notes);
+    return match !== null && cited === Number(match[1] ?? 1) && cited === criterion.evidence.length;
+  });
+}
+
 function contentReadFailure(report: WitanReport, criterion: WitanCriterionScore): boolean {
   const summary = report.contentReadSummary;
   if (!summary || !summary.affectedCriteria.includes(criterion.id)) return false;
   const readFailures = summary.byReason.unreadable + summary.byReason.deniedPath + (summary.byReason.lfsPointer ?? 0);
-  return readFailures > 0 && READ_FAILURE_NOTES.includes(criterion.notes ?? '');
+  return readFailures > 0 && isReadFailureNote(criterion);
 }
 
 function failedHistoryAbstention(_report: WitanReport, criterion: WitanCriterionScore): boolean {

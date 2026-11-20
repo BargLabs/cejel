@@ -11,9 +11,12 @@ import ts from 'typescript';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import {
+  WITAN_A2_HISTORY_APPLICABILITY_PREFIX,
+  WITAN_A2_PLACEHOLDER_SET_ASIDE_PREFIX,
   WITAN_A2_TENANT_ISOLATION_UNSETTLED_DISCLOSURE,
   WITAN_A3_BUILD_STEP_UNSETTLED_DISCLOSURE,
   WITAN_A5_RECONCILIATION_UNSETTLED_DISCLOSURE,
+  witanV27LfsPointerNotApplicablePrefix,
 } from '../abstention.js';
 import { SETTLING_CRITERIA } from '../next-checks.js';
 import { scoreRepoWithPublicCejel } from '../public-scan.js';
@@ -24,6 +27,7 @@ import { createWitanReport } from '../scoring.js';
 import { buildBehaviourFixture } from './fixtures/behaviour-corpus.js';
 import { ALL_BUILD_STEP_FIXTURES } from './fixtures/build-step-evidence-fixtures.js';
 import { disclosureGapFixture } from './fixtures/disclosure-gap-fixtures.js';
+import { lfsPointerFor } from './fixtures/false-assurance-fixtures.js';
 import { SETTLING_EVIDENCE_FIXTURES } from './fixtures/settling-evidence-fixtures.js';
 
 // #612 guard (operator ruling of 10 Nov, review of #706). Where a criterion already holds the four
@@ -740,6 +744,16 @@ const ANY = ['*'];
 // Reviewed 10 Nov at the head of #706. Each collector (collectRepoSignals in repo-signals.ts) emits
 // one signal per criterion, so the per-path counts below are what reaches the merge in scoring.ts.
 const REVIEWED: readonly ReviewedEntry[] = [
+  {
+    kind: 'site', file: RS, within: 'lfsPointerKeepsNotApplicable', sha: 'c6b7dc1382fd#0',
+    role: 'producer', criteria: ['A2', 'B4'], most: 2,
+    why: "v27: a not-applicable result kept on Git LFS pointers carries its own disclosures plus one naming the pointers, added only where that stays within the budget (existing + 1 <= 2 on A2, A3 and A5).",
+  },
+  {
+    kind: 'call', file: RS, within: 'buildWitanInputFromRepo', sha: '7ea12f5fa738#0',
+    role: 'producer', criteria: ['A2', 'B4'], most: 2,
+    why: 'The call that keeps a not-applicable result on Git LFS pointers (lfsPointerKeepsNotApplicable), within the same budget.',
+  },
   // A2: the only criterion of the three with collector disclosures today.
   {
     kind: 'site', file: RS, within: 'placeholderSetAsideDisclosures', sha: '4dc96e169fb7#0',
@@ -804,7 +818,7 @@ const REVIEWED: readonly ReviewedEntry[] = [
     role: 'pass-through', criteria: ANY, why: "Filters the abstaining signal's own list, the ignored-test-failure count sentence among them.",
   },
   {
-    kind: 'call', file: RS, within: 'wholesaleCriterionAbstention', sha: 'edc6fcc22ab0#0',
+    kind: 'call', file: RS, within: 'wholesaleCriterionAbstention', sha: '289e3878e6cb#0',
     role: 'pass-through', criteria: ANY,
     why: "A criterion's wholesale abstention keeps a subset of its own disclosures and replaces its notes with the abstention note.",
   },
@@ -823,7 +837,7 @@ const REVIEWED: readonly ReviewedEntry[] = [
     why: 'A criterion abstaining wholesale on a content-read limit: wholesaleCriterionAbstention, above, adds none.',
   },
   {
-    kind: 'call', file: RS, within: 'buildWitanInputFromRepo', sha: '5f8ac6265a1a#1',
+    kind: 'call', file: RS, within: 'buildWitanInputFromRepo', sha: '95dc374cbf22#0',
     role: 'pass-through', criteria: ANY, why: 'The same, on the second return path with the same text.',
   },
   {
@@ -926,7 +940,33 @@ const SETTLING_SENTENCES: Readonly<Record<string, string>> = {
   A5: WITAN_A5_RECONCILIATION_UNSETTLED_DISCLOSURE,
 };
 const RUBRICS = [WITAN_RUBRIC_VERSION_V17, WITAN_RUBRIC_VERSION_V26, WITAN_RUBRIC_VERSION_V27] as const;
-const FIXTURES = [...SETTLING_EVIDENCE_FIXTURES, ...ALL_BUILD_STEP_FIXTURES];
+// v27 (#519 follow-up, 2026-11-19): the not-applicable A2 that keeps Git LFS pointers
+// (lfsPointerKeepsNotApplicable) adds one disclosure to the signal's own. These two fixtures reach
+// that site at its most: A2 not applicable with the placeholder sentence (one collector disclosure),
+// plus binary-asset pointers, so v27 carries exactly the budget. The depth-1 copy is the only
+// not-applicable path that adds a second collector disclosure (the history-applicability sentence);
+// under v27 it must not also take the pointer sentence, or A2 would carry three.
+const LFS_POINTER_EDGE_FILES: Readonly<Record<string, string>> = {
+  ...disclosureGapFixture('a2-not-applicable-with-set-aside').files,
+  '.gitattributes': '*.png filter=lfs diff=lfs merge=lfs -text\n*.bin filter=lfs diff=lfs merge=lfs -text\n',
+  'assets/logo.png': lfsPointerFor('synthetic png bytes for the #612 budget fixture'),
+  'models/weights.bin': lfsPointerFor('synthetic weights for the #612 budget fixture'),
+};
+const LFS_POINTER_EDGE_FIXTURES = [
+  {
+    name: 'a2-set-aside-with-binary-lfs-pointers',
+    purpose: 'v27 keeps A2 not applicable on binary-asset Git LFS pointers: the placeholder sentence plus the pointer sentence, the budget exactly',
+    files: LFS_POINTER_EDGE_FILES,
+  },
+  {
+    name: 'a2-set-aside-with-binary-lfs-pointers-depth-1',
+    purpose: 'The same on a depth-1 clone, where every rubric that marks A2 not applicable adds the history-applicability sentence',
+    files: LFS_POINTER_EDGE_FILES,
+    commits: [{ message: 'docs: add a changelog', write: { 'CHANGELOG.md': '# Changelog\n' } }],
+    cloneDepth: 1,
+  },
+];
+const FIXTURES = [...SETTLING_EVIDENCE_FIXTURES, ...ALL_BUILD_STEP_FIXTURES, ...LFS_POINTER_EDGE_FIXTURES];
 const created: string[] = [];
 
 // A2's no_git_history abstentions (repo-signals.ts, noGitHistoryA2Abstention): a directory with no
@@ -1017,6 +1057,33 @@ describe('#612 guard: no scored fixture puts more than the budget on A2, A3 or A
       );
       expect(reached, `${id}'s sentence`).toBe(true);
     }
+  });
+
+  it("reaches v27's Git LFS not-applicable disclosure at the budget, and never on top of the history sentence", () => {
+    const a2 = (label: string) => {
+      const found = reports.find((entry) => entry.label === label);
+      expect(found, label).toBeDefined();
+      const criterion = found?.report.criteria.find(({ id }) => id === 'A2');
+      expect(criterion, label).toBeDefined();
+      return { status: criterion?.status, disclosures: criterion?.disclosures ?? [] };
+    };
+    const lfsPrefix = witanV27LfsPointerNotApplicablePrefix('A2');
+    const full = a2(`a2-set-aside-with-binary-lfs-pointers@${WITAN_RUBRIC_VERSION_V27}`);
+    expect(full.status).toBe('not_applicable');
+    expect(full.disclosures).toHaveLength(COLLECTOR_DISCLOSURES_BUDGET);
+    expect(full.disclosures.filter((text) => text.startsWith(lfsPrefix))).toHaveLength(1);
+    expect(full.disclosures.filter((text) => text.startsWith(WITAN_A2_PLACEHOLDER_SET_ASIDE_PREFIX))).toHaveLength(1);
+    // v17 does not attribute a pointer read, so it carries the placeholder sentence alone.
+    const v17 = a2(`a2-set-aside-with-binary-lfs-pointers@${WITAN_RUBRIC_VERSION_V17}`);
+    expect(v17.status).toBe('not_applicable');
+    expect(v17.disclosures.some((text) => text.startsWith(lfsPrefix))).toBe(false);
+    // The depth-1 copy: v27 never holds the history sentence and the pointer sentence together.
+    const shallow = a2(`a2-set-aside-with-binary-lfs-pointers-depth-1@${WITAN_RUBRIC_VERSION_V27}`);
+    const both =
+      shallow.disclosures.some((text) => text.startsWith(lfsPrefix)) &&
+      shallow.disclosures.some((text) => text.startsWith(WITAN_A2_HISTORY_APPLICABILITY_PREFIX));
+    expect(both, `depth-1 v27 A2 (${shallow.status}): ${shallow.disclosures.join(' | ')}`).toBe(false);
+    expect(shallow.disclosures.length).toBeLessThanOrEqual(COLLECTOR_DISCLOSURES_BUDGET);
   });
 
   it('never puts more than the budget on A2, A3 or A5', () => {

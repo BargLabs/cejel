@@ -177,6 +177,237 @@ pair is given.
     publish step (depth 1 under both). v17 never counted that workflow, since it does not target the
     default branch.
 
+## 2026-11-19 (Git LFS pointer abstention cites and keeps not applicable) — under v27 an abstention on Git LFS pointers cites each pointer it rests on, and A2 and B4 keep v17's not-applicable result where no pointer they read could change it (refs #519); v17-v26 byte-identical; v27 never above v17; no fingerprint moved; no published score moved
+
+**Status.** A change under `witan-rubric-v27-prospective-2026-10-19` only, with no identifier change
+(goal_cejel_v27_lfs_pointer_abstention_cites_and_keeps_not_applicable_2026-11-19). No holdout or
+calibration ran for it, and this entry makes no precision or recall claim. The default stays v17. A
+changed v27 needs a new freeze.
+
+**Why.** #519 made v27 attribute a Git LFS pointer read to the criterion whose collector read it,
+which then abstains wholesale. The rule had two gaps. The abstention cited nothing: the note said
+relevant files were pointers, `contentReadSummary` counted them, and the scan limitation said file
+paths are intentionally omitted. It also replaced a not-applicable result where no pointer could
+change it. A2's current-tree secret scan (`findCommittedSecretInFile`, signal `secret_cleanliness`)
+reads every tracked authored path that `isIgnoredScanFile` does not exclude, with no extension test.
+So it reads pointers for images, archives and model weights, and A2 abstained in place of v17's
+not-applicable result, although A2's not-applicable decision rests on none of those files.
+
+**Change (v27 only).**
+
+- **Item A, cite the pointers.** A criterion that abstains with `lfs_pointer` among its reasons
+  lists each pointer path attributed to it in its evidence, in path order, labelled "Git LFS
+  pointer; its content is not in this checkout". The note says how many pointers the abstention
+  rests on ("This abstention rests on 2 Git LFS pointers, cited in this criterion's evidence."). The
+  evidence list has no cap, and an abstaining criterion carries no other evidence, so the pointers
+  are the whole list. Paths are cited through `evidenceForRelative`, like every other evidence
+  path, and fitted to the report's path limit by `path-limits.ts`. Where any abstaining criterion
+  cites a pointer, the read-failure scan limitation says "Counts and errno classes are recorded in
+  contentReadSummary, which lists no file paths; each criterion that abstained on a Git LFS pointer
+  cites the pointer paths in its evidence." "File paths are intentionally omitted" would otherwise
+  be false. The plain summary translates the new form, and the HTML and Markdown certificates list
+  the citations under the criterion. Scores, statuses and finding counts do not change.
+- **Item B, keep a not-applicable result no pointer could change.** Where the collector reached
+  not-applicable from the content it read, and every pointer attributed to the criterion is at a
+  path whose real content its applicability checks do not read, the criterion keeps v17's
+  not-applicable result. It names the pointers in a disclosure ("Files A2 read are Git LFS pointers
+  whose content is not in this checkout: …") and is left out of `contentReadSummary.affectedCriteria`.
+  - **A2.** A pointer could change the decision when it is at the `.gitignore`, an env-format
+    path, an implementation file (the signing, HMAC and secret-comparison detector and the
+    DB-client import check), a credential-shaped path, or a file of a type Cejel reads as content
+    (`isPotentialContentPath`), which the committed-secret scan reads as text.
+  - **B4.** Both not-applicable gates decide from which audit-trail files exist, by path alone. On
+    either the only content B4 reads is an audit file's, for its evidence hash.
+  - **A3, A5 and B6** keep the abstention: their gates read content a pointer could hold (entry
+    points, CI workflows and Dockerfiles; claim and reconciliation documents; SQL, source and
+    governance files). **B1 and B5** read nothing.
+
+**The no-rise property.** Item A changes evidence, notes and one scan-limitation sentence, and none
+of these feeds a score. Item B gives a criterion v17's result on the same commit. Its collector
+reached not-applicable with the same detector flags v17 uses, and v27's own branches in A2 only add
+abstentions, so v17 marks it not applicable too. v27 equals v17 on that criterion, and the
+criterion leaves the composite's denominator under both. Every abstention v27 still introduces is
+a read failure held in the denominator at 0. `checkNoRise` and `lostFindings` pass on every new
+fixture. The generated no-rise suite gains the new fixtures and checks every criterion v27 marks
+not applicable against v17's status.
+
+**Measured** at this branch's code against main `6b4392627`, on the set the 2026-11-13 (B3 unread
+CI configuration) entry names, from this branch's fixture files, plus this change's 9 new fixtures:
+
+- false-assurance 268 (the symlink fixture left out, since its head SHA differs on every build),
+  CI-claims 71, B3 361;
+- v27 A1 removal 39, hook outcome 38, allowlist 86, withhold 96 and run 58;
+- publishing-gates 17 and unread-CI-configuration 8;
+- this change's 9;
+- 1,051 synthetic repositories in all.
+
+The comparison ran in two passes. Main's eight changed source files were checked out over this
+branch's for the first pass, and this branch's were restored for the second. Each pass built every
+fixture deterministically and scored it under all eleven selectable rubrics. Report JSON, HTML and
+Markdown were compared by hash, with 0 errors on either side. The driver ran in six processes a
+pass and is not committed.
+
+- **v17 to v26:** 10,510 of 10,510 reports, HTML and Markdown certificates byte-identical to main.
+- **v27:** 1,038 of 1,051 byte-identical. The other 13 are every fixture where v27 reads a Git LFS
+  pointer and the reading criterion abstains or is kept (6 false-assurance fixtures and 7 new
+  ones; the 2 new controls are byte-identical). On 10 of them only the citation, the note and the
+  scan-limitation sentence moved, and every criterion's score, status, finding count and metric
+  values are equal. On the other 3 one criterion moved from `insufficient_data` to v17's
+  `not_applicable`:
+  - `lfs-a2-binary-asset-pointers`: A2; composite 1.0 to 1.3, v17's 1.3.
+  - `lfs-a3-docker-compose-with-image-and-font-pointers`: A2; composite 0.9 to 1.2, v17 1.5.
+  - `lfs-b4-security-policy-pointer`: B4; v27's composite 0.9 before and after.
+- **v27 above v17 on the same repository:** 0, for the overall score and for every criterion's
+  score.
+
+**Pins.** `certificate-below-first-page`, `report.json` and `attestation.json`: the 7 v27 fixtures
+that hold a Git LFS pointer move (`dg/b2b3-workflow-lfs-pointer` and six false-assurance
+fixtures), with the two full v27 HTML pins that hold one. They were re-written from this branch by
+a temporary file that rewrote only moved entries and failed on any moved v17 entry. No v17 entry
+moved.
+
+**Fingerprint.** Re-measured, and no fingerprint moved. v27's stays as pinned: the behaviour corpus
+holds no Git LFS pointer, and `rubric-behaviour-fingerprint.test.ts` passes unchanged.
+
+**Fixtures and tests.**
+
+- `v27-lfs-pointer-citation.test.ts`, with its fixtures in `fixtures/v27-lfs-pointer-fixtures.ts`,
+  committed red first at `34f3f2d51`: 9 of 20 tests failed against main. They were the citation,
+  note, scan-limitation, plain-summary and not-applicable tests. The no-rise checks, the scoring
+  surface pin and the byte pins passed.
+- **A:** `src/sign.ts` as a pointer beside an `.env.example` and a `.gitignore` `.env` rule: A2
+  abstains and cites it.
+- **B:** pointers at `assets/logo.png`, `dist/tool.zip` and `models/weights.bin` with no A2
+  surface: A2 is not applicable and names `assets/logo.png` and `models/weights.bin`. `dist/` is
+  withheld from every collector by the repository walk as a denied path, so no collector reads
+  `dist/tool.zip`. Adding `src/crypto/hmac.ts` as a pointer makes A2 abstain and cite it, and so
+  does a `.gitignore` pointer. #519's JSON data-file pointer still abstains.
+- **B4:** a `SECURITY.md` pointer as the only audit artifact.
+- **Item C:** a Docker and compose service with Helm chart image and font pointers, and A2 scored
+  from history with `.mp3` and `.onnx` pointers, each with a control.
+- `fixtures/v27-lfs-pointer-main-pins.json` pins, from main `6b4392627`, every v17 to v26 report
+  on the 9 new fixtures (90 hashes), and v27's scoring surface there.
+- The no-rise checker (`v27-no-rise.ts`) recognises the two new note forms only with that many
+  pointer citations and no other evidence.
+
+## 2026-11-19 (A1 fixture data and rated-hollow citation order) — under v27, a detected test file that is fixture data with no test in it is cited as test support scaffolding, not as a detected test file, and each file a v27 rule rates hollow is cited before the detected test files (refs #518); citation only; v17-v26 byte-identical; v27 never above v17; no score, status, finding count, finding severity or summary, metric, note, composite or verdict moved; the metric-derived A1 finding now cites the first rated-hollow file; no published score moved
+
+**Status.** A citation change under `witan-rubric-v27-prospective-2026-10-19` only, with no
+identifier change (goal_cejel_v27_a1_fixture_data_not_cited_as_test_2026-11-19). No holdout or
+calibration ran for it, and this entry makes no precision or recall claim. The default stays v17.
+A changed v27 needs a new freeze.
+
+**Why.** Under v27 (#518) a `conftest.py` is not cited as a test file. Where it runs no test it is
+rated hollow in `non_hollow_test_share`, and until now it was cited last, as "Rated hollow under
+this rubric: runs no test (conftest)". Taking it out of the test-file citations opens a slot under
+A1's eight-file cap. The slot can go to a file of mock data under `tests/fixtures/` with no test in
+it, labelled "Detected test file". v17 detects the same file but cites it past the cap. The cited
+file is not evidence about test quality, and the file that actually moved the share was cited last.
+
+**Change (v27 only, A1's evidence only).**
+
+- **Item A.** A detected test file is cited as "Test support scaffolding (fixture data with no
+  test in it), not a test file" when both of these hold:
+  - its path is under `fixtures/` or `__fixtures__/`, or its name is `*.fixture.*` or
+    `*.fixtures.*`, matched case-sensitively;
+  - it holds no assertion as `non_hollow_test_share` reads one (`readsAsAsserting`, the share's
+    own test, extracted unchanged).
+
+  A Git LFS pointer keeps its own label. The file keeps its place in the list and is not left out.
+  Leaving it out would change A1's evidence count. Where it is the only test-shaped file, it would
+  also empty A1's citations, which is the case the #518 conftest-only citation exists for. A file
+  under those paths that holds a test stays a detected test file. Where the no-coverage finding's
+  pointer is such a file, the finding keeps that pointer, at the same path, line and content hash,
+  with only its label changed. v27 keeps every v17 finding at v17's pointer (`v27-no-rise.ts`).
+- **Item B.** Each file a v27 rule rates hollow is cited before the detected test files, at most
+  eight, as before. A1's note already counts the rest ("and N more not listed", or "the N listed
+  after the first 8 carry no evidence pointer"). The pointers and their count are unchanged, and
+  only their order moves. The order is applied after the A1 collector's own findings take their
+  pointers, so none of those moves.
+
+  One finding reads the reordered list. Where A1's status is warning or critical and no finding
+  explains it, scoring adds "A1 metric-derived score is ..." (`ensureFindingsExplainStatus`),
+  anchored on the first pointer of A1's evidence. Under v27 that is now the first file a rule rated
+  hollow, which is the file that moved the share. Its severity and summary are unchanged.
+  `v27-no-rise.ts` leaves this summary out of its pointer check, because it restates the score.
+
+  The #518 conftest rule (its hollow rating and its citation text) is unchanged.
+
+**The no-rise property.** Both items change labels and order in A1's positive evidence, and the
+pointer of the one finding that anchors on it. A1 has metrics, so its score is computed from them
+and not from the pointer count. No score, status, finding count, severity, summary, metric, note,
+composite or verdict reads a label or the order. v27 cannot rise above v17 from this change.
+
+**Measured** against main `6b4392627`. The branch side used this branch's
+`src/witan/repo-signals.ts` at `ede0e7832` (shards 0 to 4) and at `aee30a0fb` (shard 5); the two
+differ in comments only. The set is the one the 2026-11-13 entry below names, from this branch's
+fixture files, plus this change's 8 fixtures:
+
+- false-assurance 269, CI-claims 71, B3 361;
+- v27 A1 removal 39, hook outcome 38, allowlist 86, withhold 96 and run 58;
+- the 17 fixtures of the publishing-gates change and the 8 of the unread-CI-configuration change;
+- this change's 8;
+- 1,051 synthetic repositories in all.
+
+Each fixture was built once. The same checkout was then scored under all eleven selectable rubrics,
+first by this branch's `src/witan/repo-signals.ts` and then by main's, which is the only file under
+`src/` outside the tests that this change touches. Report JSON, HTML and Markdown were compared by
+hash, with 0 errors on either side. The driver ran in six shards a side and is not committed.
+
+- **v17 to v26:** 10,510 of 10,510 reports, HTML and Markdown certificates byte-identical to main.
+- **v27:** 907 of 1,051 byte-identical. All 144 others satisfy two checks: the report with A1's
+  evidence and every A1 finding's pointer removed is byte-identical to main's, and A1's pointers
+  without their labels are the same set. So scores, statuses, metrics, notes, finding counts,
+  severities and summaries are all equal.
+  - 139 of the 144, all from the existing sets, differ only in order: the same labelled pointers,
+    with the rated-hollow ones first.
+  - The other 5 are this change's fixtures, where a label changes as well.
+  - In the existing sets no A1 label changed, so item A moves nothing there.
+- **A1's findings in the 144 v27 reports, pointers included:**
+  - 25 reports carry the same findings, unchanged.
+  - 1 changes only a label: the no-coverage finding's pointer, now labelled scaffolding
+    (`a1-fixture-data-dunder-fixtures-dir`).
+  - 118 change the metric-derived finding's pointer (one of them,
+    `a1-fixture-data-only-test-shaped-file`, also relabels its no-coverage finding):
+    - 101 keep the same file, line and content hash, with a new label;
+    - 15 keep the same file and hash and now carry the line of the first skip, because the pointer
+      is the rated-hollow one;
+    - 2 now cite a different file: `tests/helpers.py` becomes `tests/test_cache.py` in
+      `a1al-f-deselect-all-report-beside-star-import`, and `tests/test_cache.py` becomes
+      `tests/conftest.py` in `review3-a1-skip-hook-beside-asserting-conftest`. v17 reports no
+      metric-derived finding in either.
+- **No rise:** `lostFindings` finds 0 lost v17 findings on the branch. v27 A1 is above v17 A1 on 0
+  of 1,051. `checkNoRise` reports only the two shallow-clone fixtures, which it cannot compare
+  without a full clone of the same commit. Main reports the same two.
+
+**Pins.** `src/witan/__tests__/fixtures/behaviour-corpus.ts` names no `conftest.py` and no
+fixture data path. So no fingerprint moves, and the v27 fingerprint pin was not re-measured into
+the pins file. In `certificate-below-first-page.test.ts`, 26 v27 false-assurance fixtures move:
+every one has a file a v27 rule rates hollow, so A1's evidence order changes, and with it the
+metric-derived finding's pointer. That is 26 certificate digests and 26 report.json and 26
+attestation.json digests. They were re-captured from this branch by a temporary file that rewrote
+only the moved entries and failed on any moved v17 entry. No v17 entry and none of the 18 full
+HTML pins moved. The test's header records the re-capture.
+
+**Fixtures and tests.** `v27-a1-fixture-data.test.ts`, with its fixtures in
+`fixtures/v27-a1-fixture-data-fixtures.ts`, was committed red first at `88330fcb8`. Against main, 6
+of 13 tests failed: the four item A citation tests and the two item B order tests. The controls,
+the no-rise check and the byte pins passed. `fixtures/v27-a1-fixture-data-main-pins.json` pins,
+from main `6b4392627`, every v17 to v26 report on the 8 fixtures. Under v27 it pins two things:
+the report without A1's evidence and without the pointer each A1 finding cites, and A1's evidence
+pointers without their labels, sorted. Together these show that only A1's labels and order move.
+
+**Item C (investigation, no code change).**
+[`docs/v27-a1-fixture-data-counts-investigation-2026-11-19.md`](../docs/v27-a1-fixture-data-counts-investigation-2026-11-19.md)
+reports what it found under every rubric:
+
+- `test_to_source_ratio` counts a fixture data file under a test directory;
+- the share's denominator leaves it out, as the share's description says, except under
+  `__tests__/`, where the name-shaped rule rates it hollow, which the description does not say.
+
+It proposes, for a ruling, that v27's description of the share name that exception, with no count
+changed.
+
 ## 2026-11-13 (B3 unread CI configuration disclosure) — under v27, where the publishing rule leaves B3 no counted workflow that targets pull requests or the default branch, B3's note names each CI configuration Cejel does not read, by path (refs #517); note text only; v17-v26 byte-identical; v27 never above v17; no score, status, finding, composite or verdict moved; no published score moved
 
 **Status.** A note change under `witan-rubric-v27-prospective-2026-10-19` only, with no identifier

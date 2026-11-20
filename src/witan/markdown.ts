@@ -13,6 +13,7 @@ import {
   isWitanHistoryAbstentionLabel,
   isWitanNoMeasurementAbstention,
   renderWitanAbstentionLabel,
+  WITAN_LFS_POINTER_CITATION_LABEL,
 } from './abstention.js';
 import {
   EXTERNAL_FINDINGS_DISPLAY_LIMIT,
@@ -425,6 +426,10 @@ function renderCriterionEvidence(criterion: WitanCriterionScore): string[] {
   if (criterion.status === 'insufficient_data') {
     return [
       `- ${criterion.id}: Insufficient data — no measurable signal supplied or collected; excluded from composite (unmeasured, not inapplicable).`,
+      // v27 (#519 follow-up): the Git LFS pointers the abstention rests on. None under any other rubric.
+      ...criterion.evidence
+        .filter(({ label }) => label === WITAN_LFS_POINTER_CITATION_LABEL)
+        .map((evidence) => `- ${criterion.id}: ${renderEvidence(evidence)}`),
     ];
   }
 

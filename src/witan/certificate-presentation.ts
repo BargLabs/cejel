@@ -1,6 +1,7 @@
 import {
   WITAN_A2_PLACEHOLDER_SET_ASIDE_PREFIX,
   WITAN_A2_HISTORY_APPLICABILITY_PREFIX,
+  witanV27LfsPointerNotApplicablePrefix,
   WITAN_A2_TENANT_ISOLATION_UNSETTLED_DISCLOSURE,
   WITAN_A3_BUILD_STEP_UNSETTLED_DISCLOSURE,
   WITAN_A5_RECONCILIATION_UNSETTLED_DISCLOSURE,
@@ -1033,6 +1034,17 @@ function historyApplicabilityDisclosures(report: WitanReport): string[] {
   return criterionDisclosures(report, 'A2', WITAN_A2_HISTORY_APPLICABILITY_PREFIX);
 }
 
+// Prospective v27 (#519 follow-up): A2 or B4 stayed not applicable although it read Git LFS
+// pointers, none at a path its applicability checks read for content. Listed only while that
+// criterion is not applicable, since that is the result the sentence qualifies.
+function lfsPointerNotApplicableDisclosures(report: WitanReport): string[] {
+  return ['A2', 'B4'].flatMap((criterionId) => {
+    const criterion = report.criteria.find((entry) => entry.id === criterionId);
+    if (!criterion || criterion.status !== 'not_applicable') return [];
+    return criterionDisclosures(report, criterionId, witanV27LfsPointerNotApplicablePrefix(criterionId));
+  });
+}
+
 // Prospective v27 (#527, #535): the B2 and B3 disclosures naming CI workflows not counted because
 // Cejel did not see them run a check, and (#517) B3's naming workflows not counted because they
 // publish, release or deploy with no pull-request trigger. Listed only while that criterion is scored.
@@ -1137,8 +1149,15 @@ export function buildRelyingPartySummary(report: WitanReport): RelyingPartySumma
   }
   const lfsPointerCount = report.contentReadSummary?.byReason.lfsPointer ?? 0;
   if (lfsPointerCount > 0) {
+    // v27 (#519 follow-up): the third case is written only where A2 carries the disclosure, which
+    // only v27 produces, so every other report keeps this sentence byte for byte.
+    const keptNotApplicable = lfsPointerNotApplicableDisclosures(report).length > 0;
     gaps.push(
-      `${lfsPointerCount} file${lfsPointerCount === 1 ? ' is a Git LFS pointer' : 's are Git LFS pointers'} in this checkout, so ${lfsPointerCount === 1 ? 'its' : 'their'} content was not read. A criterion that read one either abstained (it is listed among the affected criteria) or scored the pointer's text.`,
+      `${lfsPointerCount} file${lfsPointerCount === 1 ? ' is a Git LFS pointer' : 's are Git LFS pointers'} in this checkout, so ${lfsPointerCount === 1 ? 'its' : 'their'} content was not read. ${
+        keptNotApplicable
+          ? "A criterion that read one abstained (it is listed among the affected criteria), scored the pointer's text, or stayed not applicable where none of the pointers it read could change that (it names them)."
+          : "A criterion that read one either abstained (it is listed among the affected criteria) or scored the pointer's text."
+      }`,
     );
   }
   const excludedByExtension = report.contentReadSummary?.byReason.excludedByExtension ?? 0;
@@ -1150,6 +1169,7 @@ export function buildRelyingPartySummary(report: WitanReport): RelyingPartySumma
   gaps.push(...settlingEvidenceDisclosures(report));
   gaps.push(...placeholderSetAsideDisclosures(report));
   gaps.push(...historyApplicabilityDisclosures(report));
+  gaps.push(...lfsPointerNotApplicableDisclosures(report));
   gaps.push(...unshownCheckWorkflowDisclosures(report));
   gaps.push(...ignoredTestFailureDisclosures(report));
   gaps.push(...uncreditedCiWorkflowDisclosures(report));

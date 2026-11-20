@@ -1,5 +1,5 @@
 import { closeSync, lstatSync, openSync, readFileSync, readSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { relative, resolve, sep } from 'node:path';
 
 import { MAX_REPOSITORY_CONTENT_BYTES } from '../filesystem-limits.js';
 
@@ -73,6 +73,11 @@ interface ContentReadSession {
   // Whether a Git LFS pointer read is attributed to the criterion reading it (witan-rubric-v27).
   // Off, the pointer is still counted in contentReadSummary, and the criterion scores what it read.
   readonly lfsPointerAbstention: boolean;
+  // Per criterion, the repo-relative path of every Git LFS pointer attributed to it. Only an
+  // attributed read records one, so this stays empty under every rubric but v27. It records no
+  // count: contentReadSummary is the same whether or not it is read.
+  readonly lfsPointerPaths: Map<WitanCriterionId, Set<string>>;
+  readonly repoRoot: string;
   criterion?: WitanCriterionId;
   // A single read can legitimately feed more than one named signal (e.g. A4 parses one
   // dependency manifest into three separate ratio metrics). Attributing that read to every
@@ -89,6 +94,8 @@ export interface TrackedContentReads<T> {
   readonly unattributedCriteria: ReadonlySet<WitanCriterionId>;
   readonly criterionSkipReasons: ReadonlyMap<WitanCriterionId, ReadonlySet<ContentReadSkipReason>>;
   readonly signalSkipReasons: ReadonlyMap<string, ReadonlySet<ContentReadSkipReason>>;
+  /** Repo-relative paths of the Git LFS pointers attributed to each criterion (v27 only). */
+  readonly lfsPointerPaths: ReadonlyMap<WitanCriterionId, ReadonlySet<string>>;
 }
 
 /**
@@ -180,6 +187,12 @@ function recordSkip(
   if (!session) return;
   if (affectsCurrentCriterion && session.criterion) {
     attributeSkip(session, session.criterion, session.signals, reason);
+    if (reason === 'lfs_pointer') {
+      const relativePath = relative(session.repoRoot, resolve(path)).split(sep).join('/');
+      const paths = session.lfsPointerPaths.get(session.criterion);
+      if (paths) paths.add(relativePath);
+      else session.lfsPointerPaths.set(session.criterion, new Set([relativePath]));
+    }
   }
   if (deduplicate) {
     const key = `${resolve(path)}\u0000${reason}\u0000${errno ?? ''}`;
@@ -234,6 +247,7 @@ export function trackContentReads<T>(
       unattributedCriteria: existing.unattributedCriteria,
       criterionSkipReasons: existing.criterionSkipReasons,
       signalSkipReasons: existing.signalSkipReasons,
+      lfsPointerPaths: existing.lfsPointerPaths,
     };
   }
   const session: ContentReadSession = {
@@ -246,6 +260,8 @@ export function trackContentReads<T>(
       lfs_pointer: 0,
     },
     lfsPointerAbstention: options.lfsPointerAbstention === true,
+    lfsPointerPaths: new Map(),
+    repoRoot: resolve(_repoPath),
     unreadableByErrno: new Map(),
     deduplicatedSkips: new Set(),
     affectedCriteria: new Set(),
@@ -267,6 +283,7 @@ export function trackContentReads<T>(
       unattributedCriteria: session.unattributedCriteria,
       criterionSkipReasons: session.criterionSkipReasons,
       signalSkipReasons: session.signalSkipReasons,
+      lfsPointerPaths: session.lfsPointerPaths,
     };
   } finally {
     activeSession = undefined;

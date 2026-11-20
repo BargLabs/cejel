@@ -51,6 +51,9 @@ import {
   WITAN_A2_TENANT_ISOLATION_UNSETTLED_DISCLOSURE,
   WITAN_B2_UNCREDITED_CI_WORKFLOW_PREFIX,
   WITAN_B3_IGNORED_TEST_FAILURE_PREFIX,
+  WITAN_LFS_POINTER_CITATION_LABEL,
+  WITAN_V27_LFS_POINTER_READ_FAILURE_PATHS_SENTENCE,
+  witanV27LfsPointerNotApplicablePrefix,
   WITAN_B3_UNCREDITED_CI_WORKFLOW_PREFIX,
   WITAN_B3_PUBLISHING_CI_WORKFLOW_PREFIX,
   WITAN_A4_LOCKFILE_COVERAGE_NOT_COMPUTED_PREFIX,
@@ -317,11 +320,18 @@ export interface BuildWitanInputOptions {
 function wholesaleCriterionAbstention(
   signal: WitanCriterionSignalPayload,
   reasons?: ReadonlySet<ContentReadSkipReason>,
+  // v27 (#519 follow-up): the Git LFS pointers attributed to this criterion, cited as its evidence.
+  // Empty under every other rubric, since only v27 attributes a pointer read.
+  lfsPointerCitations: readonly WitanEvidencePointer[] = [],
 ): WitanCriterionSignalPayload {
   const { insufficientDataReason } = classifyAbstentionReason(reasons);
+  const pointers = lfsPointerCitations.length;
+  const pointerCount = `${pointers} Git LFS pointer${pointers === 1 ? '' : 's'}`;
   return {
     criterionId: signal.criterionId,
-    positiveEvidence: [],
+    // Scoring ignores an abstaining signal's evidence for its score and status; it passes these
+    // citations, and only these, through to the report (scoreCriterion in scoring.ts).
+    positiveEvidence: [...lfsPointerCitations],
     findings: [],
     metrics: [],
     insufficientData: true as const,
@@ -336,9 +346,128 @@ function wholesaleCriterionAbstention(
       insufficientDataReason !== undefined
         ? 'Cejel abstained on this criterion because relevant repository content was declined under the repository content size limit or excluded from scanning by policy. This is a disclosed coverage limit, not a read failure, and does not affect the composite score.'
         : reasons?.size === 1 && reasons.has('lfs_pointer')
-          ? 'Cejel abstained on this criterion because relevant files in this checkout are Git LFS pointers, so their content was not read. Fetch the LFS content (git lfs pull) and re-scan.'
-          : 'Cejel abstained on this criterion because one or more relevant repository files could not be read. Resolve the content-read limitations and re-scan.',
+          ? pointers > 0
+            ? `Cejel abstained on this criterion because relevant files in this checkout are Git LFS pointers, so their content was not read. This abstention rests on ${pointerCount}, cited in this criterion's evidence. Fetch the LFS content (git lfs pull) and re-scan.`
+            : 'Cejel abstained on this criterion because relevant files in this checkout are Git LFS pointers, so their content was not read. Fetch the LFS content (git lfs pull) and re-scan.'
+          : pointers > 0
+            ? `Cejel abstained on this criterion because one or more relevant repository files could not be read. ${pointers === 1 ? 'One of them is a Git LFS pointer' : `${pointers} of them are Git LFS pointers`}, cited in this criterion's evidence. Resolve the content-read limitations and re-scan.`
+            : 'Cejel abstained on this criterion because one or more relevant repository files could not be read. Resolve the content-read limitations and re-scan.',
   };
+}
+
+/**
+ * v27 (#519 follow-up): one evidence pointer per Git LFS pointer attributed to `criterionId`, in path
+ * order. Each is cited like any other evidence path (evidenceForRelative), labelled as a pointer
+ * whose content is not in this checkout. Empty under every rubric but v27.
+ */
+function lfsPointerCitations(
+  repoPath: string,
+  criterionId: WitanCriterionId,
+  tracked: Pick<TrackedContentReads<unknown>, 'lfsPointerPaths'>,
+): WitanEvidencePointer[] {
+  return [...(tracked.lfsPointerPaths.get(criterionId) ?? [])]
+    .sort((left, right) => left.localeCompare(right))
+    .map((path) => evidenceForRelative(repoPath, path, 'artifact', WITAN_LFS_POINTER_CITATION_LABEL));
+}
+
+/**
+ * v27 (#519 follow-up, item B): whether the real content at `path` could change A2's not-applicable
+ * decision, judged from the reads A2's applicability gate makes (collectA2IsolationEvidence), not
+ * from a list of file types of its own:
+ * - the `.gitignore`, read for an `.env` rule (gitignoreHasEnvRule);
+ * - an env-format file, whose content decides whether it is a committed `.env` (hasTemplateOnlyEnvContent);
+ * - an implementation file, read by the signing, HMAC and secret-comparison detector
+ *   (collectCryptoHygieneEvidence) and for a DB client import (dbLayerImportFile);
+ * - a credential-shaped path (isCredentialHistoryPath), whose current value A2 fingerprints;
+ * - any file of a type Cejel reads as content (isPotentialContentPath), since the committed-secret
+ *   scan reads it as text and a confirmed secret there makes A2 applicable. A file of any other type
+ *   is one the report already says Cejel does not read as content ("excluded by extension"); the
+ *   secret scan's text grammar is written for content, so a binary asset (an image, a font, an
+ *   archive, an installer, audio, model weights) cannot supply what this gate looks for.
+ * Every other A2 applicability input reads a path only (migration directories, `.env` templates, a
+ * committed `.env` path) or reads history, never a checked-out pointer.
+ */
+function a2ApplicabilityReadsPointerContent(path: string): boolean {
+  return (
+    basename(path) === '.gitignore' ||
+    /(?:^|\/)\.env(?:\.|$)/i.test(path) ||
+    isImplementationFile(path) ||
+    isCredentialHistoryPath(path, true, false) ||
+    isPotentialContentPath(path)
+  );
+}
+
+/**
+ * v27 (#519 follow-up, item B): B4's two not-applicable gates (no audit-trail artifact, or only a
+ * security-policy artifact) decide from paths alone (isAuditFile, isFreshnessRatableAuditFile). On
+ * either path the only content B4 reads is an audit file's, for its evidence hash
+ * (collectB4AuditEvidence), so no such pointer's content could change the result. A pointer at any
+ * other path would come from a read this reasoning does not cover, and keeps the abstention.
+ */
+function b4ApplicabilityReadsPointerContent(path: string): boolean {
+  return !isAuditFile(path);
+}
+
+/**
+ * The criteria whose not-applicable gate item B was shown to hold for, from the gate's own reads,
+ * and the sentence that says why. Every other criterion's not-applicable result is still replaced by
+ * the abstention: A3's, A5's and B6's gates read content a pointer could hold (see the v27
+ * declaration in rubric-version.ts), and B1's and B5's read nothing.
+ */
+const LFS_POINTER_NOT_APPLICABLE_RULES: Partial<
+  Record<WitanCriterionId, { readonly readsPointerContent: (path: string) => boolean; readonly reason: string }>
+> = {
+  A2: {
+    readsPointerContent: a2ApplicabilityReadsPointerContent,
+    reason:
+      "None is a file A2's applicability checks read for a ratable surface (a .gitignore, an env file, implementation source, a credential file, or a file of a type Cejel reads as content, which the committed-secret scan reads as text)",
+  },
+  B4: {
+    readsPointerContent: b4ApplicabilityReadsPointerContent,
+    reason: "B4's not-applicable result is decided from which audit-trail files exist, by path alone",
+  },
+};
+
+/**
+ * v27 (#519 follow-up, item B): the criterion reached not-applicable from the content it did read,
+ * and every Git LFS pointer attributed to it is at a path whose real content could not change that
+ * decision (LFS_POINTER_NOT_APPLICABLE_RULES). It then keeps v17's not-applicable result and names
+ * the pointers in a disclosure. Returns undefined, so the criterion abstains as before, for a
+ * criterion with no rule, any pointer that could change the decision, or a disclosure list with no
+ * room under #612's budget.
+ */
+function lfsPointerKeepsNotApplicable(
+  signal: WitanCriterionSignalPayload,
+  pointerPaths: readonly string[],
+): WitanCriterionSignalPayload | undefined {
+  const rule = LFS_POINTER_NOT_APPLICABLE_RULES[signal.criterionId];
+  if (!rule || signal.notApplicable !== true || pointerPaths.length === 0) return undefined;
+  if (pointerPaths.some(rule.readsPointerContent)) return undefined;
+  const existing = signal.disclosures ?? [];
+  // #612's budget: an A2, A3 or A5 signal carries at most 2 collector disclosures, so the at most 2
+  // dropped-path statements still fit the schema's four and never reach its notes. Elsewhere the
+  // schema's four bound it. Where there is no room the criterion abstains as before.
+  if (existing.length + 1 > (['A2', 'A3', 'A5'].includes(signal.criterionId) ? 2 : 4)) return undefined;
+  return {
+    ...signal,
+    disclosures: [...existing, lfsPointerNotApplicableDisclosure(signal.criterionId, rule.reason, pointerPaths)],
+  };
+}
+
+function lfsPointerNotApplicableDisclosure(
+  criterionId: WitanCriterionId,
+  reason: string,
+  pointerPaths: readonly string[],
+): string {
+  const prefix = witanV27LfsPointerNotApplicablePrefix(criterionId);
+  const sorted = [...pointerPaths].sort((left, right) => left.localeCompare(right));
+  const tail = `. ${reason}, so ${sorted.length === 1 ? 'its' : 'their'} content could not change this not-applicable result.`;
+  for (let shown = sorted.length; shown > 0; shown -= 1) {
+    const more = sorted.length - shown;
+    const sentence = `${prefix}${sorted.slice(0, shown).join(', ')}${more > 0 ? ` and ${more} more` : ''}${tail}`;
+    if (sentence.length <= 1000) return sentence;
+  }
+  return `${prefix}${sorted.length} files${tail}`;
 }
 
 function withoutCountDisclosures(disclosures: readonly string[] | undefined): { disclosures?: string[] } {
@@ -403,31 +532,51 @@ export function buildWitanInputFromRepo(options: BuildWitanInputOptions): WitanR
     // critical finding, and an abstention there would let a pointer-shaped file erase a confirmed
     // one. Such a criterion scores exactly as v17 does, and is dropped from
     // contentReadSummary.affectedCriteria, since it did not abstain. A not-applicable result is
-    // NOT kept: applicability is decided from what a collector fails to find in content, and a
-    // pointer is content it did not read.
+    // kept only where the criterion's own applicability checks could not have read any of the
+    // pointers' content (lfsPointerKeepsNotApplicable, A2 and B4, #519 follow-up): applicability is
+    // decided from what a collector fails to find in content, and a pointer elsewhere is content it
+    // did not read.
     const lfsKept = new Set<WitanCriterionId>();
+    // v27 (#519 follow-up): whether any abstaining criterion cites its Git LFS pointers, in which
+    // case the read-failure limitation no longer says the report omits file paths.
+    let citesLfsPointers = false;
     const signals = (tracked.value.signals ?? []).map((signal) => {
       if (!affectedCriteria.has(signal.criterionId)) return signal;
       const reasons = skipReasonsForCriterion(signal.criterionId, tracked);
+      const lfsOnly = reasons.size > 0 && [...reasons].every((reason) => reason === 'lfs_pointer');
       if (
         usesV27FalseAssuranceClosure(rubricVersion) &&
-        reasons.size > 0 &&
-        [...reasons].every((reason) => reason === 'lfs_pointer') &&
+        lfsOnly &&
         (signal.findings ?? []).some(({ severity }) => severity === 'critical')
       ) {
         lfsKept.add(signal.criterionId);
         return signal;
       }
+      if (usesV27FalseAssuranceClosure(rubricVersion) && lfsOnly && signal.notApplicable === true) {
+        const kept = lfsPointerKeepsNotApplicable(signal, [
+          ...(tracked.lfsPointerPaths.get(signal.criterionId) ?? []),
+        ]);
+        if (kept !== undefined) {
+          lfsKept.add(signal.criterionId);
+          return kept;
+        }
+      }
       const { insufficientDataReason } = classifyAbstentionReason(reasons);
       (insufficientDataReason !== undefined ? coverageLimitedCriteria : readFailureCriteria).push(
         signal.criterionId,
       );
-      return wholesaleCriterionAbstention(signal, reasons);
+      const citations = lfsPointerCitations(options.repoPath, signal.criterionId, tracked);
+      if (citations.length > 0 && insufficientDataReason === undefined) citesLfsPointers = true;
+      return wholesaleCriterionAbstention(signal, reasons, citations);
     });
     const collected = tracked.value.scanLimitations ?? [];
     const readFailureLimitation =
       readFailureCriteria.length > 0
-        ? `${readFailureCriteria.length} ${readFailureCriteria.length === 1 ? 'criterion' : 'criteria'} abstained because relevant repository content could not be read. Counts and errno classes are recorded in contentReadSummary; file paths are intentionally omitted.`
+        ? `${readFailureCriteria.length} ${readFailureCriteria.length === 1 ? 'criterion' : 'criteria'} abstained because relevant repository content could not be read. ${
+            citesLfsPointers
+              ? WITAN_V27_LFS_POINTER_READ_FAILURE_PATHS_SENTENCE
+              : 'Counts and errno classes are recorded in contentReadSummary; file paths are intentionally omitted.'
+          }`
         : undefined;
     const coverageLimitedLimitation =
       coverageLimitedCriteria.length > 0
@@ -2353,8 +2502,14 @@ function collectA1TestIntegrityEvidence(
     // Every rubric (#519): a Git LFS pointer is named as one, so the evidence does not present
     // pointer text as a test. The file is read here exactly as evidenceForRelative reads it.
     const testPath = join(repoPath, file);
-    const isLfsPointer =
-      isRegularFile(testPath) && isGitLfsPointerText(readRepoText(testPath, 'utf8'));
+    const testText = isRegularFile(testPath) ? readRepoText(testPath, 'utf8') : undefined;
+    const isLfsPointer = testText !== undefined && isGitLfsPointerText(testText);
+    // v27 (goal_cejel_v27_a1_fixture_data_not_cited_as_test_2026-11-19, item A): a fixture data
+    // file with no test in it is mock data, not evidence about the tests, so it is not called a
+    // test file. It keeps its place in the list, labelled for what it is, so the evidence count
+    // and every score, status and finding count stay as they are.
+    const isFixtureData =
+      useV27FalseAssuranceClosure && testText !== undefined && !isLfsPointer && isV27FixtureDataWithNoTest(file, testText);
     evidence.push(
       evidenceForRelative(
         repoPath,
@@ -2362,7 +2517,9 @@ function collectA1TestIntegrityEvidence(
         'test_run',
         isLfsPointer
           ? 'Detected test file (Git LFS pointer; its content is not in this checkout)'
-          : 'Detected test file',
+          : isFixtureData
+            ? A1_FIXTURE_DATA_LABEL
+            : 'Detected test file',
       ),
     );
   }
@@ -2509,6 +2666,8 @@ function collectA1TestIntegrityEvidence(
         );
       }
     } else {
+      // v27 (item A): where evidence[0] is a fixture data file, this finding keeps citing it, now
+      // labelled as scaffolding: v27 keeps every v17 finding at v17's pointer (v27-no-rise.ts).
       const firstEvidence = evidence[0];
       if (!firstEvidence) return null;
       findings.push(
@@ -2585,14 +2744,22 @@ function collectA1TestIntegrityEvidence(
   // v27 (goal_cejel_v27_a1_test_count_overmatch_2026-11-01, item A): each file a v27 rule rated
   // hollow is cited with its rule, the first eight as the test files are, so a reviewer can check
   // that the rule's condition held. Empty under every other rubric.
+  // goal_cejel_v27_a1_fixture_data_not_cited_as_test_2026-11-19, item B: these are the files that
+  // move the share, so they are cited first (see positiveEvidence below). The findings built here
+  // have already taken their pointers from the list in its built order, which stays as it was. The
+  // one finding scoring adds from this list (ensureFindingsExplainStatus: "A1 metric-derived score
+  // is ...", where the status is warning or critical with no finding to explain it) cites the
+  // reordered list's first pointer: under v27, the first file a rule rated hollow.
+  const ratedHollowPointers: WitanEvidencePointer[] = [];
   for (const rated of nonHollowShare.ratedHollow.slice(0, A1_NOTE_EVIDENCE_LIMIT)) {
     const label = `Rated hollow under this rubric: runs no test (${rated.rule})`;
-    evidence.push(
+    ratedHollowPointers.push(
       rated.line === null
         ? evidenceForRelative(repoPath, rated.path, 'test_run', label)
         : evidenceForRelativeAtLine(repoPath, rated.path, 'test_run', label, rated.line),
     );
   }
+  evidence.push(...ratedHollowPointers);
   // v27 (goal_cejel_v27_a1_restore_proof_and_hookwrapper_2026-11-02, item E): each hook the note
   // names (not read, putting the items back, or rebinding them) is cited at its `def`, in the
   // note's order, so its path is exact. goal_cejel_v27_a1_pytest_runs_and_config_2026-11-02, item
@@ -2647,9 +2814,18 @@ function collectA1TestIntegrityEvidence(
     });
   }
 
+  // v27 (item B): each file a v27 rule rated hollow (at most A1_NOTE_EVIDENCE_LIMIT; the note
+  // counts the rest) is cited before the detected test files. The pointers and their count are
+  // unchanged; only their order moves. Every other rubric rates no file hollow by rule. Built after
+  // the evidence-reading findings above, so their pointers do not move.
+  const orderedEvidence =
+    useV27FalseAssuranceClosure && ratedHollowPointers.length > 0
+      ? [...ratedHollowPointers, ...evidence.filter((pointer) => !ratedHollowPointers.includes(pointer))]
+      : evidence;
+
   return {
     criterionId: 'A1',
-    positiveEvidence: evidence,
+    positiveEvidence: orderedEvidence,
     findings,
     metrics: [
       metric(
@@ -2741,6 +2917,9 @@ function a1WithheldSentence(clauses: readonly string[], shown: number, pointed: 
   }.`;
   return `${text.charAt(0).toUpperCase()}${text.slice(1)}`;
 }
+
+/** v27 (item A): the label of a detected test file that is fixture data with no test in it. */
+const A1_FIXTURE_DATA_LABEL = 'Test support scaffolding (fixture data with no test in it), not a test file';
 
 /** A1's v27 evidence cites at most this many rated-hollow files, and as many clauses the note names. */
 const A1_NOTE_EVIDENCE_LIMIT = 8;
@@ -15350,6 +15529,37 @@ interface RatedHollowFile {
   readonly line: number | null;
 }
 
+/**
+ * Whether a test-shaped file holds an assertion, as non_hollow_test_share reads it: the share's
+ * one test of whether a file has a test in it. Used again only by v27's fixture data citation
+ * (isV27FixtureDataWithNoTest), so both read a file the same way.
+ */
+function readsAsAsserting(contents: string, masked: () => MaskedSource): boolean {
+  return (
+    JS_TEST_ASSERTION_PATTERN.test(contents) ||
+    CPP_TEST_ASSERTION_PATTERN.test(contents) ||
+    MULTI_ECOSYSTEM_TEST_ASSERTION_PATTERN.test(contents) ||
+    hasLiveAvaAssertion(contents) ||
+    hasLiveFrameworkAssertion(masked())
+  );
+}
+
+// v27 (goal_cejel_v27_a1_fixture_data_not_cited_as_test_2026-11-19): a fixture data path, by the
+// conventions test suites use for mock data: a fixtures/ or __fixtures__/ directory, or a file
+// named *.fixture.* or *.fixtures.*. Matched case-sensitively, as the conventions are written.
+const FIXTURE_DATA_PATH_PATTERN = /(^|\/)(?:fixtures|__fixtures__)\/|(^|\/)[^/]+\.fixtures?\.[^/]+$/;
+
+/**
+ * v27 only: a detected test file that is fixture data with no test in it (by the share's own
+ * reading, readsAsAsserting). It is cited as test support scaffolding, not as a test file. The
+ * caller has already read `contents` from a regular file that is not a Git LFS pointer.
+ */
+function isV27FixtureDataWithNoTest(file: string, contents: string): boolean {
+  if (!FIXTURE_DATA_PATH_PATTERN.test(file)) return false;
+  let maskedSource: MaskedSource | undefined;
+  return !readsAsAsserting(contents, () => (maskedSource ??= maskCommentsAndStrings(contents)));
+}
+
 function measureNonHollowTestShare(
   repoPath: string,
   files: readonly string[],
@@ -15369,12 +15579,7 @@ function measureNonHollowTestShare(
     let maskedSource: MaskedSource | undefined;
     const masked = () => (maskedSource ??= maskCommentsAndStrings(contents));
     const frameworkSuiteSkipped = /\bIgnored?\b/.test(contents) && hasFrameworkSuiteLevelSkip(masked());
-    const asserting =
-      JS_TEST_ASSERTION_PATTERN.test(contents) ||
-      CPP_TEST_ASSERTION_PATTERN.test(contents) ||
-      MULTI_ECOSYSTEM_TEST_ASSERTION_PATTERN.test(contents) ||
-      hasLiveAvaAssertion(contents) ||
-      hasLiveFrameworkAssertion(masked());
+    const asserting = readsAsAsserting(contents, masked);
     const suiteSkipped = SUITE_LEVEL_SKIP_PATTERN.test(contents);
     // What v17 rates the file, before any v27 rule.
     const nonHollowUnderV17 = asserting && !suiteSkipped && !frameworkSuiteSkipped;

@@ -76,6 +76,14 @@ import { FALSE_ASSURANCE_FIXTURES, buildFalseAssuranceFixture } from './fixtures
 // the 9 full v27 HTML pins and the 2 v27 certificate digests of the #622 specimens were then
 // re-captured the same way; no v17 certificate, report or attestation digest moved.
 //
+// Re-captured a fourth time, for goal_cejel_v27_a1_fixture_data_not_cited_as_test_2026-11-19 (refs
+// #518): under v27, A1 cites each file a v27 rule rates hollow before the detected test files, and
+// the metric-derived A1 finding, which cites A1's first pointer, follows. The same kind of
+// temporary file rewrote only the moved entries and failed on any moved v17 entry. Exactly 26 v27
+// false-assurance fixtures moved, every one with a file a v27 rule rates hollow (26 certificate
+// digests, 26 report.json and 26 attestation.json digests). Every v17 entry and the 18 full HTML
+// pins are unchanged.
+//
 // Fixtures are scored with no ingested files, the same product name and a fixed generatedAt and
 // CLI version, so the bytes depend only on the fixture and the code. One fixture is left out:
 // a false-assurance fixture with symlinksToHostDirectory commits a symlink whose target is a fresh

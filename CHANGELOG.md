@@ -45,6 +45,52 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     No holdout or calibration ran for this change, and v27 carries no precision or recall claim.
     See [`leaderboard/RUBRIC_CHANGELOG.md`](leaderboard/RUBRIC_CHANGELOG.md).
 
+- **Prospective v27: an abstention on Git LFS pointers cites the pointers it rests on, and a
+  not-applicable result stands where no pointer it read could change it (refs #519).** Under
+  `witan-rubric-v27-prospective-2026-10-19` only. v17, still the default, and every other rubric
+  are unchanged, byte for byte. v27 carries no precision or recall claim.
+  - A criterion that abstains with a Git LFS pointer among its reasons now lists each pointer it
+    read in its evidence ("Git LFS pointer; its content is not in this checkout"), and its note says
+    how many pointers the abstention rests on. The read-failure scan limitation then says
+    `contentReadSummary` lists no file paths and that the abstaining criteria cite the pointer paths,
+    since "file paths are intentionally omitted" would no longer be true. The plain first page and
+    the HTML and Markdown certificates say the same. Scores, statuses and finding counts do not
+    change.
+  - A2 keeps its not-applicable result, as under v17, where it reached that result from the content
+    it read and every pointer it read is at a path whose content its applicability checks do not
+    read for a ratable surface, such as an image, a font, an archive or model weights. A pointer at a
+    `.gitignore`, an env file, implementation source, a credential-shaped path or any file of a type
+    Cejel reads as content still makes A2 abstain. B4 keeps its not-applicable result in the same
+    way, since its gates decide from paths alone. Each names the pointers in a disclosure, listed
+    under "What was not established", and is left out of `contentReadSummary.affectedCriteria`.
+  - Only v27 reports that hold a Git LFS pointer move. Apart from A2 or B4 returning to v17's
+    not-applicable result where v27 abstained before, no score, status or finding count moves. v27
+    then equals v17 on that criterion, so it stays at or below v17.
+
+- **Prospective v27: A1 does not call a fixture data file a test file, and cites first the files a
+  v27 rule rates hollow (refs #518).** Under `witan-rubric-v27-prospective-2026-10-19` only, and in
+  A1's evidence only. v17 and every other rubric are unchanged, byte for byte.
+  - v27 does not cite a `conftest.py` as a test file, so a slot opens under A1's eight-file cap. A
+    file of mock data under `tests/fixtures/` could take that slot, and was labelled "Detected test
+    file". Now a detected test file under `fixtures/` or `__fixtures__/`, or named `*.fixture.*` or
+    `*.fixtures.*`, with no assertion in it (read the way the non-hollow share reads one) is cited
+    as "Test support scaffolding (fixture data with no test in it), not a test file". It keeps its
+    place in the list. A file under those paths that holds a test is still a detected test file.
+  - Each file a v27 rule rates hollow (at most eight; A1's note counts the rest) is now cited before
+    the detected test files instead of after them. These are the files that move the non-hollow
+    share. Where A1's status is warning or critical from its metrics alone, the "A1 metric-derived
+    score" finding cites A1's first pointer, so it now cites the first of these files.
+  - No score, status, finding count, finding severity or summary, metric, note, composite or verdict
+    moves. The `conftest.py` rule itself is unchanged.
+  - Measured on 1,051 synthetic repositories against main. v17 to v26: 10,510 of 10,510 reports
+    byte-identical. v27: 907 byte-identical, and the other 144 differ only in A1's evidence labels
+    and order and in the pointer of the metric-derived finding. No holdout or calibration ran.
+  - An investigation, with no code change, is in
+    [`docs/v27-a1-fixture-data-counts-investigation-2026-11-19.md`](docs/v27-a1-fixture-data-counts-investigation-2026-11-19.md).
+    It covers how such a file is counted in `test_to_source_ratio` and in the share. Under
+    `__tests__/`, the share counts a fixture data file as hollow, which its description does not
+    say.
+
 ## [0.6.12] — 2026-11-19
 
 v17 remains the default rubric. Every scoring change below applies only when the prospective v27
