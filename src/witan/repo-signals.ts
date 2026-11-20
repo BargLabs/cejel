@@ -511,7 +511,7 @@ function lfsPointerKeepsScoredA3(
   if (existing.length + 1 > 2) return undefined;
   return {
     ...signal,
-    positiveEvidence: [...signal.positiveEvidence, ...citations],
+    positiveEvidence: [...(signal.positiveEvidence ?? []), ...citations],
     disclosures: [...existing, lfsPointerAtMaximumDisclosure([...reads.keys()], [...readers])],
   };
 }
