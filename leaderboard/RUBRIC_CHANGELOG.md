@@ -22,6 +22,208 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
+## 2026-11-20 (A1 PYTEST_ADDOPTS shapes) — under v27, A1 reads a multi-name Makefile export of `PYTEST_ADDOPTS` as GNU make reads it, and names as not read a pytest run whose `PYTEST_ADDOPTS` a script, a tox `setenv` before make or an included makefile may set; a step that provably cannot run make no longer makes a mention not read (refs #705, #713, #661); v17-v26 byte-identical; v27 never above v17; no fingerprint moved; no published score moved
+
+**Status.** A scoring change under `witan-rubric-v27-prospective-2026-10-19` only, with no
+identifier change (goal_cejel_v27_a1_addopts_shapes_2026-11-17; the operator's ruling of 17 Nov on
+#705, option B, and of 19 Nov folding in #713 and #661). No holdout or calibration ran for it, and
+this entry makes no precision or recall claim. The default stays v17. A changed v27 needs a new
+freeze.
+
+**Why.** #705, from the independent review of #698, lists `PYTEST_ADDOPTS` shapes outside #674's
+scope, which covers a CI file that names the variable. Built on main `6d5ed83b3` before any code
+change, each reads as the issue says:
+
+1. A multi-name export, `export FOO PYTEST_ADDOPTS`, was read as not exporting the variable,
+   although GNU make exports both names. With no CI mention, the Makefile's value was read as not
+   passed (tests/test_cache.py rated hollow, v27 A1 2.3 against v17's 2.6). With a CI mention not
+   read, the runs were withheld although make passes the value.
+2. A script that sets `PYTEST_ADDOPTS` itself, where no CI file names it, was not seen (2.3 against
+   2.6).
+3. A tox `setenv = PYTEST_ADDOPTS=...` before `commands = make test`: the make run was read as having
+   no environment (2.4 against 2.8).
+4. An assignment or export in an included makefile was not seen (2.3 against 2.6).
+
+#713: the strict CI-mention rule of #710 also made a mention not read where the only other step is
+one that provably cannot run make (a `set -e` line, a package install), turning true hollows into
+withheld ratings. #661: the nox reader's empty-posargs set had no test that depended on it.
+
+**Change (v27 only).** `readPytestInvocations` in `src/witan/repo-signals.ts`, which only v27's A1
+reads.
+
+- **Item A, the export read as GNU make reads it.** `readMakeAddoptsDirectives` replaces the one
+  `exported` regex. Tab-led lines are recipe lines and are skipped. A line led by spaces is read, a
+  backslash-newline joins a logical line, and `#` starts a comment. The reader:
+  - reads `export` followed by names as exporting each name, so `export FOO PYTEST_ADDOPTS` exports
+    it;
+  - reads `export NAME <op> value` (=, :=, ::=, :::=, ?=, +=, !=) as exporting NAME only, so
+    `export FOO = bar PYTEST_ADDOPTS` exports FOO;
+  - keeps a bare `export` and `.EXPORT_ALL_VARIABLES:` as exporting everything, as before.
+
+  These lines leave it not known:
+  - a name list holding `$`;
+  - several names before an operator, among them PYTEST_ADDOPTS or a `$`;
+  - an `unexport` naming it or holding `$`;
+  - a bare `unexport`;
+  - an export, unexport or `.EXPORT_ALL_VARIABLES` that may reach it inside `ifeq`, `ifneq`,
+    `ifdef`, `ifndef` or a `define`. An export of other names only does not count.
+
+  The first such line names the runs the Makefile's targets reach: "pytest run not read: `<the line,
+  trimmed>` in Makefile", pointed at it. A CI mention not read, and a value on make's command line
+  (or one readMakeVariables cannot know), are still named first.
+- **Item B, a mention in a file the readers do not read.** A file in A1's file list can count. It
+  must be of a kind `NOX_COMMAND_FILE_PATTERN` names as able to run a command. It must not be a CI
+  file, Makefile, justfile, tox.ini, noxfile or read local action, nor under a generated or
+  vendored path. The first such file, in list order, whose text names PYTEST_ADDOPTS as a word is a
+  mention not read. Its first such line names a run not read, pointed at it. A run not read collects
+  every file, so every run is not read, as the card asks where no reader shows a run out of the
+  file's reach. A Makefile `?=` or unexported assignment is not known with that line as the reason,
+  as for a CI mention not read. Where a CI mention not read exists, it stays the reason, and this
+  run goes last, so A1's note names the CI mention first, as on main.
+  - The search reads files no other A1 reader reads, only for one word. Its reads, the line lookup
+    that places a clause's pointer, and the clause pointer's content hash are attributed to no
+    criterion (`withoutContentReadAttribution`). Every other file those last two reach was already
+    read by A1's readers, attributed, so only item B's file changes.
+  - A Git LFS pointer or an oversized file among the searched files is counted in
+    `contentReadSummary`. It does not make A1 abstain as a read failure. The first pass of this
+    measurement showed that happening on two Git LFS fixtures (A1 2.3 and 1.7 to 0), before this
+    was fixed.
+  - A Git LFS pointer among them is itself a mention not read: "pytest run not read: `Git LFS
+    pointer` in <path>". Its content is not in the checkout and may set the variable.
+- **Item C, a tox setenv before make.** `readToxCommands` takes a visitor. For each running
+  environment whose setenv (its own or `[testenv]`'s) sets PYTEST_ADDOPTS, it is told of each make
+  command run with that value in force in `commands_pre`, `commands` or `commands_post`. It is told
+  the directory make runs in, after `cd` and `-C`, or none with `-f`. After the tox read, each
+  Makefile in that directory reads the recipes those targets reach. Every pytest run they reach is
+  named "pytest run not read: `PYTEST_ADDOPTS=<value as written>` in tox.ini", pointed at the
+  setenv entry. At most 16 distinct such environments are read, as for CI make environments. The
+  rest are read as one, in no known directory. The value is not carried through to the recipe.
+- **Item D, an included makefile.** A Makefile holding an `include`, `-include` or `sinclude`
+  directive (with a file named, outside a recipe and outside a `define`) has the runs its targets
+  reach named "pytest run not read: `<the directive, trimmed>` in Makefile", pointed at the first
+  directive. It comes after item A's line, a CI mention not read and a value on make's command line.
+  The included file is not read.
+- **Item F (#713), a step that cannot run make.** `provablyRunsNoMakeOrPytest` admits two kinds of
+  command:
+  - `set`, `true`, `:`, `exit`, or an `echo` or `printf` naming neither GITHUB_ENV nor
+    GITHUB_PATH;
+  - a pip install (`pip`, `pip3`, `python -m pip`, `python3 -m pip`, `uv pip`) whose arguments B3's
+    `pipArgumentsNamePackagesOnly` reads as naming only index packages. A requirements file is
+    refused, and so is a package name that is a part of some repository path.
+
+  A word holding `$(`, a backtick, `<` or `>` refuses either kind. A quoted `"pytest>=8"` is
+  therefore refused and keeps the strict reading. Such a command no longer makes a mention not read
+  (`reachesOther`). Every other command, and every `uses:` step (`actions/checkout` included), keeps
+  #710's strict reading.
+- **Item G (#661), the nox empty-posargs set.** Kept. `a1shape-g-nox-empty-posargs-only-run-over-file`
+  depends on it. The noxfile's call takes `-p no:skipping` and `*session.posargs`, and the only CI
+  nox command passes `tests/test_lru.py`, so the empty set's run is the only one with
+  `-p no:skipping` over tests/test_cache.py. With the set removed (checked by hand on this branch,
+  then restored), tests/test_cache.py is rated hollow. With it, the every-test-skipped rule is
+  withheld. The rule is unchanged, so no fixture moves for item G.
+
+**The no-rise property.**
+
+- Items B, C and D, and item A's not-known lines, only add runs not read. A run not read only
+  switches A1's removal rules off, so the files keep v17's reading. That can bring v27's A1 back up
+  to v17's, never above it.
+- Item A's export reads a value only where GNU make exports it. A value can withhold a rule
+  (`-p no:skipping`), which brings v27 to v17, or leave a file rated hollow, which lowers v27.
+- Item F only moves a run from not read to read, and a run read can only apply more removal rules.
+  So it lowers v27 or leaves it unchanged.
+- Every v27 A1 rule only removes from v17's count, so none of these can put v27 above v17.
+
+**Measured** on 20 Nov, at this branch's code against main `6d5ed83b3`. The set is the one the
+2026-11-19 (B2 and B3 housekeeping and publishing depth) entry names, joined with the A1 sets the
+2026-11-19 (A1 builtin copy) entry names, plus this change's fixtures. Fixtures are taken once by
+name, from this branch's fixture files:
+
+- false-assurance 269, CI-claims 71 and B3 361;
+- v27 A1 removal 39, hook outcome 41, allowlist 90, withhold 98, run 58 and fixture data 8;
+- publishing-gates 17, unread-CI-configuration 8 and Git LFS pointer 9;
+- #748's cites-every-workflow 13 and housekeeping and publishing depth 10;
+- this change's 37.
+
+That is 1,129 synthetic repositories.
+
+- **How the passes ran.** For the main pass, main's `src/witan/repo-signals.ts` (blob `12c809d2a`)
+  stood in for this branch's through a test-runner alias. It is the only source file whose behaviour
+  this change moves; `rubric-version.ts` changes comments only. The alias reproduced every
+  committed main pin of this change byte for byte. Each pass built every fixture and scored it
+  under all eleven selectable rubrics, with 0 errors on either side. Report JSON, HTML and Markdown
+  were compared by hash. A1's score, status, finding count, note, the composite and the verdict
+  were also compared. The driver ran in six processes a pass and is not committed.
+- **Not compared.** The symlink fixture (`review4-a4-working-directory-through-tracked-symlink`) is
+  left out of every count below, since its head SHA differs on every build. The new
+  `a1shape-b-lfs-pointer-script` was added after the main pass ran. Its v17 to v26 hashes are
+  pinned from main's code by the same alias, and its v27 reading on main, taken separately, is
+  hollow (2.3).
+
+- **v17 to v26:** 11,270 of 11,270 reports, HTML and Markdown certificates byte-identical to main.
+- **v27:** 1,107 of 1,127 byte-identical. The 20 that moved are all this change's fixtures; no
+  fixture of any earlier set moved.
+  - Raised to v17's A1 (12; the composite rises by 0.1 or 0.2; no verdict moves):
+    - item A, `a1shape-a-multi-name-export-no-mention`: GNU make exports the value, which holds
+      `-p no:skipping`. Allowed by the card, since make exports it. 2.3 to 2.6.
+    - item A, `a1shape-a-export-variable-name-list` and `a1shape-a-names-before-an-operator`: not
+      known, named with the line. 2.3 to 2.6.
+    - item B, `a1shape-b-script-sets-and-runs-make` and `a1shape-b-script-and-a-makefile-default`
+      (2.3 to 2.6), and `a1shape-b-script-sets-and-runs-pytest` (2.0 to 2.3).
+    - item C, `a1shape-c-tox-setenv-then-make`, `a1shape-c-tox-setenv-one-line-commands-pre` and
+      `a1shape-c-tox-named-environment-inherits-setenv`: 2.4 to 2.8.
+    - item D, `a1shape-d-include`, `a1shape-d-dash-include` and `a1shape-d-sinclude`: 2.3 to 2.6.
+
+    Each of the item B, C and D moves, and item A's two not-known moves, is a withhold. The run is
+    named not read, so tests/test_cache.py keeps v17's reading. That is the reading the card's Why
+    section asks of these shapes. It also raises v27's A1 against main's v27, which the card's
+    direction line calls a defect for items B, C and D. The PR states this conflict for review.
+  - Note only, score unchanged at 2.6 (5):
+    - item A, `a1shape-a-unexport-names-it`, `a1shape-a-bare-unexport`,
+      `a1shape-a-export-inside-ifdef` and `a1shape-a-export-inside-define`: the Makefile's value
+      becomes "pytest run not read" with the line;
+    - item A, `a1shape-a-multi-name-export-mention-not-read`: the CI mention not read becomes the
+      Makefile's value, which make exports.
+  - Lowered (3), item F: `a1shape-f-step-env-set-e-then-make`,
+    `a1shape-f-job-env-package-install-then-make` and `a1shape-f-job-env-builtins-then-make` read
+    the Makefile's `-q`, so tests/test_cache.py is rated hollow, 2.6 to 2.3. That is the reading
+    before #710's strict rule.
+  - The other 16 of this change's 36 compared fixtures are byte-identical to main under v27: the
+    pins, the item F shapes that stay not read, item G, `a1shape-a-export-assignment-value-holds-the-name`,
+    `a1shape-b-ci-mention-keeps-precedence` and `a1shape-d-include-command-line-value-first`.
+- **v27 above v17 on the same repository:** 0, for the composite and every criterion's score, on
+  either side.
+- **A first branch pass found a defect, since fixed.** It ran at `39268dbe1`. On two Git
+  LFS fixtures (`review-a2-lfs-data-in-not-applicable-library` and
+  `review-a2-secret-beside-planted-lfs-pointer`), A1 abstained wholesale, 2.3 and 1.7 to 0.
+  Item B's search had read a pointer through A1's attributed reader. After the fix both are
+  byte-identical to main, and the numbers above are from the second pass.
+
+**Pins.** No existing `certificate-below-first-page`, `report.json`, `attestation.json`, full HTML
+or v27 test pin moved. In particular, the three pins #713 names (`a1qdef-pin-job-env-literal-inert`,
+`a1env-conditional-default-env-inert`, `a1env-make-e-env-inert`) still read "pytest run not read".
+Each job's `env:` also reaches `uses: actions/checkout@v4`, which is outside item F's two step
+kinds. `fixtures/v27-a1-addopts-shapes-main-pins.json` is new. It pins, from main's scoring code
+(`6d5ed83b3`) with this change's fixtures:
+
+- every v17 to v26 report hash on the 37 fixtures (370 hashes);
+- v27's report hash on the 15 fixtures that must not move.
+
+**Fingerprint.** `rubric-behaviour-fingerprint.test.ts` passes unchanged, so no fingerprint moved.
+
+**Fixtures and tests.**
+
+- Committed red first at `30eff9d92`: 20 of 39 tests in `v27-a1-addopts-shapes.test.ts` failed
+  against main's code. The main pins, the no-move pins and item G's pins passed.
+- Item G's fixture passes on main and on this branch. With the empty-posargs set removed, its two
+  tests fail.
+- `scan-path-regex-bounds.test.ts` gains a scaling check at L/2 and 2L for each new reader:
+  - item A's directive reader, over export, unexport, ifdef, define and continued lines;
+  - item B's search, over many scripts and one long one;
+  - item C's setenv search, over many make commands and named environments;
+  - item F's step test, over many builtin and package-install steps.
+
+  Each measured about 4 for the factor of 4, against the limit of 11.
+
 ## 2026-11-19 (B2 and B3 housekeeping and publishing depth) — under v27, a workflow that only labels, comments on or closes issues and pull requests, or a workflow file in a subfolder of `.github/workflows/`, earns no B2 or B3 CI credit, and a publishing workflow the #517 rule discounts still counts toward `default_branch_ci_depth` where one counted pull-request workflow runs tests and lint (refs #600, #748, #536, #565); v17-v26 byte-identical; v27 never above v17; no fingerprint moved; no published score moved
 
 **Status.** A scoring change under `witan-rubric-v27-prospective-2026-10-19` only, with no
