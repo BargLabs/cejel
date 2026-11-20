@@ -18,6 +18,31 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- **Prospective v27: a workflow that only labels, comments on or closes issues and pull requests
+  earns no CI credit, and a discounted publishing workflow keeps its PR-gate count where
+  pull-request CI tests and lints (refs #600, #748, #536, #565).** This applies under
+  `witan-rubric-v27-prospective-2026-10-19` only, to B2 and B3. v17, the default, and every other
+  rubric are unchanged, byte for byte.
+  - A workflow whose every step is a checkout, a print, `actions/labeler`, `actions/stale`,
+    `actions/first-interaction`, or a `gh pr comment`, `gh issue comment` or `gh pr edit
+    --add-label/--remove-label` line with inert arguments is not counted by B2 or by either B3
+    depth metric. B2 and B3 decide this with one shared predicate. B3 cites the workflow at its
+    first such step. A `with:` key outside a short list, or anything else on the `gh` line (a pipe,
+    `&&`, a subshell), keeps the credit. `actions/github-script` stays counted.
+  - A workflow file in a subfolder of `.github/workflows/` is not counted by B2 or B3, since GitHub
+    runs only the files directly in that directory (#565).
+  - A publishing workflow that v27 discounts (no pull-request trigger, no environment) and that
+    targets the default branch still counts toward the PR-gate CI workflow count, never toward CI
+    verification depth, when one counted pull-request workflow runs both a test and a lint command.
+    For this condition only, `npm run lint`, `pnpm [run] lint`, `yarn lint` and `bun run lint`
+    count as lint where package.json (root or a declared workspace package) has a `lint` script,
+    and so do `biome check` and `biome lint` (#536). The accepted cost: on such a repository v27 no
+    longer resists making a release workflow run on every push to the default branch without its
+    gate.
+  - B3's pointer, note and the v27 glossary entry for the PR-gate CI workflow count say so.
+  - Measured against main on synthetic repositories; see the rubric changelog entry of 19 Nov
+    (housekeeping and publishing depth) for the figures. v27 never scores above v17.
+
 - **Prospective v27: B3 cites every CI workflow it read, with how it was counted or why it was not
   (refs #600).** This applies under `witan-rubric-v27-prospective-2026-10-19` only, and to B3's
   evidence only. v17, the default, and every other rubric are unchanged, byte for byte.
