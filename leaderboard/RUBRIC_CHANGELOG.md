@@ -22,6 +22,144 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
+## 2026-11-19 (A1 builtin copy never credited) — under v27 a copy of pytest's collected items made through a builtin is never credited, and the repository-wide builtins search it rested on is removed (refs #664, #646); v17-v26 byte-identical; v27 never above v17; no score, status, finding count, composite or verdict moved; no fingerprint moved; no published score moved
+
+**Status.** A change under `witan-rubric-v27-prospective-2026-10-19` only, with no identifier change
+(goal_cejel_v27_a1_builtin_copy_withhold_2026-11-17; the operator's ruling of 17 Nov on #664,
+option B). No holdout or calibration ran for it, and this entry makes no precision or recall claim.
+The default stays v17. A changed v27 needs a new freeze.
+
+**Why.** The 2026-11-03 (A1 gaps) entry made v27 credit a copy made through a builtin
+(`S = list(items)`, `S = tuple(items)`, or a strict helper restoring from `list(src)` or
+`tuple(src)`) only where no file the repository tracks could reach `builtins`. The search read only
+the repository. A module from outside it can still replace `builtins.list` before the hook runs: an
+entry-point pytest plugin installed from the index, `sitecustomize` or `usercustomize` on the
+interpreter path, a `.pth` file in site-packages, or a route to builtins the search pattern did not
+list. The v27 declaration said these were not read, and the credit was still given. So the credit
+rested on code the scan cannot see. A false credit is worse than a missed one.
+
+**Change (v27 only).**
+
+- **Item A, the withhold.** Where the allowlist reads a collection hook's body whole and its copy
+  goes through a builtin, the hook is not read. A1's note names it with the statement and its path
+  ("hook not read: `saved = list(items)` in tests/conftest.py copies the collected items through a
+  builtin, which v27 does not credit"), and its evidence cites the hook's def, as for every hook not
+  read. The clause names no file, because no file decides it any more. The rule makes no claim on
+  such a hook, as on main for a builtin copy it did not credit. `items[:]`, `items.copy()` and
+  `[*items]` call no builtin and are read exactly as on main.
+- **Item B, the search is removed.** Each reader was listed before removal.
+  - `builtinCopyReplacedBy` was read only by the `builtinsNamedIn` closure in
+    `findPytestRunWideSkips`.
+  - `filesIncludingExcluded`, `PYTHON_BUILTINS_REACH_PATTERN`, `PYTHON_SOURCE_FILE_PATTERN` and
+    `PYTHON_UNREAD_MODULE_FILE_PATTERN` were read only by `builtinCopyReplacedBy`.
+  - `builtinsNamedIn` was read only by `readPytestCollectionHook`.
+  - The `builtins` field of `PytestHookReading` was read only by the not-read clause. It is
+    replaced by a `builtin` flag.
+  - The `scanLimitations` parameters of `findPytestRunWideSkips` and
+    `collectA1TestIntegrityEvidence` fed only `builtinCopyReplacedBy`.
+
+  All of these are removed. `PYTHON_BUILTIN_COPY_CALL_PATTERN` stays, because item A reads the copy
+  with it, and `readGitTrackedFileOutput` stays for its three other callers. Three outputs
+  disappear, under v27 only, because v17 to v26 never read a collection hook:
+  - the "calls a builtin, which <file> may replace" clause;
+  - the "..., and the repository's files could not be listed" clause;
+  - the scan limitation "Cejel: local git full tracked-file inventory ... A1 credited no copy of
+    pytest's collected items made through a builtin, because the files that may replace the
+    builtin could not be listed", which #574 item 3 added where git could not list the tracked
+    files.
+
+  Their tests went with them: the builtins scaling check in `scan-path-regex-bounds.test.ts`, the
+  #574 item C block in `git-history-depth-one-answer-574.test.ts`, and the `filesIncludingExcluded`
+  sentence of the `readGitTrackedFileOutput#2` entry in `git-call-sites-574.test.ts`. Every other
+  call-site entry is unchanged, byte for byte.
+
+**The no-rise property.** The change only withholds. A hook named as not read and a hook that puts
+the items back both leave the run-wide skip rule unapplied, so the files under the hook keep v17's
+reading either way. No score, status or finding count moves.
+
+**Measured** at this branch's code against main `4689031ce`, on the set the 2026-11-19 (Git LFS
+pointer abstention) entry names, from this branch's fixture files, plus this change's 9 new
+fixtures:
+
+- false-assurance 268 (the symlink fixture left out, since its head SHA differs on every build),
+  CI-claims 71, B3 361;
+- v27 A1 removal 39, hook outcome 41, allowlist 90, withhold 98 and run 58;
+- publishing-gates 17, unread-CI-configuration 8 and Git LFS pointer 9;
+- 1,060 synthetic repositories in all, of which this change's 9 are 3 hook outcome, 4 allowlist and
+  2 withhold fixtures.
+
+The comparison ran in two passes. For the main pass, main's `src/witan/repo-signals.ts` was checked
+out over this branch's; it is the only source file whose behaviour this change moves. The
+declaration in `rubric-version.ts` changes comments only. This branch's file was restored for the
+other pass. Each pass built every fixture deterministically and scored it under all eleven
+selectable rubrics. Report JSON, HTML and Markdown were compared by hash, with 0 errors on either
+side. The driver ran in six processes a pass and is not committed.
+
+- **v17 to v26:** 10,600 of 10,600 reports, HTML and Markdown certificates byte-identical to main.
+- **v27:** 1,028 of 1,060 byte-identical. The other 32 are every fixture whose hook the allowlist
+  reads whole and whose copy goes through a builtin. On each, A1's note moved, as the lists below
+  say. Every criterion's score, status and finding count, the composite and the verdict are equal
+  to main's, and no scan limitation moved. The driver compared those fields and A1's note; it did
+  not diff the rest of each report field by field.
+  - 17 moved from "the hook in tests/conftest.py puts the collected items back" to the named form:
+    - hook outcome: `a1ho-a-real-restore-control`, `a1ho-b-hookwrapper-restores-after-yield`,
+      `a1ho-c-helper-by-keyword`, `a1ho-c-helper-by-keyword-swapped` and
+      `a1ho-d-black-wrapped-def-restores`;
+    - allowlist: `a1al-a-restore-tuple-copy`, `a1al-b-restore-with-docstring`,
+      `a1al-f-control-restore-beside-module-logger`, `a1al-f-control-restore-beside-sys-path`,
+      `a1al-f-control-strict-helper`, and three item G fixtures with no tracked file reaching
+      builtins: `a1al-g-control-list-copy-no-builtins-named` and this change's
+      `a1al-g-tuple-copy-no-builtins-named` and `a1al-g-helper-list-src-no-builtins-named`;
+    - withhold: `a1wh-hook-restore-extend`, `a1wh-hook-restore-iadd`,
+      `a1wh-hook-restore-slice-assign`, `a1wh-r2-helper-adds-at-top-level` and
+      `a1wh-r2-restore-extend-multiline`.
+  - 15 were already named and only lose the file clause ("calls a builtin, which <file> may
+    replace" becomes "copies the collected items through a builtin, which v27 does not credit"):
+    `a1al-g-imported-module-patches-builtins-list`, `a1al-g-second-conftest-dunder-builtins-tuple`,
+    `a1al-g-plugin-names-builtins-helper-list-copy`, `a1al-g-frame-f-builtins`,
+    `a1al-g-fullwidth-builtins-import`, `a1al-g-patch-under-vendor`, `-build`, `-dist`, `-venv` and
+    `-coverage`, `a1al-g-p-plugin-f-builtins`, `a1al-g-sys-modules-joined-name`,
+    `a1al-g-conftest-global-from-another-module` and `a1al-g-extension-module-beside-tests`. Their
+    report JSON moved; their HTML and Markdown certificates did not.
+  - This change's other 7 fixtures are byte-identical to main under v27. They are controls that
+    call no builtin: `a1ho-b-hookwrapper-restores-slice-copy-after-yield`,
+    `a1ho-c-helper-by-keyword-slice-copy`, `a1ho-d-black-wrapped-def-restores-copy-method`,
+    `a1al-f-control-strict-helper-slice-copy`, `a1al-g-control-method-copy-beside-builtins`,
+    `a1wh-r2-restore-extend-multiline-slice-copy` and `a1wh-hook-restore-iadd-star-copy`.
+  - No scan limitation moved on any fixture. None of the 1,060 has a tracked-file listing that
+    fails, so the removed scan limitation was not emitted on main either.
+- **v27 above v17 on the same repository:** 0, for the overall score, the composite and every
+  criterion's score. `checkNoRise` reports problems on the same 2 shallow-clone false-assurance
+  fixtures on main and on this branch: it does not compare a shallow clone without a full clone of
+  the same commit.
+
+**Pins.** No `certificate-below-first-page`, `report.json`, `attestation.json` or full HTML pin
+moved: the full suite passes with no pin re-captured. `fixtures/v27-a1-builtin-copy-main-pins.json`
+is new. It pins, from main's scoring code at `4689031ce` with this change's fixtures, every v17 to
+v26 report hash on the 20 item G allowlist fixtures (200 hashes), v27's scoring surface on each
+(20), and v27's report hash on the three item G controls that call no builtin (3).
+
+**Fingerprint.** Re-measured, and no fingerprint moved: `rubric-behaviour-fingerprint.test.ts`
+passes unchanged, since no behaviour-corpus repository holds a collection hook that copies through
+a builtin.
+
+**Fixtures and tests.**
+
+- Committed red first at `be28e8af0`: 38 of 485 tests in the four touched test files failed against
+  main's code. Every new control that calls no builtin, and every main pin, passed.
+- The fixtures whose restore copies through a builtin now expect the named form. No expectation
+  moved toward more credit.
+- New controls for `items[:]`, `items.copy()` and `[*items]` cover each shape whose `list(items)`
+  fixture moved: a hookwrapper, a keyword helper call, a wrapped def, a strict helper, a multi-line
+  extend and `+=`.
+- `v27-a1-builtin-copy-withhold.test.ts` checks the main pins, and names the hook for `list(items)`,
+  `tuple(items)` and a helper restoring from `list(src)` where no tracked file reaches builtins.
+- `git-history-depth-one-answer-574.test.ts` records every git call made with
+  `findPytestRunWideSkips` on the stack through #574's call-site stub, which fails each one. A v27
+  scan of a builtin-copy fixture makes none.
+- The conftest module rebind scaling check keeps its `list(items)` hook. Its expected reading moves
+  from credited to named, and the module is still read whole first.
+
 ## 2026-11-19 (Git LFS pointer abstention cites and keeps not applicable) — under v27 an abstention on Git LFS pointers cites each pointer it rests on, and A2 and B4 keep v17's not-applicable result where no pointer they read could change it (refs #519); v17-v26 byte-identical; v27 never above v17; no fingerprint moved; no published score moved
 
 **Status.** A change under `witan-rubric-v27-prospective-2026-10-19` only, with no identifier change

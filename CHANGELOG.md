@@ -18,6 +18,26 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- **Prospective v27: A1 never credits a copy of pytest's collected items made through a builtin,
+  and no longer searches the repository to decide it (refs #664, #646).** Under
+  `witan-rubric-v27-prospective-2026-10-19` only. v17, still the default, and every other rubric
+  are unchanged, byte for byte. v27 carries no precision or recall claim.
+  - A `pytest_collection_modifyitems` hook that empties the items and puts back a copy made through
+    `list(...)` or `tuple(...)` (in the hook, or in a strict same-file helper) was credited with
+    putting the items back where no file in the repository could reach `builtins`. A plugin
+    installed from the index, `sitecustomize` or a `.pth` file can replace the builtin too, and
+    Cejel does not read them. So such a hook is now always named in A1's note: "hook not read:
+    `saved = list(items)` in tests/conftest.py copies the collected items through a builtin, which
+    v27 does not credit". The note names no file. `items[:]`, `items.copy()` and `[*items]` are read
+    as before.
+  - The repository-wide search for files that may replace the builtin is removed. With it go the
+    "which <file> may replace" and "the repository's files could not be listed" clauses, and the
+    "full tracked-file inventory" scan limitation it added where git could not list the files.
+  - Measured on 1,060 synthetic repositories against main. v17 to v26: 10,600 of 10,600 reports,
+    HTML and Markdown certificates byte-identical. v27: 1,028 byte-identical. The other 32 are the
+    fixtures with such a hook, and A1's note moves on each. No score, status, finding count,
+    composite or verdict moves, and v27 is never above v17. No holdout or calibration ran.
+
 - **Prospective v27: an abstention on Git LFS pointers cites the pointers it rests on, and a
   not-applicable result stands where no pointer it read could change it (refs #519).** Under
   `witan-rubric-v27-prospective-2026-10-19` only. v17, still the default, and every other rubric
