@@ -112,7 +112,7 @@ describe('item A — a housekeeping workflow earns no CI credit under v27, for B
     ['b-labeller-pull-request-target', '.github/workflows/labeler.yml', 11],
     ['b-labeller-pull-request', '.github/workflows/labeler.yml', 11],
     ['b-commenter-gh-cli', '.github/workflows/welcome.yml', 11],
-    [ITEM_A_LABEL_FIXTURE.name, '.github/workflows/triage.yml', 12],
+    [ITEM_A_LABEL_FIXTURE.name, '.github/workflows/triage.yml', 11],
   ] as const)('%s: default-branch depth 1, B3 1.0, B2 primitives 1 and 1.6; cited with the new reason', (name, file, line) => {
     const b3 = criterion(name, V27, 'B3');
     const b2 = criterion(name, V27, 'B2');
@@ -180,10 +180,13 @@ describe('item B — a discounted publishing workflow keeps its default-branch d
     }
   });
 
-  it('refusals stay at depth 1: test without lint, test and lint split across two workflows, a housekeeping workflow as the only other one, lint only in a comment', () => {
+  it('refusals do not count the docs deploy: test without lint, test and lint split across two workflows, a housekeeping workflow as the only other one, lint only in a comment', () => {
+    // The split fixture's lint workflow is itself a counted pull-request workflow (depth 2 on main);
+    // the docs deploy is not added to it. Every other refusal stays at depth 1.
+    const expected: Readonly<Record<string, number>> = { 'b-test-and-lint-split-docs-deploy': 2 };
     for (const { name } of ITEM_B_REFUSAL_FIXTURES) {
       const b3 = criterion(name, V27, 'B3');
-      expect(metricValue(b3, 'default_branch_ci_depth'), name).toBe(1);
+      expect(metricValue(b3, 'default_branch_ci_depth'), name).toBe(expected[name] ?? 1);
       expect(pointerAt(b3, '.github/workflows/docs.yml')?.label, name).toMatch(/^CI workflow not counted: publishes/);
     }
   });
