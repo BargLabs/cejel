@@ -18,6 +18,28 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- **Prospective v27: an abstention on Git LFS pointers cites the pointers it rests on, and a
+  not-applicable result stands where no pointer it read could change it (refs #519).** Under
+  `witan-rubric-v27-prospective-2026-10-19` only. v17, still the default, and every other rubric
+  are unchanged, byte for byte. v27 carries no precision or recall claim.
+  - A criterion that abstains with a Git LFS pointer among its reasons now lists each pointer it
+    read in its evidence ("Git LFS pointer; its content is not in this checkout"), and its note says
+    how many pointers the abstention rests on. The read-failure scan limitation then says
+    `contentReadSummary` lists no file paths and that the abstaining criteria cite the pointer paths,
+    since "file paths are intentionally omitted" would no longer be true. The plain first page and
+    the HTML and Markdown certificates say the same. Scores, statuses and finding counts do not
+    change.
+  - A2 keeps its not-applicable result, as under v17, where it reached that result from the content
+    it read and every pointer it read is at a path whose content its applicability checks do not
+    read for a ratable surface, such as an image, a font, an archive or model weights. A pointer at a
+    `.gitignore`, an env file, implementation source, a credential-shaped path or any file of a type
+    Cejel reads as content still makes A2 abstain. B4 keeps its not-applicable result in the same
+    way, since its gates decide from paths alone. Each names the pointers in a disclosure, listed
+    under "What was not established", and is left out of `contentReadSummary.affectedCriteria`.
+  - Only v27 reports that hold a Git LFS pointer move. Apart from A2 or B4 returning to v17's
+    not-applicable result where v27 abstained before, no score, status or finding count moves. v27
+    then equals v17 on that criterion, so it stays at or below v17.
+
 - **Prospective v27: A1 does not call a fixture data file a test file, and cites first the files a
   v27 rule rates hollow (refs #518).** Under `witan-rubric-v27-prospective-2026-10-19` only, and in
   A1's evidence only. v17 and every other rubric are unchanged, byte for byte.

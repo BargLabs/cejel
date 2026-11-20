@@ -1452,8 +1452,8 @@
     "attestationSha256": "6b4c09568e6d8672429d8c6255d953ae8e26c5da7868e807b63959bd4963c7df"
   },
   "v27/dg/b2b3-workflow-lfs-pointer": {
-    "reportSha256": "8d5002b5673cc26a921123954ad50734d7e014a3c0ffea5eb126aa548c121849",
-    "attestationSha256": "d8c6778f611f9e0cc0441f1801babe22a2238884db3f0ab7093bd111c01a1d1a"
+    "reportSha256": "b90e2b0340544476451202be7a5a093f55fa2509eb81793dfe31a3edc390a627",
+    "attestationSha256": "fb08ebed19d83249dbc73888b1403c6dfe2dd4bef4088f964de42c3a3e9d9903"
   },
   "v27/dg/b2b3-workflow-unreadable": {
     "reportSha256": "02c8077635d03ae4a1a39441430fe21512068ce8d932629029ad8f9803cb614a",
@@ -1512,12 +1512,12 @@
     "attestationSha256": "ae050b55bab0b6213777a81a9e1a3673bb03a79c381fc186e66ea67f34b3040d"
   },
   "v27/fa/a1-js-suite-as-lfs-pointers": {
-    "reportSha256": "7ada16e40be6a0c212824d5a2ffc9124d03d8c0096fc20f93fe3c3b66067efb4",
-    "attestationSha256": "4086e839631c59bf0d530ff049a9d8724ed18bf7a305f67e8f60a1ba68fed23e"
+    "reportSha256": "475aacda6361d81619322d02a431e79f5c0271685fd7908d2ef1d318deae0e54",
+    "attestationSha256": "b2b12b5fa5d6d61375c92888c102053243144ca67d519731c93626981fb9ce50"
   },
   "v27/fa/a1-js-suite-one-test-file-lfs-pointer": {
-    "reportSha256": "e8758bc8a19260e327f048c43f547146bafcba3144cb9edf16765bda86565bb2",
-    "attestationSha256": "58b2cc4963bd1468e12d0e5aadc4c0b1146d3d5ce09f55442b3f42e722bbee79"
+    "reportSha256": "10138c9c4c52c6ed9a1e12657256aa3b240d26381875603f60557347b2746dc7",
+    "attestationSha256": "c08e5e3e7d9c60e1d2a20d6d0a6c58680d08cb4b2ae4b8c22926cd567c3c6191"
   },
   "v27/fa/a1-pytest-fixture-conftest": {
     "reportSha256": "0c095a34c5f64075ca0dd60cf3ba97e2cdc8b5f9a0b005333073bbf7bfa6ae99",
@@ -1936,12 +1936,12 @@
     "attestationSha256": "de075566d82847f92571e6524bd9f8c5efa7f049f3c887291ceb6e90b22da694"
   },
   "v27/fa/review-a2-lfs-data-in-not-applicable-library": {
-    "reportSha256": "3393f8d0fcc996880024d6be72e4b6f63c23d2ba3f25d1c984247dea232313ec",
-    "attestationSha256": "8cd2b0950eef7089513816944dc4c6636cc738df3bbc4cf0cb9ba88cece14a8c"
+    "reportSha256": "086346bbcee461cb15b776d323c1362129d385a0c1d18513da8e3696b8ec89b5",
+    "attestationSha256": "1e63b8f46273d94dbe94e9407037bd6dec9186faf88c7f73a601b7de63813e89"
   },
   "v27/fa/review-a2-secret-beside-planted-lfs-pointer": {
-    "reportSha256": "3c9bfb3c234c1e3309f405935541335d05682c50744764723313424fb78ee7df",
-    "attestationSha256": "fbbe027d911f2f18f91488c3048f031951fcb3cc7be9cbd5c3bc39d8f8d72d97"
+    "reportSha256": "0273053038bd301077a347a014f222cb83c9fe3d976fa1ac7dfcafa19d03a0ac",
+    "attestationSha256": "cc3d818c71e87ab38c4869477cdee13551b6d0b55acb76fe381b4e9666c6e963"
   },
   "v27/fa/review-a4-bun-lock-committed": {
     "reportSha256": "c5de2fb67334854fea99b094ced20d25c04ab7eed0eacaa2249355e2d0e9e452",
@@ -2104,8 +2104,8 @@
     "attestationSha256": "7ba49f85bd73a8d06450c4b64de00c9b16548b26c0e433931bdc52acfb6c1efd"
   },
   "v27/fa/review2-a3-service-entrypoint-as-lfs-pointer": {
-    "reportSha256": "ee337c3432aefdc6fd86e006212c886300fb597678b44a8ac50217b5d642a8db",
-    "attestationSha256": "910f9154c983cb1a17483973c13cf6ea0a4107cf684ac8db4bd96209a4b19f03"
+    "reportSha256": "91211c9f57b4d743f877057e18b4301702d9a0d9d04a24b27b2ed937d3c42232",
+    "attestationSha256": "2e710af6e2b423082bb1f372e526f42f81523a64156d9173aae10cd321eba085"
   },
   "v27/fa/review2-a4-lockfile-generated-first": {
     "reportSha256": "409367459e4e455823b18fd066cc263a2256741f4b53885d24102b11cabea3ba",
@@ -2336,8 +2336,8 @@
     "attestationSha256": "8a431fb2d0c1822ed8d1000dbcc6c9437a9bd6b579b40513bccb3669e87c1783"
   },
   "v27/fa/review5-a1-js-suite-as-crlf-lfs-pointers": {
-    "reportSha256": "8b2910d3dbfa76013b2b58cf52ccc02d219757bd7843bbb2e78d54d97b8c7097",
-    "attestationSha256": "8a9852061bd70d3c113fee40ba2b36634e23b9d9b38d1db95030cfce6a42405b"
+    "reportSha256": "ce0aa9e01ed86723c78d77b0d490fcde86b9cafed98bf42e02fe382315359fb3",
+    "attestationSha256": "4b5f278bf9bfc1a93a11138aef8e9f0dd246aff21da9ac6e8071281c2f872abd"
   },
   "v27/fa/review5-a1-pytestmark-backslash-continuation": {
     "reportSha256": "76b20628aee7eb9855dd671cb0121391d5b23eb1fb327a87e6e7063a55da700d",

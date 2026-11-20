@@ -11,7 +11,7 @@ import type {
 } from './schemas.js';
 import { witanVerdictForScore } from './schemas.js';
 
-import { renderWitanAbstentionLabel } from './abstention.js';
+import { WITAN_LFS_POINTER_CITATION_LABEL, renderWitanAbstentionLabel } from './abstention.js';
 import { type MeasuredCoverage, computeMeasuredCoverage } from './coverage.js';
 import {
   EXTERNAL_FINDINGS_DISPLAY_LIMIT,
@@ -741,7 +741,11 @@ function renderOpenItems(criterion: WitanCriterionScore): string[] {
 
   if (
     (criterion.status === 'unverified' || criterion.status === 'insufficient_data') &&
-    criterion.evidence.length === 0 &&
+    // v27 (#519 follow-up): an abstention's Git LFS pointer citations are not a measured signal, so
+    // they leave this line in place. No other evidence reaches an insufficient_data criterion.
+    (criterion.status === 'insufficient_data'
+      ? criterion.evidence.every(({ label }) => label === WITAN_LFS_POINTER_CITATION_LABEL)
+      : criterion.evidence.length === 0) &&
     criterion.findings.length === 0
   ) {
     const message =
