@@ -7250,7 +7250,44 @@ function collectB3CiDisciplineEvidence(
       mono ? countDelegatedCiSteps(mono.root, rootWorkflows) : NO_DELEGATED_CI_STEPS,
     ),
   );
-  if (workflow) {
+  // v27 (19 Nov, refs #600): every workflow B3 read is cited, the credited ones first, each with how
+  // it was counted or why it was not, up to B3_WORKFLOW_CITATION_LIMIT. The read-count pointer then
+  // names the first one cited, says how many are cited, and counts the ones past the limit. These
+  // files were all read above under these signals, so a read here can only restate a skip.
+  const workflowCitations = useV27FalseAssuranceClosure
+    ? withContentReadSignals('B3', ['ci_script_depth', 'default_branch_ci_depth'], () =>
+        b3WorkflowCitations([
+          { root: repoPath, workflows, uncredited: uncreditedWorkflows, lines: uncreditedLines, monorepoRoot: false },
+          ...(mono
+            ? [{ root: mono.root, workflows: rootWorkflows, uncredited: uncreditedRootWorkflows, lines: rootUncreditedLines, monorepoRoot: true }]
+            : []),
+        ]),
+      )
+    : undefined;
+  const firstCitation = workflowCitations?.cited[0];
+  if (workflowCitations !== undefined && firstCitation !== undefined) {
+    withContentReadSignals('B3', ['ci_script_depth', 'default_branch_ci_depth'], () => {
+      evidence.push(
+        evidenceForRelative(
+          firstCitation.root,
+          firstCitation.file,
+          'ci_run',
+          ciWorkflowCitationLabel(
+            firstCitation.monorepoRoot ? 'CI workflow (monorepo root)' : 'CI workflow',
+            'read',
+            workflowsRead,
+            workflowCitations.cited.length,
+            unreadWorkflows,
+            delegatedSteps,
+            workflowCitations.uncited,
+          ),
+        ),
+      );
+      for (const citation of workflowCitations.cited) {
+        evidence.push(evidenceForRelativeAtLine(citation.root, citation.file, 'ci_run', citation.label, citation.line));
+      }
+    });
+  } else if (workflow) {
     withContentReadSignals('B3', ['ci_script_depth', 'default_branch_ci_depth'], () =>
       evidence.push(
         evidenceForRelative(
@@ -7288,25 +7325,8 @@ function collectB3CiDisciplineEvidence(
       ),
     );
   }
-  // Item B (13 Nov), v27 only: each workflow B3 does not count is cited, after every pointer above
-  // (no list here has a cap, so the first pointer, which a metric-derived finding anchors on, is
-  // unchanged), at the line that decided it. These files were read above under these signals.
-  if (useV27FalseAssuranceClosure) {
-    withContentReadSignals('B3', ['ci_script_depth', 'default_branch_ci_depth'], () => {
-      for (const [file, reason] of uncreditedWorkflows) {
-        evidence.push(
-          evidenceForRelativeAtLine(repoPath, file, 'ci_run', b3UncreditedWorkflowLabel(reason, false), uncreditedLines.get(file) ?? null),
-        );
-      }
-      if (mono) {
-        for (const [file, reason] of uncreditedRootWorkflows) {
-          evidence.push(
-            evidenceForRelativeAtLine(mono.root, file, 'ci_run', b3UncreditedWorkflowLabel(reason, true), rootUncreditedLines.get(file) ?? null),
-          );
-        }
-      }
-    });
-  }
+  // Item B (13 Nov), v27: each workflow B3 does not count is cited at the line that decided it; since
+  // 19 Nov that is one of the citations above (b3WorkflowCitations), after the credited ones.
 
   if (evidence.length === 0) return null;
 
@@ -7320,7 +7340,6 @@ function collectB3CiDisciplineEvidence(
   // landed B3 "critical" (1.0/4.0) purely from this file-vs-category mismatch, not from any
   // real CI gap. Category counting treats "this CI runs a test command, a lint command, and a
   // type-check command" the same whether that's 1 workflow file or 4.
-  const CI_BUILD_COMMAND_PATTERN = /\b(cargo\s+build|cmake|ninja|make\s+(build|all))\b/i;
   const CI_COMMAND_CATEGORIES: readonly RegExp[] = [
     CI_TEST_COMMAND_PATTERN,
     CI_LINT_COMMAND_PATTERN,
@@ -7524,6 +7543,134 @@ function b3NoteWithUnreadCiConfigurations(note: string | undefined, files: reado
     if (candidate.length <= CRITERION_NOTES_MAX_LENGTH) return candidate;
   }
   return note;
+}
+
+// B3's fourth CI command category (ci_script_depth): test, lint and type-check share A1's patterns.
+const CI_BUILD_COMMAND_PATTERN = /\b(cargo\s+build|cmake|ninja|make\s+(build|all))\b/i;
+
+// v27 (19 Nov): ci_script_depth's command categories, in its order, with its names for them. A
+// function, since the test, lint and type-check patterns are declared further down this module.
+const b3CitedCommandCategories = (): readonly (readonly [RegExp, string])[] => [
+  [CI_TEST_COMMAND_PATTERN, 'test'],
+  [CI_LINT_COMMAND_PATTERN, 'lint'],
+  [CI_TYPECHECK_COMMAND_PATTERN, 'type-check'],
+  [CI_BUILD_COMMAND_PATTERN, 'build'],
+];
+
+// v27 (19 Nov): how many workflows B3 cites one by one. The read-count pointer counts the rest.
+const B3_WORKFLOW_CITATION_LIMIT = 16;
+
+/** One root's CI workflows as B3 read them, for b3WorkflowCitations. */
+interface B3WorkflowSet {
+  readonly root: string;
+  readonly workflows: readonly string[];
+  readonly uncredited: ReadonlyMap<string, UncreditedCiWorkflowReason>;
+  readonly lines: ReadonlyMap<string, number | null>;
+  readonly monorepoRoot: boolean;
+}
+
+interface B3WorkflowCitation {
+  readonly root: string;
+  readonly file: string;
+  readonly label: string;
+  readonly line: number | null;
+  readonly monorepoRoot: boolean;
+}
+
+/** The 1-based line holding `index` of `contents`. */
+function lineAtIndex(contents: string, index: number): number {
+  let line = 1;
+  for (let at = contents.indexOf('\n'); at !== -1 && at < index; at = contents.indexOf('\n', at + 1)) line += 1;
+  return line;
+}
+
+/**
+ * The line workflowTargetsDefaultBranch matched at: the earliest match of any of its three patterns,
+ * read as it reads them (lowercased, which keeps every line break where it was). Null where none does.
+ */
+function defaultBranchTriggerLine(contents: string): number | null {
+  const lower = contents.toLowerCase();
+  const starts = [
+    /\bpull_request\b/,
+    /\bbranches:\s*\[[^\]]*\b(main|master)\b[^\]]*\]/,
+    /\bbranches:\s*\n\s*-\s*(main|master)\b/,
+  ].flatMap((pattern) => {
+    const match = pattern.exec(lower);
+    return match ? [match.index] : [];
+  });
+  return starts.length === 0 ? null : lineAtIndex(lower, Math.min(...starts));
+}
+
+/**
+ * v27 (19 Nov): the label of B3's pointer at a workflow v27 does not discount, saying what it earned:
+ * `targets` is workflowTargetsDefaultBranch's reading (default_branch_ci_depth), `categories` the
+ * ci_script_depth command categories it names, in that metric's order. "Not read as" rather than
+ * "has no", since a trigger that reading does not match (pull_request_target) is still a trigger.
+ * Within EVIDENCE_LABEL_MAX_LENGTH for every input (b3-cites-every-workflow.test.ts).
+ */
+export function b3WorkflowCitationLabel(monorepoRoot: boolean, targets: boolean, categories: readonly string[]): string {
+  const subject = monorepoRoot ? 'Monorepo-root CI workflow' : 'CI workflow';
+  const names = joinCategoryNames(categories);
+  const commands = categories.length === 1 ? `runs a ${names} command` : `runs ${names} commands`;
+  if (targets) {
+    return `${subject} counted: targets pull requests or the default branch (cited at that line); ${categories.length > 0 ? commands : 'no test, lint, type-check or build command'}`;
+  }
+  if (categories.length > 0) {
+    return `${subject} counted for its commands: ${commands} (cited at the first one); not read as a pull-request or default-branch workflow`;
+  }
+  return `${subject} read, earns no credit: not read as a pull-request or default-branch workflow, and no test, lint, type-check or build command (cited at its on: trigger)`;
+}
+
+/** `names` joined as prose: "test", "test and lint", "test, lint and build". */
+function joinCategoryNames(names: readonly string[]): string {
+  return names.length <= 1 ? (names[0] ?? '') : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+}
+
+/**
+ * v27 (19 Nov, refs #600): every workflow B3 read, as one pointer each, in three groups and in
+ * workflow order within each (the repository's own before a monorepo root's):
+ *
+ * 1. credited: counted toward default_branch_ci_depth (workflowTargetsDefaultBranch), cited at the
+ *    line that match is on, or counted toward ci_script_depth only (a test, lint, type-check or
+ *    build command), cited at the first line naming one. The label says what it earned;
+ * 2. read and earning neither, cited at its one `on:` line (workflowTriggerLine);
+ * 3. not counted under v27 (uncredited or publishing), with #723's label and line.
+ *
+ * At most B3_WORKFLOW_CITATION_LIMIT are cited; `uncited` counts the rest, which come from the end
+ * of that order. Reads only what the depth metrics read, with the same predicates.
+ */
+function b3WorkflowCitations(sets: readonly B3WorkflowSet[]): {
+  readonly cited: readonly B3WorkflowCitation[];
+  readonly uncited: number;
+} {
+  const groups: [B3WorkflowCitation[], B3WorkflowCitation[], B3WorkflowCitation[]] = [[], [], []];
+  for (const { root, workflows, uncredited, lines, monorepoRoot } of sets) {
+    for (const file of workflows) {
+      const reason = uncredited.get(file);
+      if (reason !== undefined) {
+        groups[2].push({ root, file, label: b3UncreditedWorkflowLabel(reason, monorepoRoot), line: lines.get(file) ?? null, monorepoRoot });
+        continue;
+      }
+      const fullPath = join(root, file);
+      const contents = isRegularFile(fullPath) ? readRepoText(fullPath, 'utf8') : '';
+      const categories = b3CitedCommandCategories().flatMap(([pattern, name]) => {
+        const match = pattern.exec(contents);
+        return match ? [{ name, line: lineAtIndex(contents, match.index) }] : [];
+      });
+      const names = categories.map(({ name }) => name);
+      const targets = workflowTargetsDefaultBranch(root, file);
+      const label = b3WorkflowCitationLabel(monorepoRoot, targets, names);
+      if (targets) {
+        groups[0].push({ root, file, label, line: defaultBranchTriggerLine(contents), monorepoRoot });
+      } else if (categories.length > 0) {
+        groups[0].push({ root, file, label, line: Math.min(...categories.map(({ line }) => line)), monorepoRoot });
+      } else {
+        groups[1].push({ root, file, label, line: workflowTriggerLine(root, file), monorepoRoot });
+      }
+    }
+  }
+  const ordered = groups.flat();
+  return { cited: ordered.slice(0, B3_WORKFLOW_CITATION_LIMIT), uncited: Math.max(0, ordered.length - B3_WORKFLOW_CITATION_LIMIT) };
 }
 
 /**
@@ -25845,6 +25992,7 @@ export function ciWorkflowCitationLabel(
   cited: number,
   unread: ReadonlyMap<ContentReadSkipReason, number>,
   delegated: DelegatedCiSteps = NO_DELEGATED_CI_STEPS,
+  uncited = 0,
 ): string {
   const unreadTotal = [...unread.values()].reduce((sum, count) => sum + count, 0);
   const { crossRepositoryReusableWorkflows: crossRepository, compositeActions } = delegated;
@@ -25853,12 +26001,24 @@ export function ciWorkflowCitationLabel(
   const parts = [
     `${considered} workflow file${considered === 1 ? '' : 's'} ${verb}`,
     `${cited} cited`,
+    // v27 B3 only (19 Nov): the workflows past B3_WORKFLOW_CITATION_LIMIT. Silent at zero, so every
+    // other caller's label is unchanged.
+    ...(uncited > 0 ? [`${uncited} not cited (citation limit ${B3_WORKFLOW_CITATION_LIMIT})`] : []),
   ];
   if (unreadTotal > 0) {
     const reasons = [...unread.keys()].sort().join(', ');
     parts.push(`${unreadTotal} not read (${reasons})`);
   }
-  if (delegatedTotal === 0) return `${baseLabel} (${parts.join('; ')})`;
+  // v27 B3 only: with workflows past the citation limit, where the label would not otherwise fit,
+  // the limit's figure is dropped, then the skip reasons' names; every count stays. With none past
+  // the limit, a no-op, so every other label is as before.
+  const fit = (label: string): string => {
+    if (uncited === 0 || label.length <= EVIDENCE_LABEL_MAX_LENGTH) return label;
+    const withoutLimit = label.replace(` (citation limit ${B3_WORKFLOW_CITATION_LIMIT})`, '');
+    if (withoutLimit.length <= EVIDENCE_LABEL_MAX_LENGTH || unreadTotal === 0) return withoutLimit;
+    return withoutLimit.replace(` not read (${[...unread.keys()].sort().join(', ')})`, ' not read');
+  };
+  if (delegatedTotal === 0) return fit(`${baseLabel} (${parts.join('; ')})`);
   const delegatedCount = `${delegatedTotal} delegated step${delegatedTotal === 1 ? '' : 's'} not read`;
   const kinds = [
     ...(crossRepository > 0
@@ -25876,7 +26036,7 @@ export function ciWorkflowCitationLabel(
   // never withheld), so the short form fits for any count below 10,000.
   return full.length <= EVIDENCE_LABEL_MAX_LENGTH
     ? full
-    : `${baseLabel} (${[...parts, delegatedCount].join('; ')})`;
+    : fit(`${baseLabel} (${[...parts, delegatedCount].join('; ')})`);
 }
 
 // WitanEvidencePointerSchema's `label` maximum.

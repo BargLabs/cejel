@@ -274,14 +274,18 @@ describe('a confirmed critical A2 finding in the checked-out tree is still repor
 
 describe('complete clones are byte-identical under v17 and v27', () => {
   // report.json's sha256 for each complete clone, captured on origin/main 7ce3d4fa2 with this
-  // file's fixtures (v17-unread-history.measure.test.ts).
+  // file's fixtures (v17-unread-history.measure.test.ts). Three v27 pins re-captured on 2026-11-19
+  // (B3 cites every workflow it read, refs #600): C1 secret deleted, data layer clean and mixed
+  // history. Each report differs from main's only by one added B3 evidence pointer ("CI workflow
+  // counted: ..."); B3's score, status, metrics, findings and notes, and every other criterion, are
+  // unchanged. Every v17 pin is unchanged.
   const PINS: ReadonlyArray<readonly [string, string, string]> = [
     ['C1 secret deleted, full', V17, '203c4c814ca48e81d2579319d3953bbaa82fe08f9272a543e1561299e72421fa'],
-    ['C1 secret deleted, full', V27, 'f8743fa26373e9debe70cacda74713404124fa8cfccf320961bce0586c5fab47'],
+    ['C1 secret deleted, full', V27, '42c56a6cd037aa4fa5a154b0bfd2430c03e35182baa0746febfb1c487c830df5'],
     ['data layer clean, full', V17, '0c3403bada8dd7fd86cbe0cb9c15670cb5132ad67ab790f6c206dc9b1f13e6fd'],
-    ['data layer clean, full', V27, '09ef927ed4053ee1ff79bdf1a703e0aa13eedc7e33c0b6352aac05c18dc9ca66'],
+    ['data layer clean, full', V27, '43288693ba692832ba38ed6bc3e4c1ab01a2c238b27019f1ac77c086c71c69d2'],
     ['mixed history, full', V17, 'b7b8204685e525c30c5581461eb169e9b53b34551e8a7325b87f0fea4763a0d3'],
-    ['mixed history, full', V27, '00efaa4c61211b061a7b3f84c7b8d4fd080c8b743bd431b4f21d5e3900f33783'],
+    ['mixed history, full', V27, 'fb568d52fa2bb7296bdd77ccd592a54498922867b6566ee091a84a350c7893a2'],
     ['#556 deleted .env, full', V17, 'cae61d387be9dc7f28043f76cec99b8833cc229e16dcb6cfeab9cff42a2f356e'],
     ['#556 deleted .env, full', V27, 'a030a635b6100d7d68032db2f87724bf04c82cfc798b4feb27f8758a6d9ea0a5'],
     ['secret in tree, full', V17, 'b076790994de7682117c31b2301ce1e93e59ebdcc3dd7d3bf0168bbcf88338ed'],

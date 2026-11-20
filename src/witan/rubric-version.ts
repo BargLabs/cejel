@@ -331,6 +331,16 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     count fits; the files are matched by path, never read or credited, and a monorepo root's are
 //     not listed (the scan reads only the root's lockfiles, CI workflows and dependency-update
 //     configuration); note text only, so no score, status, finding, composite or verdict moves;
+//     from 2026-11-19 (goal_cejel_v27_b3_cites_every_workflow_read, refs #600), B3's evidence cites
+//     every CI workflow it read, one pointer each, up to 16: first each credited one (counted toward
+//     `default_branch_ci_depth`, at the line `workflowTargetsDefaultBranch` matched, or toward
+//     `ci_script_depth` only, at the first line naming a test, lint, type-check or build command),
+//     its label saying what it earned; then each read that earns neither, at its one `on:` line;
+//     then each not counted under v27, with the label and line above. The read-count pointer
+//     ("CI workflow (N workflow files read; M cited)") is at the first one cited, counts the ones
+//     cited, and adds "K not cited (citation limit 16)" past the limit; it is silent, as before,
+//     where every workflow read is cited and none was withheld or delegated. Evidence only: no
+//     score, status, finding, composite or verdict moves;
 //   - A1: conftest.py is not a concrete test file (not cited as one, and rated hollow where it
 //     asserts; from 2026-11-01 test_to_source_ratio counts it as test surface, as v17 does), and
 //     an unconditional run-wide pytest skip

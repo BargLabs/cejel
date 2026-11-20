@@ -8,11 +8,11 @@
     "attestationSha256": "f1640f1bce954580757d999b2eeab9bfc4af9846a5950e53f5ccf342b79bfc57"
   },
   "v27/bc/history-shallow-depth-1": {
-    "reportSha256": "d166d37826fb2a35bd9460b9684a30ac0723d4663bb16c020b3dbeebba9c1111",
-    "attestationSha256": "33734ac9a362fb465c65a3fb2484291a8523fdb433e77fff47e766384bdfc931"
+    "reportSha256": "dc36e5c07a111f2db202b00c3e873a930e42a9c23eb384e1e730f3caeb23922a",
+    "attestationSha256": "c50956216bb1c217677caad9b921617504879e1731a489c90415ebcb9c9169c8"
   },
   "v27/bc/publish-after-check-workflow": {
-    "reportSha256": "74100fc6d17c754be77680fd9ed4ddcd57d0a32130994a5e87542b37ec56611e",
-    "attestationSha256": "7f1b5d25382f6b13c4a9fa7061546dc4cca85d1d8aba384e0ea7665da8aa80aa"
+    "reportSha256": "1a74510be0a848238fbfbe12af5c42c5cdd8d3ebe268a7bec0e43607928f779c",
+    "attestationSha256": "5a51fdfe406276e253277491f35362b4fd915deb8c21e1acade2d07c388a2c01"
   }
 }
