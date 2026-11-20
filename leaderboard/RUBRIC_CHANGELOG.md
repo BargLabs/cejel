@@ -26,9 +26,8 @@ section, which this changelog continues.
 
 **Status.** A scoring change under `witan-rubric-v27-prospective-2026-10-19` only, with no
 identifier change (goal_cejel_v27_a1_addopts_shapes_2026-11-17; the operator's ruling of 17 Nov on
-#705, option B, and of 19 Nov folding in #713 and #661). No holdout or calibration ran for it, and
-this entry makes no precision or recall claim. The default stays v17. A changed v27 needs a new
-freeze.
+#705, option B, and of 19 Nov folding in #713 and #661). No calibration ran for it, and this entry
+makes no precision or recall claim. The default stays v17.
 
 **Why.** #705, from the independent review of #698, lists `PYTEST_ADDOPTS` shapes outside #674's
 scope, which covers a CI file that names the variable. Built on main `6d5ed83b3` before any code
