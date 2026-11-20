@@ -397,7 +397,13 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     repository's files could not be listed"). items[:], items.copy() and [*items] call no builtin
 //     and stay credited. A module installed from outside the repository (an entry-point plugin, a
 //     sitecustomize, a .pth file in site-packages) and a route to builtins the list does not name
-//     are not read.
+//     are not read. From 2026-11-19 (goal_cejel_v27_a1_builtin_copy_withhold_2026-11-17, cejel
+//     #664, the operator's ruling of 17 Nov, option B) such a copy is never credited, because the
+//     credit rested on modules the scan cannot see: the hook is not read, named with that statement
+//     ("hook not read: `<statement>` in <path> copies the collected items through a builtin, which
+//     v27 does not credit"), and no file is searched or named. A failed tracked-file listing no
+//     longer adds the "full tracked-file inventory" scan limitation, since nothing is listed.
+//     items[:], items.copy() and [*items] are read as before.
 //     The list reading must agree that the items are back; (3) not
 //     read, for anything else that empties or may empty the list (a lambda, a nested, decorated or
 //     async def, sorted, a slice that is not the whole list, another name bound to the list, an
