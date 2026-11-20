@@ -164,9 +164,9 @@ cites the A3 evidence it read.**
   stay at 0 `insufficient_data`. B1 would cite 7 read items beside the pointer, and B2 would cite
   2, so a reader could tell B1 from B2.
 - v27 ≤ v17: unchanged.
-- Cost in #517/#519 terms: it lets in no false assurance, since no score rises. It keeps the cost
-  the operator's ruling objected to: the reading withholds a rating that, by item C, the read
-  evidence already supports as a floor. It drags the composite and verdict down (B2: at_risk →
+- Cost in #517/#519 terms: it lets in no false assurance, since no score rises. It keeps the
+  property of the rule one reviewed judgement found wrong: the reading withholds a rating that, by
+  item C, the read evidence already supports as a floor. It drags the composite and verdict down (B2: at_risk →
   unverified) over a PNG under `docs/`.
 - Implementing it needs `scoring.ts:593` to pass on more than LFS-labelled pointers. The
   certificate would also need to say that the cited items earned no score.
