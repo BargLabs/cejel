@@ -5,7 +5,7 @@ import type { WitanCriterionScore, WitanReport } from '../schemas.js';
 import { scoreRepoWithPublicCejel } from '../public-scan.js';
 import { WITAN_RUBRIC_VERSION_V17, WITAN_RUBRIC_VERSION_V27 } from '../rubric-version.js';
 import { buildFalseAssuranceFixture, type FalseAssuranceFixture } from './fixtures/false-assurance-fixtures.js';
-import { checkNoRise, lostFindings } from './v27-no-rise.js';
+import { b3NotCountedPointers, checkNoRise, lostFindings, withoutB3WorkflowPointers } from './v27-no-rise.js';
 
 // #517 and #520, the parts still open after witan-rubric-v27's first closure.
 //
@@ -427,7 +427,11 @@ describe('#517 — a workflow that publishes, releases or deploys is not CI veri
       'publish-in-comment',
       'publish-with-pull-request-trigger',
     ]) {
-      expect(criterion(name, V27, 'B3'), name).toEqual(criterion(name, V17, 'B3'));
+      // Apart from B3's workflow pointers, which v27 adds for every workflow read (19 Nov, refs #600).
+      expect(withoutB3WorkflowPointers(criterion(name, V27, 'B3')), name).toEqual(
+        withoutB3WorkflowPointers(criterion(name, V17, 'B3')),
+      );
+      expect(b3NotCountedPointers(criterion(name, V27, 'B3')), name).toEqual([]);
     }
   });
 

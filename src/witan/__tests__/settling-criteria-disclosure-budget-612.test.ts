@@ -28,6 +28,7 @@ import { buildBehaviourFixture } from './fixtures/behaviour-corpus.js';
 import { ALL_BUILD_STEP_FIXTURES } from './fixtures/build-step-evidence-fixtures.js';
 import { disclosureGapFixture } from './fixtures/disclosure-gap-fixtures.js';
 import { lfsPointerFor } from './fixtures/false-assurance-fixtures.js';
+import { SETTLING_BUDGET_FIXTURES, removeSettlingBudgetFixtures } from './fixtures/settling-budget-fixtures.js';
 import { SETTLING_EVIDENCE_FIXTURES } from './fixtures/settling-evidence-fixtures.js';
 
 // #612 guard (operator ruling of 10 Nov, review of #706). Where a criterion already holds the four
@@ -66,7 +67,9 @@ import { SETTLING_EVIDENCE_FIXTURES } from './fixtures/settling-evidence-fixture
 //      followed to its own callers;
 //   3. a property over the synthetic fixtures that reach the three "cannot be settled" branches
 //      and A2's no_git_history abstentions (a directory with no .git): no scored report puts more
-//      than the budget on A2, A3 or A5.
+//      than the budget on A2, A3 or A5. Each A2, A3 or A5 producer in part 2 names the fixture
+//      that reaches it at its `most` (`reachedBy`, with the `marker` its disclosure starts with),
+//      or states why none can (`unreachable`, with the `closest` fixture), and part 3 checks it.
 // What part 2 still cannot see: a key assembled at run time from pieces or read from data rather
 // than written as the literal 'disclosures'; a signal object moved by a spread or a parameter
 // without its `disclosures` being named (its list was written at a listed place, and a spread
@@ -735,10 +738,31 @@ interface ReviewedEntry {
    * on the return path this entry is on, counting every other producer on that path.
    */
   readonly most?: number;
+  /**
+   * For a producer on A2, A3 or A5: a part-3 fixture (FIXTURES by name, NO_GIT_FIXTURES as
+   * `<name> (no .git)`) one of whose rubrics' reports puts exactly `most` disclosures on one of
+   * the entry's criteria, at least one of them starting with `marker`. Without it a `most` is a
+   * number taken on trust: part 3 measures only the paths its fixtures reach.
+   */
+  readonly reachedBy?: string;
+  /** The text, or the leading prefix, of the disclosure this entry's site writes. */
+  readonly marker?: string;
+  /**
+   * In place of `reachedBy`, where no repository can reach the entry's `most` today: why, naming
+   * in backticks the code in the entry's file that makes it so. Stated, not assumed.
+   */
+  readonly unreachable?: string;
+  /**
+   * With `unreachable`: the part-3 fixture that comes closest, carrying the entry's marker on one
+   * of its criteria at fewer than `most` disclosures. If it ever reaches `most`, the entry is
+   * reachable and must say so in `reachedBy`.
+   */
+  readonly closest?: string;
   readonly why: string;
 }
 
 const RS = 'witan/repo-signals.ts';
+const A2_LFS_POINTER_PREFIX = witanV27LfsPointerNotApplicablePrefix('A2');
 const ANY = ['*'];
 
 // Reviewed 10 Nov at the head of #706. Each collector (collectRepoSignals in repo-signals.ts) emits
@@ -747,47 +771,56 @@ const REVIEWED: readonly ReviewedEntry[] = [
   {
     kind: 'site', file: RS, within: 'lfsPointerKeepsNotApplicable', sha: 'c6b7dc1382fd#0',
     role: 'producer', criteria: ['A2', 'B4'], most: 2,
+    reachedBy: 'a2-set-aside-with-binary-lfs-pointers', marker: A2_LFS_POINTER_PREFIX,
     why: "v27: a not-applicable result kept on Git LFS pointers carries its own disclosures plus one naming the pointers, added only where that stays within the budget (existing + 1 <= 2 on A2, A3 and A5).",
   },
   {
     kind: 'call', file: RS, within: 'buildWitanInputFromRepo', sha: '7ea12f5fa738#0',
     role: 'producer', criteria: ['A2', 'B4'], most: 2,
+    reachedBy: 'a2-set-aside-with-binary-lfs-pointers', marker: A2_LFS_POINTER_PREFIX,
     why: 'The call that keeps a not-applicable result on Git LFS pointers (lfsPointerKeepsNotApplicable), within the same budget.',
   },
   // A2: the only criterion of the three with collector disclosures today.
   {
     kind: 'site', file: RS, within: 'placeholderSetAsideDisclosures', sha: '4dc96e169fb7#0',
     role: 'producer', criteria: ['A2'], most: 1,
+    reachedBy: 'a2-not-applicable-with-set-aside (no .git)', marker: WITAN_A2_PLACEHOLDER_SET_ASIDE_PREFIX,
     why: 'One sentence naming the documentation placeholders A2 read and set aside.',
   },
   {
     kind: 'call', file: RS, within: 'collectA2IsolationEvidence', sha: '32f107db13eb#0',
     role: 'producer', criteria: ['A2'], most: 1,
+    reachedBy: 'a2-scored-with-set-aside', marker: WITAN_A2_PLACEHOLDER_SET_ASIDE_PREFIX,
     why: 'Scored A2: the placeholder sentence is its only disclosure. This is the return whose notes end with the tenant-isolation "cannot be settled" sentence.',
   },
   {
     kind: 'call', file: RS, within: 'collectA2IsolationEvidence', sha: '112037139ecd#0',
     role: 'producer', criteria: ['A2'], most: 1,
+    reachedBy: 'a2-doc-example-pair-in-committed-env-file (no .git)', marker: WITAN_A2_PLACEHOLDER_SET_ASIDE_PREFIX,
     why: 'A2 abstains on a directory with no git history (shallowHistoryAbstention carries none), plus the placeholder sentence.',
   },
   {
     kind: 'call', file: RS, within: 'collectA2IsolationEvidence', sha: '495870336548#0',
     role: 'producer', criteria: ['A2'], most: 1,
+    reachedBy: 'a2-not-applicable-with-set-aside (no .git)', marker: WITAN_A2_PLACEHOLDER_SET_ASIDE_PREFIX,
     why: 'The same abstention where A2 would have been not applicable, plus the placeholder sentence.',
   },
   {
     kind: 'call', file: RS, within: 'collectA2IsolationEvidence', sha: '9b3e7a728939#0',
     role: 'producer', criteria: ['A2'], most: 1,
+    reachedBy: 'a2-set-aside-with-binary-lfs-pointers-depth-1', marker: WITAN_A2_PLACEHOLDER_SET_ASIDE_PREFIX,
     why: 'Abstention after an incomplete history read (v27A2HistoryAbstention carries none), plus the placeholder sentence.',
   },
   {
     kind: 'call', file: RS, within: 'collectA2IsolationEvidence', sha: '52aae5465217#0',
     role: 'producer', criteria: ['A2'], most: 2,
+    reachedBy: 'a2-set-aside-treeless-clone', marker: WITAN_A2_PLACEHOLDER_SET_ASIDE_PREFIX,
     why: 'Not-applicable A2: the placeholder sentence and the history-applicability sentence. Its notes carry no "cannot be settled" sentence, and the certificate reads none from a not-applicable criterion.',
   },
   {
     kind: 'site', file: RS, within: 'collectA2IsolationEvidence', sha: '057d7bffd41b#0',
     role: 'producer', criteria: ['A2'], most: 2,
+    reachedBy: 'a2-set-aside-treeless-clone', marker: WITAN_A2_HISTORY_APPLICABILITY_PREFIX,
     why: 'The not-applicable return above, written as `{ disclosures }`: the two sentences of that array.',
   },
   // Criteria outside A2, A3 and A5. A3 and A5 have no entry: their collectors write no disclosure.
@@ -989,6 +1022,65 @@ const NO_GIT_FIXTURES = [
   },
 ] as const;
 
+/** The name a NO_GIT_FIXTURES case goes by in REVIEWED's `reachedBy`. */
+const noGitFixtureName = (name: string): string => `${name} (no .git)`;
+
+/** One rubric's scored report of one part-3 fixture, as much of it as reachProblems reads. */
+interface ScoredFixture {
+  readonly fixture: string;
+  readonly criteria: readonly { readonly id: string; readonly disclosures?: readonly string[] }[];
+}
+
+/**
+ * Why one producer entry on A2, A3 or A5 is not shown to be reached at its `most` by the scored
+ * part-3 fixtures; empty when it is. Some rubric's report of its `reachedBy` fixture must put
+ * exactly `most` disclosures on one of the entry's settling criteria, one starting with `marker`.
+ * An entry may instead state `unreachable`, citing the code that makes it so (`fileText` is the
+ * entry's file), with a `closest` fixture that carries the marker below `most`.
+ */
+function reachProblems(entry: ReviewedEntry, scored: readonly ScoredFixture[], fileText: string): string[] {
+  const key = entryKey(entry);
+  const settling = entry.criteria.filter((id) => (SETTLING_CRITERIA as readonly string[]).includes(id));
+  if (entry.reachedBy !== undefined && entry.unreachable !== undefined) {
+    return [`${key}: states both reachedBy and unreachable`];
+  }
+  if (entry.reachedBy === undefined && entry.unreachable === undefined) {
+    return [`${key}: names no part-3 fixture that reaches it at its most (reachedBy), nor why none can (unreachable)`];
+  }
+  const { marker, most } = entry;
+  if (marker === undefined || marker === '') return [`${key}: names no marker`];
+  const fixtureName = entry.reachedBy ?? entry.closest;
+  if (fixtureName === undefined) return [`${key}: unreachable names no closest fixture`];
+  const field = entry.reachedBy !== undefined ? 'reachedBy' : 'closest';
+  const reports = scored.filter(({ fixture }) => fixture === fixtureName);
+  if (reports.length === 0) return [`${key}: ${field} ${fixtureName} is not a fixture in the part-3 set`];
+  const counts = reports.flatMap(({ criteria }) =>
+    criteria
+      .filter(({ id }) => settling.includes(id))
+      .map(({ disclosures }) => disclosures ?? [])
+      .filter((list) => list.some((text) => text.startsWith(marker)))
+      .map((list) => list.length),
+  );
+  const seen = `counts carrying the marker: ${counts.join(', ') || 'none'}`;
+  if (entry.reachedBy !== undefined) {
+    return counts.includes(most as number)
+      ? []
+      : [
+          `${key}: no rubric's report of ${fixtureName} puts ${most} disclosures, one starting with its marker, ` +
+            `on ${settling.join(' or ')} (${seen})`,
+        ];
+  }
+  const cited = [...(entry.unreachable ?? '').matchAll(/`([^`]+)`/g)].map(([, code]) => code as string);
+  if (!cited.some((code) => fileText.includes(code))) {
+    return [`${key}: unreachable cites, in backticks, no code found in ${entry.file}`];
+  }
+  if (counts.length === 0) return [`${key}: closest ${fixtureName} never carries the marker on ${settling.join(' or ')}`];
+  if (counts.some((count) => count >= (most as number))) {
+    return [`${key}: closest ${fixtureName} reaches ${Math.max(...counts)}, so the entry is reachable: name it in reachedBy (${seen})`];
+  }
+  return [];
+}
+
 /** The fixture's files in a fresh directory with no .git. */
 function withoutGit(name: string, files: Readonly<Record<string, string>>): string {
   const dir = mkdtempSync(join(tmpdir(), `cejel-settling-budget-no-git-${name}-`));
@@ -1001,10 +1093,11 @@ function withoutGit(name: string, files: Readonly<Record<string, string>>): stri
 
 afterAll(() => {
   for (const dir of created) rmSync(dir, { recursive: true, force: true });
+  removeSettlingBudgetFixtures();
 });
 
 describe('#612 guard: no scored fixture puts more than the budget on A2, A3 or A5', () => {
-  const reports: { readonly label: string; readonly report: WitanReport }[] = [];
+  const reports: { readonly fixture: string; readonly label: string; readonly report: WitanReport }[] = [];
   const noGitReports: { readonly label: string; readonly report: WitanReport; readonly wouldBeNotApplicable: boolean }[] = [];
   const score = (repoPath: string, rubricVersion: string): WitanReport =>
     scoreRepoWithPublicCejel({
@@ -1022,14 +1115,26 @@ describe('#612 guard: no scored fixture puts more than the budget on A2, A3 or A
       const dir = buildBehaviourFixture({ ...fixture, purpose: 'settling-criteria disclosure budget' });
       created.push(dir);
       for (const rubricVersion of RUBRICS) {
-        reports.push({ label: `${fixture.name}@${rubricVersion}`, report: score(dir, rubricVersion) });
+        reports.push({ fixture: fixture.name, label: `${fixture.name}@${rubricVersion}`, report: score(dir, rubricVersion) });
+      }
+    }
+    for (const fixture of SETTLING_BUDGET_FIXTURES) {
+      const dir = fixture.build();
+      created.push(dir);
+      for (const rubricVersion of RUBRICS) {
+        reports.push({ fixture: fixture.name, label: `${fixture.name}@${rubricVersion}`, report: score(dir, rubricVersion) });
       }
     }
     for (const { name, files, wouldBeNotApplicable } of NO_GIT_FIXTURES) {
       const dir = withoutGit(name, files);
       created.push(dir);
       for (const rubricVersion of RUBRICS) {
-        const entry = { label: `${name} (no .git)@${rubricVersion}`, report: score(dir, rubricVersion), wouldBeNotApplicable };
+        const entry = {
+          fixture: noGitFixtureName(name),
+          label: `${noGitFixtureName(name)}@${rubricVersion}`,
+          report: score(dir, rubricVersion),
+          wouldBeNotApplicable,
+        };
         reports.push(entry);
         noGitReports.push(entry);
       }
@@ -1037,7 +1142,9 @@ describe('#612 guard: no scored fixture puts more than the budget on A2, A3 or A
   }, 600_000);
 
   it('scored every fixture under every rubric', () => {
-    expect(reports.length).toBe((FIXTURES.length + NO_GIT_FIXTURES.length) * RUBRICS.length);
+    expect(reports.length).toBe(
+      (FIXTURES.length + SETTLING_BUDGET_FIXTURES.length + NO_GIT_FIXTURES.length) * RUBRICS.length,
+    );
   });
 
   it("reaches both of A2's no_git_history abstentions, each carrying a collector disclosure", () => {
@@ -1095,5 +1202,75 @@ describe('#612 guard: no scored fixture puts more than the budget on A2, A3 or A
         );
       }
     }
+  });
+
+  // A producer's `most` (part 2) is reviewed, not measured: the property above sees only the paths
+  // these fixtures reach. Each A2, A3 or A5 producer therefore names the fixture that reaches it at
+  // its most, so making its site write one disclosure more moves a scored report.
+  it('reaches every A2, A3 or A5 producer at its most, with its own disclosure among them', () => {
+    const settling = new Set<string>(SETTLING_CRITERIA);
+    const producers = REVIEWED.filter(
+      ({ role, criteria }) => role === 'producer' && criteria.some((id) => settling.has(id)),
+    );
+    expect(producers.length).toBeGreaterThan(0);
+    const scored = reports.map(({ fixture, report }) => ({ fixture, criteria: report.criteria }));
+    const problems = producers.flatMap((entry) =>
+      reachProblems(entry, scored, readFileSync(join(SRC, entry.file), 'utf8')),
+    );
+    expect(problems, `${BUDGET_NOTE}\n${problems.join('\n')}`).toEqual([]);
+  });
+});
+
+// reachProblems on synthetic entries and reports, so each way an entry can fail is shown to fail,
+// including the `unreachable` form no reviewed entry uses today.
+describe('#612 guard: what counts as a producer reached at its most', () => {
+  const MARK = 'Marker sentence: ';
+  const FILE = 'if (existing.length + 1 > 2) return undefined;';
+  const base: ReviewedEntry = {
+    kind: 'site', file: RS, within: 'synthetic', sha: '000000000000#0',
+    role: 'producer', criteria: ['A2', 'B4'], most: 2, marker: MARK, why: 'synthetic',
+  };
+  const scored: readonly ScoredFixture[] = [
+    { fixture: 'one', criteria: [{ id: 'A2', disclosures: [`${MARK}a.`] }, { id: 'B4', disclosures: [`${MARK}b.`, 'other.'] }] },
+    { fixture: 'two', criteria: [{ id: 'A2', disclosures: ['other.', `${MARK}a.`] }] },
+    { fixture: 'two-unmarked', criteria: [{ id: 'A2', disclosures: ['other.', 'more.'] }] },
+  ];
+  const check = (entry: Partial<ReviewedEntry>) => reachProblems({ ...base, ...entry }, scored, FILE);
+
+  it('passes an entry whose fixture puts its most on a settling criterion, its marker among them', () => {
+    expect(check({ reachedBy: 'two' })).toEqual([]);
+  });
+
+  it('fails an entry with neither reachedBy nor unreachable, or with both', () => {
+    expect(check({})).toEqual([expect.stringContaining('names no part-3 fixture')]);
+    expect(check({ reachedBy: 'two', unreachable: '`existing.length + 1 > 2`', closest: 'one' })).toEqual([
+      expect.stringContaining('both'),
+    ]);
+  });
+
+  it('fails a reachedBy that names no part-3 fixture, or an entry with no marker', () => {
+    expect(check({ reachedBy: 'absent' })).toEqual([expect.stringContaining('is not a fixture in the part-3 set')]);
+    expect(check({ reachedBy: 'two', marker: undefined })).toEqual([expect.stringContaining('no marker')]);
+  });
+
+  it('fails a fixture below the most, at the most without the marker, or at the most only on a criterion outside A2, A3 and A5', () => {
+    expect(check({ reachedBy: 'one' })).toEqual([expect.stringContaining('counts carrying the marker: 1')]);
+    expect(check({ reachedBy: 'two-unmarked' })).toEqual([expect.stringContaining('counts carrying the marker: none')]);
+  });
+
+  it('passes an unreachable entry citing its code, whose closest fixture carries the marker below the most', () => {
+    expect(check({ unreachable: 'only `existing.length + 1 > 2` refuses', closest: 'one' })).toEqual([]);
+  });
+
+  it('fails an unreachable entry with no closest, citing no code of its file, or whose closest reaches the most', () => {
+    expect(check({ unreachable: '`existing.length + 1 > 2`' })).toEqual([expect.stringContaining('no closest')]);
+    expect(check({ unreachable: 'no repository can', closest: 'one' })).toEqual([expect.stringContaining('cites')]);
+    expect(check({ unreachable: '`not in the file`', closest: 'one' })).toEqual([expect.stringContaining('cites')]);
+    expect(check({ unreachable: '`existing.length + 1 > 2`', closest: 'two' })).toEqual([
+      expect.stringContaining('so the entry is reachable'),
+    ]);
+    expect(check({ unreachable: '`existing.length + 1 > 2`', closest: 'two-unmarked' })).toEqual([
+      expect.stringContaining('never carries the marker'),
+    ]);
   });
 });

@@ -15,7 +15,14 @@ import {
   baselineFor,
 } from './fixtures/ci-claims-followups-fixtures.js';
 import { buildFalseAssuranceFixture } from './fixtures/false-assurance-fixtures.js';
-import { NO_RISE_COMPOSITES, checkNoRise, lostFindings, rises } from './v27-no-rise.js';
+import {
+  NO_RISE_COMPOSITES,
+  b3NotCountedPointers,
+  checkNoRise,
+  lostFindings,
+  rises,
+  withoutB3WorkflowPointers,
+} from './v27-no-rise.js';
 
 // Follow-ups to #597 for #520 and #517 (#598, then its review).
 //
@@ -248,8 +255,12 @@ describe('#517 — removing the gate does not raise v27 B3, whichever evasion is
   });
 
   it('v27 keeps counting a condition that can be false, a run-line publish off bash, and a remote or guarded reusable workflow', () => {
+    // Apart from B3's workflow pointers, which v27 adds for every workflow read (19 Nov, refs #600).
     for (const [name] of CONTROLS_517) {
-      expect(criterion(name, V27, 'B3'), name).toEqual(criterion(name, V17, 'B3'));
+      expect(withoutB3WorkflowPointers(criterion(name, V27, 'B3')), name).toEqual(
+        withoutB3WorkflowPointers(criterion(name, V17, 'B3')),
+      );
+      expect(b3NotCountedPointers(criterion(name, V27, 'B3')), name).toEqual([]);
     }
   });
 

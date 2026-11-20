@@ -77,6 +77,11 @@ const labelOf = (score: WitanCriterionScore, path: string): string[] =>
  * The v27 report with A1's evidence, and the pointer each A1 finding cites, removed, serialized:
  * every score, status, metric, note and finding's severity and summary stays in it.
  */
+// B3's workflow pointers: the read-count pointer and, from the B3 citation change (refs #600), one
+// pointer per workflow read. Set aside here, so this pin measures A1's change and nothing that a
+// separate v27 B3 change moves; the same pattern as withoutB3WorkflowPointers (v27-no-rise.ts).
+const B3_WORKFLOW_POINTER_LABEL = /^(?:Monorepo-root )?CI workflow(?: \(|$| counted| read, earns no credit| not counted)/;
+
 function withoutA1Evidence(name: string): string {
   const scored = report(name, V27);
   return serializeWitanReport({
@@ -88,7 +93,9 @@ function withoutA1Evidence(name: string): string {
             evidence: [],
             findings: entry.findings.map((finding) => ({ ...finding, evidence: { kind: 'test_run', label: 'removed', path: 'removed' } })),
           }
-        : entry,
+        : entry.id === 'B3'
+          ? { ...entry, evidence: entry.evidence.filter(({ label }) => !B3_WORKFLOW_POINTER_LABEL.test(label)) }
+          : entry,
     ),
   });
 }
