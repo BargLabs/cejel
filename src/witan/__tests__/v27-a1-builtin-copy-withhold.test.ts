@@ -18,7 +18,9 @@ import { ALLOWLIST_FIXTURES } from './fixtures/v27-a1-allowlist-fixtures.js';
 // as main already named it where a tracked file could reach builtins; the rule makes no claim on it.
 //
 // The pins in fixtures/v27-a1-builtin-copy-main-pins.json were captured from main's scoring code
-// (4689031ce) with this change's fixtures, before any code change. They hold, for every item G
+// (4689031ce) with this change's fixtures, before any code change, and re-captured from main's
+// scoring code at 08bf47242 after main was merged in: only the three v27 control hashes moved,
+// with main's B3 citations and LFS pointer changes (#748, #749). They hold, for every item G
 // fixture: every rubric but v27's report hash; v27's scoring surface (the withhold moves no score,
 // status or finding count); and, for each copy that calls no builtin, v27's report hash.
 

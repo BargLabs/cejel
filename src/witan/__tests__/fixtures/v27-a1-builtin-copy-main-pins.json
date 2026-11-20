@@ -219,7 +219,7 @@
   "witan-rubric-v25-prospective-2026-10-12/a1al-g-extension-module-beside-tests": "b7cd32fcd2e5cc4ef920a2119df65d5a302aa4e7a8a0046c81addd46f5a9e520",
   "witan-rubric-v26-prospective-2026-10-14/a1al-g-extension-module-beside-tests": "e75849c9560a86c0aca8b1bc21dd86ccd1bac5dcc8edb77e5e7a2ad50d2f5fbe",
   "v27-scoring-surface/a1al-g-extension-module-beside-tests": "{\"composite\":1.5,\"verdict\":\"unverified\",\"criteria\":[[\"A1\",2.3,\"verified\",1],[\"A2\",0,\"not_applicable\",0],[\"A3\",0,\"not_applicable\",0],[\"A4\",0.5,\"critical\",1],[\"A5\",1.7,\"warning\",1],[\"B1\",0,\"not_applicable\",0],[\"B2\",1.6,\"warning\",1],[\"B3\",1,\"verified\",0],[\"B4\",0,\"not_applicable\",0],[\"B5\",0,\"not_applicable\",0],[\"B6\",0,\"not_applicable\",0]]}",
-  "witan-rubric-v27-prospective-2026-10-19/a1al-g-control-slice-copy-beside-builtins": "b05173414f0cc0fd61d13b93666717a1f6fd3732196d734529e1efc71e23e7ae",
-  "witan-rubric-v27-prospective-2026-10-19/a1al-g-control-star-copy-beside-builtins": "f01e97306a9b230629c5dadfb8433a28ac7431b418461d187e4acda814768605",
-  "witan-rubric-v27-prospective-2026-10-19/a1al-g-control-method-copy-beside-builtins": "6e80e64a5270051d5a8e109cb35e00b1e1ff3918979c03c8a2761df2dd8a4429"
+  "witan-rubric-v27-prospective-2026-10-19/a1al-g-control-slice-copy-beside-builtins": "2d5e89f3a551fe096a684c14ebbcb5f61732ee27871d8dfee45ffb5f20df072c",
+  "witan-rubric-v27-prospective-2026-10-19/a1al-g-control-star-copy-beside-builtins": "2f063a85060c4f69bb80d01cd564b1614164dca41df20ddf54e5a8def0051cb7",
+  "witan-rubric-v27-prospective-2026-10-19/a1al-g-control-method-copy-beside-builtins": "a7ce006dff88a36ddd28f0407b17f3daf74375c68f36b74784b2603f58e00634"
 }
