@@ -22,6 +22,78 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
+## 2026-11-20 (A3 Git LFS pointer abstention below the maximum) — under v27, a scored A3 that read Git LFS pointers abstains only where a metric whose read reached a pointer is below its maximum, or a pointer read belongs to no metric; otherwise it keeps v17's reading, cites the pointers and names them in one disclosure (refs #519, #753); v17-v26 byte-identical; v27 never above v17; no fingerprint moved; no published score moved
+
+**Status.** A scoring change under `witan-rubric-v27-prospective-2026-10-19` only, with no
+identifier change (goal_cejel_v27_a3_pointer_abstention_below_maximum_2026-11-20, operator ruling
+of 20 Nov on #753). No holdout or calibration ran for it, and this entry makes no precision or
+recall claim. The default stays v17. A changed v27 needs a new freeze.
+
+**Why.** #753 found that the Git LFS pointer abstention is the only way v27's A3 differs from
+v17's in score or status, and that on a scored A3 every content read can only add credit: a
+pointer, read as text, matches none of A3's patterns, so a reading with pointers is a floor on the
+content-complete reading. The not-applicable exit is the one place unread content can contradict
+what A3 asserts. Until now any pointer A3 read took it to `insufficient_data` at 0, even where the
+metric that read the pointer was already at its maximum, so no content behind the pointer could
+change the rating.
+
+**Change (v27 only, A3 only).** Where A3's only content-read skips are Git LFS pointer reads:
+
+- A not-applicable A3 abstains, as before.
+- A scored A3 abstains, as before, where any read of a pointer was attributed to no signal (a
+  citation line, the runtime-container read, the applicability gate), to a signal that is not one
+  of A3's metrics, or to a metric whose value is below its maximum. The attribution is the signal
+  ids in force (`withContentReadSignal`) when the read was recorded; `content-reads.ts` now records
+  them per criterion and pointer path, on the same reads that record the pointer's path, so the
+  record stays empty under every other rubric.
+- Otherwise A3 keeps v17's score, status, metrics, findings and evidence. It cites each pointer
+  after v17's evidence, as #749 cites them, and adds one disclosure: "Files A3 read are Git LFS
+  pointers whose content is not in this checkout: <paths>. Only the metric <name> read it, and it
+  is already at its maximum, so its content could not change this rating." A3 is left out of
+  `contentReadSummary.affectedCriteria`, since it did not abstain. Where #612's budget leaves no
+  room for the disclosure, A3 abstains.
+- The certificate lists the disclosure under "What was not established" while A3 is scored, and
+  the Git LFS gap sentence gains a fourth case only where A3 carries it.
+- Every other criterion keeps #519's behaviour.
+
+**The no-rise property.** A kept reading is v17's on the same commit, and an abstention is 0.
+
+**The floor guard.** `v27-a3-pointer-floor-guard.test.ts` inventories, with the TypeScript
+parser, every site in `collectA3ProdReadinessEvidence` that names a function reaching
+`readRepoText` or `readRepoTextPrefix`: 36 sites, 20 that v17 and v27 run and 16 that only
+v20-v26 run, each reviewed against #753's item C. Each read v17 or v27 runs has a pair of
+fixtures, a control and the same repository with that read's file as a pointer (12 pairs). Under
+v17, and under v27 with the pointer abstention off, the pointer reading's A3 is at or below its
+control's, and under v27 as shipped each pair shows that A3 read the pointer. A new A3 content read
+fails the inventory until it is reviewed and paired.
+
+**Measured** on 20 Nov, at this branch's code against main `6d5ed83b3`, on 451 synthetic
+repositories: the 402 the 2026-11-19 B2 and B3 entry names (false-assurance 268, the symlink
+fixture left out; CI-claims 71; publishing-gates 17; publishing-with-checks 11 and its 4 edge
+cases; unread-CI-configuration 8; cites-every-workflow 13; housekeeping and publishing depth 10),
+#749's Git LFS pointer fixtures 9, #753's 12, and this change's 28 (4 below-maximum fixtures and
+the floor guard's 12 pairs). In the main pass, main's `src/witan/repo-signals.ts`,
+`src/witan/content-reads.ts`, `src/witan/certificate-presentation.ts` and `src/witan/abstention.ts`
+were checked out over this branch's, then restored. Each pass built every fixture and scored it
+under all eleven selectable rubrics, with 0 errors on either side. The driver compared each
+report's JSON by hash, plus the composite, the verdict and every criterion's score, status,
+finding, disclosure and evidence counts. It is not committed. HTML and Markdown certificates were
+not compared in this pass; under v27 they move only where A3 carries the new disclosure.
+
+- **v17 to v26:** 4,510 of 4,510 reports byte-identical to main.
+- **v27:** 449 of 451 byte-identical. 2 moved, both raised to v17's A3 by the rule:
+  - `a3-strong-helm-icon-pointer` (#753; the health-check component read the pointer, checks at 6
+    of 6): A3 0 `insufficient_data` to 2.9 `verified`, equal to v17; composite 1.4 to 1.7 (v17: 2.0,
+    since A2 still abstains on the image); verdict unverified to at_risk.
+  - `a3-rollback-at-maximum-docs-image-pointer` (this change; rollback notes at 4 of 4): A3 0
+    `insufficient_data` to 3.3 `verified`, equal to v17; composite 1.6 to 1.9, equal to v17.
+  - Each gains one disclosure and the pointer citation after v17's evidence.
+  - Every other #753 fixture abstains as on main, as do `a3-five-of-six-helm-icon-pointer` and all
+    12 floor-guard pointer readings.
+- **v27 above v17 on the same repository:** 0, for the composite and every criterion's score.
+- **Behaviour fingerprints:** `rubric-behaviour-fingerprint.test.ts` passes against the committed
+  pins, so no fingerprint moved; the corpus has no A3 pointer read at a metric's maximum.
+
 ## 2026-11-19 (B2 and B3 housekeeping and publishing depth) — under v27, a workflow that only labels, comments on or closes issues and pull requests, or a workflow file in a subfolder of `.github/workflows/`, earns no B2 or B3 CI credit, and a publishing workflow the #517 rule discounts still counts toward `default_branch_ci_depth` where one counted pull-request workflow runs tests and lint (refs #600, #748, #536, #565); v17-v26 byte-identical; v27 never above v17; no fingerprint moved; no published score moved
 
 **Status.** A scoring change under `witan-rubric-v27-prospective-2026-10-19` only, with no

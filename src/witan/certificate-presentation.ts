@@ -1047,6 +1047,15 @@ function lfsPointerNotApplicableDisclosures(report: WitanReport): string[] {
   });
 }
 
+// Prospective v27 (operator ruling of 20 Nov on #753): A3 kept v17's rating although it read Git
+// LFS pointers, because every metric that read one is already at its maximum. Listed only while A3
+// is scored, since that is the result the sentence qualifies.
+function lfsPointerAtMaximumDisclosures(report: WitanReport): string[] {
+  const a3 = report.criteria.find((entry) => entry.id === 'A3');
+  if (!a3 || a3.status === 'not_applicable' || a3.status === 'insufficient_data') return [];
+  return criterionDisclosures(report, 'A3', witanV27LfsPointerNotApplicablePrefix('A3'));
+}
+
 // Prospective v27 (#527, #535): the B2 and B3 disclosures naming CI workflows not counted because
 // Cejel did not see them run a check, and (#517) B3's naming workflows not counted because they
 // publish, release or deploy with no pull-request trigger. Listed only while that criterion is scored.
@@ -1154,11 +1163,15 @@ export function buildRelyingPartySummary(report: WitanReport): RelyingPartySumma
     // v27 (#519 follow-up): the third case is written only where A2 carries the disclosure, which
     // only v27 produces, so every other report keeps this sentence byte for byte.
     const keptNotApplicable = lfsPointerNotApplicableDisclosures(report).length > 0;
+    // v27 (20 Nov, #753): a fourth case only where A3 carries its at-maximum disclosure.
+    const keptAtMaximum = lfsPointerAtMaximumDisclosures(report).length > 0;
     gaps.push(
       `${lfsPointerCount} file${lfsPointerCount === 1 ? ' is a Git LFS pointer' : 's are Git LFS pointers'} in this checkout, so ${lfsPointerCount === 1 ? 'its' : 'their'} content was not read. ${
-        keptNotApplicable
-          ? "A criterion that read one abstained (it is listed among the affected criteria), scored the pointer's text, or stayed not applicable where none of the pointers it read could change that (it names them)."
-          : "A criterion that read one either abstained (it is listed among the affected criteria) or scored the pointer's text."
+        keptAtMaximum
+          ? "A criterion that read one abstained (it is listed among the affected criteria), scored the pointer's text, stayed not applicable where none of the pointers it read could change that, or kept its rating where every metric that read one is already at its maximum (the last two name them)."
+          : keptNotApplicable
+            ? "A criterion that read one abstained (it is listed among the affected criteria), scored the pointer's text, or stayed not applicable where none of the pointers it read could change that (it names them)."
+            : "A criterion that read one either abstained (it is listed among the affected criteria) or scored the pointer's text."
       }`,
     );
   }
@@ -1172,6 +1185,7 @@ export function buildRelyingPartySummary(report: WitanReport): RelyingPartySumma
   gaps.push(...placeholderSetAsideDisclosures(report));
   gaps.push(...historyApplicabilityDisclosures(report));
   gaps.push(...lfsPointerNotApplicableDisclosures(report));
+  gaps.push(...lfsPointerAtMaximumDisclosures(report));
   gaps.push(...unshownCheckWorkflowDisclosures(report));
   gaps.push(...ignoredTestFailureDisclosures(report));
   gaps.push(...uncreditedCiWorkflowDisclosures(report));

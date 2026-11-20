@@ -66,6 +66,9 @@ export const WITAN_V27_LFS_POINTER_READ_FAILURE_PATHS_SENTENCE =
 // read (lfsPointerKeepsNotApplicable in repo-signals.ts). One of that criterion's
 // criteria[].disclosures, naming the pointers and starting with this prefix; listed under "What was
 // not established".
+// v27 only (operator ruling of 20 Nov on #753): the same prefix starts A3's disclosure where a scored
+// A3 kept v17's rating because every metric that read a pointer is already at its maximum
+// (lfsPointerKeepsScoredA3 in repo-signals.ts), also listed under "What was not established".
 export function witanV27LfsPointerNotApplicablePrefix(criterionId: string): string {
   return `Files ${criterionId} read are Git LFS pointers whose content is not in this checkout: `;
 }
