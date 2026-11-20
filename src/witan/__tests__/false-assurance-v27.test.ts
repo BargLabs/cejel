@@ -29,7 +29,13 @@ import {
   falseAssuranceFixture,
   lfsPointerFor,
 } from './fixtures/false-assurance-fixtures.js';
-import { checkNoRise, evidenceIdentity, lostFindings } from './v27-no-rise.js';
+import {
+  b3NotCountedPointers,
+  checkNoRise,
+  evidenceIdentity,
+  lostFindings,
+  withoutB3WorkflowPointers,
+} from './v27-no-rise.js';
 
 // #517, #518, #519, #520, #442: places where a v17 certificate asserted more than Cejel read.
 // Synthetic fixtures only (fixtures/false-assurance-fixtures.ts), built from each issue's repro.
@@ -175,6 +181,22 @@ const SET_ASIDE_AS_PUBLISHING: ReadonlySet<string> = new Set([
 ]);
 
 /**
+ * `id` under v27 scores `name` as v17 does. For B3 that is apart from its workflow pointers (19 Nov,
+ * refs #600; withoutB3WorkflowPointers), and no v27 pointer says a workflow is not counted, so every
+ * workflow kept its credit.
+ */
+function expectAsV17(name: string, id: string, message = `${name} ${id}`): void {
+  const v27 = criterion(name, V27, id);
+  const v17 = criterion(name, V17, id);
+  if (id !== 'B3') {
+    expect(v27, message).toEqual(v17);
+    return;
+  }
+  expect(withoutB3WorkflowPointers(v27), message).toEqual(withoutB3WorkflowPointers(v17));
+  expect(b3NotCountedPointers(v27), message).toEqual([]);
+}
+
+/**
  * The publish-only reader does not claim `name`. B3 under v27 either matches v17, or, for a
  * SET_ASIDE_AS_PUBLISHING fixture, sets the workflow aside as publishing (never as publish-only)
  * and scores no higher than v17.
@@ -184,7 +206,7 @@ function expectPublishOnlyRefused(name: string): void {
   const v27 = criterion(name, V27, 'B3');
   expect(v27.notes ?? '', name).not.toContain('only publish');
   if (!SET_ASIDE_AS_PUBLISHING.has(name)) {
-    expect(v27, name).toEqual(v17);
+    expectAsV17(name, 'B3', name);
     return;
   }
   expect(v27.notes ?? '', name).toMatch(/workflows? that publish(?:es)?, releases? or deploys? with no pull-request trigger/);
@@ -914,7 +936,7 @@ describe('review findings against the first implementation stay fixed', () => {
 
   it('#517: a workflow that runs tox on pull requests and uploads on tags is still CI', () => {
     const name = 'review-b3-tox-ci-with-tag-publish';
-    expect(criterion(name, V27, 'B3')).toEqual(criterion(name, V17, 'B3'));
+    expectAsV17(name, 'B3');
   });
 
   it('#519: an LFS pointer never erases a confirmed critical finding', () => {
@@ -1465,11 +1487,7 @@ describe('#527 — B2 does not credit a CI workflow not shown to run a check', (
   });
 
   it('v27: a workflow that runs the tests and then uploads keeps its credit in B2 and B3', () => {
-    for (const id of ['B2', 'B3']) {
-      expect(criterion('b2-test-then-upload-stays-credited', V27, id), id).toEqual(
-        criterion('b2-test-then-upload-stays-credited', V17, id),
-      );
-    }
+    for (const id of ['B2', 'B3']) expectAsV17('b2-test-then-upload-stays-credited', id, id);
   });
 });
 
@@ -1511,9 +1529,7 @@ describe('#535 — B3 does not count a workflow not shown to run a check', () =>
 
   it('v27: a print step beside an unplaced action, or a block that also runs pytest, keeps its credit', () => {
     for (const name of ['b3-echo-then-unplaced-action-stays-credited', 'b3-echo-in-a-run-block-with-a-test-stays-credited']) {
-      for (const id of ['B2', 'B3']) {
-        expect(criterion(name, V27, id), `${name} ${id}`).toEqual(criterion(name, V17, id));
-      }
+      for (const id of ['B2', 'B3']) expectAsV17(name, id);
     }
   });
 
@@ -1523,7 +1539,10 @@ describe('#535 — B3 does not count a workflow not shown to run a check', () =>
   it('ruled out: a workflow confined to master in a repository whose only branch is main is still counted under v27', () => {
     const b3 = criterion('b3-master-confined-workflow-on-main-still-counted', V27, 'B3');
     expect(metricValue(b3, 'default_branch_ci_depth')).toBe(1);
-    expect(b3).toEqual(criterion('b3-master-confined-workflow-on-main-still-counted', V17, 'B3'));
+    expectAsV17('b3-master-confined-workflow-on-main-still-counted', 'B3');
+    expect(b3.evidence.find(({ label }) => label.startsWith('CI workflow counted:'))?.path).toBe(
+      '.github/workflows/security.yml',
+    );
   });
 
   // Branch state is outside the attested revision (the attestation's only repository revision is
@@ -1598,7 +1617,7 @@ describe('#564 — the print-only and publish-only readers claim nothing outside
     // through an action, which is read on any runner, so B3 sets them aside too.
     const ids = SET_ASIDE_AS_PUBLISHING.has(name) ? ['B2'] : ['B2', 'B3'];
     for (const id of ids) {
-      expect(criterion(name, V27, id), `${name} ${id}`).toEqual(criterion(name, V17, id));
+      expectAsV17(name, id);
       expect(criterion(name, V27, id).disclosures, `${name} ${id}`).toBeUndefined();
     }
     expectPublishOnlyRefused(name);
@@ -1658,7 +1677,7 @@ describe('publish-only admits no glob in flag position, no unknown flag, no unli
 describe('the v27 glossary sentences state the conditions the readers apply', () => {
   it('a pull-request-triggered upload-only workflow is counted, and the glossary names that condition', () => {
     const name = 'review11-upload-only-with-pull-request-trigger';
-    for (const id of ['B2', 'B3']) expect(criterion(name, V27, id), id).toEqual(criterion(name, V17, id));
+    for (const id of ['B2', 'B3']) expectAsV17(name, id, id);
     for (const term of ['PR trace basic checks', 'PR-gate CI workflow count (automated build/test pipeline)']) {
       const entry = CERTIFICATE_GLOSSARY.find((candidate) => candidate.term === term);
       expect(entry?.definition, term).toContain('for a workflow with no pull-request trigger, as only uploading an already-built artifact');

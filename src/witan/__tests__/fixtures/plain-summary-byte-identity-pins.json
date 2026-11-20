@@ -4,8 +4,8 @@
     "attestationSha256": "71b386523a48857df468bd7ba514736ce5c05f529f1d14d0f70f8f6f09653f81"
   },
   "witan-rubric-v27-prospective-2026-10-19/complete-node-service": {
-    "reportSha256": "a32eb497cb5719c7facdf6e866eb1504d6c02a0662c7a2829a2933901066fd7c",
-    "attestationSha256": "4cbd6477ba2a89a7789471b17372d180d70d12405c72ba497551e17ae6956c30"
+    "reportSha256": "b0238f30ad951fa3db83915352c22638fc8db6700965be64c80718734858757f",
+    "attestationSha256": "d6ff4923c1442323a101691ad0d69d5916d47f97bc599705729a2e08808ded35"
   },
   "witan-rubric-v17-2026-07-24/minimal-source-no-process": {
     "reportSha256": "23bff50ac2d27905a48a51aff3ccf92165a4b9484c7a3682ddf5e707c13af549",
@@ -44,16 +44,16 @@
     "attestationSha256": "8ae1e9b69471e729961fd438bbba3fb11b0c575a9cb285fd2150d8ba5fe72b2b"
   },
   "witan-rubric-v27-prospective-2026-10-19/pr-template-directory-form": {
-    "reportSha256": "9aeefc6df7c213cc21d13725e943cab3baa20cba73d3eff142fd65af83683075",
-    "attestationSha256": "29dbebc8e6940ce1034f61163204f53e001f47f874cd06c598345b0848ac3656"
+    "reportSha256": "736ad4b68eeb600a257d1ce2d0c2696cfd0c7f9eb4ac04f9a20c1f2367618d4a",
+    "attestationSha256": "b199d2492d26946e1d6bb2c478c9b9b913e9c13b8038630fff9130208b56ca87"
   },
   "witan-rubric-v17-2026-07-24/python-service": {
     "reportSha256": "6b6078d47864c629e036e62214ba2db6675d390eca04a4641a952832c9e93efb",
     "attestationSha256": "e7d1ed060541fbbad82907d9c3c9c308e2a63d07208f038321e6f93fbf7a1bab"
   },
   "witan-rubric-v27-prospective-2026-10-19/python-service": {
-    "reportSha256": "d0cc1da21a6c0069ecdc260f862e504fc37270f856969556b8f27826c246745f",
-    "attestationSha256": "37ed658d022786c0b2515f8757fb22e41a46a4a8c227261faeacff089af99347"
+    "reportSha256": "4634d29de5930c6e1b38df6a43a49179bdd96f8db916efa0955806e1a3c839de",
+    "attestationSha256": "5d50ffda7433927f07e36d7657ee890c55137afb9bfc511a5dd3d3bdcf5386ab"
   },
   "witan-rubric-v17-2026-07-24/docs-only-repository": {
     "reportSha256": "e2c2fe7db12819a307163e9cd61ea0fa31331e60b73cf9e399dabfbb2e1baa75",
@@ -76,8 +76,8 @@
     "attestationSha256": "406df6554c8be26a134cb4b47cb1a91028f00e3c0c66cb921a48335c869d5777"
   },
   "witan-rubric-v27-prospective-2026-10-19/privileged-migrations": {
-    "reportSha256": "30f7235593eb01de37493203eee8cc671fc3f3dca86ecace2159f35fd4018e91",
-    "attestationSha256": "1988490baa7394efdef039fc1e959922aa2cbaa0f3734ec96b778d296c0468bf"
+    "reportSha256": "411155eb6332044a7fee6560bd97426293454771ad9a1578b2eb4e96430581bb",
+    "attestationSha256": "40b6c3fc12b9365b2b89a32e37eca03f9560695084c428b955d03b1130caf888"
   },
   "witan-rubric-v17-2026-07-24/direct-http-entrypoint-no-health": {
     "reportSha256": "65beaaaed4f554462c1856af8cc6597cea3988a3302e1a99616f21762424991a",
@@ -156,24 +156,24 @@
     "attestationSha256": "fc52bc9c48c278886736787386da65c02761e59a289a9622a30faabb2c3ff5dc"
   },
   "witan-rubric-v27-prospective-2026-10-19/coverage-config-setup-cfg": {
-    "reportSha256": "59bc09232a1f7e7e8245f87f850c9739b03ccefdd5c81012292b5639002ce3cc",
-    "attestationSha256": "18025768b247d692b0c9204a71e6edaea2682df13a1821f6d016de2ff7c82666"
+    "reportSha256": "a0294bac7e39f68d3daacf6e9c00d52e794504d628182aaf0011a7d3be2f012c",
+    "attestationSha256": "f3f1a3fe65ee55c82fa388d5f28e9f4b2f079e7e934526f8b9d376f9150dbdbe"
   },
   "witan-rubric-v17-2026-07-24/coverage-config-maven-jacoco": {
     "reportSha256": "f7c1ad318e657410d46aa1773729b17dca83412dd7d2119388f1469dde27d58a",
     "attestationSha256": "6ab97f953a523f87ae4d6760e62b040a88e2c1488ab415c899b486afaa049820"
   },
   "witan-rubric-v27-prospective-2026-10-19/coverage-config-maven-jacoco": {
-    "reportSha256": "284b8d20b1f39e3d8b833dad8d7866e7c0f178146b5b1d5fd90c5668198fc134",
-    "attestationSha256": "4fbc8a82f1069b9ad423d74f7a0b58dd09eaec891a599942dfb175c2dcb3b414"
+    "reportSha256": "928bcacbeb29c0c6ae66fd2c23d5831a96f3d5f5d459bfa56674a797d31b9141",
+    "attestationSha256": "b7d54d2fa8c3d9d75e5526cf6eb238521a5f725a48253269e6dc3ef5ebfae7c1"
   },
   "witan-rubric-v17-2026-07-24/coverage-command-go-ci": {
     "reportSha256": "888c5121b3447213573e3c5fee1570496b73c5225ed2ea268376101742f95109",
     "attestationSha256": "cb8cf4975e56b11c629fc89c2e4550f240ae60ed9436a80e8cbb6c57310f9750"
   },
   "witan-rubric-v27-prospective-2026-10-19/coverage-command-go-ci": {
-    "reportSha256": "022a5853b4a138c6cf68efb7794058eac7efaf7ff9e76cf32c74a84c04bb8254",
-    "attestationSha256": "79ec7a33a06a655fdc1157b1c023487d140db7e5db68aee662598e2f2e143aa4"
+    "reportSha256": "7cbede10ca5b8b798fbef63a67a746708e2c1a9cc767f7dfd006a328361628bd",
+    "attestationSha256": "ace7205df7638909c967980d237330c5a5e8d0efb1acdda0c916e88722769244"
   },
   "witan-rubric-v17-2026-07-24/xunit-assertions": {
     "reportSha256": "4fc80c6696f4fd776a54cfcf83af419239ef0aa9f96485b9de6974c4884a1d84",

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 import { scoreRepoWithPublicCejel } from '../public-scan.js';
 import { buildWitanInputFromRepo, ciWorkflowCitationLabel } from '../repo-signals.js';
-import { WITAN_SELECTABLE_RUBRIC_VERSIONS } from '../rubric-version.js';
+import { WITAN_RUBRIC_VERSION_V27, WITAN_SELECTABLE_RUBRIC_VERSIONS } from '../rubric-version.js';
 import { makeReadsDisclosureRepo } from './fixtures/reads-disclosure.js';
 import {
   U1_CROSS_REPO_REUSABLE,
@@ -42,9 +42,15 @@ function scan(files: Readonly<Record<string, string>>, rubricVersion: string) {
   return { labels, component };
 }
 
-const ciLabel = (labels: readonly string[]) => labels.filter((l) => l.startsWith('CI workflow'));
+// The read-count pointer only. Under v27 B3 also cites each workflow it read (19 Nov, refs #600),
+// with labels that start "CI workflow counted", "CI workflow read, earns no credit" or "CI workflow
+// not counted"; those are not this pointer.
+const ciLabel = (labels: readonly string[]) => labels.filter((l) => /^CI workflow(?: \(|$)/.test(l));
 
 describe.each(WITAN_SELECTABLE_RUBRIC_VERSIONS)('delegated CI that was not read — %s', (rubric) => {
+  // Under v27 every workflow read is cited, so with two read the label says two are cited, and it is
+  // silent where nothing else is stated (ciWorkflowCitationLabel).
+  const twoCited = rubric === WITAN_RUBRIC_VERSION_V27;
   it('a job calling org/other/.github/workflows/ci.yml@v1 is one reusable workflow in another repository', () => {
     const { labels } = scan(U1_CROSS_REPO_REUSABLE, rubric);
     expect(ciLabel(labels('B3'))).toEqual([
@@ -73,7 +79,7 @@ describe.each(WITAN_SELECTABLE_RUBRIC_VERSIONS)('delegated CI that was not read 
 
   it('a local reusable workflow is counted as read and not disclosed', () => {
     const { labels, component } = scan(U4_LOCAL_REUSABLE, rubric);
-    expect(ciLabel(labels('B3'))).toEqual(['CI workflow (2 workflow files read; 1 cited)']);
+    expect(ciLabel(labels('B3'))).toEqual([twoCited ? 'CI workflow' : 'CI workflow (2 workflow files read; 1 cited)']);
     // Read, not merely counted: the only test command lives in the called workflow, and B3 sees it.
     expect(component('B3', 'ci_script_depth', 'repository CI command: test')).toBe(1);
   });
@@ -85,13 +91,13 @@ describe.each(WITAN_SELECTABLE_RUBRIC_VERSIONS)('delegated CI that was not read 
 
   it('zero delegated steps add nothing to the #467 count, and a uses: line inside a run script is not a step', () => {
     const { labels } = scan(U5B_TWO_WORKFLOWS_MARKETPLACE_ONLY, rubric);
-    expect(ciLabel(labels('B3'))).toEqual(['CI workflow (2 workflow files read; 1 cited)']);
+    expect(ciLabel(labels('B3'))).toEqual([twoCited ? 'CI workflow' : 'CI workflow (2 workflow files read; 1 cited)']);
   });
 
   it('one of each kind across two workflows states both; a commented-out delegation is not counted', () => {
     const { labels } = scan(U6_ONE_OF_EACH, rubric);
     expect(ciLabel(labels('B3'))).toEqual([
-      'CI workflow (2 workflow files read; 1 cited; 2 delegated steps not read (1 reusable workflow in another repository, 1 local action))',
+      `CI workflow (2 workflow files read; ${twoCited ? 2 : 1} cited; 2 delegated steps not read (1 reusable workflow in another repository, 1 local action))`,
     ]);
   });
 
@@ -171,8 +177,20 @@ const LABEL_FREE_PINS: Readonly<Record<string, string>> = {
     'd4ac3395e9ec8598cf67dae4b10be8f6210bdd3d006edc1777b3ef74be33305a',
 };
 
+// v27 (19 Nov, refs #600): B3 cites every workflow it read, one pointer each. Those pointers are
+// what that change adds, so they are left out here and the v27 pin above stays main's: every other
+// pointer, metric, score, status and finding still has to match.
+const B3_WORKFLOW_CITATION_LABEL = /^(?:Monorepo-root )?CI workflow (?:counted|read, earns no credit|not counted)/;
+
 function withoutEvidenceLabels(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(withoutEvidenceLabels);
+  if (Array.isArray(value)) {
+    return value
+      .filter(
+        (entry) =>
+          !(typeof entry === 'object' && entry !== null && B3_WORKFLOW_CITATION_LABEL.test(String((entry as { label?: unknown }).label ?? ''))),
+      )
+      .map(withoutEvidenceLabels);
+  }
   if (typeof value !== 'object' || value === null) return value;
   const record = value as Record<string, unknown>;
   const isEvidencePointer =

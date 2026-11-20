@@ -18,6 +18,33 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- **Prospective v27: B3 cites every CI workflow it read, with how it was counted or why it was not
+  (refs #600).** This applies under `witan-rubric-v27-prospective-2026-10-19` only, and to B3's
+  evidence only. v17, the default, and every other rubric are unchanged, byte for byte.
+  - Before, B3 cited one workflow with "N workflow files read; 1 cited", plus each workflow v27 does
+    not count. That one workflow could be a workflow that runs no check, while the workflows that
+    decided the rating went uncited.
+  - Now each workflow read gets its own pointer, up to 16, in this order:
+    - **Counted workflows first.** One counted toward the PR-gate CI workflow count is cited at
+      the line that made it count as targeting pull requests or the default branch. One counted
+      only for its commands is cited at the first line naming a test, lint, type-check or build
+      command. The label says what it earned.
+    - **Then each workflow read that earns neither**, at its `on:` line.
+    - **Then each workflow v27 does not count**, with its reason, as before.
+  - The read-count pointer sits at the first workflow cited. Past 16 it adds "K not cited (citation
+    limit 16)".
+  - The v27 glossary entry for the PR-gate CI workflow count says so.
+  - No score, status, finding, metric, composite or verdict moves. Measured on 1,055 synthetic
+    repositories against main:
+    - v17 to v26: 10,550 of 10,550 reports and certificates byte-identical.
+    - v27: 9 reports byte-identical, and the other 1,046 differ only in B3's evidence.
+    - v27 is above v17 on none.
+    - No behaviour fingerprint moves. The v27 certificate, report and plain-summary pins move, and
+      no v17 pin does.
+
+    No holdout or calibration ran for this change, and v27 carries no precision or recall claim.
+    See [`leaderboard/RUBRIC_CHANGELOG.md`](leaderboard/RUBRIC_CHANGELOG.md).
+
 - **Prospective v27: an abstention on Git LFS pointers cites the pointers it rests on, and a
   not-applicable result stands where no pointer it read could change it (refs #519).** Under
   `witan-rubric-v27-prospective-2026-10-19` only. v17, still the default, and every other rubric

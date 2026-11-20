@@ -31,6 +31,9 @@ import { checkNoRise, lostFindings } from './v27-no-rise.js';
 // or verdict moves. The pins were captured from main de9f86f59 before any code change: v17 to v26
 // whole reports; under v27, the whole report where no sentence is added, and where one is, the
 // report without B3's note and B3's note with the sentence cut from its end.
+// Re-captured on 2026-11-19 (goal_cejel_v27_b3_cites_every_workflow_read, refs #600), which makes v27
+// B3 cite every workflow it read: 9 v27 entries moved, every one by B3's evidence alone; every v17
+// to v26 entry and each "b3-note-before-sentence" entry is unchanged.
 
 const V17 = WITAN_RUBRIC_VERSION_V17;
 const V27 = WITAN_RUBRIC_VERSION_V27;

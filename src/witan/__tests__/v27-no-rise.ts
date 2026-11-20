@@ -53,7 +53,23 @@ import {
 // lostFindings, beside it, requires every v17 finding to survive under v27 at the same or a higher
 // severity, with the removals v27 makes by rule enumerated there.
 
-export const NO_RISE_COMPOSITES = ['overallScore', 'codeTrustScore', 'processTrustScore'] as const;
+// v27 (19 Nov, refs #600): B3 cites every workflow it read, one pointer each, and its read-count
+// pointer ("CI workflow (N workflow files read; M cited)") counts them. Neither is in v17's B3 in
+// that form, so a test that says "v27 scores B3 as v17 does" compares B3 without them: every score,
+// status, metric, note, disclosure, finding and other pointer must still be equal.
+const B3_WORKFLOW_POINTER_LABEL = /^(?:Monorepo-root )?CI workflow(?: \(|$| counted| read, earns no credit| not counted)/;
+
+/** `score` without B3's workflow pointers (the read-count pointer and one per workflow). */
+export function withoutB3WorkflowPointers(score: WitanCriterionScore): WitanCriterionScore {
+  return { ...score, evidence: score.evidence.filter(({ label }) => !B3_WORKFLOW_POINTER_LABEL.test(label)) };
+}
+
+/** B3's v27 pointers that say a workflow is not counted; empty where every workflow kept its credit. */
+export function b3NotCountedPointers(score: WitanCriterionScore): WitanCriterionScore['evidence'] {
+  return score.evidence.filter(({ label }) => label.includes(' not counted'));
+}
+
+export const NO_RISE_COMPOSITES =['overallScore', 'codeTrustScore', 'processTrustScore'] as const;
 
 const SEVERITY: Readonly<Record<string, number>> = { verified: 0, info: 1, warning: 2, critical: 3 };
 const UNSCORED: ReadonlySet<string> = new Set(['not_applicable', 'insufficient_data']);
