@@ -7140,6 +7140,41 @@ function collectB3CiDisciplineEvidence(
       : new Map();
   const countsAsCi = (uncredited: ReadonlyMap<string, UncreditedCiWorkflowReason>) => (file: string) =>
     !uncredited.has(file);
+  // The root and every declared workspace package's scripts (findDeclaredWorkspaceManifests), as
+  // ci_script_depth reads them below; item B's condition reads them the same way, under its own signal.
+  const readScriptDeclarations = () => {
+    const workspaceManifests = findDeclaredWorkspaceManifests(repoPath, repoFiles, packageJson);
+    const scriptSources = [
+      scripts,
+      ...workspaceManifests.read.map((file) => readPackageScripts(join(repoPath, file))),
+    ];
+    const declaresScript = (name: string): boolean =>
+      scriptSources.some((source) =>
+        name === 'test' ? hasCredibleTestScript(source) : source.has(name),
+      );
+    return { workspaceManifests, declaresScript };
+  };
+  // v27 item B (19 Nov, operator ruling on #748 item C, option 2): a publishing workflow the #517 rule
+  // discounts still counts toward default_branch_ci_depth, never ci_script_depth or B2, where one
+  // workflow counted after item A targets pull requests and runs both a test and a lint command
+  // (pullRequestTestAndLintWorkflow). Each such file maps to that workflow. Read under the depth
+  // signal, from files it already read. The accepted cost: on such a repository v27 no longer resists
+  // making a release workflow run on every push to the default branch without its gate (#517).
+  const depthKeptPublishing: ReadonlyMap<string, string> = useV27FalseAssuranceClosure
+    ? withContentReadSignal('B3', 'default_branch_ci_depth', () => {
+        const discounted = workflows.filter(
+          (file) => uncreditedWorkflows.get(file) === 'publishes' && workflowTargetsDefaultBranch(repoPath, file),
+        );
+        if (discounted.length === 0) return new Map<string, string>();
+        const lintScript = () => readScriptDeclarations().declaresScript('lint');
+        const testedAndLinted = workflows
+          .filter(countsAsCi(uncreditedWorkflows))
+          .find((file) => pullRequestTestAndLintWorkflow(repoPath, file, lintScript));
+        return testedAndLinted === undefined
+          ? new Map<string, string>()
+          : new Map(discounted.map((file) => [file, testedAndLinted] as const));
+      })
+    : new Map();
   // For the note, disclosure and condition: a root workflow is named as such.
   const b3Uncredited: ReadonlyMap<string, UncreditedCiWorkflowReason> = new Map([
     ...uncreditedWorkflows,
@@ -7165,7 +7200,7 @@ function collectB3CiDisciplineEvidence(
     'default_branch_ci_depth',
     () => {
       const counted = workflows
-        .filter(countsAsCi(uncreditedWorkflows))
+        .filter((file) => countsAsCi(uncreditedWorkflows)(file) || depthKeptPublishing.has(file))
         .filter((file) => workflowTargetsDefaultBranch(repoPath, file));
       const rootCounted = mono
         ? rootWorkflows
@@ -7224,9 +7259,16 @@ function collectB3CiDisciplineEvidence(
             )
           : false),
     );
-  const b3Note = publishingRuleEmptiedCount
+  const b3NoteBeforeKept = publishingRuleEmptiedCount
     ? b3NoteWithUnreadCiConfigurations(b3NoteBeforeUnreadCi, unreadCiConfigurations)
     : b3NoteBeforeUnreadCi;
+  // Item B: the note keeps its discount sentence and says, after it, which discounted workflows still
+  // count toward default_branch_ci_depth and why. Without the condition the note is unchanged.
+  const b3Note = b3NoteWithDepthKeptPublishing(b3NoteBeforeKept, depthKeptPublishing);
+  // default_branch_ci_depth's condition counts only the workflows that metric does not count.
+  const b3DepthUncredited: ReadonlyMap<string, UncreditedCiWorkflowReason> = new Map(
+    [...b3Uncredited].filter(([file]) => !depthKeptPublishing.has(file)),
+  );
 
   if (packageJson && scripts.has('test')) {
     evidence.push(evidenceForRelative(repoPath, packageJson, 'test_run', 'Test script'));
@@ -7257,7 +7299,7 @@ function collectB3CiDisciplineEvidence(
   const workflowCitations = useV27FalseAssuranceClosure
     ? withContentReadSignals('B3', ['ci_script_depth', 'default_branch_ci_depth'], () =>
         b3WorkflowCitations([
-          { root: repoPath, workflows, uncredited: uncreditedWorkflows, lines: uncreditedLines, monorepoRoot: false },
+          { root: repoPath, workflows, uncredited: uncreditedWorkflows, lines: uncreditedLines, monorepoRoot: false, depthKept: depthKeptPublishing },
           ...(mono
             ? [{ root: mono.root, workflows: rootWorkflows, uncredited: uncreditedRootWorkflows, lines: rootUncreditedLines, monorepoRoot: true }]
             : []),
@@ -7348,15 +7390,7 @@ function collectB3CiDisciplineEvidence(
   ];
   // The root and every declared workspace package (findDeclaredWorkspaceManifests): a category
   // counts once when any of them declares it. With no declaration this is the root alone.
-  const workspaceManifests = findDeclaredWorkspaceManifests(repoPath, repoFiles, packageJson);
-  const scriptSources = [
-    scripts,
-    ...workspaceManifests.read.map((file) => readPackageScripts(join(repoPath, file))),
-  ];
-  const declaresScript = (name: string): boolean =>
-    scriptSources.some((source) =>
-      name === 'test' ? hasCredibleTestScript(source) : source.has(name),
-    );
+  const { workspaceManifests, declaresScript } = readScriptDeclarations();
   const rootOnlyScriptsNote =
     workspaceManifests.read.length > 0
       ? workspacePackageScriptsDisclosure(repoFiles, packageJson, workspaceManifests)
@@ -7430,8 +7464,8 @@ function collectB3CiDisciplineEvidence(
         'saturating_count',
         b3UnshownCheckCount(unshownCheckWorkflows) > 0
           ? { condition: b3UnshownCheckCondition(unshownCheckWorkflows) }
-          : b3Uncredited.size > 0
-            ? { condition: b3UncreditedCondition(b3Uncredited) }
+          : b3DepthUncredited.size > 0
+            ? { condition: b3UncreditedCondition(b3DepthUncredited) }
             : undefined,
       ),
     ],
@@ -7567,6 +7601,77 @@ interface B3WorkflowSet {
   readonly uncredited: ReadonlyMap<string, UncreditedCiWorkflowReason>;
   readonly lines: ReadonlyMap<string, number | null>;
   readonly monorepoRoot: boolean;
+  // Item B (19 Nov): discounted publishing workflows still counted toward default_branch_ci_depth,
+  // each with the pull-request workflow that runs tests and lint.
+  readonly depthKept?: ReadonlyMap<string, string>;
+}
+
+/**
+ * v27 item B (19 Nov): the label of B3's pointer at a discounted publishing workflow that still counts
+ * toward default_branch_ci_depth, naming `testedAndLinted`, the pull-request workflow that runs tests
+ * and lint. The card's wording ("publishes, releases or deploys with no pull-request trigger; counted
+ * for default-branch depth because ...") is over EVIDENCE_LABEL_MAX_LENGTH after the subject, so the
+ * label says it in fewer words, then names no file where the path is too long.
+ */
+export function b3DepthKeptPublishingLabel(monorepoRoot: boolean, testedAndLinted: string): string {
+  const subject = monorepoRoot ? 'Monorepo-root CI workflow' : 'CI workflow';
+  const lead = `${subject} not counted for script depth: publishes with no pull-request trigger; counted for PR-gate depth`;
+  const named = `${lead} because ${testedAndLinted} runs tests and lint on pull requests`;
+  return named.length <= EVIDENCE_LABEL_MAX_LENGTH ? named : `${lead} (a pull-request workflow runs tests and lint)`;
+}
+
+/**
+ * v27 item B: `note` with one sentence appended for the discounted publishing workflows still counted
+ * toward default_branch_ci_depth, where it fits CRITERION_NOTES_MAX_LENGTH: every name, or the count
+ * alone. `note` unchanged where none is kept or nothing fits.
+ */
+function b3NoteWithDepthKeptPublishing(note: string | undefined, kept: ReadonlyMap<string, string>): string | undefined {
+  if (kept.size === 0) return note;
+  const files = [...kept.keys()];
+  const testedAndLinted = [...new Set(kept.values())];
+  const plural = files.length !== 1;
+  const reason = `because ${testedAndLinted.length === 1 ? testedAndLinted[0] : 'a pull-request workflow'} runs tests and lint on pull requests`;
+  const sentence = (names: string) =>
+    `${names} ${plural ? 'still count' : 'still counts'} toward the PR-gate workflow count, not script depth, ${reason}.`;
+  const joined = (text: string) => (note === undefined || note === '' ? text : `${note} ${text}`);
+  for (const candidate of [
+    joined(sentence(files.length === 1 ? (files[0] ?? '') : `${files.slice(0, -1).join(', ')} and ${files[files.length - 1]}`)),
+    joined(sentence(`${files.length} of the publishing workflows not counted`)),
+  ]) {
+    if (candidate.length <= CRITERION_NOTES_MAX_LENGTH) return candidate;
+  }
+  return note;
+}
+
+// Item C (19 Nov, #536), item B's condition only: a package-script lint run line, read where the
+// root or a declared workspace package has a `lint` script, and a Biome lint line.
+const PACKAGE_SCRIPT_LINT_COMMAND_PATTERN = /(?:^|[ \t])(?:npm[ \t]+run|pnpm(?:[ \t]+run)?|yarn|bun[ \t]+run)[ \t]+lint(?=[ \t]|$)/;
+const BIOME_LINT_COMMAND_PATTERN = /(?:^|[ \t])(?:(?:npx|bunx|pnpm[ \t]+exec)[ \t]+)?biome[ \t]+(?:check|lint)(?=[ \t]|$)/;
+
+/**
+ * v27 item B (19 Nov): true when `file` is a GitHub Actions workflow whose `on:` names a pull-request
+ * trigger (githubWorkflowTriggers, so a word elsewhere neither adds nor removes one) and whose text,
+ * with every YAML comment removed, names both a test command and a lint command: A1's and B3's
+ * patterns, or, for lint, item C's package-script line (where `lintScript` says a `lint` script is
+ * declared) or Biome line. A name in a comment is not a command.
+ */
+function pullRequestTestAndLintWorkflow(root: string, file: string, lintScript: () => boolean): boolean {
+  if (!isGitHubActionsWorkflow(file)) return false;
+  const fullPath = join(root, file);
+  if (!isRegularFile(fullPath)) return false;
+  const contents = readRepoText(fullPath, 'utf8');
+  const triggers = githubWorkflowTriggers(contents);
+  if (!triggers || ![...triggers].some((name) => PULL_REQUEST_TRIGGER_NAMES.has(name))) return false;
+  const text = contents
+    .split(/\r?\n/)
+    .filter((line) => !line.trimStart().startsWith('#'))
+    .map((line) => stripYamlComment(line))
+    .join('\n');
+  if (!CI_TEST_COMMAND_PATTERN.test(text)) return false;
+  if (CI_LINT_COMMAND_PATTERN.test(text)) return true;
+  const lines = text.split('\n');
+  if (lines.some((line) => BIOME_LINT_COMMAND_PATTERN.test(line))) return true;
+  return lines.some((line) => PACKAGE_SCRIPT_LINT_COMMAND_PATTERN.test(line)) && lintScript();
 }
 
 interface B3WorkflowCitation {
@@ -7644,9 +7749,15 @@ function b3WorkflowCitations(sets: readonly B3WorkflowSet[]): {
   readonly uncited: number;
 } {
   const groups: [B3WorkflowCitation[], B3WorkflowCitation[], B3WorkflowCitation[]] = [[], [], []];
-  for (const { root, workflows, uncredited, lines, monorepoRoot } of sets) {
+  for (const { root, workflows, uncredited, lines, monorepoRoot, depthKept } of sets) {
     for (const file of workflows) {
       const reason = uncredited.get(file);
+      // Item B: counted toward default_branch_ci_depth, so among the credited, at its publishing step.
+      const testedAndLinted = reason === 'publishes' ? depthKept?.get(file) : undefined;
+      if (testedAndLinted !== undefined) {
+        groups[0].push({ root, file, label: b3DepthKeptPublishingLabel(monorepoRoot, testedAndLinted), line: lines.get(file) ?? null, monorepoRoot });
+        continue;
+      }
       if (reason !== undefined) {
         groups[2].push({ root, file, label: b3UncreditedWorkflowLabel(reason, monorepoRoot), line: lines.get(file) ?? null, monorepoRoot });
         continue;
@@ -7678,7 +7789,15 @@ function b3WorkflowCitations(sets: readonly B3WorkflowSet[]): {
  * reason and what the cited line is. Within EVIDENCE_LABEL_MAX_LENGTH for every reason.
  */
 function b3UncreditedWorkflowLabel(reason: UncreditedCiWorkflowReason, monorepoRoot: boolean): string {
+  // Item D (#565): earns nothing whatever it holds, so it is cited as read and earning no credit.
+  if (reason === 'nested') {
+    return `${monorepoRoot ? 'Monorepo-root CI workflow' : 'CI workflow'} read, earns no credit: GitHub runs only workflow files directly in .github/workflows`;
+  }
   const subject = monorepoRoot ? 'Monorepo-root CI workflow not counted' : 'CI workflow not counted';
+  // Item A (19 Nov): cited at its first housekeeping step.
+  if (reason === 'housekeeping') {
+    return `${subject}: not shown to run a check, it ${UNCREDITED_CI_WORKFLOW_REASON_TEXT[reason]} (cited at its first such step)`;
+  }
   return reason === 'publishes'
     ? `${subject}: publishes, releases or deploys with no pull-request trigger (cited at the publishing step, or the job calling the workflow that holds it)`
     : `${subject}: not shown to run a check, it ${UNCREDITED_CI_WORKFLOW_REASON_TEXT[reason]} (cited at its on: trigger)`;
@@ -7858,7 +7977,12 @@ function publishingWorkflowReasons(
     const known = uncredited.get(file);
     if (known) {
       reasons.set(file, known);
-      lines.set(file, workflowTriggerLine(root, file));
+      // Item A (19 Nov): a housekeeping workflow at its first housekeeping step; item D: a nested
+      // file at no line, since its path alone decided.
+      lines.set(
+        file,
+        known === 'housekeeping' ? housekeepingStepLine(root, file) : known === 'nested' ? null : workflowTriggerLine(root, file),
+      );
       continue;
     }
     const read = publishingWorkflowDetail(root, file, reading);
@@ -10269,15 +10393,36 @@ function uncreditedCiWorkflowReason(
   file: string,
   inventory: PublishOnlyInventory | null,
 ): UncreditedCiWorkflowReason | null {
+  // Item D (19 Nov, #565): GitHub runs only workflow files directly in .github/workflows, so a file in
+  // a subfolder of it is not CI, whatever it holds. Decided by path alone; nothing is read.
+  if (isNestedGitHubWorkflowFile(file)) return 'nested';
   if (isPublishOnlyWorkflow(root, file, inventory)) return 'publish_only';
   if (!/^\.github\/workflows\//.test(file)) return null;
   const fullPath = join(root, file);
   if (!isRegularFile(fullPath)) return null;
-  return isPrintOnlyWorkflow(readRepoText(fullPath, 'utf8')) ? 'print_only' : null;
+  // Item A (19 Nov, refs #748 item B): a workflow whose every step is checkout, print, or a
+  // housekeeping action or GitHub CLI command earns no credit either.
+  return readHousekeepingOrPrintOnlyWorkflow(readRepoText(fullPath, 'utf8'))?.reason ?? null;
 }
 
-// 'publishes' is B3's alone (publishingWorkflowReasons); B2 and B3 share the other two.
-type UncreditedCiWorkflowReason = 'publish_only' | 'print_only' | 'publishes';
+/** Item D (#565): a file under a subfolder of .github/workflows, which GitHub does not run. */
+function isNestedGitHubWorkflowFile(file: string): boolean {
+  return /^\.github\/workflows\/[^/]+\/./.test(file);
+}
+
+/**
+ * Item A (19 Nov): the 1-based line of a housekeeping workflow's first housekeeping step, where B3
+ * cites it; null where the reader does not place the file as housekeeping.
+ */
+function housekeepingStepLine(root: string, file: string): number | null {
+  const fullPath = join(root, file);
+  if (!isRegularFile(fullPath)) return null;
+  const read = readHousekeepingOrPrintOnlyWorkflow(readRepoText(fullPath, 'utf8'));
+  return read?.reason === 'housekeeping' ? read.line : null;
+}
+
+// 'publishes' is B3's alone (publishingWorkflowReasons); B2 and B3 share the others.
+type UncreditedCiWorkflowReason = 'publish_only' | 'print_only' | 'housekeeping' | 'nested' | 'publishes';
 
 /** The uncredited workflows among `workflows`, in their order, with each one's reason. */
 function uncreditedCiWorkflows(
@@ -10346,6 +10491,8 @@ function uncreditedCiWorkflowCondition(count: number): string {
 const UNCREDITED_CI_WORKFLOW_REASON_TEXT: Readonly<Record<UncreditedCiWorkflowReason, string>> = {
   print_only: 'only checks out the repository, prints text or does nothing',
   publish_only: 'only checks out, sets up a toolchain, configures credentials or uploads an already-built artifact',
+  housekeeping: 'only labels, comments on or closes issues and pull requests',
+  nested: 'is in a subfolder of .github/workflows, and GitHub runs only workflow files directly in it',
   publishes: 'runs an unconditional publish, release or deploy step',
 };
 
@@ -10402,6 +10549,8 @@ function uncreditedCiWorkflowNote(
     [...uncredited].filter(([, why]) => why === reason).map(([file]) => file);
   const publishOnly = of('publish_only');
   const printOnly = of('print_only');
+  const housekeeping = of('housekeeping');
+  const nested = of('nested');
   const publishing = of('publishes');
   const listed = (files: readonly string[], shown: number) =>
     shown === 0
@@ -10416,6 +10565,18 @@ function uncreditedCiWorkflowNote(
     ...(printOnly.length > 0
       ? [
           `${printOnly.length === 1 ? '1 workflow' : `${printOnly.length} workflows`} not shown to run a check (every step Cejel reads only checks out the repository, prints text or does nothing) ${printOnly.length === 1 ? 'is' : 'are'} not counted as ${notCountedAs}${listed(printOnly, shown)}.`,
+        ]
+      : []),
+    // Item A (19 Nov): shared by B2 and B3, after the print-only sentence.
+    ...(housekeeping.length > 0
+      ? [
+          `${housekeeping.length === 1 ? '1 workflow' : `${housekeeping.length} workflows`} not shown to run a check (every step Cejel reads only checks out, prints, or labels, comments on or closes issues and pull requests) ${housekeeping.length === 1 ? 'is' : 'are'} not counted as ${notCountedAs}${listed(housekeeping, shown)}.`,
+        ]
+      : []),
+    // Item D (19 Nov, #565): shared by B2 and B3.
+    ...(nested.length > 0
+      ? [
+          `${nested.length === 1 ? '1 workflow file' : `${nested.length} workflow files`} in a subfolder of .github/workflows ${nested.length === 1 ? 'is' : 'are'} not counted as ${notCountedAs}, since GitHub runs only workflow files directly in it${listed(nested, shown)}.`,
         ]
       : []),
     // B3 only (#517), and last, so the sentences B2 shares come first and read the same.
@@ -13314,7 +13475,157 @@ function isOneLineScalar(value: string): boolean {
  * `defaults`), any flow collection, and any line the grammar does not place claim nothing.
  */
 export function isPrintOnlyWorkflow(contents: string): boolean {
-  if (YAML_LINE_BREAK_NOT_SPLIT_PATTERN.test(contents) || OTHER_LEADING_BLANK_PATTERN.test(contents)) return false;
+  return readPrintOnlyWorkflow(contents, false) === 'print_only';
+}
+
+/**
+ * v27 (19 Nov, refs #600 #748, item A): the print-only reader with housekeeping steps admitted too.
+ * 'housekeeping' with the 1-based line of the first housekeeping step where every step is checkout,
+ * print, or a housekeeping action or GitHub CLI command (isHousekeepingActionStep,
+ * isHousekeepingGhCommand) and at least one is housekeeping; 'print_only' where every step only
+ * prints, as isPrintOnlyWorkflow reads it; null otherwise. Any line the grammar does not place still
+ * claims nothing, so a workflow it cannot read keeps its credit.
+ */
+export function readHousekeepingOrPrintOnlyWorkflow(
+  contents: string,
+): { readonly reason: 'print_only' } | { readonly reason: 'housekeeping'; readonly line: number } | null {
+  const lines: number[] = [];
+  const read = readPrintOnlyWorkflow(contents, true, lines);
+  if (read === 'print_only') return { reason: 'print_only' };
+  if (read === 'housekeeping' && lines[0] !== undefined) return { reason: 'housekeeping', line: lines[0] };
+  return null;
+}
+
+// v27 (19 Nov, item A): actions whose every run only labels, comments on, or opens or closes issues and
+// pull requests, pinned by tag or by SHA, each with the `with:` keys it may take: keys whose values
+// are text, labels, globs or numbers. Any other key keeps the workflow's credit.
+const HOUSEKEEPING_ACTION_PATTERN = /^actions\/(labeler|stale|first-interaction)@(?:v\d+(?:\.\d+){0,2}|[0-9a-f]{40})$/;
+const HOUSEKEEPING_TOKEN_KEYS = ['repo-token'];
+const HOUSEKEEPING_ACTION_WITH_KEYS: Readonly<Record<string, ReadonlySet<string>>> = {
+  labeler: new Set([...HOUSEKEEPING_TOKEN_KEYS, 'configuration-path', 'pr-number']),
+  stale: new Set([
+    ...HOUSEKEEPING_TOKEN_KEYS,
+    'days-before-stale', 'days-before-close', 'days-before-issue-stale', 'days-before-issue-close',
+    'days-before-pr-stale', 'days-before-pr-close', 'stale-issue-message', 'stale-pr-message',
+    'close-issue-message', 'close-pr-message', 'stale-issue-label', 'stale-pr-label', 'close-issue-label',
+    'close-pr-label', 'exempt-issue-labels', 'exempt-pr-labels', 'only-labels', 'only-issue-labels',
+    'only-pr-labels', 'any-of-labels', 'any-of-issue-labels', 'any-of-pr-labels', 'operations-per-run',
+    'labels-to-add-when-unstale', 'labels-to-remove-when-unstale', 'close-issue-reason',
+    'exempt-assignees', 'exempt-issue-assignees', 'exempt-pr-assignees', 'exempt-milestones',
+    'exempt-issue-milestones', 'exempt-pr-milestones', 'start-date',
+  ]),
+  'first-interaction': new Set([...HOUSEKEEPING_TOKEN_KEYS, 'issue-message', 'pr-message', 'issue_message', 'pr_message']),
+};
+// A `${{ }}` expression that names only a pull request's or issue's number or URL.
+const HOUSEKEEPING_EXPRESSION_PATTERN =
+  /\$\{\{[ \t]*(?:github\.event\.(?:pull_request|issue)\.(?:number|html_url)|github\.event\.number)[ \t]*\}\}/g;
+// The token expressions a housekeeping step may pass as its token.
+const HOUSEKEEPING_TOKEN_EXPRESSION_PATTERN = /^\$\{\{[ \t]*(?:github\.token|secrets\.[A-Za-z_][A-Za-z0-9_]*)[ \t]*\}\}$/;
+// A mapping key under a step's `with:` or `env:`, plain, with a one-line value or none.
+const STEP_MAPPING_KEY_PATTERN = /^([A-Za-z_][A-Za-z0-9_-]*):(?:[ \t]+([^]*))?$/;
+// Environment names a housekeeping step may not set: each changes what the shell or gh runs.
+const HOUSEKEEPING_ENV_NAME_REFUSED = /^(?:BASH_ENV|ENV|PATH|IFS|PS4|HOME|SHELLOPTS|BASHOPTS|CDPATH|GLOBIGNORE|PROMPT_COMMAND|NODE_OPTIONS|(?:GH|GIT|LD|BASH)_[A-Z0-9_]*)$/;
+
+/** True for a one-line `with:` or `env:` value with no `${{ }}` but the ones `allowed` names. */
+function isInertHousekeepingValue(value: string, allowToken: boolean): boolean {
+  const scalar = unquoteYamlScalar(value);
+  if (allowToken && HOUSEKEEPING_TOKEN_EXPRESSION_PATTERN.test(scalar)) return true;
+  return !scalar.replace(HOUSEKEEPING_EXPRESSION_PATTERN, '').includes('${{');
+}
+
+/** A housekeeping action step's `with:` entries, each a key its action takes and an inert value. */
+function isHousekeepingActionStep(action: string, entries: ReadonlyMap<string, string>): boolean {
+  const keys = HOUSEKEEPING_ACTION_WITH_KEYS[action];
+  if (!keys) return false;
+  for (const [key, value] of entries) {
+    if (!keys.has(key) || !isInertHousekeepingValue(value, HOUSEKEEPING_TOKEN_KEYS.includes(key))) return false;
+  }
+  return true;
+}
+
+/** A step's `env:` entries a GitHub CLI housekeeping line may read: names that change no command. */
+function isHousekeepingStepEnv(entries: ReadonlyMap<string, string>): boolean {
+  for (const [name, value] of entries) {
+    if (name === 'GH_TOKEN' || name === 'GITHUB_TOKEN') {
+      if (!HOUSEKEEPING_TOKEN_EXPRESSION_PATTERN.test(unquoteYamlScalar(value))) return false;
+      continue;
+    }
+    if (!/^[A-Z][A-Z0-9_]*$/.test(name) || HOUSEKEEPING_ENV_NAME_REFUSED.test(name)) return false;
+    if (!isInertHousekeepingValue(value, false)) return false;
+  }
+  return true;
+}
+
+/** One word of a GitHub CLI housekeeping line, inert in bash: a literal, or a value `env` sets. */
+function isInertHousekeepingWord(word: string, env: ReadonlyMap<string, string>): boolean {
+  if (word.startsWith("'")) return word.length > 1 && word.endsWith("'") && !word.slice(1, -1).includes("'");
+  const withoutExpressions = word.replace(HOUSEKEEPING_EXPRESSION_PATTERN, '');
+  if (word.startsWith('"')) {
+    if (word.length < 2 || !word.endsWith('"')) return false;
+    // In double quotes a `$NAME` the step's env sets is text; nothing else may expand.
+    const body = withoutExpressions.slice(1, -1).replace(/\$(?:([A-Za-z_][A-Za-z0-9_]*)|\{([A-Za-z_][A-Za-z0-9_]*)\})/g, (match, plain: string | undefined, braced: string | undefined) =>
+      env.has(plain ?? braced ?? '') ? '' : match,
+    );
+    // `!` is text here: a non-interactive bash does no history expansion.
+    return !/[$`\\"]/.test(body);
+  }
+  return /^[A-Za-z0-9_.,:/+=@%-]+$/.test(withoutExpressions) || withoutExpressions === '';
+}
+
+/**
+ * v27 (19 Nov, item A): a run line that is only a GitHub CLI comment on a pull request or issue
+ * (`gh pr comment`, `gh issue comment`, with `--body`), or a pull-request edit that only adds or
+ * removes labels (`gh pr edit` with `--add-label` or `--remove-label`), every argument inert text
+ * (isInertHousekeepingWord). A pipe, `&&`, `;`, a subshell, a redirect or a command substitution
+ * anywhere on the line claims nothing.
+ */
+export function isHousekeepingGhCommand(command: string, env: ReadonlyMap<string, string>): boolean {
+  if (/[|&;<>()`\\\r\n]/.test(command) || command.includes('$(')) return false;
+  const words: string[] = [];
+  const word = /[ \t]*("[^"]*"|'[^']*'|[^ \t"']+)(?=[ \t]|$)/y;
+  let at = 0;
+  // A `${{ }}` expression naming a number or URL is replaced by its text before the shell reads the
+  // line, so it stands for one inert word; any other expression claims nothing.
+  const text = command.replace(HOUSEKEEPING_EXPRESSION_PATTERN, '0').trim();
+  if (text.includes('${{')) return false;
+  while (at < text.length) {
+    word.lastIndex = at;
+    const match = word.exec(text);
+    if (!match) return false;
+    words.push(match[1] ?? '');
+    at = word.lastIndex;
+  }
+  const [gh, noun, verb, ...rest] = words;
+  if (gh !== 'gh' || (noun !== 'pr' && noun !== 'issue')) return false;
+  const comment = verb === 'comment';
+  const edit = verb === 'edit' && noun === 'pr';
+  if (!comment && !edit) return false;
+  const valueFlags = new Set(comment ? ['--body', '-b', '--repo', '-R'] : ['--add-label', '--remove-label', '--repo', '-R']);
+  let positional = 0;
+  let body = false;
+  let labels = false;
+  for (let index = 0; index < rest.length; index += 1) {
+    const item = rest[index] ?? '';
+    if (item.startsWith('-')) {
+      const value = rest[index + 1];
+      if (!valueFlags.has(item) || value === undefined || !isInertHousekeepingWord(value, env)) return false;
+      if (item === '--body' || item === '-b') body = true;
+      if (item === '--add-label' || item === '--remove-label') labels = true;
+      index += 1;
+      continue;
+    }
+    if (!isInertHousekeepingWord(item, env)) return false;
+    positional += 1;
+  }
+  return positional <= 1 && (comment ? body : labels);
+}
+
+function readPrintOnlyWorkflow(
+  contents: string,
+  allowHousekeeping: boolean,
+  housekeepingLines: number[] = [],
+): 'print_only' | 'housekeeping' | null {
+  if (YAML_LINE_BREAK_NOT_SPLIT_PATTERN.test(contents) || OTHER_LEADING_BLANK_PATTERN.test(contents)) return null;
   const lines = contents.split(/\r?\n/);
   const isContent = (line: string) => line.trim() !== '' && !line.trimStart().startsWith('#');
   // Every top-level key, in any order, must be one the allowlist names, written plain; a second
@@ -13323,26 +13634,57 @@ export function isPrintOnlyWorkflow(contents: string): boolean {
   for (let index = 0; index < lines.length; index += 1) {
     const raw = lines[index] ?? '';
     if (!isContent(raw) || /^[ \t]/.test(raw)) continue;
-    if (!PRINT_ONLY_TOP_LEVEL_KEY_PATTERN.test(raw)) return false;
+    if (!PRINT_ONLY_TOP_LEVEL_KEY_PATTERN.test(raw)) return null;
     if (/^jobs[ \t]*:[ \t]*$/.test(stripYamlComment(raw))) {
-      if (jobsStart !== -1) return false;
+      if (jobsStart !== -1) return null;
       jobsStart = index;
     }
   }
-  if (jobsStart === -1) return false;
+  if (jobsStart === -1) return null;
   let jobIndent = -1;
   let keyIndent = -1;
   let inSteps = false;
   let stepKeyColumn = -1;
-  let step: { run?: boolean; uses?: boolean } | null = null;
+  interface PrintOnlyStep {
+    run?: boolean;
+    uses?: boolean;
+    // Housekeeping mode only (item A): the housekeeping action named, a one-line GitHub CLI run
+    // line, and the step's `with:` and `env:` entries.
+    action?: string;
+    ghLine?: string;
+    with?: Map<string, string>;
+    env?: Map<string, string>;
+    line: number;
+  }
+  let step: PrintOnlyStep | null = null;
   let body: { column: number; block: boolean } | null = null;
+  // Housekeeping mode only: the `with:` or `env:` mapping being read, at its key's column.
+  let mapping: { column: number; entryColumn: number; entries: Map<string, string> } | null = null;
   let runSteps = 0;
+  let housekeepingSteps = 0;
   // Every job must name a GitHub-hosted bash runner (#564); null before the first job.
   let jobHasBashRunner: boolean | null = null;
   const closeStep = () => {
-    if (step && step.run && step.uses) return false;
-    if (step?.run) runSteps += 1;
+    const closing = step as PrintOnlyStep | null;
     step = null;
+    if (!closing) return true;
+    if (closing.run && closing.uses) return false;
+    if (closing.action !== undefined) {
+      if (closing.env || !isHousekeepingActionStep(closing.action, closing.with ?? new Map())) return false;
+      housekeepingSteps += 1;
+      housekeepingLines.push(closing.line);
+      return true;
+    }
+    if (closing.with) return false;
+    if (closing.ghLine !== undefined) {
+      const env = closing.env ?? new Map<string, string>();
+      if (!isHousekeepingStepEnv(env) || !isHousekeepingGhCommand(closing.ghLine, env)) return false;
+      housekeepingSteps += 1;
+      housekeepingLines.push(closing.line);
+      return true;
+    }
+    if (closing.env) return false;
+    if (closing.run) runSteps += 1;
     return true;
   };
   for (let index = jobsStart + 1; index < lines.length; index += 1) {
@@ -13353,23 +13695,38 @@ export function isPrintOnlyWorkflow(contents: string): boolean {
       if (indent > body.column) {
         // A block body is shell text: a line is a comment only when it starts with `#`, and the
         // balanced-quote rule means no quote is open from an earlier line.
-        if (!body.block) return false;
+        if (!body.block) return null;
         const text = raw.trim();
-        if (!text.startsWith('#') && !isPrintOnlyShellLine(text)) return false;
+        if (!text.startsWith('#') && !isPrintOnlyShellLine(text)) return null;
         continue;
       }
       body = null;
+    }
+    if (mapping) {
+      if (indent > mapping.column) {
+        if (!isContent(raw)) continue;
+        if (mapping.entryColumn === -1) mapping.entryColumn = indent;
+        if (indent !== mapping.entryColumn) return null;
+        const entry = STEP_MAPPING_KEY_PATTERN.exec(stripYamlComment(raw).trim());
+        const value = entry?.[2] ?? '';
+        if (!entry || value === '' || /^[[{&*|>!]/.test(value) || !isOneLineScalar(value)) return null;
+        if (mapping.entries.has(entry[1] ?? '')) return null;
+        mapping.entries.set(entry[1] ?? '', value);
+        continue;
+      }
+      if (mapping.entries.size === 0) return null;
+      mapping = null;
     }
     if (!isContent(raw)) continue;
     const text = stripYamlComment(raw).trimEnd();
     // The next top-level key ends the jobs section; the scan above has read every one.
     if (indent === 0) break;
     if (jobIndent === -1) jobIndent = indent;
-    if (indent < jobIndent) return false;
+    if (indent < jobIndent) return null;
     if (indent === jobIndent) {
-      if (!closeStep()) return false;
-      if (jobHasBashRunner === false) return false;
-      if (!/^[ \t]*[A-Za-z_][A-Za-z0-9_-]*:[ \t]*$/.test(text)) return false;
+      if (!closeStep()) return null;
+      if (jobHasBashRunner === false) return null;
+      if (!/^[ \t]*[A-Za-z_][A-Za-z0-9_-]*:[ \t]*$/.test(text)) return null;
       jobHasBashRunner = false;
       keyIndent = -1;
       inSteps = false;
@@ -13377,62 +13734,78 @@ export function isPrintOnlyWorkflow(contents: string): boolean {
     }
     if (keyIndent === -1) keyIndent = indent;
     const isItem = /^[ \t]*-[ \t]+/.test(text);
-    if (indent < keyIndent) return false;
+    if (indent < keyIndent) return null;
     if (indent === keyIndent && !(inSteps && isItem)) {
-      if (!closeStep()) return false;
+      if (!closeStep()) return null;
       inSteps = false;
       const key = UNQUOTED_KEY_PATTERN.exec(text.trim());
-      if (!key || !PRINT_ONLY_JOB_KEYS.has(key[1] ?? '')) return false;
+      if (!key || !PRINT_ONLY_JOB_KEYS.has(key[1] ?? '')) return null;
       const value = key[2] ?? '';
       if (key[1] === 'steps') {
-        if (value !== '') return false;
+        if (value !== '') return null;
         inSteps = true;
         continue;
       }
-      if (value === '' || /^[[{&*|>!]/.test(value) || !isOneLineScalar(value)) return false;
+      if (value === '' || /^[[{&*|>!]/.test(value) || !isOneLineScalar(value)) return null;
       if (key[1] === 'runs-on') {
-        if (!isGitHubHostedBashRunner(value)) return false;
+        if (!isGitHubHostedBashRunner(value)) return null;
         jobHasBashRunner = true;
       }
       continue;
     }
-    if (!inSteps) return false;
+    if (!inSteps) return null;
     let keyText = text;
     let column = indent;
     if (isItem) {
-      if (!closeStep()) return false;
+      if (!closeStep()) return null;
       const item = /^([ \t]*-[ \t]+)([^]*)$/.exec(text);
       keyText = item?.[2] ?? '';
       column = (item?.[1] ?? '').length;
       stepKeyColumn = column;
-      step = {};
+      step = { line: index + 1 };
     } else if (indent !== stepKeyColumn || !step) {
-      return false;
+      return null;
     }
     const key = UNQUOTED_KEY_PATTERN.exec(keyText.trim());
-    if (!key || !PRINT_ONLY_STEP_KEYS.has(key[1] ?? '')) return false;
+    const stepKey = key?.[1] ?? '';
+    if (!key || !(PRINT_ONLY_STEP_KEYS.has(stepKey) || (allowHousekeeping && (stepKey === 'with' || stepKey === 'env')))) return null;
     const value = key[2] ?? '';
-    const current: { run?: boolean; uses?: boolean } = step ?? {};
-    if (key[1] === 'name') {
-      if (value === '' || /^[[{&*|>!]/.test(value) || !isOneLineScalar(value)) return false;
-    } else if (key[1] === 'uses') {
-      if (current.uses || !CHECKOUT_ACTION_PATTERN.test(value)) return false;
+    const current: PrintOnlyStep = step ?? { line: index + 1 };
+    if (stepKey === 'name') {
+      if (value === '' || /^[[{&*|>!]/.test(value) || !isOneLineScalar(value)) return null;
+    } else if (stepKey === 'with' || stepKey === 'env') {
+      if (value !== '' || current[stepKey]) return null;
+      const entries = new Map<string, string>();
+      current[stepKey] = entries;
+      mapping = { column, entryColumn: -1, entries };
+    } else if (stepKey === 'uses') {
+      if (current.uses) return null;
+      const housekeeping = allowHousekeeping ? HOUSEKEEPING_ACTION_PATTERN.exec(value) : null;
+      if (housekeeping) current.action = housekeeping[1] ?? '';
+      else if (!CHECKOUT_ACTION_PATTERN.test(value)) return null;
       current.uses = true;
     } else {
-      if (current.run) return false;
+      if (current.run) return null;
       current.run = true;
       if (BLOCK_SCALAR_INDICATOR_PATTERN.test(value)) {
         body = { column, block: true };
-      } else {
-        if (value === '' || !isPrintOnlyShellLine(value) || /^["']/.test(value)) return false;
+      } else if (value !== '' && !/^["']/.test(value) && isPrintOnlyShellLine(value)) {
         // A plain value continued on a deeper line is not placed.
         body = { column, block: false };
+      } else if (allowHousekeeping && value !== '' && !/^["']/.test(value) && isOneLineScalar(value)) {
+        // Item A: read whole at the step's close, once its `env:` is known.
+        current.ghLine = value;
+        body = { column, block: false };
+      } else {
+        return null;
       }
     }
   }
-  if (!closeStep()) return false;
-  if (jobHasBashRunner !== true) return false;
-  return runSteps > 0;
+  if (mapping !== null && (mapping as { entries: Map<string, string> }).entries.size === 0) return null;
+  if (!closeStep()) return null;
+  if (jobHasBashRunner !== true) return null;
+  if (housekeepingSteps > 0) return 'housekeeping';
+  return runSteps > 0 ? 'print_only' : null;
 }
 
 export interface B3UnshownCheckWorkflows {

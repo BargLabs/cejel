@@ -22,6 +22,110 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
+## 2026-11-19 (B2 and B3 housekeeping and publishing depth) — under v27, a workflow that only labels, comments on or closes issues and pull requests, or a workflow file in a subfolder of `.github/workflows/`, earns no B2 or B3 CI credit, and a publishing workflow the #517 rule discounts still counts toward `default_branch_ci_depth` where one counted pull-request workflow runs tests and lint (refs #600, #748, #536, #565); v17-v26 byte-identical; v27 never above v17; no fingerprint moved; no published score moved
+
+**Status.** A scoring change under `witan-rubric-v27-prospective-2026-10-19` only, with no
+identifier change (goal_cejel_v27_b2_b3_housekeeping_and_publishing_depth_2026-11-19, operator
+rulings of 19 Nov on items B and C of #748). No holdout or calibration ran for it, and this entry
+makes no precision or recall claim. The default stays v17. A changed v27 needs a new freeze.
+
+**Why.** #748 measured two v27 behaviours and handed them back, stated here as properties of the
+rule:
+
+1. B2 and B3 uncredit a workflow only through the publish-only and print-only readers. A workflow
+   that only labels, comments on or closes issues and pull requests is refused by the print-only
+   reader, so it kept its credit: on `pull_request` it raised `default_branch_ci_depth`, and on any
+   trigger it raised B2's `pr_trace_primitives`.
+2. A push-to-default-branch publishing workflow with no pull-request trigger and no environment is
+   not counted under v27. Where the counted pull-request CI already runs tests and lint, that
+   discount was the whole difference between v17's B3 and v27's.
+
+Two open issues were folded in: package-script lint is not recognised by `CI_LINT_COMMAND_PATTERN`
+(#536), and a workflow file in a subfolder of `.github/workflows/` was counted as CI under every
+rubric, though GitHub runs only the files directly in it (#565).
+
+**Change (v27 only).**
+
+- **Housekeeping workflows (item A).** The shared predicate (`uncreditedCiWorkflowReason`) reads a
+  workflow as `housekeeping` when every step is a checkout, a print, or one of these, and at least
+  one is housekeeping:
+  - `actions/labeler`, `actions/stale` or `actions/first-interaction`, pinned by tag (`v5`,
+    `v9.1`) or by a 40-character SHA, with only `with:` keys from a per-action list of keys that
+    take text, labels, globs or numbers, each a one-line value with no `${{ }}` but a token
+    (`repo-token`) or a pull request's or issue's number or URL;
+  - a one-line `gh pr comment` or `gh issue comment` with `--body`, or `gh pr edit` with only
+    `--add-label` or `--remove-label`, every argument a literal, a `${{ }}` naming a pull
+    request's or issue's number or URL, or a double-quoted `$NAME` the step's `env:` sets. A pipe,
+    `&&`, `;`, a subshell, a redirect or a command substitution claims nothing. The step's `env:`
+    may hold `GH_TOKEN` or `GITHUB_TOKEN` from a token expression and other names whose values are
+    inert; `BASH_ENV`, `PATH` and names that change what the shell or `gh` runs are refused.
+
+  Any line the grammar does not place still returns null, and the workflow keeps its credit.
+  `actions/github-script` stays counted: its `script:` is inline code. Such a workflow counts toward
+  neither B3 depth metric nor B2's CI component. B3 cites it at its first housekeeping step: "CI
+  workflow not counted: not shown to run a check, it only labels, comments on or closes issues and
+  pull requests (cited at its first such step)". B2's and B3's notes share one new sentence for it,
+  and each criterion's disclosure names it with that reason. `isPrintOnlyWorkflow`, which B3's
+  every-rubric disclosure of #540 calls, is unchanged.
+- **Nested workflow files (item D, #565).** A file under a subfolder of `.github/workflows/` earns
+  no B2 or B3 credit, decided by path alone. B3 cites it as "CI workflow read, earns no credit:
+  GitHub runs only workflow files directly in .github/workflows". `isCiWorkflow` is unchanged, so
+  every other rubric still counts it.
+- **Publishing depth (item B, option 2).** A workflow the #517 rule discounts (`publishes`: no
+  pull-request trigger, an unconditional publish, no environment) still counts toward
+  `default_branch_ci_depth` where `workflowTargetsDefaultBranch` accepts it and one workflow counted
+  after item A has a pull-request trigger in its `on:` key (read by `githubWorkflowTriggers`) and
+  runs both a test command and a lint command. The two must be in one workflow, read with every YAML
+  comment removed, so a name in a comment is no command. A housekeeping workflow never satisfies the
+  condition. The discounted workflow still does not count toward `ci_script_depth`.
+  - B2 never applied the publishing rule (it is B3's alone), so B2 counts these workflows, as before.
+  - The condition is read on the repository's own workflows. A monorepo root's discounted
+    publishing workflows stay discounted, as before.
+  - B3's pointer: "CI workflow not counted for script depth: publishes with no pull-request trigger;
+    counted for PR-gate depth because .github/workflows/ci.yml runs tests and lint on pull
+    requests", at the publishing step. The card's longer wording is over the schema's 180
+    characters after the "CI workflow" subject, so the label says it in fewer words; where the
+    path makes it too long, it names no file.
+  - B3's note keeps its discount sentence and adds one saying which discounted workflows still count
+    toward the PR-gate workflow count, and why. `default_branch_ci_depth`'s condition counts only
+    the workflows that metric does not count. Where the condition does not hold, the note,
+    condition and disclosure are unchanged.
+  - **The accepted cost.** On such a repository, v27 no longer resists #517's evasion of making a
+    release workflow run on every push to the default branch without its gate.
+- **Package-script lint, for item B's condition only (item C, #536).** A lint command there also
+  includes the run lines `npm run lint`, `pnpm run lint`, `pnpm lint`, `yarn lint` and `bun run
+  lint`, where the root package.json or a declared workspace package's has a `lint` script (the
+  workspace reading of #479), and `biome check` and `biome lint`, directly or through `npx`,
+  `pnpm exec` or `bunx`. `ci_script_depth`, `CI_LINT_COMMAND_PATTERN` and every other metric are
+  unchanged, under every rubric.
+
+**Glossary.** The v27-only definition of "PR-gate CI workflow count" gains two sentences before its
+citation sentence: "Such a publishing workflow file that targets the main or master branch is still
+counted by this metric, though not by CI verification depth, when another counted workflow file
+with a pull-request trigger runs both a test and a lint command. Under the same rubric, a workflow
+file is not counted when every step only checks out, prints, or labels, comments on or closes issues
+and pull requests (through actions/labeler, actions/stale, actions/first-interaction or a GitHub CLI
+comment or label command with inert arguments), or when the file is in a subfolder of
+.github/workflows, which GitHub does not run." Every other rubric's glossary is unchanged.
+
+**The no-rise property.** Items A and D only remove credit. Item B adds a workflow v17 counts toward
+`default_branch_ci_depth` on the same commit (v17 counts every CI workflow `workflowTargetsDefaultBranch`
+accepts), so v27's count stays at or below v17's.
+
+**Measured** on 20 Nov, at this branch's code against main `08bf47242`, on 402 synthetic repositories: false-assurance 268 (the symlink fixture left out, since its head SHA differs on every build), CI-claims 71, publishing-gates 17, publishing-with-checks 11 and its 4 edge cases, unread-CI-configuration 8, #748's cites-every-workflow 13, and this change's 10. In the main pass, main's `src/witan/repo-signals.ts` and `src/witan/certificate-presentation.ts`, the only source files whose behaviour this change moves, were checked out over this branch's, then restored. Each pass built every fixture and scored it under all eleven selectable rubrics, with 0 errors on either side. The driver compared each report.json by hash, plus the composite, the verdict and every criterion's score, status and finding count. It is not committed. HTML and Markdown certificates were not compared in this pass. The certificate pins cover them: under v27 they move by the glossary paragraph alone.
+
+- **v17 to v26:** 4,020 of 4,020 reports byte-identical to main.
+- **v27:** 390 of 402 byte-identical. 12 moved.
+  - Lowered, by items A and D (housekeeping or nested workflows):
+    - `b-stale-closer` and `b-labeller-pull-request-target`: B2 3.2 to 1.6.
+    - `b-labeller-pull-request`, `b-commenter-gh-cli`, `a-gh-pr-edit-add-label` and `d-nested-workflow`: B2 3.2 to 1.6, and B3 1.6 to 1.0.
+    - `b-housekeeping-other-pr-docs-deploy`: B3 1.6 to 1.0. Its only other pull-request workflow is housekeeping, so item B's condition does not hold.
+    - The composite falls on each, and the verdict moves from at_risk to unverified on the six that lose B2 credit.
+  - Raised to v17's value, by items B and C (the publishing workflow kept for default-branch depth): `cite-four-workflows`, `c-docs-deploy-main`, `c-semantic-release-main` and `c-pnpm-lint-script-docs-deploy`. B3 goes from 1.5 to 2.0, equal to v17, and no verdict moves.
+  - Evidence only: `cite-over-the-limit`, whose report changes outside the scoring fields. No score, status or finding count moves.
+  - `b-commenter-github-script`, whose `script:` is inline code, is byte-identical to main.
+- **v27 above v17 on the same repository:** 0, for the composite and every criterion's score.
+
 ## 2026-11-19 (A1 builtin copy never credited) — under v27 a copy of pytest's collected items made through a builtin is never credited, and the repository-wide builtins search it rested on is removed (refs #664, #646); v17-v26 byte-identical; v27 never above v17; no score, status, finding count, composite or verdict moved; no fingerprint moved; no published score moved
 
 **Status.** A change under `witan-rubric-v27-prospective-2026-10-19` only, with no identifier change

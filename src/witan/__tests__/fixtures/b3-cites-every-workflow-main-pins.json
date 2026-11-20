@@ -133,7 +133,7 @@
   },
   "v27Outcomes": {
     "cite-four-workflows": {
-      "overall": 1.9,
+      "overall": 2,
       "criteria": [
         {
           "id": "A1",
@@ -244,18 +244,18 @@
           "metrics": [
             [
               "pr_trace_primitives",
-              4
+              3
             ],
             [
               "pr_merge_ratio",
               0
             ]
           ],
-          "findings": "2a3873e0fc14598b0b16ac3c62b5f619de708f33dd0065b984437825d65d5c95"
+          "findings": "87c5da43fa2ca156033550a9cb12699f161e30255d90416089fe3b9858d3ac07"
         },
         {
           "id": "B3",
-          "score": 1.5,
+          "score": 2,
           "status": "verified",
           "metrics": [
             [
@@ -264,7 +264,7 @@
             ],
             [
               "default_branch_ci_depth",
-              1
+              2
             ]
           ],
           "findings": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
@@ -387,14 +387,14 @@
           "metrics": [
             [
               "pr_trace_primitives",
-              22
+              2
             ],
             [
               "pr_merge_ratio",
               0
             ]
           ],
-          "findings": "590ea20d530d31b5f3b58119c79e780e670f918c8768568251dcd81f6384f24a"
+          "findings": "63cd2eb753d1142fb7c41a24752fe0eff42230a4fce659f31881960c04358004"
         },
         {
           "id": "B3",
@@ -579,7 +579,7 @@
       ]
     },
     "b-stale-closer": {
-      "overall": 1.8,
+      "overall": 1.4,
       "criteria": [
         {
           "id": "A1",
@@ -668,19 +668,19 @@
         },
         {
           "id": "B2",
-          "score": 3.2,
+          "score": 1.6,
           "status": "warning",
           "metrics": [
             [
               "pr_trace_primitives",
-              2
+              1
             ],
             [
               "pr_merge_ratio",
               0
             ]
           ],
-          "findings": "8c48cb88b9ce608a7f5fa3e3b08d54a5bafa0c1eedefe95c2f6901bf86345a40"
+          "findings": "5d98609aae44a466af0d7717bb00e7eecd2b01d0d48f6c55fa71f0b1c0f82414"
         },
         {
           "id": "B3",
@@ -722,7 +722,7 @@
       ]
     },
     "b-labeller-pull-request-target": {
-      "overall": 1.8,
+      "overall": 1.4,
       "criteria": [
         {
           "id": "A1",
@@ -811,19 +811,19 @@
         },
         {
           "id": "B2",
-          "score": 3.2,
+          "score": 1.6,
           "status": "warning",
           "metrics": [
             [
               "pr_trace_primitives",
-              2
+              1
             ],
             [
               "pr_merge_ratio",
               0
             ]
           ],
-          "findings": "8c48cb88b9ce608a7f5fa3e3b08d54a5bafa0c1eedefe95c2f6901bf86345a40"
+          "findings": "5d98609aae44a466af0d7717bb00e7eecd2b01d0d48f6c55fa71f0b1c0f82414"
         },
         {
           "id": "B3",
@@ -865,7 +865,7 @@
       ]
     },
     "b-labeller-pull-request": {
-      "overall": 1.9,
+      "overall": 1.4,
       "criteria": [
         {
           "id": "A1",
@@ -954,23 +954,23 @@
         },
         {
           "id": "B2",
-          "score": 3.2,
+          "score": 1.6,
           "status": "warning",
           "metrics": [
             [
               "pr_trace_primitives",
-              2
+              1
             ],
             [
               "pr_merge_ratio",
               0
             ]
           ],
-          "findings": "8c48cb88b9ce608a7f5fa3e3b08d54a5bafa0c1eedefe95c2f6901bf86345a40"
+          "findings": "5d98609aae44a466af0d7717bb00e7eecd2b01d0d48f6c55fa71f0b1c0f82414"
         },
         {
           "id": "B3",
-          "score": 1.6,
+          "score": 1,
           "status": "verified",
           "metrics": [
             [
@@ -979,7 +979,7 @@
             ],
             [
               "default_branch_ci_depth",
-              2
+              1
             ]
           ],
           "findings": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
@@ -1151,7 +1151,7 @@
       ]
     },
     "b-commenter-gh-cli": {
-      "overall": 1.9,
+      "overall": 1.4,
       "criteria": [
         {
           "id": "A1",
@@ -1240,23 +1240,23 @@
         },
         {
           "id": "B2",
-          "score": 3.2,
+          "score": 1.6,
           "status": "warning",
           "metrics": [
             [
               "pr_trace_primitives",
-              2
+              1
             ],
             [
               "pr_merge_ratio",
               0
             ]
           ],
-          "findings": "8c48cb88b9ce608a7f5fa3e3b08d54a5bafa0c1eedefe95c2f6901bf86345a40"
+          "findings": "5d98609aae44a466af0d7717bb00e7eecd2b01d0d48f6c55fa71f0b1c0f82414"
         },
         {
           "id": "B3",
-          "score": 1.6,
+          "score": 1,
           "status": "verified",
           "metrics": [
             [
@@ -1265,7 +1265,7 @@
             ],
             [
               "default_branch_ci_depth",
-              2
+              1
             ]
           ],
           "findings": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
@@ -1723,7 +1723,7 @@
       ]
     },
     "c-semantic-release-main": {
-      "overall": 2,
+      "overall": 2.1,
       "criteria": [
         {
           "id": "A1",
@@ -1828,7 +1828,7 @@
         },
         {
           "id": "B3",
-          "score": 1.5,
+          "score": 2,
           "status": "verified",
           "metrics": [
             [
@@ -1837,7 +1837,7 @@
             ],
             [
               "default_branch_ci_depth",
-              1
+              2
             ]
           ],
           "findings": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
@@ -1866,7 +1866,7 @@
       ]
     },
     "c-docs-deploy-main": {
-      "overall": 1.9,
+      "overall": 2,
       "criteria": [
         {
           "id": "A1",
@@ -1988,7 +1988,7 @@
         },
         {
           "id": "B3",
-          "score": 1.5,
+          "score": 2,
           "status": "verified",
           "metrics": [
             [
@@ -1997,7 +1997,7 @@
             ],
             [
               "default_branch_ci_depth",
-              1
+              2
             ]
           ],
           "findings": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"

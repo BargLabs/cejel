@@ -842,8 +842,13 @@ const REVIEWED: readonly ReviewedEntry[] = [
     why: "B3's unshown-check, uncredited-workflow and ignored-test-failure sentences (at most 4, B3 only; no settling criterion).",
   },
   {
-    kind: 'call', file: RS, within: 'collectB3CiDisciplineEvidence', sha: 'bd8fa36f3528#0',
-    role: 'producer', criteria: ['B3'], why: "B3's scored return, now passing the ignored-test-failure list to b3Disclosures.",
+    kind: 'call', file: RS, within: 'collectB3CiDisciplineEvidence', sha: '6a475a028641#0',
+    role: 'producer', criteria: ['B3'],
+    // Re-reviewed 19 Nov (v27 B2/B3 housekeeping and publishing depth, item B; for the operator's
+    // review): only default_branch_ci_depth's condition argument changed, to the uncredited map less
+    // the publishing workflows that metric still counts. The b3Disclosures call and its arguments are
+    // as before, so the disclosures, their count and their criterion are unchanged.
+    why: "B3's scored return, now passing the ignored-test-failure list to b3Disclosures.",
   },
   // Code that moves disclosures already on a signal, and adds none.
   {

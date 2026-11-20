@@ -99,11 +99,15 @@ describe('item A — under v27 B3 cites every workflow it read, with how it was 
   it('the four-workflow repository: each workflow is cited once, at the line that decided it', () => {
     const b3 = criterion(FOUR_WORKFLOWS.name, V27, 'B3');
     const byPath = new Map(workflowPointers(b3).map((pointer) => [pointer.path, pointer]));
+    // Since the v27 housekeeping and publishing-depth change (19 Nov, items A and B): the docs deploy
+    // counts toward default-branch depth, so it is among the credited, and the stale closer is not
+    // counted as housekeeping, cited at its first housekeeping step. Credited workflows come first;
+    // the two not counted (the tag release and the stale closer) follow in the order they were read.
     expect([...byPath.keys()]).toEqual([
       '.github/workflows/ci.yml',
-      '.github/workflows/stale.yml',
       '.github/workflows/docs.yml',
       '.github/workflows/release.yml',
+      '.github/workflows/stale.yml',
     ]);
     expect(workflowPointers(b3)).toHaveLength(4);
     const ci = byPath.get('.github/workflows/ci.yml');
@@ -113,10 +117,10 @@ describe('item A — under v27 B3 cites every workflow it read, with how it was 
     expect(ci?.line).toBe(3);
     const stale = byPath.get('.github/workflows/stale.yml');
     expect(stale?.label).toBe(
-      'CI workflow read, earns no credit: not read as a pull-request or default-branch workflow, and no test, lint, type-check or build command (cited at its on: trigger)',
+      'CI workflow not counted: not shown to run a check, it only labels, comments on or closes issues and pull requests (cited at its first such step)',
     );
-    expect(stale?.line).toBe(2);
-    expect(byPath.get('.github/workflows/docs.yml')?.label).toMatch(/^CI workflow not counted: publishes/);
+    expect(stale?.line).toBe(12);
+    expect(byPath.get('.github/workflows/docs.yml')?.label).toMatch(/^CI workflow not counted for script depth: publishes/);
     expect(byPath.get('.github/workflows/docs.yml')?.line).toBe(DOCS_DEPLOY_LINE);
     expect(byPath.get('.github/workflows/release.yml')?.label).toMatch(/^CI workflow not counted: publishes/);
     expect(byPath.get('.github/workflows/release.yml')?.line).toBe(TAG_RELEASE_LINE);
@@ -154,10 +158,12 @@ describe('item A — under v27 B3 cites every workflow it read, with how it was 
     );
   });
 
-  it('a labeller on pull_request_target is cited as read and earning no credit, and its label does not say it has no trigger', () => {
+  it('a labeller on pull_request_target is cited as not counted, as housekeeping, and its label does not say it has no trigger', () => {
+    // Since 19 Nov (item A of the housekeeping change): cited at its labeller step.
     const v27 = workflowPointers(criterion('b-labeller-pull-request-target', V27, 'B3')).find(({ path }) => path === '.github/workflows/labeler.yml');
-    expect(v27?.label).toMatch(/^CI workflow read, earns no credit: not read as a pull-request or default-branch workflow/);
-    expect(v27?.line).toBe(2);
+    expect(v27?.label).toMatch(/^CI workflow not counted: not shown to run a check, it only labels, comments on or closes issues and pull requests/);
+    expect(v27?.label).not.toMatch(/no (?:pull-request )?trigger/);
+    expect(v27?.line).toBe(11);
   });
 
   it('every pointer label on every new fixture is within the schema\'s 180 characters', () => {
@@ -190,10 +196,12 @@ describe('item A, cap — past the citation limit the credited workflows come fi
     expect(pointers).toHaveLength(16);
     expect(pointers[0]?.path).toBe('.github/workflows/zz-ci.yml');
     expect(pointers[0]?.label).toMatch(/^CI workflow counted:/);
-    // Credited first, then read and earning nothing; the discounted release comes after them, so here
-    // it falls past the limit and is named only in the note and disclosure.
-    expect(pointers.slice(1).every(({ label }) => label.startsWith('CI workflow read, earns no credit'))).toBe(true);
-    expect(pointers.some(({ path }) => path === '.github/workflows/aa-release.yml')).toBe(false);
+    // Credited first, then the ones not counted, in path order. Since 19 Nov the stale closers are not
+    // counted as housekeeping (item A of that change), so the discounted release, named first, is
+    // cited second and the last stale closers fall past the limit.
+    expect(pointers.slice(1).every(({ label }) => label.startsWith('CI workflow not counted'))).toBe(true);
+    expect(pointers[1]?.path).toBe('.github/workflows/aa-release.yml');
+    expect(pointers.some(({ path }) => path === `.github/workflows/stale-${String(CAP_STALE_COUNT).padStart(2, '0')}.yml`)).toBe(false);
     expect(b3.notes ?? '').toContain('.github/workflows/aa-release.yml');
     expect(summaryPointer(b3)?.label).toBe(
       `CI workflow (${read} workflow files read; 16 cited; ${read - 16} not cited (citation limit 16))`,
