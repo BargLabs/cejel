@@ -641,7 +641,12 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     content it reads on either is an audit file's, for its evidence hash. A3's, A5's and B6's
 //     gates read content a pointer could hold (entry points, workflows and Dockerfiles; claim
 //     and reconciliation documents; SQL, source and governance files), and B1's and B5's read
-//     nothing, so their not-applicable results are still replaced by the abstention;
+//     nothing, so their not-applicable results are still replaced by the abstention. From
+//     2026-11-20 (operator ruling on #753) a scored A3 whose only skips are Git LFS pointer reads
+//     abstains only where unread content could still change its rating: where a read of a pointer
+//     was attributed to no metric, or to a metric below its maximum; otherwise it keeps v17's
+//     score, status, metrics, findings and evidence, cites the pointers after that evidence, and
+//     names them in one disclosure, and a not-applicable A3 still abstains;
 //   - A4: under library norms, lockfile_coverage is 0 rather than omitted when the repository's
 //     own CI (or, from 2026-10-26, its tox configuration) requires a lockfile and none is
 //     committed, and (#520, 2026-10-26) under any norms that requirement is a warning finding

@@ -77,6 +77,10 @@ interface ContentReadSession {
   // attributed read records one, so this stays empty under every rubric but v27. It records no
   // count: contentReadSummary is the same whether or not it is read.
   readonly lfsPointerPaths: Map<WitanCriterionId, Set<string>>;
+  // Per criterion and per pointer path, the signal ids in force at each attributed read of that
+  // pointer (v27 A3, 2026-11-20). A read with no signal in scope sets `unattributed`. Recorded on the
+  // same reads as lfsPointerPaths, so it too stays empty under every rubric but v27.
+  readonly lfsPointerReads: Map<WitanCriterionId, Map<string, LfsPointerReadAttribution>>;
   readonly repoRoot: string;
   criterion?: WitanCriterionId;
   // A single read can legitimately feed more than one named signal (e.g. A4 parses one
@@ -84,6 +88,14 @@ interface ContentReadSession {
   // signal it feeds abstains all of them and leaves the rest of the criterion intact, which is
   // still strictly narrower than the whole-criterion fallback and never narrower than the truth.
   signals?: readonly string[];
+}
+
+/** The signals whose reads reached one Git LFS pointer, within one criterion (v27 only). */
+export interface LfsPointerReadAttribution {
+  /** Every signal id in force (withContentReadSignal(s)) at some read of the pointer. */
+  readonly signals: Set<string>;
+  /** True where some read of the pointer had no signal in scope. */
+  unattributed: boolean;
 }
 
 export interface TrackedContentReads<T> {
@@ -96,6 +108,14 @@ export interface TrackedContentReads<T> {
   readonly signalSkipReasons: ReadonlyMap<string, ReadonlySet<ContentReadSkipReason>>;
   /** Repo-relative paths of the Git LFS pointers attributed to each criterion (v27 only). */
   readonly lfsPointerPaths: ReadonlyMap<WitanCriterionId, ReadonlySet<string>>;
+  /**
+   * Per criterion and pointer path, the signals the reads of that pointer were attributed to, and
+   * whether any read had none in scope (v27 only; see ContentReadSession.lfsPointerReads).
+   */
+  readonly lfsPointerReads: ReadonlyMap<
+    WitanCriterionId,
+    ReadonlyMap<string, Readonly<LfsPointerReadAttribution>>
+  >;
 }
 
 /**
@@ -192,6 +212,21 @@ function recordSkip(
       const paths = session.lfsPointerPaths.get(session.criterion);
       if (paths) paths.add(relativePath);
       else session.lfsPointerPaths.set(session.criterion, new Set([relativePath]));
+      let reads = session.lfsPointerReads.get(session.criterion);
+      if (!reads) {
+        reads = new Map();
+        session.lfsPointerReads.set(session.criterion, reads);
+      }
+      let read = reads.get(relativePath);
+      if (!read) {
+        read = { signals: new Set(), unattributed: false };
+        reads.set(relativePath, read);
+      }
+      if (session.signals && session.signals.length > 0) {
+        for (const signal of session.signals) read.signals.add(signal);
+      } else {
+        read.unattributed = true;
+      }
     }
   }
   if (deduplicate) {
@@ -248,6 +283,7 @@ export function trackContentReads<T>(
       criterionSkipReasons: existing.criterionSkipReasons,
       signalSkipReasons: existing.signalSkipReasons,
       lfsPointerPaths: existing.lfsPointerPaths,
+      lfsPointerReads: existing.lfsPointerReads,
     };
   }
   const session: ContentReadSession = {
@@ -261,6 +297,7 @@ export function trackContentReads<T>(
     },
     lfsPointerAbstention: options.lfsPointerAbstention === true,
     lfsPointerPaths: new Map(),
+    lfsPointerReads: new Map(),
     repoRoot: resolve(_repoPath),
     unreadableByErrno: new Map(),
     deduplicatedSkips: new Set(),
@@ -284,6 +321,7 @@ export function trackContentReads<T>(
       criterionSkipReasons: session.criterionSkipReasons,
       signalSkipReasons: session.signalSkipReasons,
       lfsPointerPaths: session.lfsPointerPaths,
+      lfsPointerReads: session.lfsPointerReads,
     };
   } finally {
     activeSession = undefined;
