@@ -744,6 +744,16 @@ const ANY = ['*'];
 // Reviewed 10 Nov at the head of #706. Each collector (collectRepoSignals in repo-signals.ts) emits
 // one signal per criterion, so the per-path counts below are what reaches the merge in scoring.ts.
 const REVIEWED: readonly ReviewedEntry[] = [
+  {
+    kind: 'site', file: RS, within: 'lfsPointerKeepsNotApplicable', sha: 'c6b7dc1382fd#0',
+    role: 'producer', criteria: ['A2', 'B4'], most: 2,
+    why: "v27: a not-applicable result kept on Git LFS pointers carries its own disclosures plus one naming the pointers, added only where that stays within the budget (existing + 1 <= 2 on A2, A3 and A5).",
+  },
+  {
+    kind: 'call', file: RS, within: 'buildWitanInputFromRepo', sha: '7ea12f5fa738#0',
+    role: 'producer', criteria: ['A2', 'B4'], most: 2,
+    why: 'The call that keeps a not-applicable result on Git LFS pointers (lfsPointerKeepsNotApplicable), within the same budget.',
+  },
   // A2: the only criterion of the three with collector disclosures today.
   {
     kind: 'site', file: RS, within: 'placeholderSetAsideDisclosures', sha: '4dc96e169fb7#0',
@@ -808,7 +818,7 @@ const REVIEWED: readonly ReviewedEntry[] = [
     role: 'pass-through', criteria: ANY, why: "Filters the abstaining signal's own list, the ignored-test-failure count sentence among them.",
   },
   {
-    kind: 'call', file: RS, within: 'wholesaleCriterionAbstention', sha: 'edc6fcc22ab0#0',
+    kind: 'call', file: RS, within: 'wholesaleCriterionAbstention', sha: '289e3878e6cb#0',
     role: 'pass-through', criteria: ANY,
     why: "A criterion's wholesale abstention keeps a subset of its own disclosures and replaces its notes with the abstention note.",
   },
@@ -827,7 +837,7 @@ const REVIEWED: readonly ReviewedEntry[] = [
     why: 'A criterion abstaining wholesale on a content-read limit: wholesaleCriterionAbstention, above, adds none.',
   },
   {
-    kind: 'call', file: RS, within: 'buildWitanInputFromRepo', sha: '5f8ac6265a1a#1',
+    kind: 'call', file: RS, within: 'buildWitanInputFromRepo', sha: '95dc374cbf22#0',
     role: 'pass-through', criteria: ANY, why: 'The same, on the second return path with the same text.',
   },
   {
