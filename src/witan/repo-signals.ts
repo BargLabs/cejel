@@ -2842,8 +2842,14 @@ function collectA1TestIntegrityEvidence(
       return pointer === undefined ? [] : [pointer];
     })
     .slice(0, A1_NOTE_EVIDENCE_LIMIT);
+  // goal_cejel_v27_a1_addopts_shapes_2026-11-17, item B: the content hash reads the file again,
+  // attributed to no criterion. Every file a clause points at was read before by A1's readers,
+  // attributed, except item B's file, which its search reads unattributed: a Git LFS pointer there
+  // is named as a run not read and must not make A1 abstain wholesale.
   for (const pointer of clausePointers) {
-    evidence.push(evidenceForRelativeAtLine(repoPath, pointer.path, 'test_run', a1ClauseLabel(pointer.label), pointer.line));
+    evidence.push(
+      withoutContentReadAttribution(() => evidenceForRelativeAtLine(repoPath, pointer.path, 'test_run', a1ClauseLabel(pointer.label), pointer.line)),
+    );
   }
   // item C: a run that may read a configuration file above the repository's root, which the scan
   // cannot see, is said once where a file is rated hollow on a run that collects it.
@@ -16677,7 +16683,10 @@ function readPytestCollectionSettings(repoPath: string, repoFiles: readonly stri
   const lineOf = (file: string, tokens: readonly string[], from: number): number | null => {
     let lines = fileLines.get(file);
     if (lines === undefined) {
-      lines = (readText(file) ?? '').split(/\r?\n/);
+      // goal_cejel_v27_a1_addopts_shapes_2026-11-17, item B: placing a pointer reads a file again
+      // only to find its line, attributed to no criterion. Every file a clause points at was read
+      // before, attributed, except item B's file, whose search reads it unattributed too.
+      lines = (withoutContentReadAttribution(() => readText(file)) ?? '').split(/\r?\n/);
       fileLines.set(file, lines);
     }
     for (const token of tokens) {
@@ -17507,7 +17516,7 @@ function readShellCommands(
   // command visited is not a make command the reader reads (a script, a launcher, pytest, anything
   // else; an echo or printf writing $GITHUB_ENV is the write itself, not a reader of it), and an
   // `export` counts only where no such command comes after it.
-  mentions?: { read: number; reachesOther?: boolean },
+  mentions?: { read: number; reachesOther?: boolean; readonly cannotRun?: (words: readonly string[]) => boolean },
 ): void {
   let current = directory;
   let why = directory === null ? unknownDirectory : undefined;
@@ -17564,13 +17573,50 @@ function readShellCommands(
       current = null;
       continue;
     }
-    if (mentions !== undefined && makeCommandOf(words) === undefined && !writesGithubEnvOnly(words)) {
+    // goal_cejel_v27_a1_addopts_shapes_2026-11-17, item F (#713): nor a command that provably runs
+    // neither make nor pytest (mentions.cannotRun: a shell builtin with no command argument, or a
+    // package install naming only packages).
+    if (mentions !== undefined && makeCommandOf(words) === undefined && !writesGithubEnvOnly(words) && mentions.cannotRun?.(words) !== true) {
       mentions.reachesOther = true;
       if (exports > 0) exportReachesOther = true;
     }
     visit(words, current, local, current === null ? why : undefined);
   }
   if (mentions !== undefined && !exportReachesOther) mentions.read += exports;
+}
+
+// goal_cejel_v27_a1_addopts_shapes_2026-11-17, item F (#713): the shell builtins that take no command
+// as an argument and run nothing, as item F names them (a print is read on its own below).
+const BUILTINS_RUNNING_NOTHING: ReadonlySet<string> = new Set(['set', 'true', ':', 'exit']);
+
+/**
+ * goal_cejel_v27_a1_addopts_shapes_2026-11-17, item F (#713; operator ruling of 19 Nov): true where a
+ * shell command provably runs neither make nor pytest, so an environment that reaches it cannot be
+ * passed to them through it. Only two kinds:
+ *   - `set`, `true`, `:` or `exit`, or an `echo` or `printf` that names neither GITHUB_ENV nor
+ *     GITHUB_PATH;
+ *   - a pip install (`pip`, `pip3`, `python -m pip`, `python3 -m pip`, `uv pip`) whose arguments name
+ *     only packages from an index (B3's pipArgumentsNamePackagesOnly), never a requirements or
+ *     constraints file, an editable install, a URL or a path; a name some path in the repository has
+ *     a part of (`pathMayExist`) is read as a path.
+ * A word holding `$(`, a backtick, `<` or `>` (a substitution or a redirection) refuses either. Every
+ * other command keeps the strict reading. Linear in the words.
+ */
+function provablyRunsNoMakeOrPytest(words: readonly string[], pathMayExist: (name: string) => boolean): boolean {
+  // The words are read as shellWords splits them, which keeps a redirection inside a word, so `<` or
+  // `>` anywhere refuses too (`true > Makefile` rewrites what make reads); a quoted `"pytest>=8"`
+  // is refused with it and keeps the strict reading.
+  if (words.some((word) => word.includes('$(') || word.includes('`') || word.includes('<') || word.includes('>'))) return false;
+  const name = words[0] ?? '';
+  if (BUILTINS_RUNNING_NOTHING.has(name)) return true;
+  if (name === 'echo' || name === 'printf') return !words.some((word) => word.includes('GITHUB_ENV') || word.includes('GITHUB_PATH'));
+  const tool = basename(name);
+  let args: readonly string[] | undefined;
+  if ((tool === 'pip' || tool === 'pip3') && words[1] === 'install') args = words.slice(2);
+  else if ((tool === 'python' || tool === 'python3') && words[1] === '-m' && words[2] === 'pip' && words[3] === 'install') args = words.slice(4);
+  else if (tool === 'uv' && words[1] === 'pip' && words[2] === 'install') args = words.slice(3);
+  if (args === undefined || tool !== name) return false;
+  return pipArgumentsNamePackagesOnly(args, () => false, pathMayExist);
 }
 
 /**
@@ -18240,6 +18286,16 @@ export function readPytestInvocations(
     });
   };
   const usable = repoFiles.filter((file) => !GENERATED_OR_VENDOR_PATH_PATTERN.test(file));
+  // goal_cejel_v27_a1_addopts_shapes_2026-11-17, item F (#713): a step command that provably runs
+  // neither make nor pytest does not make a mention not read. A package name some repository path
+  // has a part of is read as a path (from a directory not known, as B3's reading does); the parts
+  // are listed once, on first use.
+  let pathParts: Set<string> | undefined;
+  const pathMayExist = (name: string): boolean => {
+    pathParts ??= new Set(repoFiles.flatMap((file) => file.toLowerCase().split('/')));
+    return pathParts.has(name.toLowerCase());
+  };
+  const cannotRun = (words: readonly string[]): boolean => provablyRunsNoMakeOrPytest(words, pathMayExist);
   // CI first: it names the make targets and tox environments that run.
   const readActions = new Set<string>();
   const readGithubFile = (file: string, text: string): void => {
@@ -18271,7 +18327,7 @@ export function readPytestInvocations(
     const usesSteps: GithubUsesStep[] = [];
     for (const step of readGithubRunSteps(text, usesSteps)) {
       for (const at of step.addoptsKeyLines) keyLines.add(at);
-      const shellMentions = mentioned ? { read: 0, reachesOther: false } : undefined;
+      const shellMentions = mentioned ? { read: 0, reachesOther: false, cannotRun } : undefined;
       const envAddopts = step.addopts !== undefined && step.addoptsLine !== undefined ? { words: step.addopts, line: step.addoptsLine } : undefined;
       // Item A: a make command's environment is not known where the file may write PYTEST_ADDOPTS
       // to $GITHUB_ENV (the rule by name) or an `env:` entry sets it by an expression.
@@ -18358,7 +18414,7 @@ export function readPytestInvocations(
     // Item B of goal_cejel_v27_a1_addopts_not_known_2026-11-05 (#673): the variables or env key
     // readCiAddopts reads (its first line, where that line is a key, not a shell assignment), and
     // the shell forms make's environment is read from.
-    const shellMentions = text.includes('PYTEST_ADDOPTS') ? { read: 0, reachesOther: false } : undefined;
+    const shellMentions = text.includes('PYTEST_ADDOPTS') ? { read: 0, reachesOther: false, cannotRun } : undefined;
     for (const command of ciShellTexts(text)) {
       readShellCommands(command, jenkinsDir === undefined ? '' : null, addopts, visitor(source, file, 0), jenkinsDir, shellMentions);
     }
@@ -18375,6 +18431,30 @@ export function readPytestInvocations(
   // of goal_cejel_v27_a1_gaps_2026-11-03: `*session.posargs` holds the words after `--` of a CI or
   // recipe nox command, so the noxfiles are read after the recipes, and their runs keep this place
   // in the list.
+  // goal_cejel_v27_a1_addopts_shapes_2026-11-17, item B (#705): a file in A1's file list that can
+  // run a command and whose commands the readers do not read, naming PYTEST_ADDOPTS as a word, may
+  // set it for any pytest run, directly or through make: a mention not read. The readers cannot show
+  // a run out of its reach, so a run named with its line, and pointed at it, leaves every run not
+  // read. A CI mention not read keeps precedence: it stays the reason a Makefile assignment is not
+  // known, and this run goes last, so A1's note names the CI mention's runs first, as on main.
+  const unreadFileMention = addoptsMentionInUnreadFile(usable, readText, readActions);
+  const unreadFileRun: PytestInvocation | undefined =
+    unreadFileMention === undefined
+      ? undefined
+      : {
+          source: unreadFileMention.source,
+          file: unreadFileMention.file,
+          anchor: unreadFileMention.line,
+          directory: '',
+          args: [],
+          text: unreadFileMention.text,
+          unread: unreadFileMention.text,
+        };
+  const unreadFileRunLast = addoptsMentionNotRead !== undefined;
+  if (unreadFileMention !== undefined && unreadFileRun !== undefined && !unreadFileRunLast) {
+    addoptsMentionNotRead = unreadFileMention;
+    invocations.push(unreadFileRun);
+  }
   const noxAt = invocations.length;
   const readNoxfiles = (): PytestInvocation[] => {
     const noxRuns: PytestInvocation[] = [];
@@ -18388,6 +18468,9 @@ export function readPytestInvocations(
     const unreadPosargs = (): readonly NoxCommandNotRead[] =>
       (hidden ??= [...partitioned.unread, ...noxUnread, ...noxCommandsInUnreadFiles(repoFiles, readText, readActions)]);
     // A nox command with no `--` passes none, as does nox run by hand; the empty set is always read.
+    // goal_cejel_v27_a1_addopts_shapes_2026-11-17, item G (#661): it matters where the call's own
+    // words set an option and every CI nox command passes a path (a1shape-g-nox-empty-posargs-only-run-over-file):
+    // only the empty set's run collects the files outside that path with the option.
     const passedSets: readonly (readonly string[])[] = [[], ...literal.map((entry) => entry.words)];
     // Each call taking posargs is read once per set, so the work is the noxfile's calls times the
     // sets' words: a product of two inputs. A shared budget bounds it; past it the call is not read.
@@ -18441,9 +18524,16 @@ export function readPytestInvocations(
     return noxRuns;
   };
   // goal_cejel_v27_a1_makefile_addopts_environment_2026-11-04, item A: CI has been read; a make
-  // command in a recipe or a tox environment adds no environment.
+  // command in a recipe or a tox environment adds no environment read here. A tox setenv of
+  // PYTEST_ADDOPTS before make leaves the runs not read (goal_cejel_v27_a1_addopts_shapes_2026-11-17,
+  // item C, below the tox read).
   readingCi = false;
   const environments = distinctMakeEnvironments(makeEnvironments);
+  // goal_cejel_v27_a1_addopts_shapes_2026-11-17, item C: each Makefile's recipe reader, by directory.
+  const toxSetenvReaders: {
+    readonly directory: string;
+    readonly read: (targets: readonly string[], reason: { readonly text: string; readonly source: string; readonly file: string; readonly line: number }) => void;
+  }[] = [];
   for (const file of usable.filter(isRecipeFile)) {
     const text = readText(file);
     if (text === undefined) continue;
@@ -18491,7 +18581,11 @@ export function readPytestInvocations(
     } else {
       // goal_cejel_v27_a1_addopts_review_fixes_698_2026-11-10, item B: led by spaces or by nothing; a
       // tab-led line is a recipe line, as readMakeVariables reads it.
-      const exported = /^ *(?:export[ \t]*|\.EXPORT_ALL_VARIABLES[ \t]*:.*|(?:override[ \t]+)?export[ \t]+PYTEST_ADDOPTS\b.*)$/m.test(text);
+      // goal_cejel_v27_a1_addopts_shapes_2026-11-17, item A (#705): the export directives as GNU make
+      // reads them (readMakeAddoptsDirectives); a line that leaves the export not known is never read
+      // as exporting it. Item D: an include directive, whose file is not read.
+      const directives = readMakeAddoptsDirectives(text);
+      const exported = directives.exported && directives.notKnown === undefined;
       // Item A (#674; the operator's ruling of 10 Nov reverses the 5 Nov text for this case): GNU make
       // passes an unexported variable to a recipe only where it is already in make's environment, and
       // then with the Makefile's value. Where a CI file names PYTEST_ADDOPTS somewhere the readers do
@@ -18502,11 +18596,19 @@ export function readPytestInvocations(
       const assigns = make?.assigned.has('PYTEST_ADDOPTS') === true || make?.defaulted.has('PYTEST_ADDOPTS') === true;
       // A value on a make command line (#648) is named first, as before.
       const mentionAt = exported || !assigns || makeOverrides.has('PYTEST_ADDOPTS') ? undefined : addoptsMentionNotRead;
+      // goal_cejel_v27_a1_addopts_shapes_2026-11-17: after the CI mention not read and a value on
+      // make's command line (or one readMakeVariables cannot know), as on main, the first export or
+      // unexport line that leaves the export not known (item A), then the first include directive
+      // (item D), each named as written and pointed at its line.
+      const directiveAt = directives.notKnown ?? directives.include;
       if (mentionAt !== undefined) {
         addoptsUnknown = true;
         addoptsNotKnownAt = mentionAt;
       } else if (isUnknown('PYTEST_ADDOPTS')) addoptsUnknown = true;
-      else if (exported && make?.values.has('PYTEST_ADDOPTS')) {
+      else if (directiveAt !== undefined) {
+        addoptsUnknown = true;
+        addoptsNotKnownAt = { text: directiveAt.text, source: a1NotePath(file), file, line: directiveAt.line };
+      } else if (exported && make?.values.has('PYTEST_ADDOPTS')) {
         const expanded = expand(make.values.get('PYTEST_ADDOPTS') ?? '');
         if (expanded.unknown) addoptsUnknown = true;
         else addoptsText = expanded.text;
@@ -18568,6 +18670,22 @@ export function readPytestInvocations(
       undefined,
       addoptsNotKnownAt,
     );
+    // goal_cejel_v27_a1_addopts_shapes_2026-11-17, item C: tox's commands are read after the recipes,
+    // so a make command a tox setenv of PYTEST_ADDOPTS reaches reads this Makefile's recipes then.
+    if (make !== undefined) {
+      toxSetenvReaders.push({
+        directory: repoDirectory(file),
+        read: (targets, reason) =>
+          readRecipes(
+            targets.map((target) => (target === '' ? firstTarget : target)),
+            make,
+            undefined,
+            reason.text,
+            undefined,
+            reason,
+          ),
+      });
+    }
     // Item A of goal_cejel_v27_a1_makefile_addopts_environment_2026-11-04: each CI make command run
     // in this Makefile's directory (or one not known) with PYTEST_ADDOPTS in its environment. make
     // then passes PYTEST_ADDOPTS to every recipe, exported or not: with the Makefile's value where it
@@ -18613,12 +18731,35 @@ export function readPytestInvocations(
   // goal_cejel_v27_a1_addopts_assignment_not_known_2026-11-10, item B (#653): one posargs budget
   // across every tox.ini of the read, as the nox reader's is across every noxfile.
   const toxBudget = { left: POSARGS_BUDGET, characters: POSARGS_CHARACTER_BUDGET };
+  // goal_cejel_v27_a1_addopts_shapes_2026-11-17, item C (#705): the make commands a running tox
+  // environment's setenv of PYTEST_ADDOPTS reaches, by the directory make runs in and the setenv
+  // entry, their targets merged; at most MAKE_ENVIRONMENTS_READ, the rest read as one in no known
+  // directory, so tox make commands times Makefiles stays bounded.
+  const toxSetenvMakes = new Map<string, { directory: string | null; reason: { text: string; source: string; file: string; line: number }; targets: Set<string> }>();
+  const onSetenvMake: ToxSetenvMakeVisitor = (file, entry, directory, targets) => {
+    const reason = { text: entry.text, source: a1NotePath(file), file, line: entry.line };
+    let key = `${directory ?? '\u0001'}\u0000${file}\u0000${entry.line}`;
+    if (!toxSetenvMakes.has(key) && toxSetenvMakes.size >= MAKE_ENVIRONMENTS_READ) key = '\u0002';
+    let found = toxSetenvMakes.get(key);
+    if (found === undefined) {
+      found = { directory: key === '\u0002' ? null : directory, reason, targets: new Set() };
+      toxSetenvMakes.set(key, found);
+    }
+    for (const target of targets.length === 0 ? [''] : targets) found.targets.add(target);
+  };
   for (const file of usable.filter((candidate) => basename(candidate) === 'tox.ini')) {
     const text = readText(file);
     if (text === undefined) continue;
     const notRead = (entry: { readonly text: string; readonly source: string; readonly file: string; readonly anchor: number }) =>
       invocations.push({ source: entry.source, file: entry.file, anchor: entry.anchor, directory: '', args: [], text: entry.text, unread: entry.text });
-    readToxCommands(file, text, namedToxEnvironments, (anchor) => visitor(a1NotePath(file), file, anchor), toxPosargs, notRead, toxenv.unknown, toxBudget);
+    readToxCommands(file, text, namedToxEnvironments, (anchor) => visitor(a1NotePath(file), file, anchor), toxPosargs, notRead, toxenv.unknown, toxBudget, onSetenvMake);
+  }
+  // Item C: the pytest runs those make commands' targets reach are not read, named with the setenv
+  // entry and pointed at it. The value is not carried through to the recipe.
+  for (const { directory, reason, targets } of toxSetenvMakes.values()) {
+    for (const reader of toxSetenvReaders) {
+      if (directory === null || directory === reader.directory) reader.read([...targets], reason);
+    }
   }
   // The review of #655, blocker 1: the noxfiles are read last, once tox's commands have named
   // their nox commands too; their runs still go where the recipes' runs began. The review of #655,
@@ -18626,6 +18767,7 @@ export function readPytestInvocations(
   const after = invocations.splice(noxAt);
   for (const run of readNoxfiles()) invocations.push(run);
   for (const run of after) invocations.push(run);
+  if (unreadFileRun !== undefined && unreadFileRunLast) invocations.push(unreadFileRun);
   return invocations;
 }
 
@@ -18661,6 +18803,40 @@ const NOX_LINE_TOKEN_PATTERN = /(?<![\w.-])(?:nox|install|add)(?![\w.-])|&&|\|\|
 // After a `nox` in a file that is not Python: a dependency (`"nox"`, `nox>=2024`, `nox = "^2024"`,
 // `nox[uv]`, `- nox`), a key (`nox:`) or a bare `nox` at the end of its line, which passes no posargs.
 const NOX_DEPENDENCY_AFTER_PATTERN = /["']|[ \t]*(?:[<>=!~;:[\]{}@,]|$)/y;
+
+/**
+ * goal_cejel_v27_a1_addopts_shapes_2026-11-17, item B (#705): the first line naming PYTEST_ADDOPTS
+ * as a word in the first file, in list order, of a kind the nox rule names as able to run a command
+ * (NOX_COMMAND_FILE_PATTERN), outside generated and vendored paths, that is not a noxfile, a tox.ini,
+ * a CI file, a Makefile or justfile, or a read local action; as written (trimmed), and where. Linear
+ * in the files: each is searched once for the name, and only a file holding it is split into lines.
+ *
+ * The search reads files no other A1 reader reads, only for one word, so its reads are attributed to
+ * no criterion (withoutContentReadAttribution): a Git LFS pointer or an oversized file among them is
+ * counted in contentReadSummary but does not make A1 abstain as a read failure. A Git LFS pointer's
+ * real content is not in the checkout and may name PYTEST_ADDOPTS, so it is a mention not read too,
+ * named `Git LFS pointer` and pointed at its first line; it is never read as naming none.
+ */
+function addoptsMentionInUnreadFile(
+  files: readonly string[],
+  readText: (file: string) => string | undefined,
+  readActions: ReadonlySet<string>,
+): { readonly text: string; readonly source: string; readonly file: string; readonly line: number } | undefined {
+  for (const file of files) {
+    const name = basename(file);
+    if (name === 'noxfile.py' || name === 'tox.ini' || isCiWorkflow(file) || isRecipeFile(file) || readActions.has(file)) continue;
+    if (!NOX_COMMAND_FILE_PATTERN.test(file)) continue;
+    const text = withoutContentReadAttribution(() => readText(file));
+    if (text === undefined) continue;
+    if (isGitLfsPointerText(text)) return { text: 'Git LFS pointer', source: a1NotePath(file), file, line: 0 };
+    if (!containsWord(text, 'PYTEST_ADDOPTS')) continue;
+    const lines = text.split(/\r?\n|\r/);
+    const at = lines.findIndex((line) => containsWord(line, 'PYTEST_ADDOPTS'));
+    if (at === -1) continue;
+    return { text: (lines[at] ?? '').trim(), source: a1NotePath(file), file, line: at };
+  }
+  return undefined;
+}
 
 /**
  * The review of #655, blocker 1: the first line of each repository file (not a noxfile, not
@@ -19158,6 +19334,102 @@ function readMakeVariables(
   return { values, unknown, pytestNames, fromEnvironment, assigned, defaulted };
 }
 
+/** A Makefile line Cejel names in a clause: as written (trimmed), and its 0-based line. */
+interface MakeLineAt {
+  readonly text: string;
+  readonly line: number;
+}
+
+/**
+ * goal_cejel_v27_a1_addopts_shapes_2026-11-17, items A and D (#705): what a Makefile's directives say
+ * about PYTEST_ADDOPTS reaching a recipe, as GNU make reads them.
+ *
+ * `exported` is true where an `export` exports it: a bare `export`, `.EXPORT_ALL_VARIABLES:`, an
+ * `export` whose name list names it (`export FOO PYTEST_ADDOPTS`: each word is a name), or
+ * `export PYTEST_ADDOPTS <op> value` (any of =, :=, ::=, :::=, ?=, +=, !=; the words after the
+ * operator are its value, so `export FOO = bar PYTEST_ADDOPTS` exports FOO only).
+ *
+ * `notKnown` is the first line that leaves it not known, never read as exported: an export whose name
+ * list holds `$` (make expands it), several words before an assignment operator naming it or holding
+ * `$`, an `unexport` naming it or holding `$`, a bare `unexport`, and an export, unexport or
+ * `.EXPORT_ALL_VARIABLES` that may reach it inside a conditional (ifeq, ifneq, ifdef, ifndef) or a
+ * define. An export inside a conditional that names other variables only is not such a line.
+ *
+ * `include` is the first include, -include or sinclude directive (with a file named) outside a
+ * recipe: the file it includes may assign or export PYTEST_ADDOPTS, and it is not read.
+ *
+ * A tab-led line is a recipe line, as readMakeVariables reads it; a line led by spaces is read. A
+ * backslash-newline joins a logical line, which is named by its first line. `#` starts a comment.
+ * One pass over the lines: linear in the text.
+ */
+function readMakeAddoptsDirectives(text: string): { readonly exported: boolean; readonly notKnown?: MakeLineAt; readonly include?: MakeLineAt } {
+  const lines = text.split(/\r?\n/);
+  let exported = false;
+  let notKnown: MakeLineAt | undefined;
+  let include: MakeLineAt | undefined;
+  let conditional = 0;
+  let defining = 0;
+  const trailingBackslashes = (line: string): number => {
+    let count = 0;
+    for (let at = line.length - 1; at >= 0 && line[at] === '\\'; at -= 1) count += 1;
+    return count;
+  };
+  for (let index = 0; index < lines.length; index += 1) {
+    const first = index;
+    const parts = [lines[index] ?? ''];
+    while (trailingBackslashes(parts[parts.length - 1] ?? '') % 2 === 1 && index + 1 < lines.length) {
+      parts[parts.length - 1] = (parts[parts.length - 1] ?? '').slice(0, -1);
+      index += 1;
+      parts.push(lines[index] ?? '');
+    }
+    if ((parts[0] ?? '').startsWith('\t')) continue;
+    const joined = parts.join(' ');
+    const hash = joined.indexOf('#');
+    const body = (hash === -1 ? joined : joined.slice(0, hash)).trim();
+    if (body === '') continue;
+    const at: MakeLineAt = { text: (lines[first] ?? '').trim(), line: first };
+    if (defining > 0) {
+      if (/^endef(?:[ \t]|$)/.test(body)) defining -= 1;
+      else if (/^(?:(?:override|export|unexport|private)[ \t]+)*define(?:[ \t]|$)/.test(body)) defining += 1;
+    } else if (/^(?:(?:override|export|unexport|private)[ \t]+)*define(?:[ \t]|$)/.test(body)) {
+      defining = 1;
+      continue;
+    } else if (/^(?:ifeq|ifneq|ifdef|ifndef)(?:[ \t(]|$)/.test(body)) {
+      conditional += 1;
+      continue;
+    } else if (/^endif(?:[ \t]|$)/.test(body)) {
+      conditional = Math.max(0, conditional - 1);
+      continue;
+    }
+    if (include === undefined && defining === 0 && /^(?:-include|sinclude|include)[ \t]+(?![:?+!]{0,3}=)\S/.test(body)) include = at;
+    const nested = conditional > 0 || defining > 0;
+    let effect: 'exports' | 'not known' | undefined;
+    if (/^\.EXPORT_ALL_VARIABLES[ \t]*:/.test(body)) effect = 'exports';
+    const directive = /^(?:(?:override|private)[ \t]+)*(export|unexport)(?:[ \t]+(.*))?$/.exec(body);
+    if (directive) {
+      const rest = (directive[2] ?? '').replace(/^(?:(?:override|private)[ \t]+)*/, '').trim();
+      const operator = rest.indexOf('=');
+      if (directive[1] === 'unexport') {
+        if (rest === '' || rest.includes('$') || containsWord(rest, 'PYTEST_ADDOPTS')) effect = 'not known';
+      } else if (rest === '') {
+        effect = 'exports';
+      } else if (operator === -1) {
+        const names = rest.split(/[ \t]+/);
+        if (names.some((name) => name.includes('$'))) effect = 'not known';
+        else if (names.includes('PYTEST_ADDOPTS')) effect = 'exports';
+      } else {
+        const names = rest.slice(0, operator).replace(/(?::{1,3}|[?+!])$/, '').trim().split(/[ \t]+/).filter((name) => name !== '');
+        if (names.length === 1 && names[0] === 'PYTEST_ADDOPTS') effect = 'exports';
+        else if (names.some((name) => name.includes('$')) || (names.length > 1 && names.includes('PYTEST_ADDOPTS'))) effect = 'not known';
+      }
+    }
+    if (effect === undefined) continue;
+    if (effect === 'not known' || nested) notKnown ??= at;
+    else if (defining === 0) exported = true;
+  }
+  return { exported, ...(notKnown === undefined ? {} : { notKnown }), ...(include === undefined ? {} : { include }) };
+}
+
 /**
  * item A: a recipe command with each `$(NAME)` / `${NAME}` the Makefile defines replaced by its
  * value (recursively, a few levels), and `$$` by `$`. A variable it does not define, or a make
@@ -19529,6 +19801,19 @@ function readCiAddopts(text: string): readonly string[] | undefined {
 }
 
 /**
+ * goal_cejel_v27_a1_addopts_shapes_2026-11-17, item C (#705): told of a make command run in a tox
+ * environment whose setenv sets PYTEST_ADDOPTS: the tox.ini, the setenv entry (as written from
+ * PYTEST_ADDOPTS on, and its 0-based line), the directory make runs in (null where not known) and
+ * the targets it names (none for the default goal).
+ */
+type ToxSetenvMakeVisitor = (
+  file: string,
+  entry: { readonly text: string; readonly line: number },
+  directory: string | null,
+  targets: readonly string[],
+) => void;
+
+/**
  * The commands of a tox.ini's environments that run: [testenv], and [testenv:<name>] where its
  * envlist or a CI or recipe `tox -e` names it. Each runs in its changedir (default the tox.ini's
  * directory) with its setenv's PYTEST_ADDOPTS. A factor-conditional line (`py38: ...`) is not read.
@@ -19545,26 +19830,55 @@ function readToxCommands(
   // shared across the read's tox.ini files (POSARGS_BUDGET). The review of #698, item C: and the
   // characters left (POSARGS_CHARACTER_BUDGET).
   budget: { left: number; characters: number } = { left: POSARGS_BUDGET, characters: POSARGS_CHARACTER_BUDGET },
+  // goal_cejel_v27_a1_addopts_shapes_2026-11-17, item C (#705): told of each make command that runs
+  // with the environment's setenv of PYTEST_ADDOPTS in force.
+  onSetenvMake?: ToxSetenvMakeVisitor,
 ): void {
   const sections = readIniSections(text);
+  const rawLines = text.split(/\r?\n/);
   const toxDirectory = repoDirectory(file);
   const tox = sections.get('tox');
   const listed = new Set([...expandToxEnvironmentList(tox?.get('envlist') ?? tox?.get('env_list') ?? ''), ...named]);
   const base = sections.get('testenv');
   // item E: the 0-based line holding each command line, by its text, found in one pass.
   const lineOfText = new Map<string, number>();
-  text.split(/\r?\n/).forEach((raw, index) => {
+  rawLines.forEach((raw, index) => {
     const trimmed = raw.trim();
     if (!lineOfText.has(trimmed)) lineOfText.set(trimmed, index);
     const value = /^[\w.-]+[ \t]*[=:][ \t]*(.*)$/.exec(trimmed)?.[1]?.trim();
     if (value !== undefined && value !== '' && !lineOfText.has(value)) lineOfText.set(value, index);
   });
+  // goal_cejel_v27_a1_addopts_shapes_2026-11-17, item C: in each section, the line of the
+  // PYTEST_ADDOPTS entry in its (last) setenv key, as written from PYTEST_ADDOPTS on. One pass.
+  const setenvAddoptsAt = new Map<string, { readonly text: string; readonly line: number }>();
+  if (onSetenvMake !== undefined && text.includes('PYTEST_ADDOPTS')) {
+    let current: string | undefined;
+    let inSetenv = false;
+    rawLines.forEach((raw, index) => {
+      const trimmed = raw.trim();
+      if (trimmed === '' || trimmed.startsWith('#') || trimmed.startsWith(';')) return;
+      if (raw.startsWith('[')) {
+        const close = raw.indexOf(']');
+        current = close === -1 ? '' : raw.slice(1, close).trim();
+        inSetenv = false;
+        return;
+      }
+      if (current === undefined) return;
+      if (!/^[ \t]/.test(raw)) {
+        inSetenv = /^setenv[ \t]*[=:]/.test(raw);
+        if (inSetenv) setenvAddoptsAt.delete(current);
+      }
+      if (!inSetenv || setenvAddoptsAt.has(current)) return;
+      const at = raw.search(/(?<![\w])PYTEST_ADDOPTS[ \t]*=/);
+      if (at !== -1) setenvAddoptsAt.set(current, { text: raw.slice(at).trim(), line: index });
+    });
+  }
   // item A: each environment section with the environment names it runs for (the base section: every listed one).
-  const environments: { section: Map<string, string>; names: readonly string[] }[] = [];
-  if (base) environments.push({ section: base, names: listed.size === 0 ? ['py'] : [...listed] });
+  const environments: { section: Map<string, string>; name: string; names: readonly string[] }[] = [];
+  if (base) environments.push({ section: base, name: 'testenv', names: listed.size === 0 ? ['py'] : [...listed] });
   for (const name of listed) {
     const section = sections.get(`testenv:${name}`);
-    if (section) environments.push({ section, names: [name] });
+    if (section) environments.push({ section, name: `testenv:${name}`, names: [name] });
   }
   // item A: posargs with a word Cejel cannot resolve leave the run not read, once each.
   // Distinct literal posargs, at most 16, so CI lines times tox lines stays bounded; past 16 the
@@ -19583,7 +19897,7 @@ function readToxCommands(
   }
   let unreadSaid = false;
   const seen = new Set<Map<string, string>>();
-  for (const { section, names } of environments) {
+  for (const { section, name: sectionName, names } of environments) {
     if (seen.has(section)) continue;
     seen.add(section);
     const changedir = section.get('changedir') ?? base?.get('changedir');
@@ -19594,6 +19908,26 @@ function readToxCommands(
     const setenv = section.get('setenv') ?? base?.get('setenv') ?? '';
     const addoptsLine = /^PYTEST_ADDOPTS[ \t]*=[ \t]*(.*)$/m.exec(setenv)?.[1];
     const addopts = addoptsLine === undefined ? undefined : shellWords(addoptsLine);
+    // Item C (#705): where the setenv sets PYTEST_ADDOPTS, each make command it reaches (the words
+    // run with exactly that value in force) is told, with the setenv entry and the directory make
+    // runs in (after cd and -C; with -f, not known).
+    const setenvAt =
+      addoptsLine === undefined || onSetenvMake === undefined
+        ? undefined
+        : (setenvAddoptsAt.get(section.get('setenv') === undefined ? 'testenv' : sectionName) ?? { text: `PYTEST_ADDOPTS=${addoptsLine}`, line: 0 });
+    const visitHere = (anchor: number): ShellCommandVisitor => {
+      const visit = visitAt(anchor);
+      if (setenvAt === undefined || onSetenvMake === undefined) return visit;
+      return (words, runIn, inForce, why) => {
+        const make = inForce === addopts ? makeCommandOf(words) : undefined;
+        if (make !== undefined) {
+          let makeIn = make.namesFile ? null : runIn;
+          for (const step of make.directories) makeIn = makeIn === null ? null : resolveCommandPath(makeIn, step);
+          onSetenvMake(file, setenvAt, makeIn, make.targets);
+        }
+        visit(words, runIn, inForce, why);
+      };
+    };
     for (const key of ['commands_pre', 'commands', 'commands_post']) {
       for (const raw of (section.get(key) ?? '').split('\n')) {
         let line = raw.trim();
@@ -19628,9 +19962,9 @@ function readToxCommands(
             continue;
           }
         }
-        readShellCommands(substitute(undefined), directory, addopts, visitAt(anchor));
+        readShellCommands(substitute(undefined), directory, addopts, visitHere(anchor));
         if (!line.includes('{posargs')) continue;
-        for (const entry of literalPosargs) readShellCommands(substitute(entry.words), directory, addopts, visitAt(anchor));
+        for (const entry of literalPosargs) readShellCommands(substitute(entry.words), directory, addopts, visitHere(anchor));
         if (!unreadSaid && /\b(?:pytest|py\.test)\b/.test(line)) {
           for (const entry of unreadPosargs) notRead(entry);
           unreadSaid = true;

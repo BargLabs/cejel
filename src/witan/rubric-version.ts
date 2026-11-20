@@ -550,12 +550,42 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     mention not read, as is a $GITHUB_ENV write in a file that holds one. The rule is strict: a
 //     mention that reaches any step other than a make command the reader reads (an install, set -e,
 //     echo, actions/checkout) leaves the runs not read, which withholds on some files that are truly
-//     hollow; narrowing it is cejel #713. From 2026-11-05 (item A, #669) a pytest run on a
+//     hollow; cejel #713 narrows it from 2026-11-20 for two step kinds only (item F below). From
+//     2026-11-05 (item A, #669) a pytest run on a
 //     GitHub Actions step whose step, job or workflow env: sets PYTEST_ADDOPTS by an expression (the
 //     most specific level that sets it decides, so a step literal over a job expression is read),
 //     run directly, as a module or through a launcher A1 follows (a hatch script takes the step's
 //     environment), and with no PYTEST_ADDOPTS set on the command itself, is named "pytest run not
 //     read: `PYTEST_ADDOPTS: <value as written>` in <workflow>", pointed at the entry's line.
+//     goal_cejel_v27_a1_addopts_shapes_2026-11-17 (#705 option B, ruling of 17 Nov; #713 and #661,
+//     ruling of 19 Nov), one sentence per item. Item A: from 2026-11-20 a Makefile export is read as
+//     GNU make reads it (`export` then names exports each name, so `export FOO PYTEST_ADDOPTS` exports
+//     it; `export NAME <op> value` exports NAME only, the words after the operator being its value),
+//     and a name list holding $, several names before an operator, an unexport naming PYTEST_ADDOPTS,
+//     a bare unexport, or an export, unexport or .EXPORT_ALL_VARIABLES that may reach it inside a
+//     conditional or a define leaves it not known, never exported: the runs its targets reach are
+//     named "pytest run not read: `<the line, trimmed>` in <Makefile>", pointed at that line, after a
+//     CI mention not read and a value on make's command line. Item B: from 2026-11-20 the first line
+//     naming PYTEST_ADDOPTS as a word in a file of A1's file list of a kind the nox rule below names
+//     (not a CI file, Makefile, justfile, tox.ini, noxfile or read local action) is a mention not
+//     read: a run named "pytest run not read: `<the line, trimmed>` in <path>" and pointed at it
+//     leaves every run not read, since no reader shows a run out of its reach, and a Makefile ?= or
+//     unexported assignment is not known with it as the reason, unless a CI mention not read is
+//     named first, as before; a Git LFS pointer among those files is such a mention, named `Git LFS
+//     pointer`, and the search, read for one word, makes no criterion abstain. Item C: from 2026-11-20 a running tox environment's setenv of
+//     PYTEST_ADDOPTS (its own or [testenv]'s) reaches the make commands of its commands_pre,
+//     commands and commands_post, and the runs their targets reach are named "pytest run not read:
+//     `PYTEST_ADDOPTS=<value as written>` in <tox.ini>", pointed at the setenv entry; the value is
+//     not carried to the recipe. Item D: from 2026-11-20 a Makefile holding an include, -include or
+//     sinclude directive outside a recipe has the runs its targets reach named with the first
+//     directive and pointed at it, after a value on make's command line; the included file is not
+//     read. Item F (#713): from 2026-11-20 a step command that provably runs neither make nor pytest
+//     (set, true, :, exit, an echo or printf naming neither GITHUB_ENV nor GITHUB_PATH, or a pip
+//     install naming only index packages, no requirements or constraints file, editable install,
+//     URL or path; none with a substitution or a redirection) no longer makes a mention not read;
+//     any other step, a uses: step such as actions/checkout included, keeps the strict reading.
+//     Item G (#661): from 2026-11-20 the nox empty-posargs set is kept and pinned: where every CI nox
+//     command passes a path, it is the only run with the call's own options over the other files.
 //     MAKEFLAGS in the environment and a justfile run with
 //     PYTEST_ADDOPTS in its environment are not read. Each setting, command-line and not-read clause
 //     carries an evidence pointer at its line, sharing the eight with the hooks, the rest counted; a

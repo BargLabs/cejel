@@ -18,6 +18,28 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- **Prospective v27: A1 reads a multi-name Makefile export as GNU make does, and names as not read
+  a pytest run whose `PYTEST_ADDOPTS` a script, a tox `setenv` or an included makefile may set
+  (refs #705, #713, #661).** This applies under `witan-rubric-v27-prospective-2026-10-19` only.
+  v17, the default, and every other rubric are unchanged, byte for byte. v27 carries no precision
+  or recall claim.
+  - `export FOO PYTEST_ADDOPTS` now exports `PYTEST_ADDOPTS`, so the Makefile's value reaches the
+    recipe's pytest. `export FOO = bar PYTEST_ADDOPTS` still exports `FOO` only. An `export $(NAMES)`,
+    an `unexport` of the variable, a bare `unexport`, or an export inside an `ifdef`-style
+    conditional or a `define` leaves the runs not read, named with that line.
+  - A script or other file Cejel does not read that names `PYTEST_ADDOPTS` leaves every pytest run
+    not read, named with its line. So does such a file that is a Git LFS pointer, whose content is
+    not in the checkout; the search for the name never makes A1 abstain. A tox `setenv` of it before `make` leaves the runs the make
+    targets reach not read, named with the setenv entry. A Makefile `include`, `-include` or
+    `sinclude` does the same, named with the directive. The included file is not read.
+  - A CI step that can only run shell builtins (`set`, `true`, `:`, `exit`, a print that does not
+    write `$GITHUB_ENV` or `$GITHUB_PATH`) or a pip install of named index packages no longer makes
+    a `PYTEST_ADDOPTS` mention not read (#713). Any other step, `actions/checkout` included, still
+    does.
+  - The nox reader's empty-posargs run is kept and now has a fixture that depends on it (#661).
+  - Measured against main on synthetic repositories; see the rubric changelog entry of 20 Nov (A1
+    PYTEST_ADDOPTS shapes) for the figures. v27 never scores above v17.
+
 - **Prospective v27: a Git LFS pointer abstains A3 only where unread content could still change
   the rating (refs #519, #753).** This applies under `witan-rubric-v27-prospective-2026-10-19`
   only, to A3 only. v17, the default, and every other rubric are unchanged, byte for byte, and
