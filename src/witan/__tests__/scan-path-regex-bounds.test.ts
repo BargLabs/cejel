@@ -882,7 +882,8 @@ describe('scaling: each v27 A1 reader the CI-line guard exercises grows no faste
     const { ratio, timing, atSmall, atLarge } = scalingRatio((length) => findPytestRunWideSkips(repoFor(length), files));
     // The hook's def line moves with the module's length; everything else must agree.
     const shape = (skips: typeof atSmall) => skips.map(({ line: _line, ...rest }) => rest);
-    expect(atSmall.map((skip) => [skip.kind, skip.withheld !== undefined, skip.unread])).toEqual([['clear', true, undefined]]);
+    // #664 (option B): the module is read whole first; the list(items) copy then names the hook.
+    expect(atSmall.map((skip) => [skip.kind, skip.withheld !== undefined, skip.unread])).toEqual([['unread', true, 'saved = list(items)']]);
     expect(shape(atLarge)).toEqual(shape(atSmall));
     expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
   }, 60_000);
@@ -909,43 +910,9 @@ describe('scaling: each v27 A1 reader the CI-line guard exercises grows no faste
 
 // goal_cejel_v27_a1_gaps_2026-11-03. Each new reader, on the input that maximises its work.
 describe('scaling: the v27 A1 gap readers grow no faster than linearly', () => {
-  // Item A: a hook credited on a list(items) copy reads every Python file the repository tracks for
-  // a way to reach builtins (the review of #655, blocker 3); here one helper module of L bytes holds
-  // only near misses of each alternative (`builtin_s`, `getattrs`, `re.compile`, an uncalled-looking
-  // `.list_`, `. ` before a call) and names builtins only at its end.
-  //
-  // cejel #678: each read first lists the tracked files with `git ls-files`, a fixed cost in this
-  // process about three times the sweep of the one helper module, so the ratio measured the listing
-  // rather than the sweep (1.25 at L and 2L on main; 1.43 at L/2 and 2L, below the floor of 2). So
-  // L/7,500 further modules of 6,000 near-miss lines each, which sort before tests/helpers.py and are
-  // swept first, put the sweep, which grows with L, well above the listing, which does not.
-  it('the builtins search, on L/7,500 modules of near misses and a helper module of L bytes naming builtins at its end', () => {
-    const nearMiss = (index: number): string => `v${index} = re.compile(x.list_, getattrs, "builtin_s") . list()`;
-    const nearMissModule = Array.from({ length: 6_000 }, (_, index) => nearMiss(index)).join('\n') + '\n';
-    const repos = new Map<number, string>();
-    const repoFor = (length: number): string => {
-      const existing = repos.get(length);
-      if (existing) return existing;
-      const count = Math.floor(length / 80);
-      const helper = `${Array.from({ length: count }, (_, index) => nearMiss(index)).join('\n')}\nimport builtins\n`;
-      const modules = Object.fromEntries(
-        Array.from({ length: Math.floor(length / 7_500) }, (_, index) => [`tests/h${String(index).padStart(4, '0')}.py`, nearMissModule]),
-      );
-      const repo = makeRepo({
-        'tests/test_lines.py': 'def test_value():\n    assert 1 == 1\n',
-        ...modules,
-        'tests/helpers.py': helper,
-        'tests/conftest.py': 'def pytest_collection_modifyitems(config, items):\n    saved = list(items)\n    items.clear()\n    items.extend(saved)\n',
-      });
-      repos.set(length, repo);
-      return repo;
-    };
-    const files = ['tests/conftest.py', 'tests/helpers.py', 'tests/test_lines.py'];
-    const { ratio, timing, atSmall, atLarge } = scalingRatio((length) => findPytestRunWideSkips(repoFor(length), files));
-    expect(atSmall.map((skip) => skip.withheld)).toEqual(['hook not read: `saved = list(items)` in tests/conftest.py calls a builtin, which tests/helpers.py may replace']);
-    expect(atLarge).toEqual(atSmall);
-    expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
-  }, 60_000);
+  // Item A's builtins search, and its scaling check here, were removed by
+  // goal_cejel_v27_a1_builtin_copy_withhold_2026-11-17 (#664, option B): v27 never credits a copy
+  // made through a builtin, so no file is searched to decide it.
 
   // Item B: without its budget, a noxfile of N calls taking *session.posargs and a CI file passing
   // 16 distinct sets of W words cost N x 16 x W. Both grow with L here: N = L/400 calls and sets of

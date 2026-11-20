@@ -28,8 +28,9 @@ import {
 // failed, v27's A2 or B2 abstained although another check had answered "complete". v27's A2 and B2
 // abstain on the depth only where git failed and the files cannot settle it.
 //
-// Item C: v27 A1's builtin-copy check lists every tracked file (filesIncludingExcluded); a failed
-// listing is a stated scan limitation, as every other failed `ls-files` is.
+// Item C was v27 A1's builtin-copy check, which listed every tracked file and stated a failed
+// listing. goal_cejel_v27_a1_builtin_copy_withhold_2026-11-17 (#664, option B) removed that check:
+// the block at the end now pins that the hook reader makes no git call at all.
 //
 // Failures are injected through the execGit mock, as #560's tests do. `fail` sees the argv and the
 // call's stack, so a test can fail the call one function makes and run the real git for the rest.
@@ -79,8 +80,6 @@ const DEPTH_ECHO_SETTLED =
   "Cejel: local git history-depth check gave no answer (git printed neither true nor false). Cejel read the history depth from the repository's own shallow file, which is the file git reads to answer.";
 const DEPTH_ECHO_UNSETTLED =
   "Cejel: local git history-depth check gave no answer (git printed neither true nor false). Cejel could not read the history depth from the repository's files either.";
-const BUILTIN_LISTING_TIMEOUT =
-  "Cejel: local git full tracked-file inventory exceeded the 30 second timeout. A1 credited no copy of pytest's collected items made through a builtin, because the files that may replace the builtin could not be listed.";
 
 const files = {
   'package.json': '{"name":"loaded-host","version":"1.0.0","scripts":{"test":"node --test"}}\n',
@@ -90,7 +89,7 @@ const files = {
     'name: ci\non: [push, pull_request]\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - run: npm test\n',
 };
 // A pytest suite whose conftest.py hook empties the collected items and puts back a copy made
-// through the builtin list(): v27 A1 credits the copy only where every tracked file can be listed.
+// through the builtin list(): v27 A1 never credits it (#664, option B).
 const pythonFiles = {
   'pyproject.toml': '[project]\nname = "loaded-host-py"\nversion = "1.0.0"\n',
   'src/loaded/__init__.py': 'VALUE = 1\n',
@@ -300,22 +299,32 @@ describe('#574 item B: an old git that echoes the depth check back is stated', (
   });
 });
 
-describe("#574 item C: v27 A1's builtin-copy listing states a failed ls-files", () => {
-  const failListing = (argv: readonly string[], stack: string) =>
-    argv[0] === 'ls-files' && calledFrom(stack, 'filesIncludingExcluded') ? ('timeout' as const) : null;
+// goal_cejel_v27_a1_builtin_copy_withhold_2026-11-17 (#664, option B) replaces #574's item C block:
+// v27 never credits a copy made through a builtin, so A1's hook reader lists no file to decide it,
+// and no failed listing from that path can reach the scan's limitations.
+describe("#664: v27 A1's hook reader asks git for no tracked-file listing", () => {
+  /** Every git call made while the run-wide skip reader is on the stack, with a stub that fails each. */
+  const recordHookReaderCalls = (calls: string[][]) => (argv: readonly string[], stack: string) => {
+    if (!calledFrom(stack, 'findPytestRunWideSkips')) return null;
+    calls.push([...argv]);
+    return 'timeout' as const;
+  };
 
-  it('v27: the failed listing is a scan limitation, and A1 still says the files could not be listed', () => {
-    const idle = scan(repos.python, V27);
-    expect(idle.scanLimitations ?? []).not.toContain(BUILTIN_LISTING_TIMEOUT);
-    const loaded = scanFailing(repos.python, V27, failListing);
-    expect(loaded.scanLimitations ?? []).toContain(BUILTIN_LISTING_TIMEOUT);
-    expect(criterion(loaded, 'A1').notes ?? '').toContain("the repository's files could not be listed");
+  it('v27: the builtin-copy hook is named, and no git call, ls-files or other, comes from the hook reader', () => {
+    const calls: string[][] = [];
+    const loaded = scanFailing(repos.python, V27, recordHookReaderCalls(calls));
+    expect(calls).toEqual([]);
+    expect(criterion(loaded, 'A1').notes ?? '').toContain(
+      'Hook not read: `saved = list(items)` in tests/conftest.py copies the collected items through a builtin, which v27 does not credit',
+    );
+    expect((loaded.scanLimitations ?? []).filter((entry) => entry.includes('full tracked-file inventory'))).toEqual([]);
+    expect(loaded).toEqual(scan(repos.python, V27));
   });
 
-  it('v17 reads no builtin copy, so nothing is listed and nothing is added', () => {
-    const idle = scan(repos.python, V17);
-    const loaded = scanFailing(repos.python, V17, failListing);
-    expect(loaded.scanLimitations).toEqual(idle.scanLimitations);
-    expect(scores(loaded)).toEqual(scores(idle));
+  it('v17 reads no collection hook, so the hook reader makes no git call there either', () => {
+    const calls: string[][] = [];
+    const loaded = scanFailing(repos.python, V17, recordHookReaderCalls(calls));
+    expect(calls).toEqual([]);
+    expect(scores(loaded)).toEqual(scores(scan(repos.python, V17)));
   });
 });

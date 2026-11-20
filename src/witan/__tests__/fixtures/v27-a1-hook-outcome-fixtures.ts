@@ -44,6 +44,13 @@ const deselects = { outcome: 'deselects', removed: HOOK_REMOVED } as const;
 const restores = { outcome: 'restores', clause: RESTORED } as const;
 const untouched = { outcome: 'untouched' } as const;
 const unread = (reason: string) => ({ outcome: 'not read', clause: notRead(reason) }) as const;
+/**
+ * goal_cejel_v27_a1_builtin_copy_withhold_2026-11-17 (#664, option B): a body the allowlist reads
+ * whole, whose copy goes through a builtin (`list(items)`, `tuple(items)`, a helper restoring from
+ * `list(src)`), is named at that statement and never credited.
+ */
+const builtinCopy = (statement: string) =>
+  ({ outcome: 'not read', clause: `${notRead(statement)} copies the collected items through a builtin, which v27 does not credit` }) as const;
 
 const hook = (body: readonly string[], preamble?: readonly string[]) => ({ 'tests/conftest.py': conftestHook(body, preamble) });
 const helper = (helperBody: readonly string[]) => ['import pytest', '', '', 'def refill(lst, src):', ...helperBody];
@@ -204,9 +211,9 @@ export const HOOK_OUTCOME_FIXTURES: readonly HookOutcomeFixture[] = [
   fixture(
     'a1ho-a-real-restore-control',
     'A',
-    "Control: #626's real restore (save a full copy, clear, extend from the bare name).",
+    "#626's real restore (save a full copy, clear, extend from the bare name); from #664 (option B) the copy goes through a builtin, so the hook is named, not credited.",
     hook(['    saved = list(items)', '    items.clear()', '    items.extend(saved)']),
-    restores,
+    builtinCopy('saved = list(items)'),
   ),
   fixture(
     'a1ho-a-real-restore-full-slice-source',
@@ -233,9 +240,19 @@ export const HOOK_OUTCOME_FIXTURES: readonly HookOutcomeFixture[] = [
   fixture(
     'a1ho-b-hookwrapper-restores-after-yield',
     'B',
-    'A hookwrapper yields, then saves, clears and restores the items.',
+    'A hookwrapper yields, then saves, clears and restores the items; from #664 (option B) the copy goes through a builtin, so the hook is named, not credited.',
     hook(
       ['    outcome = yield', '    saved = list(items)', '    items.clear()', '    items.extend(saved)'],
+      ['import pytest', '', '', '@pytest.hookimpl(hookwrapper=True)'],
+    ),
+    builtinCopy('saved = list(items)'),
+  ),
+  fixture(
+    'a1ho-b-hookwrapper-restores-slice-copy-after-yield',
+    'B',
+    'Control: a hookwrapper yields, then saves a slice copy, clears and restores the items; no builtin is called, so the hook stays credited.',
+    hook(
+      ['    outcome = yield', '    saved = items[:]', '    items.clear()', '    items.extend(saved)'],
       ['import pytest', '', '', '@pytest.hookimpl(hookwrapper=True)'],
     ),
     restores,
@@ -288,15 +305,22 @@ export const HOOK_OUTCOME_FIXTURES: readonly HookOutcomeFixture[] = [
   fixture(
     'a1ho-c-helper-by-keyword',
     'C',
-    "The same-file helper is called with its own parameters' names as keywords.",
+    "The same-file helper is called with its own parameters' names as keywords; from #664 (option B) the copy goes through a builtin, so the hook is named, not credited.",
     hook(['    saved = list(items)', '    items.clear()', '    refill(lst=items, src=saved)'], helper(['    lst.extend(src)'])),
-    restores,
+    builtinCopy('saved = list(items)'),
   ),
   fixture(
     'a1ho-c-helper-by-keyword-swapped',
     'C',
-    'The same-file helper is called by keyword, the source first.',
+    'The same-file helper is called by keyword, the source first; from #664 (option B) the copy goes through a builtin, so the hook is named, not credited.',
     hook(['    saved = list(items)', '    items.clear()', '    refill(src=saved, lst=items)'], helper(['    lst.extend(src)'])),
+    builtinCopy('saved = list(items)'),
+  ),
+  fixture(
+    'a1ho-c-helper-by-keyword-slice-copy',
+    'C',
+    "Control: the same-file helper is called by keyword with a slice copy; no builtin is called, so the hook stays credited.",
+    hook(['    saved = items[:]', '    items.clear()', '    refill(lst=items, src=saved)'], helper(['    lst.extend(src)'])),
     restores,
   ),
   fixture(
@@ -366,7 +390,7 @@ export const HOOK_OUTCOME_FIXTURES: readonly HookOutcomeFixture[] = [
   fixture(
     'a1ho-d-black-wrapped-def-restores',
     'D',
-    'Control: a wrapped def whose body restores the items.',
+    'A wrapped def whose body restores the items; from #664 (option B) the copy goes through a builtin, so the hook is named, not credited.',
     {
       'tests/conftest.py': lines(
         'import pytest',
@@ -376,6 +400,25 @@ export const HOOK_OUTCOME_FIXTURES: readonly HookOutcomeFixture[] = [
         '    session, config, items',
         '):',
         '    saved = list(items)',
+        '    items.clear()',
+        '    items.extend(saved)',
+      ),
+    },
+    builtinCopy('saved = list(items)'),
+  ),
+  fixture(
+    'a1ho-d-black-wrapped-def-restores-copy-method',
+    'D',
+    'Control: a wrapped def whose body restores the items from items.copy(); no builtin is called, so the hook stays credited.',
+    {
+      'tests/conftest.py': lines(
+        'import pytest',
+        '',
+        '',
+        'def pytest_collection_modifyitems(',
+        '    session, config, items',
+        '):',
+        '    saved = items.copy()',
         '    items.clear()',
         '    items.extend(saved)',
       ),
