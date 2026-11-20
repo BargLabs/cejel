@@ -232,6 +232,17 @@ const HELM_CHART: Readonly<Record<string, string>> = {
   'helm/svc/icon.png': lfsPointerFor('PNG chart icon bytes'),
 };
 
+/**
+ * The strong service with rollback notes at 4 of 4 and a Git LFS pointer at docs/architecture.png:
+ * v27 keeps v17's A3 with the at-maximum disclosure. Also #612's part-3 fixture for that producer.
+ */
+export const A3_ROLLBACK_AT_MAXIMUM_POINTER_FILES: Readonly<Record<string, string>> = {
+  ...STRONG_SERVICE,
+  ...ROLLBACK_AT_MAXIMUM,
+  '.gitattributes': LFS_ATTRIBUTES,
+  'docs/architecture.png': DIAGRAM_POINTER,
+};
+
 /** The strong service without its env template: production-readiness checks at 5 of 6. */
 const FIVE_OF_SIX_SERVICE: Readonly<Record<string, string | null>> = { ...STRONG_SERVICE, '.env.example': null };
 
@@ -247,7 +258,7 @@ export const A3_BELOW_MAXIMUM_FIXTURES: readonly FalseAssuranceFixture[] = [
     issue: '#519',
     purpose:
       'The same with a Git LFS pointer at docs/architecture.png: only the rollback-note scan reads it, and that count is already at its maximum, so v27 keeps v17\'s A3.',
-    commits: [{ ...STRONG_SERVICE, ...ROLLBACK_AT_MAXIMUM, '.gitattributes': LFS_ATTRIBUTES, 'docs/architecture.png': DIAGRAM_POINTER }],
+    commits: [A3_ROLLBACK_AT_MAXIMUM_POINTER_FILES],
   },
   {
     name: 'a3-five-of-six-control',

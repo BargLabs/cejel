@@ -27,6 +27,7 @@ import { createWitanReport } from '../scoring.js';
 import { buildBehaviourFixture } from './fixtures/behaviour-corpus.js';
 import { ALL_BUILD_STEP_FIXTURES } from './fixtures/build-step-evidence-fixtures.js';
 import { disclosureGapFixture } from './fixtures/disclosure-gap-fixtures.js';
+import { A3_ROLLBACK_AT_MAXIMUM_POINTER_FILES } from './fixtures/a3-pointer-fixtures.js';
 import { lfsPointerFor } from './fixtures/false-assurance-fixtures.js';
 import { SETTLING_BUDGET_FIXTURES, removeSettlingBudgetFixtures } from './fixtures/settling-budget-fixtures.js';
 import { SETTLING_EVIDENCE_FIXTURES } from './fixtures/settling-evidence-fixtures.js';
@@ -763,6 +764,7 @@ interface ReviewedEntry {
 
 const RS = 'witan/repo-signals.ts';
 const A2_LFS_POINTER_PREFIX = witanV27LfsPointerNotApplicablePrefix('A2');
+const A3_LFS_POINTER_PREFIX = witanV27LfsPointerNotApplicablePrefix('A3');
 const ANY = ['*'];
 
 // Reviewed 10 Nov at the head of #706. Each collector (collectRepoSignals in repo-signals.ts) emits
@@ -779,6 +781,20 @@ const REVIEWED: readonly ReviewedEntry[] = [
     role: 'producer', criteria: ['A2', 'B4'], most: 2,
     reachedBy: 'a2-set-aside-with-binary-lfs-pointers', marker: A2_LFS_POINTER_PREFIX,
     why: 'The call that keeps a not-applicable result on Git LFS pointers (lfsPointerKeepsNotApplicable), within the same budget.',
+  },
+  // v27 A3 (operator ruling of 20 Nov on #753), for the operator's approval: a scored A3 that read
+  // Git LFS pointers only through metrics at their maximum keeps v17's reading plus one disclosure.
+  {
+    kind: 'site', file: RS, within: 'lfsPointerKeepsScoredA3', sha: '80f29587ed7e#0',
+    role: 'producer', criteria: ['A3'], most: 1,
+    reachedBy: 'a3-kept-at-maximum-with-lfs-pointer', marker: A3_LFS_POINTER_PREFIX,
+    why: "v27: A3's collector writes no disclosure under any rubric, so the kept scored A3 carries this one sentence naming the pointers, added only within the budget (existing + 1 <= 2).",
+  },
+  {
+    kind: 'call', file: RS, within: 'buildWitanInputFromRepo', sha: '4e80b2f8d3a9#0',
+    role: 'producer', criteria: ['A3'], most: 1,
+    reachedBy: 'a3-kept-at-maximum-with-lfs-pointer', marker: A3_LFS_POINTER_PREFIX,
+    why: 'The call that keeps a scored A3 on Git LFS pointers read only by metrics at their maximum (lfsPointerKeepsScoredA3), within the same budget.',
   },
   // A2: the only criterion of the three with collector disclosures today.
   {
@@ -823,7 +839,8 @@ const REVIEWED: readonly ReviewedEntry[] = [
     reachedBy: 'a2-set-aside-treeless-clone', marker: WITAN_A2_HISTORY_APPLICABILITY_PREFIX,
     why: 'The not-applicable return above, written as `{ disclosures }`: the two sentences of that array.',
   },
-  // Criteria outside A2, A3 and A5. A3 and A5 have no entry: their collectors write no disclosure.
+  // Criteria outside A2, A3 and A5. A5 has no entry: its collector writes no disclosure; neither does
+  // A3's (its one entry, above, is v27's pointer keep in buildWitanInputFromRepo).
   {
     kind: 'site', file: RS, within: 'collectA4DependencyEvidence', sha: 'f97f94c3622c#0',
     role: 'producer', criteria: ['A4'], why: 'Lockfile coverage not computed: one sentence.',
@@ -1003,8 +1020,15 @@ const LFS_POINTER_EDGE_FIXTURES = [
     commits: [{ message: 'docs: add a changelog', write: { 'CHANGELOG.md': '# Changelog\n' } }],
     cloneDepth: 1,
   },
+  {
+    // v27 (20 Nov, #753): A3 scored with rollback notes at 4 of 4 and a pointer under docs/ that
+    // only the rollback-note scan reads, so A3 keeps v17's reading plus the pointer sentence.
+    name: 'a3-kept-at-maximum-with-lfs-pointer',
+    purpose: 'v27 keeps a scored A3 whose only pointer read is by a metric at its maximum: the at-maximum pointer sentence, its one disclosure',
+    files: A3_ROLLBACK_AT_MAXIMUM_POINTER_FILES,
+  },
 ];
-const FIXTURES = [...SETTLING_EVIDENCE_FIXTURES, ...ALL_BUILD_STEP_FIXTURES, ...LFS_POINTER_EDGE_FIXTURES];
+const FIXTURES =[...SETTLING_EVIDENCE_FIXTURES, ...ALL_BUILD_STEP_FIXTURES, ...LFS_POINTER_EDGE_FIXTURES];
 const created: string[] = [];
 
 // A2's no_git_history abstentions (repo-signals.ts, noGitHistoryA2Abstention): a directory with no
