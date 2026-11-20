@@ -55,6 +55,8 @@ const SKIPPED_REMOVED: WithholdFixture['removed'] = [['tests/test_cache.py', 'ev
 const RESTORED = 'run-wide skip rule not applied: the hook in tests/conftest.py puts the collected items back';
 /** The clause naming a hook the reader could not read (goal_cejel_v27_a1_restore_proof_and_hookwrapper_2026-11-02). */
 const notRead = (reason: string) => `hook not read: \`${reason}\` in tests/conftest.py`;
+/** goal_cejel_v27_a1_builtin_copy_withhold_2026-11-17 (#664, option B): a copy through a builtin is named, never credited. */
+const BUILTIN_COPY = `${notRead('saved = list(items)')} copies the collected items through a builtin, which v27 does not credit`;
 
 /** A GitHub Actions workflow running `steps` (each a `run:` value) after a checkout, with optional job env lines. */
 const ciWorkflow = (steps: readonly string[], env: readonly string[] = []): string =>
@@ -481,14 +483,14 @@ const REVIEW_626_FIXTURES: readonly WithholdFixture[] = [
   withheld(
     'a1wh-r2-helper-adds-at-top-level',
     'A',
-    "Control: the same-file helper extends its first parameter at its own top level.",
+    "The same-file helper extends its first parameter at its own top level; from #664 (option B) the copy goes through a builtin, so the hook is named, not credited.",
     {
       'tests/conftest.py': conftestHook(
         ['    saved = list(items)', '    items.clear()', '    refill(items, saved)'],
         ['import pytest', '', '', 'def refill(lst, src):', '    lst.extend(src)'],
       ),
     },
-    [RESTORED],
+    [BUILTIN_COPY],
   ),
   // goal_cejel_v27_a1_restore_proof_and_hookwrapper_2026-11-02: a restore counts only in the shapes
   // the reader proves (`items.extend(S)`, `items += S`, `items[:] = S`, or a helper or closure doing
@@ -552,9 +554,18 @@ const REVIEW_626_FIXTURES: readonly WithholdFixture[] = [
   withheld(
     'a1wh-r2-restore-extend-multiline',
     'A',
-    'Control: the extend that puts the items back spans three lines.',
+    'The extend that puts the items back spans three lines; from #664 (option B) the copy goes through a builtin, so the hook is named, not credited.',
     {
       'tests/conftest.py': conftestHook(['    saved = list(items)', '    items.clear()', '    items.extend(', '        saved', '    )']),
+    },
+    [BUILTIN_COPY],
+  ),
+  withheld(
+    'a1wh-r2-restore-extend-multiline-slice-copy',
+    'A',
+    'Control: the extend that puts a slice copy back spans three lines; no builtin is called, so the hook stays credited.',
+    {
+      'tests/conftest.py': conftestHook(['    saved = items[:]', '    items.clear()', '    items.extend(', '        saved', '    )']),
     },
     [RESTORED],
   ),
@@ -923,27 +934,36 @@ export const WITHHOLD_FIXTURES: readonly WithholdFixture[] = [
   withheld(
     'a1wh-hook-restore-extend',
     'A',
-    'The hook saves the items, clears them and extends the list with the saved copy.',
+    'The hook saves the items, clears them and extends the list with the saved copy; from #664 (option B) the copy goes through a builtin, so the hook is named, not credited.',
     {
       'tests/conftest.py': conftestHook(['    saved = list(items)', '    items.clear()', '    items.extend(saved)']),
     },
-    [RESTORED],
+    [BUILTIN_COPY],
   ),
   withheld(
     'a1wh-hook-restore-iadd',
     'A',
-    'The hook saves the items, clears them and adds the saved copy back with +=.',
+    'The hook saves the items, clears them and adds the saved copy back with +=; from #664 (option B) the copy goes through a builtin, so the hook is named, not credited.',
     {
       'tests/conftest.py': conftestHook(['    saved = list(items)', '    items.clear()', '    items += saved']),
     },
-    [RESTORED],
+    [BUILTIN_COPY],
   ),
   withheld(
     'a1wh-hook-restore-slice-assign',
     'A',
-    'The hook saves the items, clears them and assigns the saved copy back to the whole slice.',
+    'The hook saves the items, clears them and assigns the saved copy back to the whole slice; from #664 (option B) the copy goes through a builtin, so the hook is named, not credited.',
     {
       'tests/conftest.py': conftestHook(['    saved = list(items)', '    items.clear()', '    items[:] = saved']),
+    },
+    [BUILTIN_COPY],
+  ),
+  withheld(
+    'a1wh-hook-restore-iadd-star-copy',
+    'A',
+    'Control: the hook saves a [*items] copy, clears the items and adds the copy back with +=; no builtin is called, so the hook stays credited.',
+    {
+      'tests/conftest.py': conftestHook(['    saved = [*items]', '    items.clear()', '    items += saved']),
     },
     [RESTORED],
   ),
