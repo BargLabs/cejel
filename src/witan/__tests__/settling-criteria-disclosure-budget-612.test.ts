@@ -744,6 +744,17 @@ interface ReviewedEntry {
   readonly reachedBy?: string;
   /** The text, or the leading prefix, of the disclosure this entry's site writes. */
   readonly marker?: string;
+  /**
+   * In place of `reachedBy`, where no repository can reach the entry's `most` today: why, naming
+   * in backticks the code in the entry's file that makes it so. Stated, not assumed.
+   */
+  readonly unreachable?: string;
+  /**
+   * With `unreachable`: the part-3 fixture that comes closest, carrying the entry's marker on one
+   * of its criteria at fewer than `most` disclosures. If it ever reaches `most`, the entry is
+   * reachable and must say so in `reachedBy`.
+   */
+  readonly closest?: string;
   readonly why: string;
 }
 
@@ -1018,17 +1029,25 @@ interface ScoredFixture {
  * Why one producer entry on A2, A3 or A5 is not shown to be reached at its `most` by the scored
  * part-3 fixtures; empty when it is. Some rubric's report of its `reachedBy` fixture must put
  * exactly `most` disclosures on one of the entry's settling criteria, one starting with `marker`.
+ * An entry may instead state `unreachable`, citing the code that makes it so (`fileText` is the
+ * entry's file), with a `closest` fixture that carries the marker below `most`.
  */
-function reachProblems(entry: ReviewedEntry, scored: readonly ScoredFixture[]): string[] {
+function reachProblems(entry: ReviewedEntry, scored: readonly ScoredFixture[], fileText: string): string[] {
   const key = entryKey(entry);
   const settling = entry.criteria.filter((id) => (SETTLING_CRITERIA as readonly string[]).includes(id));
-  if (entry.reachedBy === undefined) {
-    return [`${key}: names no part-3 fixture that reaches it at its most (reachedBy)`];
+  if (entry.reachedBy !== undefined && entry.unreachable !== undefined) {
+    return [`${key}: states both reachedBy and unreachable`];
+  }
+  if (entry.reachedBy === undefined && entry.unreachable === undefined) {
+    return [`${key}: names no part-3 fixture that reaches it at its most (reachedBy), nor why none can (unreachable)`];
   }
   const { marker, most } = entry;
   if (marker === undefined || marker === '') return [`${key}: names no marker`];
-  const reports = scored.filter(({ fixture }) => fixture === entry.reachedBy);
-  if (reports.length === 0) return [`${key}: reachedBy ${entry.reachedBy} is not a fixture in the part-3 set`];
+  const fixtureName = entry.reachedBy ?? entry.closest;
+  if (fixtureName === undefined) return [`${key}: unreachable names no closest fixture`];
+  const field = entry.reachedBy !== undefined ? 'reachedBy' : 'closest';
+  const reports = scored.filter(({ fixture }) => fixture === fixtureName);
+  if (reports.length === 0) return [`${key}: ${field} ${fixtureName} is not a fixture in the part-3 set`];
   const counts = reports.flatMap(({ criteria }) =>
     criteria
       .filter(({ id }) => settling.includes(id))
@@ -1036,12 +1055,24 @@ function reachProblems(entry: ReviewedEntry, scored: readonly ScoredFixture[]): 
       .filter((list) => list.some((text) => text.startsWith(marker)))
       .map((list) => list.length),
   );
-  return counts.includes(most as number)
-    ? []
-    : [
-        `${key}: no rubric's report of ${entry.reachedBy} puts ${most} disclosures, one starting with its marker, ` +
-          `on ${settling.join(' or ')} (counts carrying the marker: ${counts.join(', ') || 'none'})`,
-      ];
+  const seen = `counts carrying the marker: ${counts.join(', ') || 'none'}`;
+  if (entry.reachedBy !== undefined) {
+    return counts.includes(most as number)
+      ? []
+      : [
+          `${key}: no rubric's report of ${fixtureName} puts ${most} disclosures, one starting with its marker, ` +
+            `on ${settling.join(' or ')} (${seen})`,
+        ];
+  }
+  const cited = [...(entry.unreachable ?? '').matchAll(/`([^`]+)`/g)].map(([, code]) => code as string);
+  if (!cited.some((code) => fileText.includes(code))) {
+    return [`${key}: unreachable cites, in backticks, no code found in ${entry.file}`];
+  }
+  if (counts.length === 0) return [`${key}: closest ${fixtureName} never carries the marker on ${settling.join(' or ')}`];
+  if (counts.some((count) => count >= (most as number))) {
+    return [`${key}: closest ${fixtureName} reaches ${Math.max(...counts)}, so the entry is reachable: name it in reachedBy (${seen})`];
+  }
+  return [];
 }
 
 /** The fixture's files in a fresh directory with no .git. */
@@ -1167,7 +1198,63 @@ describe('#612 guard: no scored fixture puts more than the budget on A2, A3 or A
     );
     expect(producers.length).toBeGreaterThan(0);
     const scored = reports.map(({ fixture, report }) => ({ fixture, criteria: report.criteria }));
-    const problems = producers.flatMap((entry) => reachProblems(entry, scored));
+    const problems = producers.flatMap((entry) =>
+      reachProblems(entry, scored, readFileSync(join(SRC, entry.file), 'utf8')),
+    );
     expect(problems, `${BUDGET_NOTE}\n${problems.join('\n')}`).toEqual([]);
+  });
+});
+
+// reachProblems on synthetic entries and reports, so each way an entry can fail is shown to fail,
+// including the `unreachable` form no reviewed entry uses today.
+describe('#612 guard: what counts as a producer reached at its most', () => {
+  const MARK = 'Marker sentence: ';
+  const FILE = 'if (existing.length + 1 > 2) return undefined;';
+  const base: ReviewedEntry = {
+    kind: 'site', file: RS, within: 'synthetic', sha: '000000000000#0',
+    role: 'producer', criteria: ['A2', 'B4'], most: 2, marker: MARK, why: 'synthetic',
+  };
+  const scored: readonly ScoredFixture[] = [
+    { fixture: 'one', criteria: [{ id: 'A2', disclosures: [`${MARK}a.`] }, { id: 'B4', disclosures: [`${MARK}b.`, 'other.'] }] },
+    { fixture: 'two', criteria: [{ id: 'A2', disclosures: ['other.', `${MARK}a.`] }] },
+    { fixture: 'two-unmarked', criteria: [{ id: 'A2', disclosures: ['other.', 'more.'] }] },
+  ];
+  const check = (entry: Partial<ReviewedEntry>) => reachProblems({ ...base, ...entry }, scored, FILE);
+
+  it('passes an entry whose fixture puts its most on a settling criterion, its marker among them', () => {
+    expect(check({ reachedBy: 'two' })).toEqual([]);
+  });
+
+  it('fails an entry with neither reachedBy nor unreachable, or with both', () => {
+    expect(check({})).toEqual([expect.stringContaining('names no part-3 fixture')]);
+    expect(check({ reachedBy: 'two', unreachable: '`existing.length + 1 > 2`', closest: 'one' })).toEqual([
+      expect.stringContaining('both'),
+    ]);
+  });
+
+  it('fails a reachedBy that names no part-3 fixture, or an entry with no marker', () => {
+    expect(check({ reachedBy: 'absent' })).toEqual([expect.stringContaining('is not a fixture in the part-3 set')]);
+    expect(check({ reachedBy: 'two', marker: undefined })).toEqual([expect.stringContaining('no marker')]);
+  });
+
+  it('fails a fixture below the most, at the most without the marker, or at the most only on a criterion outside A2, A3 and A5', () => {
+    expect(check({ reachedBy: 'one' })).toEqual([expect.stringContaining('counts carrying the marker: 1')]);
+    expect(check({ reachedBy: 'two-unmarked' })).toEqual([expect.stringContaining('counts carrying the marker: none')]);
+  });
+
+  it('passes an unreachable entry citing its code, whose closest fixture carries the marker below the most', () => {
+    expect(check({ unreachable: 'only `existing.length + 1 > 2` refuses', closest: 'one' })).toEqual([]);
+  });
+
+  it('fails an unreachable entry with no closest, citing no code of its file, or whose closest reaches the most', () => {
+    expect(check({ unreachable: '`existing.length + 1 > 2`' })).toEqual([expect.stringContaining('no closest')]);
+    expect(check({ unreachable: 'no repository can', closest: 'one' })).toEqual([expect.stringContaining('cites')]);
+    expect(check({ unreachable: '`not in the file`', closest: 'one' })).toEqual([expect.stringContaining('cites')]);
+    expect(check({ unreachable: '`existing.length + 1 > 2`', closest: 'two' })).toEqual([
+      expect.stringContaining('so the entry is reachable'),
+    ]);
+    expect(check({ unreachable: '`existing.length + 1 > 2`', closest: 'two-unmarked' })).toEqual([
+      expect.stringContaining('never carries the marker'),
+    ]);
   });
 });
