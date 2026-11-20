@@ -1236,6 +1236,90 @@ describe('scaling: the v27 A1 PYTEST_ADDOPTS mention count grows no faster than 
   }, 120_000);
 });
 
+// goal_cejel_v27_a1_addopts_shapes_2026-11-17 (#705, #713). Each new reader reads its text once:
+// item A's directive reader one pass over the Makefile's lines (a backslash-newline joined once, by
+// its trailing backslashes counted from the end), item B's sweep each candidate file once for the
+// name and only the one holding it by line, item C's setenv search one pass over the tox.ini and a
+// bounded set of make environments, item F's test once per command, linear in its words. The inputs
+// maximise each: the not-known line or the mention on the last line, so the read reaches the end.
+describe('scaling: the v27 A1 PYTEST_ADDOPTS shape readers grow no faster than linearly', () => {
+  const makefileTests = 'PYTEST_ADDOPTS = -x\n\nt0:\n\tpytest tests/test_0.py\n';
+
+  it('item A: export, unexport, ifdef and define lines, and a long continued export, at L and at 2L', () => {
+    const textsFor = (length: number): Map<string, string> => {
+      const count = Math.floor(length / 120);
+      const blocks = Array.from(
+        { length: count },
+        (_, index) => `export N${index} \\\n  M${index}\nifdef X${index}\nexport FOO${index}\nendif\ndefine D${index}\nexport BAR${index}\nendef\nunexport Q${index}`,
+      ).join('\n');
+      const continued = `export ${Array.from({ length: count }, (_, index) => `C${index} \\`).join('\n')}\n  END`;
+      return new Map([['Makefile', `${makefileTests}${blocks}\n${continued}\nunexport PYTEST_ADDOPTS\n`]]);
+    };
+    const texts = scalingInputs(textsFor);
+    const { ratio, timing, atSmall, atLarge } = scalingRatio((length) => readPytestInvocations(['Makefile'], (file) => texts(length).get(file)));
+    for (const read of [atSmall, atLarge]) {
+      expect(read.some(({ unread, file }) => unread === 'unexport PYTEST_ADDOPTS' && file === 'Makefile')).toBe(true);
+    }
+    expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
+  }, 120_000);
+
+  it('item B: many script files and one long one naming PYTEST_ADDOPTS on its last line, at L and at 2L', () => {
+    const textsFor = (length: number): Map<string, string> => {
+      const scripts = Array.from({ length: Math.floor(length / 400) }, (_, index) => [`scripts/s${index}.sh`, `#!/bin/sh\necho step ${index}\nPYTEST_ADDOPTSX=1 make t0\n`] as const);
+      const long = `#!/bin/sh\n${Array.from({ length: Math.floor(length / 40) }, (_, index) => `echo PYTEST_ADDOPTS_${index}`).join('\n')}\nexport PYTEST_ADDOPTS=-x\n`;
+      return new Map<string, string>([...scripts, ['scripts/z.sh', long], ['Makefile', makefileTests]]);
+    };
+    const texts = scalingInputs(textsFor);
+    const files = (length: number) => [...texts(length).keys()];
+    const { ratio, timing, atSmall, atLarge } = scalingRatio((length) => readPytestInvocations(files(length), (file) => texts(length).get(file)));
+    for (const read of [atSmall, atLarge]) {
+      expect(read.some(({ unread, file }) => unread === 'export PYTEST_ADDOPTS=-x' && file === 'scripts/z.sh')).toBe(true);
+    }
+    expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
+  }, 120_000);
+
+  it('item C: a tox setenv over many make commands and named environments, at L and at 2L', () => {
+    const textsFor = (length: number): Map<string, string> => {
+      const count = Math.floor(length / 120);
+      const commands = Array.from({ length: count }, (_, index) => `    make t${index % 64}`).join('\n');
+      const sections = Array.from({ length: count }, (_, index) => `[testenv:e${index}]\nsetenv =\n    PYTEST_ADDOPTS=-k e${index}\ncommands = make t0`).join('\n');
+      const names = Array.from({ length: count }, (_, index) => `e${index}`).join(',');
+      const recipes = Array.from({ length: 64 }, (_, index) => `t${index}:\n\tpytest tests/test_${index}.py`).join('\n');
+      return new Map([
+        ['tox.ini', `[tox]\nenvlist = py,${names}\n\n[testenv]\nsetenv =\n    PYTEST_ADDOPTS=-q\ncommands =\n${commands}\n\n${sections}\n`],
+        ['Makefile', `${recipes}\n`],
+      ]);
+    };
+    const texts = scalingInputs(textsFor);
+    const files = ['tox.ini', 'Makefile'];
+    const { ratio, timing, atSmall, atLarge } = scalingRatio((length) => readPytestInvocations(files, (file) => texts(length).get(file)));
+    for (const read of [atSmall, atLarge]) {
+      expect(read.some(({ unread, file }) => unread === 'PYTEST_ADDOPTS=-q' && file === 'tox.ini')).toBe(true);
+    }
+    expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
+  }, 120_000);
+
+  it('item F: a job env: over many builtin and package-install steps, then make, at L and at 2L', () => {
+    const textsFor = (length: number): Map<string, string> => {
+      const steps = Array.from({ length: Math.floor(length / 80) }, (_, index) => `      - run: set -e; true; echo s${index}; pip install -U pkg${index}`).join('\n');
+      return new Map([
+        ['.github/workflows/ci.yml', `name: ci\non: push\njobs:\n  t:\n    runs-on: ubuntu-latest\n    env:\n      PYTEST_ADDOPTS: "-q"\n    steps:\n${steps}\n      - run: make t0\n`],
+        ['Makefile', makefileTests],
+      ]);
+    };
+    const texts = scalingInputs(textsFor);
+    const files = ['.github/workflows/ci.yml', 'Makefile'];
+    const { ratio, timing, atSmall, atLarge } = scalingRatio((length) => readPytestInvocations(files, (file) => texts(length).get(file)));
+    // Every step provably runs neither make nor pytest, so the job env: entry is read and the
+    // Makefile's -x reaches t0's pytest; nothing is named not read.
+    for (const read of [atSmall, atLarge]) {
+      expect(read.filter(({ unread }) => unread !== undefined)).toHaveLength(0);
+      expect(read.some(({ file, addopts }) => file === 'Makefile' && addopts?.join(' ') === '-x')).toBe(true);
+    }
+    expect(ratio, timing).toBeLessThan(SCALING_RATIO_LIMIT);
+  }, 120_000);
+});
+
 // goal_cejel_v27_conftest_timing_guard_2026-11-02, item B. The shell word scanner every reader
 // shares now tests white space by character code and copies kept characters a run at a time. It must
 // return the same words as the scanner it replaced, kept here verbatim as the specification.
