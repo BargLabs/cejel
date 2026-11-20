@@ -85,6 +85,16 @@ export const ADDOPTS_SHAPE_FIXTURES: readonly AddoptsShapeFixture[] = [
     files: { Makefile: recipe('PYTEST_ADDOPTS ?= -q'), 'scripts/test.sh': lines('#!/bin/sh', 'export PYTEST_ADDOPTS="-p no:skipping"', 'make test'), [CI]: MAKE_TEST },
   },
   {
+    // A script whose content is a Git LFS pointer: what it holds is not in the checkout.
+    name: 'a1shape-b-lfs-pointer-script',
+    item: 'B',
+    files: {
+      Makefile: recipe(),
+      'scripts/test.sh': lines('version https://git-lfs.github.com/spec/v1', `oid sha256:${'4d7a'.repeat(16)}`, 'size 2048'),
+      [CI]: MAKE_TEST,
+    },
+  },
+  {
     name: 'a1shape-b-ci-mention-keeps-precedence',
     item: 'B',
     files: {

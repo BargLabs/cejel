@@ -2769,8 +2769,14 @@ function collectA1TestIntegrityEvidence(
       return pointer === undefined ? [] : [pointer];
     })
     .slice(0, A1_NOTE_EVIDENCE_LIMIT);
+  // goal_cejel_v27_a1_addopts_shapes_2026-11-17, item B: the content hash reads the file again,
+  // attributed to no criterion. Every file a clause points at was read before by A1's readers,
+  // attributed, except item B's file, which its search reads unattributed: a Git LFS pointer there
+  // is named as a run not read and must not make A1 abstain wholesale.
   for (const pointer of clausePointers) {
-    evidence.push(evidenceForRelativeAtLine(repoPath, pointer.path, 'test_run', a1ClauseLabel(pointer.label), pointer.line));
+    evidence.push(
+      withoutContentReadAttribution(() => evidenceForRelativeAtLine(repoPath, pointer.path, 'test_run', a1ClauseLabel(pointer.label), pointer.line)),
+    );
   }
   // item C: a run that may read a configuration file above the repository's root, which the scan
   // cannot see, is said once where a file is rated hollow on a run that collects it.
@@ -16604,7 +16610,10 @@ function readPytestCollectionSettings(repoPath: string, repoFiles: readonly stri
   const lineOf = (file: string, tokens: readonly string[], from: number): number | null => {
     let lines = fileLines.get(file);
     if (lines === undefined) {
-      lines = (readText(file) ?? '').split(/\r?\n/);
+      // goal_cejel_v27_a1_addopts_shapes_2026-11-17, item B: placing a pointer reads a file again
+      // only to find its line, attributed to no criterion. Every file a clause points at was read
+      // before, attributed, except item B's file, whose search reads it unattributed too.
+      lines = (withoutContentReadAttribution(() => readText(file)) ?? '').split(/\r?\n/);
       fileLines.set(file, lines);
     }
     for (const token of tokens) {
@@ -18728,6 +18737,12 @@ const NOX_DEPENDENCY_AFTER_PATTERN = /["']|[ \t]*(?:[<>=!~;:[\]{}@,]|$)/y;
  * (NOX_COMMAND_FILE_PATTERN), outside generated and vendored paths, that is not a noxfile, a tox.ini,
  * a CI file, a Makefile or justfile, or a read local action; as written (trimmed), and where. Linear
  * in the files: each is searched once for the name, and only a file holding it is split into lines.
+ *
+ * The search reads files no other A1 reader reads, only for one word, so its reads are attributed to
+ * no criterion (withoutContentReadAttribution): a Git LFS pointer or an oversized file among them is
+ * counted in contentReadSummary but does not make A1 abstain as a read failure. A Git LFS pointer's
+ * real content is not in the checkout and may name PYTEST_ADDOPTS, so it is a mention not read too,
+ * named `Git LFS pointer` and pointed at its first line; it is never read as naming none.
  */
 function addoptsMentionInUnreadFile(
   files: readonly string[],
@@ -18738,8 +18753,10 @@ function addoptsMentionInUnreadFile(
     const name = basename(file);
     if (name === 'noxfile.py' || name === 'tox.ini' || isCiWorkflow(file) || isRecipeFile(file) || readActions.has(file)) continue;
     if (!NOX_COMMAND_FILE_PATTERN.test(file)) continue;
-    const text = readText(file);
-    if (text === undefined || !containsWord(text, 'PYTEST_ADDOPTS')) continue;
+    const text = withoutContentReadAttribution(() => readText(file));
+    if (text === undefined) continue;
+    if (isGitLfsPointerText(text)) return { text: 'Git LFS pointer', source: a1NotePath(file), file, line: 0 };
+    if (!containsWord(text, 'PYTEST_ADDOPTS')) continue;
     const lines = text.split(/\r?\n|\r/);
     const at = lines.findIndex((line) => containsWord(line, 'PYTEST_ADDOPTS'));
     if (at === -1) continue;

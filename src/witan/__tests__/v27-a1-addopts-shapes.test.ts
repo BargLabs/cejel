@@ -228,6 +228,11 @@ describe('v27 A1, item B: a PYTEST_ADDOPTS mention in a file the readers do not 
     expectNotRead('a1shape-b-script-and-a-makefile-default', 'export PYTEST_ADDOPTS="-p no:skipping"', 'scripts/test.sh', 2);
   });
 
+  it('a script that is a Git LFS pointer: not read, named as a pointer, and A1 does not abstain', () => {
+    expectNotRead('a1shape-b-lfs-pointer-script', 'Git LFS pointer', 'scripts/test.sh', 1);
+    expect(a1('a1shape-b-lfs-pointer-script', V27).status).toBe(a1('a1shape-b-lfs-pointer-script', V17).status);
+  });
+
   it('a CI mention not read keeps precedence: the first CI mention is named as on main', () => {
     expectNotRead('a1shape-b-ci-mention-keeps-precedence', '- run: PYTEST_ADDOPTS=-q ./ci/test.sh', CI, 10);
   });
