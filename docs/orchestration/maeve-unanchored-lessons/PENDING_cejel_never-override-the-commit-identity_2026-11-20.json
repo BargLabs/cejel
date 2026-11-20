@@ -1,0 +1,27 @@
+[
+  {
+    "statement": "Never override the commit author or committer in this estate's repositories, not even to mark a commit as an agent's: identity here is the operator's git config, and the CLA check reads it. 2026-11-20: a lane session preserved an interrupted goal run's uncommitted records with git -c user.name=Claude -c user.email=noreply@anthropic.com. The PR built on that branch (cejel #754) failed its cla check, because that identity has not signed the CLA. A force-push to repair the branch was refused, so the same commits were rewritten with the operator's identity onto a new branch and opened as #755, and #754 was closed. Fix: commit with the repository's configured identity and say 'agent-authored' in the message and the Co-Authored-By trailer. This seed moves when a pre-push or CI check refuses a commit whose author is not a CLA signer before a PR is opened.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "multi-agent-coordination"
+    ],
+    "tags": [
+      "cla",
+      "commit-identity",
+      "stranded-run",
+      "force-push"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-11-20T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "awaiting-fix",
+      "reason": "No check refuses a non-signer author before a PR is opened; the cla check reports it only after.",
+      "tracks": {
+        "repository": "BargLabs/cejel",
+        "number": 756
+      }
+    }
+  }
+]

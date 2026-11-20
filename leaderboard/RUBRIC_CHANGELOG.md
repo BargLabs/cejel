@@ -112,7 +112,19 @@ comment or label command with inert arguments), or when the file is in a subfold
 `default_branch_ci_depth` on the same commit (v17 counts every CI workflow `workflowTargetsDefaultBranch`
 accepts), so v27's count stays at or below v17's.
 
-MEASURED_PLACEHOLDER
+**Measured** on 20 Nov, at this branch's code against main `08bf47242`, on 402 synthetic repositories: false-assurance 268 (the symlink fixture left out, since its head SHA differs on every build), CI-claims 71, publishing-gates 17, publishing-with-checks 11 and its 4 edge cases, unread-CI-configuration 8, #748's cites-every-workflow 13, and this change's 10. In the main pass, main's `src/witan/repo-signals.ts` and `src/witan/certificate-presentation.ts`, the only source files whose behaviour this change moves, were checked out over this branch's, then restored. Each pass built every fixture and scored it under all eleven selectable rubrics, with 0 errors on either side. The driver compared each report.json by hash, plus the composite, the verdict and every criterion's score, status and finding count. It is not committed. HTML and Markdown certificates were not compared in this pass. The certificate pins cover them: under v27 they move by the glossary paragraph alone.
+
+- **v17 to v26:** 4,020 of 4,020 reports byte-identical to main.
+- **v27:** 390 of 402 byte-identical. 12 moved.
+  - Lowered, by items A and D (housekeeping or nested workflows):
+    - `b-stale-closer` and `b-labeller-pull-request-target`: B2 3.2 to 1.6.
+    - `b-labeller-pull-request`, `b-commenter-gh-cli`, `a-gh-pr-edit-add-label` and `d-nested-workflow`: B2 3.2 to 1.6, and B3 1.6 to 1.0.
+    - `b-housekeeping-other-pr-docs-deploy`: B3 1.6 to 1.0. Its only other pull-request workflow is housekeeping, so item B's condition does not hold.
+    - The composite falls on each, and the verdict moves from at_risk to unverified on the six that lose B2 credit.
+  - Raised to v17's value, by items B and C (the publishing workflow kept for default-branch depth): `cite-four-workflows`, `c-docs-deploy-main`, `c-semantic-release-main` and `c-pnpm-lint-script-docs-deploy`. B3 goes from 1.5 to 2.0, equal to v17, and no verdict moves.
+  - Evidence only: `cite-over-the-limit`, whose report changes outside the scoring fields. No score, status or finding count moves.
+  - `b-commenter-github-script`, whose `script:` is inline code, is byte-identical to main.
+- **v27 above v17 on the same repository:** 0, for the composite and every criterion's score.
 
 ## 2026-11-19 (B3 cites every workflow read) — under v27, B3's evidence cites every CI workflow it read, the counted ones first, each with how it was counted or why it was not (refs #600); evidence only; v17-v26 byte-identical; v27 never above v17; no score, status, finding, metric, composite or verdict moved; no fingerprint moved; no published score moved
 
