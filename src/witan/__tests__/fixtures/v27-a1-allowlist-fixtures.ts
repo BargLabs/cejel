@@ -44,9 +44,13 @@ const fixture = (
 const deselects = { outcome: 'deselects', removed: HOOK_REMOVED } as const;
 const restores = { outcome: 'restores', clause: RESTORED } as const;
 const unread = (reason: string | RegExp) => ({ outcome: 'not read', clause: typeof reason === 'string' ? notRead(reason) : reason }) as const;
-/** Item G: the statement that calls a builtin, and the file that may replace it (wording from the review of #655, blocker 3). */
-const builtinReplaced = (statement: string, file: string) =>
-  ({ outcome: 'not read', clause: `${notRead(statement)} calls a builtin, which ${file} may replace` }) as const;
+/**
+ * Item G: the statement that copies the collected items through a builtin. From
+ * goal_cejel_v27_a1_builtin_copy_withhold_2026-11-17 (#664, option B) v27 never credits such a copy,
+ * and the clause names no file: no file decides it.
+ */
+const builtinCopy = (statement: string) =>
+  ({ outcome: 'not read', clause: `${notRead(statement)} copies the collected items through a builtin, which v27 does not credit` }) as const;
 
 const hook = (body: readonly string[], preamble?: readonly string[]) => ({ 'tests/conftest.py': conftestHook(body, preamble) });
 /** R: save a full copy, clear, extend from it. pytest runs every collected test. */
@@ -238,9 +242,9 @@ export const ALLOWLIST_FIXTURES: readonly AllowlistFixture[] = [
   fixture(
     'a1al-a-restore-tuple-copy',
     'A',
-    'Control: copy with tuple(items), clear, extend.',
+    'Control: copy with tuple(items), clear, extend. The allowlist reads the body whole; from #664 (option B) the copy goes through a builtin, so the hook is named, not credited.',
     hook(['    saved = tuple(items)', '    items.clear()', '    items.extend(saved)']),
-    restores,
+    builtinCopy('saved = tuple(items)'),
   ),
   fixture(
     'a1al-a-restore-with-report-and-print',
@@ -302,9 +306,9 @@ export const ALLOWLIST_FIXTURES: readonly AllowlistFixture[] = [
   fixture(
     'a1al-b-restore-with-docstring',
     'B',
-    'Control: a hook docstring, then R.',
+    'Control: a hook docstring, then R. The allowlist reads the body whole; from #664 (option B) R copies through a builtin, so the hook is named, not credited.',
     hook(['    """Reorder nothing; put every item back."""', ...R]),
-    restores,
+    builtinCopy('saved = list(items)'),
   ),
   // ---- item C: no false hollow rating -----------------------------------------------------
   fixture(
@@ -611,22 +615,31 @@ export const ALLOWLIST_FIXTURES: readonly AllowlistFixture[] = [
   fixture(
     'a1al-f-control-restore-beside-module-logger',
     'F',
-    'Control: R in a module that binds a logger and never calls it from the hook; pytest runs every test.',
+    'Control: R in a module that binds a logger and never calls it from the hook; pytest runs every test. The module is no hazard; from #664 (option B) R copies through a builtin, so the hook is named, not credited.',
     hook([...R], ['import logging', '', 'import pytest', '', 'logger = logging.getLogger(__name__)']),
-    restores,
+    builtinCopy('saved = list(items)'),
   ),
   fixture(
     'a1al-f-control-restore-beside-sys-path',
     'F',
-    'Control: R in a module that puts src on sys.path; pytest runs every test.',
+    'Control: R in a module that puts src on sys.path; pytest runs every test. The module is no hazard; from #664 (option B) R copies through a builtin, so the hook is named, not credited.',
     hook([...R], ['import sys', '', 'import pytest', '', 'sys.path.insert(0, "src")']),
-    restores,
+    builtinCopy('saved = list(items)'),
   ),
   fixture(
     'a1al-f-control-strict-helper',
     'F',
-    'Control: the strict same-file helper restores the saved copy; pytest runs every test.',
+    'Control: the strict same-file helper restores the saved copy; pytest runs every test. The helper is read; from #664 (option B) the copy is list(items), so the hook is named, not credited.',
     hook(['    saved = list(items)', '    items.clear()', '    refill(items, saved)'], ['import pytest', '', '', ...REFILL]),
+    builtinCopy('saved = list(items)'),
+  ),
+  // goal_cejel_v27_a1_builtin_copy_withhold_2026-11-17 (#664, option B): the strict helper whose
+  // restore calls no builtin, given a copy that calls none, is still credited.
+  fixture(
+    'a1al-f-control-strict-helper-slice-copy',
+    'F',
+    'Control: the strict same-file helper restores a slice copy; no builtin is called, so the hook stays credited.',
+    hook(['    saved = items[:]', '    items.clear()', '    refill(items, saved)'], ['import pytest', '', '', ...REFILL]),
     restores,
   ),
 
@@ -639,6 +652,13 @@ export const ALLOWLIST_FIXTURES: readonly AllowlistFixture[] = [
   // stay credited: built-in types cannot be patched. pytest was not run on these fixtures (no Python
   // package could be run in this session); each claim rests on Python's name lookup (a module global,
   // then `builtins`), not on a run.
+  //
+  // goal_cejel_v27_a1_builtin_copy_withhold_2026-11-17 (#664, operator ruling of 17 Nov, option B):
+  // a module from outside the repository (an entry-point plugin, sitecustomize, a .pth file) can
+  // replace the builtin too, and Cejel does not read it. So v27 never credits a copy made through a
+  // builtin, whatever the repository's files hold, and the clause names no file. The fixtures below
+  // keep their names; each that names a file which may replace the builtin is now named, not
+  // credited, for the copy alone, as is the control where no file reaches builtins.
   fixture(
     'a1al-g-imported-module-patches-builtins-list',
     'G',
@@ -659,7 +679,7 @@ export const ALLOWLIST_FIXTURES: readonly AllowlistFixture[] = [
         'builtins.list = _narrow',
       ),
     },
-    builtinReplaced('saved = list(items)', 'tests/helpers.py'),
+    builtinCopy('saved = list(items)'),
   ),
   fixture(
     'a1al-g-second-conftest-dunder-builtins-tuple',
@@ -669,7 +689,7 @@ export const ALLOWLIST_FIXTURES: readonly AllowlistFixture[] = [
       ...hook(['    saved = tuple(items)', '    items.clear()', '    items.extend(saved)']),
       'conftest.py': lines('_t = tuple', '__builtins__["tuple"] = lambda xs=(): () if xs is not None else _t()'),
     },
-    builtinReplaced('saved = tuple(items)', 'conftest.py'),
+    builtinCopy('saved = tuple(items)'),
   ),
   fixture(
     'a1al-g-plugin-names-builtins-helper-list-copy',
@@ -681,7 +701,7 @@ export const ALLOWLIST_FIXTURES: readonly AllowlistFixture[] = [
       'plugins/__init__.py': '',
       'plugins/patch.py': lines('import builtins', '', 'builtins.list = lambda xs=(): []'),
     },
-    builtinReplaced('refill(items, saved)', 'plugins/patch.py'),
+    builtinCopy('refill(items, saved)'),
   ),
   fixture(
     'a1al-g-control-slice-copy-beside-builtins',
@@ -706,14 +726,43 @@ export const ALLOWLIST_FIXTURES: readonly AllowlistFixture[] = [
   fixture(
     'a1al-g-control-list-copy-no-builtins-named',
     'G',
-    'Control: R where no Python file in the repository names builtins; pytest runs every test, and the hook stays credited.',
+    // Credited on main (no tracked file reaches builtins); from #664 (option B) named, not credited.
+    'R where no Python file in the repository names builtins; a module from outside the repository may still replace list, so the hook is named, not credited.',
     { ...hook([...R], ['import pytest', '', 'import helpers']), 'tests/helpers.py': lines('def answer():', '    return 42') },
+    builtinCopy('saved = list(items)'),
+  ),
+  fixture(
+    'a1al-g-tuple-copy-no-builtins-named',
+    'G',
+    'A tuple copy restored by extend, where no Python file in the repository names builtins; the copy goes through a builtin, so the hook is named, not credited.',
+    {
+      ...hook(['    saved = tuple(items)', '    items.clear()', '    items.extend(saved)'], ['import pytest', '', 'import helpers']),
+      'tests/helpers.py': lines('def answer():', '    return 42'),
+    },
+    builtinCopy('saved = tuple(items)'),
+  ),
+  fixture(
+    'a1al-g-helper-list-src-no-builtins-named',
+    'G',
+    'A slice copy restored by a strict helper that extends from list(src), where no Python file in the repository names builtins; the restore goes through a builtin, so the hook is named, not credited.',
+    hook(['    saved = items[:]', '    items.clear()', '    refill(items, saved)'], ['import pytest', '', '', 'def refill(lst, src):', '    lst.extend(list(src))']),
+    builtinCopy('refill(items, saved)'),
+  ),
+  fixture(
+    'a1al-g-control-method-copy-beside-builtins',
+    'G',
+    'Control: an items.copy() copy (no builtin call) restored by extend, beside a module that names builtins; the list type cannot be patched, so the hook stays credited.',
+    {
+      ...hook(['    saved = items.copy()', '    items.clear()', '    items.extend(saved)'], ['import pytest', '', 'import helpers']),
+      'tests/helpers.py': lines('import builtins', '', 'builtins.list = lambda xs=(): []'),
+    },
     restores,
   ),
   // The review of #655, blocker 3: each way a repository file can still reach builtins, or a
   // module's `list`, without the bare word `builtins`, and each place the search did not look. A
-  // builtin copy is credited only where no file the repository tracks, in any directory, may replace
-  // the builtin; otherwise the hook is named, never credited.
+  // builtin copy was credited only where no file the repository tracks, in any directory, may replace
+  // the builtin; otherwise the hook was named, never credited. From #664 (option B) each is named for
+  // the copy alone, and the clause names no file.
   fixture(
     'a1al-g-frame-f-builtins',
     'G',
@@ -722,7 +771,7 @@ export const ALLOWLIST_FIXTURES: readonly AllowlistFixture[] = [
       ...hook([...R], ['import pytest', '', 'import helpers']),
       'tests/helpers.py': lines('import sys', '', '_real = list', 'sys._getframe(0).f_builtins["list"] = lambda xs=(): []'),
     },
-    builtinReplaced('saved = list(items)', 'tests/helpers.py'),
+    builtinCopy('saved = list(items)'),
   ),
   fixture(
     'a1al-g-fullwidth-builtins-import',
@@ -732,20 +781,20 @@ export const ALLOWLIST_FIXTURES: readonly AllowlistFixture[] = [
       ...hook([...R], ['import pytest', '', 'import helpers']),
       'tests/helpers.py': lines('import \uff42uiltins', '', '\uff42uiltins.list = lambda xs=(): []'),
     },
-    builtinReplaced('saved = list(items)', 'tests/helpers.py'),
+    builtinCopy('saved = list(items)'),
   ),
   ...(['vendor', 'build', 'dist', 'venv', 'coverage'] as const).map((directory) =>
     fixture(
       `a1al-g-patch-under-${directory}`,
       'G',
-      `R, while the root conftest.py loads a plugin under ${directory}/ that replaces builtins.list; the file list A1 walks leaves ${directory}/ out, so the search must look there too.`,
+      `R, while the root conftest.py loads a plugin under ${directory}/ that replaces builtins.list; the file list A1 walks leaves ${directory}/ out, and the copy goes through a builtin, so the hook is named.`,
       {
         ...hook([...R]),
         'conftest.py': lines(`pytest_plugins = ["${directory}.patch"]`),
         [`${directory}/__init__.py`]: '',
         [`${directory}/patch.py`]: lines('import builtins', '', 'builtins.list = lambda xs=(): []'),
       },
-      builtinReplaced('saved = list(items)', `${directory}/patch.py`),
+      builtinCopy('saved = list(items)'),
     ),
   ),
   fixture(
@@ -757,7 +806,7 @@ export const ALLOWLIST_FIXTURES: readonly AllowlistFixture[] = [
       'cachelib_plugin.py': lines('import inspect', '', 'inspect.currentframe().f_builtins["list"] = lambda xs=(): []'),
       '.github/workflows/ci.yml': lines('name: ci', 'on: push', 'jobs:', '  t:', '    runs-on: ubuntu-latest', '    steps:', '      - run: pytest -p cachelib_plugin'),
     },
-    builtinReplaced('saved = list(items)', 'cachelib_plugin.py'),
+    builtinCopy('saved = list(items)'),
   ),
   fixture(
     'a1al-g-sys-modules-joined-name',
@@ -767,7 +816,7 @@ export const ALLOWLIST_FIXTURES: readonly AllowlistFixture[] = [
       ...hook([...R], ['import pytest', '', 'import helpers']),
       'tests/helpers.py': lines('import sys', '', 'sys.modules["bu" + "iltins"].list = lambda xs=(): []'),
     },
-    builtinReplaced('saved = list(items)', 'tests/helpers.py'),
+    builtinCopy('saved = list(items)'),
   ),
   fixture(
     'a1al-g-conftest-global-from-another-module',
@@ -777,7 +826,7 @@ export const ALLOWLIST_FIXTURES: readonly AllowlistFixture[] = [
       ...hook([...R], ['import pytest', '', 'import helpers']),
       'tests/helpers.py': lines('import conftest', '', 'conftest.list = lambda xs=(): []'),
     },
-    builtinReplaced('saved = list(items)', 'tests/helpers.py'),
+    builtinCopy('saved = list(items)'),
   ),
   fixture(
     'a1al-g-extension-module-beside-tests',
@@ -787,7 +836,7 @@ export const ALLOWLIST_FIXTURES: readonly AllowlistFixture[] = [
       ...hook([...R], ['import pytest', '', 'import _speedups']),
       'tests/_speedups.cpython-312-x86_64-linux-gnu.so': 'not a real extension module\n',
     },
-    builtinReplaced('saved = list(items)', 'tests/_speedups.cpython-312-x86_64-linux-gnu.so'),
+    builtinCopy('saved = list(items)'),
   ),
 
   // ---- item H: #634's remaining shapes, checked against origin/main --------------------------

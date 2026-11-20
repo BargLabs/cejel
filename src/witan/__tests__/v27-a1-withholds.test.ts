@@ -169,8 +169,11 @@ describe('item C — every withhold is said in A1\'s note', () => {
     const v27 = a1(fixture, V27);
     const notes = v27.notes ?? '';
     expect(notes.length).toBeLessThanOrEqual(1000);
-    // The withhold sentence is there, names its first clause whole, and counts the rest.
-    expect(notes).toContain(`Run-wide skip rule not applied: the hook in ${directory}/suite_00/conftest.py puts the collected items back`);
+    // The withhold sentence is there, names its first clause whole, and counts the rest. From #664
+    // (option B) each hook's list(items) copy goes through a builtin, so each is named, not credited.
+    expect(notes).toContain(
+      `Hook not read: \`saved = list(items)\` in ${directory}/suite_00/conftest.py copies the collected items through a builtin, which v27 does not credit`,
+    );
     expect(notes).toMatch(/; and \d+ more not listed\./);
     // The rated-hollow sentence is still there too.
     expect(notes).toMatch(REMOVAL_SENTENCE);
