@@ -347,7 +347,14 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     and (the #610 review residuals, 2026-10-29) a Python decorator anywhere in the file that is
 //     not a skip form or a pytest mark, or a Python module that names `load_tests`; from 2026-11-01
 //     (goal_cejel_v27_a1_test_count_overmatch_2026-11-01) A1's note and evidence name each file
-//     these rules rate hollow, with the rule, and no rule claims where its condition is not read:
+//     these rules rate hollow, with the rule (from 2026-11-19,
+//     goal_cejel_v27_a1_fixture_data_not_cited_as_test_2026-11-19, item B, those citations come
+//     before the detected test files, so the metric-derived A1 finding, which cites A1's first
+//     pointer, cites the first of them; from the same date, item A, a detected test file under
+//     fixtures/ or __fixtures__/, or named *.fixture.* or *.fixtures.*, with no assertion by the
+//     share's own reading is cited as "Test support scaffolding (fixture data with no test in it),
+//     not a test file" in its place in the list; citation only, so no score, status, finding
+//     count, severity or summary moves), and no rule claims where its condition is not read:
 //     a hook without an `items` parameter, or a skip that sits inside another mark's arguments in
 //     pytestmark; from 2026-11-02 (goal_cejel_v27_a1_test_count_overmatch_v2_2026-11-02, which
 //     supersedes #621; as fixed after the #626 review) a rule is withheld only on evidence; and

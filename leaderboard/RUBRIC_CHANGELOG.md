@@ -135,6 +135,124 @@ holds no Git LFS pointer, and `rubric-behaviour-fingerprint.test.ts` passes unch
 - The no-rise checker (`v27-no-rise.ts`) recognises the two new note forms only with that many
   pointer citations and no other evidence.
 
+## 2026-11-19 (A1 fixture data and rated-hollow citation order) — under v27, a detected test file that is fixture data with no test in it is cited as test support scaffolding, not as a detected test file, and each file a v27 rule rates hollow is cited before the detected test files (refs #518); citation only; v17-v26 byte-identical; v27 never above v17; no score, status, finding count, finding severity or summary, metric, note, composite or verdict moved; the metric-derived A1 finding now cites the first rated-hollow file; no published score moved
+
+**Status.** A citation change under `witan-rubric-v27-prospective-2026-10-19` only, with no
+identifier change (goal_cejel_v27_a1_fixture_data_not_cited_as_test_2026-11-19). No holdout or
+calibration ran for it, and this entry makes no precision or recall claim. The default stays v17.
+A changed v27 needs a new freeze.
+
+**Why.** Under v27 (#518) a `conftest.py` is not cited as a test file. Where it runs no test it is
+rated hollow in `non_hollow_test_share`, and until now it was cited last, as "Rated hollow under
+this rubric: runs no test (conftest)". Taking it out of the test-file citations opens a slot under
+A1's eight-file cap. The slot can go to a file of mock data under `tests/fixtures/` with no test in
+it, labelled "Detected test file". v17 detects the same file but cites it past the cap. The cited
+file is not evidence about test quality, and the file that actually moved the share was cited last.
+
+**Change (v27 only, A1's evidence only).**
+
+- **Item A.** A detected test file is cited as "Test support scaffolding (fixture data with no
+  test in it), not a test file" when both of these hold:
+  - its path is under `fixtures/` or `__fixtures__/`, or its name is `*.fixture.*` or
+    `*.fixtures.*`, matched case-sensitively;
+  - it holds no assertion as `non_hollow_test_share` reads one (`readsAsAsserting`, the share's
+    own test, extracted unchanged).
+
+  A Git LFS pointer keeps its own label. The file keeps its place in the list and is not left out.
+  Leaving it out would change A1's evidence count. Where it is the only test-shaped file, it would
+  also empty A1's citations, which is the case the #518 conftest-only citation exists for. A file
+  under those paths that holds a test stays a detected test file. Where the no-coverage finding's
+  pointer is such a file, the finding keeps that pointer, at the same path, line and content hash,
+  with only its label changed. v27 keeps every v17 finding at v17's pointer (`v27-no-rise.ts`).
+- **Item B.** Each file a v27 rule rates hollow is cited before the detected test files, at most
+  eight, as before. A1's note already counts the rest ("and N more not listed", or "the N listed
+  after the first 8 carry no evidence pointer"). The pointers and their count are unchanged, and
+  only their order moves. The order is applied after the A1 collector's own findings take their
+  pointers, so none of those moves.
+
+  One finding reads the reordered list. Where A1's status is warning or critical and no finding
+  explains it, scoring adds "A1 metric-derived score is ..." (`ensureFindingsExplainStatus`),
+  anchored on the first pointer of A1's evidence. Under v27 that is now the first file a rule rated
+  hollow, which is the file that moved the share. Its severity and summary are unchanged.
+  `v27-no-rise.ts` leaves this summary out of its pointer check, because it restates the score.
+
+  The #518 conftest rule (its hollow rating and its citation text) is unchanged.
+
+**The no-rise property.** Both items change labels and order in A1's positive evidence, and the
+pointer of the one finding that anchors on it. A1 has metrics, so its score is computed from them
+and not from the pointer count. No score, status, finding count, severity, summary, metric, note,
+composite or verdict reads a label or the order. v27 cannot rise above v17 from this change.
+
+**Measured** against main `6b4392627`. The branch side used this branch's
+`src/witan/repo-signals.ts` at `ede0e7832` (shards 0 to 4) and at `aee30a0fb` (shard 5); the two
+differ in comments only. The set is the one the 2026-11-13 entry below names, from this branch's
+fixture files, plus this change's 8 fixtures:
+
+- false-assurance 269, CI-claims 71, B3 361;
+- v27 A1 removal 39, hook outcome 38, allowlist 86, withhold 96 and run 58;
+- the 17 fixtures of the publishing-gates change and the 8 of the unread-CI-configuration change;
+- this change's 8;
+- 1,051 synthetic repositories in all.
+
+Each fixture was built once. The same checkout was then scored under all eleven selectable rubrics,
+first by this branch's `src/witan/repo-signals.ts` and then by main's, which is the only file under
+`src/` outside the tests that this change touches. Report JSON, HTML and Markdown were compared by
+hash, with 0 errors on either side. The driver ran in six shards a side and is not committed.
+
+- **v17 to v26:** 10,510 of 10,510 reports, HTML and Markdown certificates byte-identical to main.
+- **v27:** 907 of 1,051 byte-identical. All 144 others satisfy two checks: the report with A1's
+  evidence and every A1 finding's pointer removed is byte-identical to main's, and A1's pointers
+  without their labels are the same set. So scores, statuses, metrics, notes, finding counts,
+  severities and summaries are all equal.
+  - 139 of the 144, all from the existing sets, differ only in order: the same labelled pointers,
+    with the rated-hollow ones first.
+  - The other 5 are this change's fixtures, where a label changes as well.
+  - In the existing sets no A1 label changed, so item A moves nothing there.
+- **A1's findings in the 144 v27 reports, pointers included:**
+  - 25 reports carry the same findings, unchanged.
+  - 1 changes only a label: the no-coverage finding's pointer, now labelled scaffolding
+    (`a1-fixture-data-dunder-fixtures-dir`).
+  - 118 change the metric-derived finding's pointer (one of them,
+    `a1-fixture-data-only-test-shaped-file`, also relabels its no-coverage finding):
+    - 101 keep the same file, line and content hash, with a new label;
+    - 15 keep the same file and hash and now carry the line of the first skip, because the pointer
+      is the rated-hollow one;
+    - 2 now cite a different file: `tests/helpers.py` becomes `tests/test_cache.py` in
+      `a1al-f-deselect-all-report-beside-star-import`, and `tests/test_cache.py` becomes
+      `tests/conftest.py` in `review3-a1-skip-hook-beside-asserting-conftest`. v17 reports no
+      metric-derived finding in either.
+- **No rise:** `lostFindings` finds 0 lost v17 findings on the branch. v27 A1 is above v17 A1 on 0
+  of 1,051. `checkNoRise` reports only the two shallow-clone fixtures, which it cannot compare
+  without a full clone of the same commit. Main reports the same two.
+
+**Pins.** `src/witan/__tests__/fixtures/behaviour-corpus.ts` names no `conftest.py` and no
+fixture data path. So no fingerprint moves, and the v27 fingerprint pin was not re-measured into
+the pins file. In `certificate-below-first-page.test.ts`, 26 v27 false-assurance fixtures move:
+every one has a file a v27 rule rates hollow, so A1's evidence order changes, and with it the
+metric-derived finding's pointer. That is 26 certificate digests and 26 report.json and 26
+attestation.json digests. They were re-captured from this branch by a temporary file that rewrote
+only the moved entries and failed on any moved v17 entry. No v17 entry and none of the 18 full
+HTML pins moved. The test's header records the re-capture.
+
+**Fixtures and tests.** `v27-a1-fixture-data.test.ts`, with its fixtures in
+`fixtures/v27-a1-fixture-data-fixtures.ts`, was committed red first at `88330fcb8`. Against main, 6
+of 13 tests failed: the four item A citation tests and the two item B order tests. The controls,
+the no-rise check and the byte pins passed. `fixtures/v27-a1-fixture-data-main-pins.json` pins,
+from main `6b4392627`, every v17 to v26 report on the 8 fixtures. Under v27 it pins two things:
+the report without A1's evidence and without the pointer each A1 finding cites, and A1's evidence
+pointers without their labels, sorted. Together these show that only A1's labels and order move.
+
+**Item C (investigation, no code change).**
+[`docs/v27-a1-fixture-data-counts-investigation-2026-11-19.md`](../docs/v27-a1-fixture-data-counts-investigation-2026-11-19.md)
+reports what it found under every rubric:
+
+- `test_to_source_ratio` counts a fixture data file under a test directory;
+- the share's denominator leaves it out, as the share's description says, except under
+  `__tests__/`, where the name-shaped rule rates it hollow, which the description does not say.
+
+It proposes, for a ruling, that v27's description of the share name that exception, with no count
+changed.
+
 ## 2026-11-13 (B3 unread CI configuration disclosure) — under v27, where the publishing rule leaves B3 no counted workflow that targets pull requests or the default branch, B3's note names each CI configuration Cejel does not read, by path (refs #517); note text only; v17-v26 byte-identical; v27 never above v17; no score, status, finding, composite or verdict moved; no published score moved
 
 **Status.** A note change under `witan-rubric-v27-prospective-2026-10-19` only, with no identifier

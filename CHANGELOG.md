@@ -40,6 +40,30 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     not-applicable result where v27 abstained before, no score, status or finding count moves. v27
     then equals v17 on that criterion, so it stays at or below v17.
 
+- **Prospective v27: A1 does not call a fixture data file a test file, and cites first the files a
+  v27 rule rates hollow (refs #518).** Under `witan-rubric-v27-prospective-2026-10-19` only, and in
+  A1's evidence only. v17 and every other rubric are unchanged, byte for byte.
+  - v27 does not cite a `conftest.py` as a test file, so a slot opens under A1's eight-file cap. A
+    file of mock data under `tests/fixtures/` could take that slot, and was labelled "Detected test
+    file". Now a detected test file under `fixtures/` or `__fixtures__/`, or named `*.fixture.*` or
+    `*.fixtures.*`, with no assertion in it (read the way the non-hollow share reads one) is cited
+    as "Test support scaffolding (fixture data with no test in it), not a test file". It keeps its
+    place in the list. A file under those paths that holds a test is still a detected test file.
+  - Each file a v27 rule rates hollow (at most eight; A1's note counts the rest) is now cited before
+    the detected test files instead of after them. These are the files that move the non-hollow
+    share. Where A1's status is warning or critical from its metrics alone, the "A1 metric-derived
+    score" finding cites A1's first pointer, so it now cites the first of these files.
+  - No score, status, finding count, finding severity or summary, metric, note, composite or verdict
+    moves. The `conftest.py` rule itself is unchanged.
+  - Measured on 1,051 synthetic repositories against main. v17 to v26: 10,510 of 10,510 reports
+    byte-identical. v27: 907 byte-identical, and the other 144 differ only in A1's evidence labels
+    and order and in the pointer of the metric-derived finding. No holdout or calibration ran.
+  - An investigation, with no code change, is in
+    [`docs/v27-a1-fixture-data-counts-investigation-2026-11-19.md`](docs/v27-a1-fixture-data-counts-investigation-2026-11-19.md).
+    It covers how such a file is counted in `test_to_source_ratio` and in the share. Under
+    `__tests__/`, the share counts a fixture data file as hollow, which its description does not
+    say.
+
 ## [0.6.12] — 2026-11-19
 
 v17 remains the default rubric. Every scoring change below applies only when the prospective v27
