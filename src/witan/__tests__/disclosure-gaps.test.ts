@@ -22,7 +22,12 @@ import {
   placeholderSetAsideDisclosure,
 } from '../repo-signals.js';
 import { projectWitanScoringSurface, WITAN_PROJECTED_RUBRIC_PLACEHOLDER } from '../rubric-fingerprint.js';
-import { WITAN_RUBRIC_VERSION_V17, WITAN_SELECTABLE_RUBRIC_VERSIONS } from '../rubric-version.js';
+import {
+  WITAN_RUBRIC_VERSION_V17,
+  WITAN_RUBRIC_VERSION_V27,
+  WITAN_RUBRIC_VERSION_V28,
+  WITAN_SELECTABLE_RUBRIC_VERSIONS,
+} from '../rubric-version.js';
 import {
   DISCLOSURE_GAP_FIXTURES,
   buildDisclosureGapFixture,
@@ -560,7 +565,10 @@ describe('every disclosure is presentation only', () => {
     for (const fixture of DISCLOSURE_GAP_FIXTURES) {
       if (!canDenyReadAccess && NEEDS_READ_DENIAL.has(fixture.name)) continue;
       for (const rubricVersion of WITAN_SELECTABLE_RUBRIC_VERSIONS) {
-        const key = `${fixture.name}@${rubricVersion}`;
+        // v28 (2026-11-20) postdates these pins, and no item B to D reading reaches these
+        // fixtures: it must score each exactly as v27 does, so it is held to v27's pin.
+        const pinRubric = rubricVersion === WITAN_RUBRIC_VERSION_V28 ? WITAN_RUBRIC_VERSION_V27 : rubricVersion;
+        const key = `${fixture.name}@${pinRubric}`;
         // #622: the projection writes WITAN_PROJECTED_RUBRIC_PLACEHOLDER where the shallow-clone
         // reason quotes the rubric. These pins predate that, so the identifier is put back in place
         // (key order unchanged) before hashing: the surface must still be the one main produced.
@@ -572,7 +580,7 @@ describe('every disclosure is presentation only', () => {
                 ...projected,
                 insufficientSourceReason: projected.insufficientSourceReason
                   .split(WITAN_PROJECTED_RUBRIC_PLACEHOLDER)
-                  .join(rubricVersion),
+                  .join(pinRubric),
               };
         const surface = createHash('sha256').update(JSON.stringify(asPinned)).digest('hex');
         if (pins[key] !== surface) moved.push(key);
@@ -580,7 +588,8 @@ describe('every disclosure is presentation only', () => {
     }
     expect(moved).toEqual([]);
     expect(Object.keys(pins).length).toBe(
-      DISCLOSURE_GAP_FIXTURES.length * WITAN_SELECTABLE_RUBRIC_VERSIONS.length,
+      DISCLOSURE_GAP_FIXTURES.length *
+        WITAN_SELECTABLE_RUBRIC_VERSIONS.filter((rubricVersion) => rubricVersion !== WITAN_RUBRIC_VERSION_V28).length,
     );
   });
 });

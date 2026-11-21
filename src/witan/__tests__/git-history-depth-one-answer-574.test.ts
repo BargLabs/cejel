@@ -7,6 +7,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 import type { GitExecFailureReason } from '../git-exec.js';
 import { isWitanHistoryDepthUnknownAbstention } from '../history-depth.js';
 import { scoreRepoWithPublicCejel } from '../public-scan.js';
+import { usesV27FalseAssuranceGate } from '../repo-signals.js';
 import {
   WITAN_RUBRIC_VERSION_V17,
   WITAN_RUBRIC_VERSION_V27,
@@ -240,12 +241,13 @@ describe('#574 item A: one history-depth answer per scan', () => {
       // holds under every rubric). With git answering, this repository's A2 is not applicable.
       expect(reading(idle, 'A2'), rubricVersion).toEqual({ status: 'not_applicable', score: 0 });
       expect(reading(loaded, 'A2'), rubricVersion).toEqual({ status: 'insufficient_data', score: 0 });
-      if (rubricVersion !== V27) {
+      // v28 carries v27's gate (usesV27FalseAssuranceGate), so it reads B2 as v27 does.
+      if (!usesV27FalseAssuranceGate(rubricVersion)) {
         // v17 to v26: B2 reads "not shallow", as with git answering "complete".
         expect(reading(loaded, 'B2'), rubricVersion).toEqual(reading(idle, 'B2'));
         expect(criterion(loaded, 'B2').notes, rubricVersion).toBe(criterion(idle, 'B2').notes);
       }
-      if (rubricVersion === V27) {
+      if (usesV27FalseAssuranceGate(rubricVersion)) {
         const b2 = criterion(loaded, 'B2');
         expect(b2.status).toBe('insufficient_data');
         expect(b2.score).toBe(0);

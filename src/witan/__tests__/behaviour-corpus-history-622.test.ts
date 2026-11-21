@@ -8,6 +8,7 @@ import { projectWitanScoringSurface, WITAN_PROJECTED_RUBRIC_PLACEHOLDER } from '
 import {
   WITAN_RUBRIC_VERSION_V17,
   WITAN_RUBRIC_VERSION_V27,
+  WITAN_RUBRIC_VERSION_V28,
   WITAN_SELECTABLE_RUBRIC_VERSIONS,
 } from '../rubric-version.js';
 import {
@@ -154,7 +155,10 @@ describe(`#622 — ${SHALLOW}: the fingerprint reads what the rubric decided, no
     }
     // The report-level outcome (verdict, composites, the reason): the same from v17 to v26. v27's
     // reason is worded differently ("could fall below"), which is a difference in what it says.
-    const beforeV27 = surfaces.filter(({ rubricVersion }) => rubricVersion !== WITAN_RUBRIC_VERSION_V27);
+    // v28 carries v27's gate, so its reason is worded as v27's is.
+    const beforeV27 = surfaces.filter(
+      ({ rubricVersion }) => rubricVersion !== WITAN_RUBRIC_VERSION_V27 && rubricVersion !== WITAN_RUBRIC_VERSION_V28,
+    );
     expect(new Set(beforeV27.map(({ reportLevel }) => reportLevel)).size).toBe(1);
   });
 });

@@ -3137,6 +3137,16 @@ function v28WithoutTrailingComment(line: string): string {
   return at === -1 ? line : line.slice(0, at);
 }
 
+/**
+ * A command up to a bare `--`: what follows is passed on, not read by the runner as its own option
+ * (`dotnet test -- --collect:...` is a RunSettings argument; for pytest it is a path), so a coverage
+ * flag there is never credited.
+ */
+function v28BeforeArgumentSeparator(command: string): string {
+  const at = command.search(/\s--(?=\s|$)/);
+  return at === -1 ? command : command.slice(0, at);
+}
+
 /** The XML text with each comment's characters, but not its line breaks, blanked. */
 function v28XmlWithoutComments(contents: string): string {
   return contents.replace(/<!--[\s\S]*?-->/g, (comment) => comment.replace(/[^\n]/g, ' '));
@@ -3277,7 +3287,7 @@ function readV28CoverageSources(
     if (!sources.some((source) => source.path === path && source.line === line)) sources.push({ path, line, label });
   };
   const commandFlag = (path: string, line: string, at: number) => {
-    const command = v28WithoutTrailingComment(line);
+    const command = v28BeforeArgumentSeparator(v28WithoutTrailingComment(line));
     for (const { kind, pattern } of V28_COMMAND_COVERAGE_FLAGS) {
       if (kinds.has(kind) && pattern.test(command)) {
         add(path, at, `Coverage enabled (${kind} coverage flag in a test command)`);
@@ -3291,8 +3301,9 @@ function readV28CoverageSources(
       const lines = v28FileLines(repoPath, file);
       for (const [name, value] of readPackageScripts(join(repoPath, file))) {
         if (value.includes('\n')) continue;
+        const command = v28BeforeArgumentSeparator(value);
         for (const { kind, pattern } of V28_COMMAND_COVERAGE_FLAGS) {
-          if (kinds.has(kind) && pattern.test(value)) {
+          if (kinds.has(kind) && pattern.test(command)) {
             add(file, v28PackageScriptLine(lines, name, value), `Coverage enabled (${kind} coverage flag in script "${name}")`);
             break;
           }

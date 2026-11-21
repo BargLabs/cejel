@@ -2,8 +2,8 @@ import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 
 import { scoreRepoWithPublicCejel } from '../public-scan.js';
-import { buildWitanInputFromRepo, ciWorkflowCitationLabel } from '../repo-signals.js';
-import { WITAN_RUBRIC_VERSION_V27, WITAN_SELECTABLE_RUBRIC_VERSIONS } from '../rubric-version.js';
+import { buildWitanInputFromRepo, ciWorkflowCitationLabel, usesV27FalseAssuranceGate } from '../repo-signals.js';
+import { WITAN_RUBRIC_VERSION_V27, WITAN_RUBRIC_VERSION_V28, WITAN_SELECTABLE_RUBRIC_VERSIONS } from '../rubric-version.js';
 import { makeReadsDisclosureRepo } from './fixtures/reads-disclosure.js';
 import {
   U1_CROSS_REPO_REUSABLE,
@@ -50,7 +50,8 @@ const ciLabel = (labels: readonly string[]) => labels.filter((l) => /^CI workflo
 describe.each(WITAN_SELECTABLE_RUBRIC_VERSIONS)('delegated CI that was not read — %s', (rubric) => {
   // Under v27 every workflow read is cited, so with two read the label says two are cited, and it is
   // silent where nothing else is stated (ciWorkflowCitationLabel).
-  const twoCited = rubric === WITAN_RUBRIC_VERSION_V27;
+  // v28 carries v27's gate (usesV27FalseAssuranceGate), so it cites as v27 does.
+  const twoCited = usesV27FalseAssuranceGate(rubric);
   it('a job calling org/other/.github/workflows/ci.yml@v1 is one reusable workflow in another repository', () => {
     const { labels } = scan(U1_CROSS_REPO_REUSABLE, rubric);
     expect(ciLabel(labels('B3'))).toEqual([
@@ -206,8 +207,8 @@ function withoutEvidenceLabels(value: unknown): unknown {
 }
 
 describe('the disclosure moves nothing but evidence labels', () => {
-  it.each(WITAN_SELECTABLE_RUBRIC_VERSIONS)('%s', (rubricVersion) => {
-    const reports = Object.entries(UNREAD_CI_DISCLOSURE_FIXTURES).map(([name, files]) =>
+  const labelFree = (rubricVersion: string) =>
+    Object.entries(UNREAD_CI_DISCLOSURE_FIXTURES).map(([name, files]) =>
       withoutEvidenceLabels(
         scoreRepoWithPublicCejel({
           repoPath: makeReadsDisclosureRepo(files),
@@ -218,7 +219,15 @@ describe('the disclosure moves nothing but evidence labels', () => {
         }),
       ),
     );
-    expect(createHash('sha256').update(JSON.stringify(reports)).digest('hex')).toBe(
+  it.each(WITAN_SELECTABLE_RUBRIC_VERSIONS)('%s', (rubricVersion) => {
+    if (rubricVersion === WITAN_RUBRIC_VERSION_V28) {
+      // v28 (2026-11-20) postdates these pins; no item B to D reading reaches these fixtures, so it
+      // must read them exactly as v27 does, each report's own rubric identifier aside.
+      const own = (version: string) => JSON.stringify(labelFree(version)).split(version).join('<rubric>');
+      expect(own(WITAN_RUBRIC_VERSION_V28)).toBe(own(WITAN_RUBRIC_VERSION_V27));
+      return;
+    }
+    expect(createHash('sha256').update(JSON.stringify(labelFree(rubricVersion))).digest('hex')).toBe(
       LABEL_FREE_PINS[rubricVersion],
     );
   });

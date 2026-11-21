@@ -719,7 +719,8 @@ export const WITAN_RUBRIC_VERSION_V27 = 'witan-rubric-v27-prospective-2026-10-19
 //     reading can name, a test command in a tracked manifest, script, recipe, tox `commands` or CI
 //     step passes that runner's coverage flag (`--coverage` for jest, vitest, react-scripts and
 //     flutter; `--cov` or `--cov=...` for pytest, also in pytest's own `addopts`;
-//     `--collect:"XPlat Code Coverage"` or `/p:CollectCoverage=true` for `dotnet test`), where the
+//     `--collect:"XPlat Code Coverage"` or `/p:CollectCoverage=true` for `dotnet test`; a command is
+//     read only up to a bare `--`, after which words are passed on, not read as its options), where the
 //     runner's tracked config file declares coverage (a vitest `coverage` block, jest
 //     `collectCoverage: true`, also in jest.config.json), or where the project declares the
 //     runner's coverage plug-in (pytest-cov in pyproject.toml, setup.cfg, setup.py, a Pipfile or a

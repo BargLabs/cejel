@@ -15,6 +15,7 @@ import { projectWitanScoringSurface, WITAN_PROJECTED_RUBRIC_PLACEHOLDER } from '
 import {
   WITAN_RUBRIC_VERSION_V17,
   WITAN_RUBRIC_VERSION_V27,
+  WITAN_RUBRIC_VERSION_V28,
   WITAN_SELECTABLE_RUBRIC_VERSIONS,
 } from '../rubric-version.js';
 import { buildDisclosureGapFixture, removeDisclosureGapFixtures } from './fixtures/disclosure-gap-fixtures.js';
@@ -252,7 +253,10 @@ describe('the disclosure is presentation only', () => {
     const surfaces: Record<string, string> = {};
     for (const fixture of IGNORED_TEST_FAILURE_FIXTURES) {
       for (const rubricVersion of WITAN_SELECTABLE_RUBRIC_VERSIONS) {
-        const key = `${fixture.name}@${rubricVersion}`;
+        // v28 (2026-11-20) postdates these pins, and no item B to D reading reaches these
+        // fixtures: it must score each exactly as v27 does, so it is held to v27's pin.
+        const pinRubric = rubricVersion === WITAN_RUBRIC_VERSION_V28 ? V27 : rubricVersion;
+        const key = `${fixture.name}@${pinRubric}`;
         const projected = projectWitanScoringSurface(report(fixture.name, rubricVersion));
         const asPinned =
           projected.insufficientSourceReason === null
@@ -261,17 +265,18 @@ describe('the disclosure is presentation only', () => {
                 ...projected,
                 insufficientSourceReason: projected.insufficientSourceReason
                   .split(WITAN_PROJECTED_RUBRIC_PLACEHOLDER)
-                  .join(rubricVersion),
+                  .join(pinRubric),
               };
         const surface = createHash('sha256').update(JSON.stringify(asPinned)).digest('hex');
-        surfaces[key] = surface;
-        if (SCORING_SURFACE_PINS[key] !== surface) moved.push(key);
+        if (rubricVersion !== WITAN_RUBRIC_VERSION_V28) surfaces[key] = surface;
+        if (SCORING_SURFACE_PINS[key] !== surface) moved.push(`${fixture.name}@${rubricVersion}`);
       }
     }
     if (process.env.CEJEL_PRINT_ITF_PINS === '1') process.stdout.write(`ITF_PINS ${JSON.stringify(surfaces)}\n`);
     expect(moved).toEqual([]);
     expect(Object.keys(SCORING_SURFACE_PINS).length).toBe(
-      IGNORED_TEST_FAILURE_FIXTURES.length * WITAN_SELECTABLE_RUBRIC_VERSIONS.length,
+      IGNORED_TEST_FAILURE_FIXTURES.length *
+        WITAN_SELECTABLE_RUBRIC_VERSIONS.filter((rubricVersion) => rubricVersion !== WITAN_RUBRIC_VERSION_V28).length,
     );
   });
 });

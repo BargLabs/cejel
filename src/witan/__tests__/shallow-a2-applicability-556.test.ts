@@ -23,6 +23,7 @@ import { projectWitanScoringSurface, WITAN_PROJECTED_RUBRIC_PLACEHOLDER } from '
 import {
   WITAN_RUBRIC_VERSION_V17,
   WITAN_RUBRIC_VERSION_V27,
+  WITAN_RUBRIC_VERSION_V28,
   WITAN_SELECTABLE_RUBRIC_VERSIONS,
 } from '../rubric-version.js';
 import type { WitanCriterionScore, WitanReport } from '../schemas.js';
@@ -60,7 +61,8 @@ import {
 
 const V17 = WITAN_RUBRIC_VERSION_V17;
 const V27 = WITAN_RUBRIC_VERSION_V27;
-const BEFORE_V27 = WITAN_SELECTABLE_RUBRIC_VERSIONS.filter((version) => version !== V27);
+// v28 (2026-11-20) carries v27's gate and postdates these main pins: it is not a rubric before v27.
+const BEFORE_V27 = WITAN_SELECTABLE_RUBRIC_VERSIONS.filter((version) => version !== V27 && version !== WITAN_RUBRIC_VERSION_V28);
 const SHALLOW: readonly A2HistoryClone[] = [1, 12];
 const FAILED_READS: readonly A2HistoryClone[] = ['blobless', 'treeless', 'missing-blobs'];
 const INCOMPLETE = A2_HISTORY_CLONES.filter((clone) => clone !== 'full');
