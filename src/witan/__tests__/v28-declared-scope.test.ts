@@ -175,7 +175,11 @@ describe('v28 declared scope', () => {
     expect(block).toContain('usesV27FalseAssuranceGate');
     expect(block).toContain('usesV28OwnReadings');
     for (const item of ['Item B', 'Item C', 'Item D']) expect(block).toContain(item);
-    expect(block).toContain('may score above v27 only by items B to D');
+    // The second v28 card (21 Nov): its A3 and A2 items, each dated, and the rise rule that names them.
+    for (const item of ['A3 item A (21 Nov 2026)', 'A3 item B (21 Nov 2026)', 'A2 item C (21 Nov 2026)', 'A3 item D (21 Nov 2026)']) {
+      expect(block).toContain(item);
+    }
+    expect(block).toContain('may score above v27 only\n// by items B to D of the A1 readings and by A2 item C');
     expect(block).toContain('leaderboard/RUBRIC_CHANGELOG.md');
     expect(block).toContain('The public default remains v17');
     expect(block).toContain('no precision or recall claim');

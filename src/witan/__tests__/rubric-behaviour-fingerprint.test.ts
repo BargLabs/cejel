@@ -96,7 +96,9 @@ const STRUCTURALLY_UNREACHABLE_CRITERIA = ['B1', 'B5'] as const;
  * measured collisions equal this list EXACTLY, so a declaration cannot outlive its truth.
  */
 // v28 (2026-11-20): its A1 readings reach no shape this corpus holds, so it scores the corpus as v27
-// does; v28-a1-readings.test.ts measures the shapes where the two differ. Extending the corpus to
+// does; v28-a1-readings.test.ts measures the shapes where the two differ. Its A3 and A2 readings
+// (2026-11-21) reach none either (v28-a1-readings.test.ts pins that no specimen is reached), and
+// v28-a3-a2-readings.test.ts measures theirs. Extending the corpus to
 // reach them would move every pinned fingerprint, which the change that declared v28 may not do.
 const DECLARED_BEHAVIOURALLY_IDENTICAL: readonly (readonly string[])[] = [
   [WITAN_RUBRIC_VERSION_V27, WITAN_RUBRIC_VERSION_V28],
