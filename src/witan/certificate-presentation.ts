@@ -30,7 +30,7 @@ import type {
   WitanScoredVerdict,
   WitanWithheldPath,
 } from './schemas.js';
-import { usesV27FalseAssuranceClosure } from './repo-signals.js';
+import { usesV27FalseAssuranceGate } from './repo-signals.js';
 import { witanVerdictForScore } from './schemas.js';
 import { withAppliedWeightShares } from './scoring.js';
 
@@ -391,7 +391,7 @@ export function glossaryEntryForRubric(
   rubricVersion: string | undefined,
 ): CertificateGlossaryEntry {
   if ((entry.key !== 'pr-gate-ci-workflow-count' && entry.key !== 'non-hollow') || rubricVersion === undefined) return entry;
-  if (!usesV27FalseAssuranceClosure(rubricVersion)) return entry;
+  if (!usesV27FalseAssuranceGate(rubricVersion)) return entry;
   return {
     ...entry,
     definition: entry.key === 'non-hollow' ? V27_NON_HOLLOW_TEST_SHARE_DEFINITION : V27_PR_GATE_CI_WORKFLOW_COUNT_DEFINITION,

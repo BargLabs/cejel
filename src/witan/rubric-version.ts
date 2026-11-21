@@ -707,6 +707,45 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 // explicitly. This declaration carries no precision or recall claim, and no holdout has run.
 export const WITAN_RUBRIC_VERSION_V27 = 'witan-rubric-v27-prospective-2026-10-19';
 
+// Prospective successor to v27. V28 inherits v27 whole (operator rulings 35 and 36, 20 Nov 2026;
+// goal_cejel_v28_declaration_and_a1_readings_2026-11-20): v17's detector closure, through the
+// same comparisons in src/witan/repo-signals.ts and src/witan/scoring.ts (each chain naming
+// WITAN_RUBRIC_VERSION_V27 also names WITAN_RUBRIC_VERSION_V28, and none naming V18-V26 does),
+// and v27's one gate, which v28 reaches through `usesV27FalseAssuranceGate` (true for V27 and V28;
+// `usesV27FalseAssuranceClosure` itself is unchanged and is called nowhere else). What v28 changes
+// is gated on WITAN_RUBRIC_VERSION_V28 alone, through `usesV28OwnReadings`, and reads A1 only
+// (`readV28A1Readings`):
+//   - Item B: the coverage check counts coverage as configured where, for a configured runner the
+//     reading can name, a test command in a tracked manifest, script, recipe, tox `commands` or CI
+//     step passes that runner's coverage flag (`--coverage` for jest, vitest, react-scripts and
+//     flutter; `--cov` or `--cov=...` for pytest, also in pytest's own `addopts`;
+//     `--collect:"XPlat Code Coverage"` or `/p:CollectCoverage=true` for `dotnet test`), where the
+//     runner's tracked config file declares coverage (a vitest `coverage` block, jest
+//     `collectCoverage: true`, also in jest.config.json), or where the project declares the
+//     runner's coverage plug-in (pytest-cov in pyproject.toml, setup.cfg, setup.py, a Pipfile or a
+//     requirements file; coverlet in a .NET test project). Each source is cited as coverage
+//     evidence at its line. A file under docs/ or a Markdown, reStructuredText or AsciiDoc file is
+//     never a source. `coverage_percent` reads only what it read under v27, so a flag with no
+//     threshold leaves it where it was.
+//   - Item C: a repository is lean only where every configured runner is lean. Where Node's
+//     built-in runner and a runner that is not lean are both configured, the no-coverage finding
+//     applies to the other runner's suite and cites its first test file, and the lean evidence is
+//     still cited.
+//   - Item D: a .csproj, .fsproj or .vbproj referencing Microsoft.NET.Test.Sdk, xunit, NUnit or
+//     MSTest, `flutter_test` in a pubspec.yaml's dev_dependencies, and a package.json script that
+//     runs `react-scripts test` are configured runners, each cited at the line that establishes
+//     it. A .NET or Flutter project counts as test-runner configuration and a react-scripts script
+//     as a test command in verification_script_ratio, as the runners recognised before do, and
+//     both A1 findings that depend on a configured runner (no coverage, no test files) apply.
+// Items B and C only withdraw or add an info finding and add evidence, so neither moves a score on
+// its own; item D's runner credit can raise A1. So v28 may score above v27 only by items B to D,
+// and each fixture that does is counted, with its item, in leaderboard/RUBRIC_CHANGELOG.md and
+// pinned in src/witan/__tests__/v28-a1-readings.test.ts, whose no-rise test fails on any other
+// rise. A3 and A2 changes belong to the second v28 card and are not in this declaration.
+// The public default remains v17; callers must opt in explicitly. This declaration carries
+// no precision or recall claim, and no holdout or calibration has run.
+export const WITAN_RUBRIC_VERSION_V28 = 'witan-rubric-v28-prospective-2026-11-20';
+
 // Calibration-claim policy. The shared/public default is deliberately decoupled from rubric
 // iteration: prospective rubrics are available only by explicit opt-in — a committed evaluation
 // harness, or (on main after 0.4.4) the unreleased public
@@ -726,6 +765,7 @@ export const WITAN_PROSPECTIVE_RUBRIC_VERSIONS = Object.freeze([
   WITAN_RUBRIC_VERSION_V25,
   WITAN_RUBRIC_VERSION_V26,
   WITAN_RUBRIC_VERSION_V27,
+  WITAN_RUBRIC_VERSION_V28,
 ] as const);
 
 // The complete set of rubric identifiers a caller may explicitly select: the calibrated default
@@ -752,7 +792,7 @@ export function assertSelectableRubricVersion(rubricVersion: string): void {
   );
 }
 
-/** True for any rubric that has not cleared the calibration gate (currently v18-v27). */
+/** True for any rubric that has not cleared the calibration gate (currently v18-v28). */
 export function isProspectiveRubricVersion(rubricVersion: string): boolean {
   return (WITAN_PROSPECTIVE_RUBRIC_VERSIONS as readonly string[]).includes(rubricVersion);
 }

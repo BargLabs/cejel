@@ -22,7 +22,7 @@ import {
   isCoveragePercentageUnpublished,
 } from './witan/certificate-presentation.js';
 import { computeMeasuredCoverage } from './witan/coverage.js';
-import { WITAN_RUBRIC_VERSION_V27, isProspectiveRubricVersion } from './witan/rubric-version.js';
+import { WITAN_RUBRIC_VERSION_V27, WITAN_RUBRIC_VERSION_V28, isProspectiveRubricVersion } from './witan/rubric-version.js';
 import { METRIC_DERIVED_FINDING_PATTERN } from './witan/finding-presentation.js';
 import {
   SHALLOW_HISTORY_LIMITATION,
@@ -40,7 +40,7 @@ import {
   type PlainScanLimitationKind,
   resolveNextCheck,
 } from './witan/next-checks.js';
-import { usesV27FalseAssuranceClosure } from './witan/repo-signals.js';
+import { usesV27FalseAssuranceGate } from './witan/repo-signals.js';
 import type {
   WitanCriterionMetric,
   WitanCriterionScore,
@@ -237,11 +237,12 @@ const NO_MEASUREMENT_COVERAGE_PATTERN = new RegExp(
 
 // A history abstention's reason names the rubric it ran under (operator ruling of 2 Nov), so its
 // pattern matches the reason for any rubric id: v27's 1 Nov wording exactly, and every other
-// rubric's wording with its id.
+// rubric's wording with its id. v28 carries v27's gate, so its reason has v27's wording with v28's id.
 function rubricReasonPattern(reasonFor: (rubricVersion: string, v27Wording: boolean) => string): RegExp {
   const placeholder = '\u0000rubric\u0000';
   const alternatives = [
     escapeRegExp(reasonFor(WITAN_RUBRIC_VERSION_V27, true)),
+    escapeRegExp(reasonFor(WITAN_RUBRIC_VERSION_V28, true)),
     escapeRegExp(reasonFor(placeholder, false)).replace(placeholder, 'witan-rubric-[a-z0-9.-]+'),
   ];
   return new RegExp(`^(?:${alternatives.join('|')})$`);
@@ -694,7 +695,7 @@ const NOTE_READ_FAILURE_PREFIX =
 function readFailureCause(report: WitanReport): 'unreadable' | 'lfs' | 'read-failure' {
   const byReason = report.contentReadSummary?.byReason;
   if (!byReason) return 'read-failure';
-  const lfs = (byReason.lfsPointer ?? 0) > 0 && usesV27FalseAssuranceClosure(report.rubricVersion);
+  const lfs = (byReason.lfsPointer ?? 0) > 0 && usesV27FalseAssuranceGate(report.rubricVersion);
   const present = [byReason.unreadable > 0, byReason.deniedPath > 0, lfs].filter(Boolean).length;
   if (present !== 1) return 'read-failure';
   if (byReason.unreadable > 0) return 'unreadable';

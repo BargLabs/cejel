@@ -43,6 +43,13 @@ const V27_INHERITED_GATE =
   '  return usesV27FalseAssuranceClosure(rubricVersion) || usesV28OwnReadings(rubricVersion);\n' +
   '}';
 
+// v27's one gate, as v27-declared-scope.test.ts pins it. It names V27 alone; v28 reaches it through
+// usesV27FalseAssuranceGate, so it has no V28 comparison beside it.
+const V27_GATE =
+  'export function usesV27FalseAssuranceClosure(rubricVersion: string): boolean {\n' +
+  '  return rubricVersion === WITAN_RUBRIC_VERSION_V27;\n' +
+  '}';
+
 const V27_COMPARISON = /rubricVersion [!=]== WITAN_RUBRIC_VERSION_V27\b/g;
 const V28_COMPARISON = /rubricVersion [!=]== WITAN_RUBRIC_VERSION_V28\b/g;
 
@@ -123,8 +130,9 @@ describe('v28 declared scope', () => {
       const v27 = (source.match(V27_COMPARISON) ?? []).length;
       const v28 = (source.match(V28_COMPARISON) ?? []).length;
       const own = ownTexts.reduce((total, text) => total + source.split(text).length - 1, 0);
-      if (v27 !== v28 - own) {
-        mismatched.push(`${relative(WITAN_SOURCE_DIR, path)}: ${v27} v27 vs ${v28} v28 (${own} own)`);
+      const gate = source.split(V27_GATE).length - 1;
+      if (v27 - gate !== v28 - own) {
+        mismatched.push(`${relative(WITAN_SOURCE_DIR, path)}: ${v27} v27 (${gate} gate) vs ${v28} v28 (${own} own)`);
       }
     }
     expect(mismatched).toEqual([]);
@@ -133,9 +141,14 @@ describe('v28 declared scope', () => {
   it('every chain naming V27 names V28; none naming V18-V26 names V28; V28 alone only in its own readings', () => {
     const offending: string[] = [];
     let alone = 0;
+    let v27GateChains = 0;
     for (const path of sourceFiles(WITAN_SOURCE_DIR)) {
       for (const chain of comparisonChains(readFileSync(path, 'utf8'))) {
         const where = `${relative(WITAN_SOURCE_DIR, path)}: ${chain.join(', ')}`;
+        if (chain.length === 1 && chain[0] === 'V27') {
+          v27GateChains += 1;
+          continue;
+        }
         if (chain.includes('V27') && !chain.includes('V28')) offending.push(`V27 without V28 — ${where}`);
         if (chain.includes('V28') && chain.some((id) => /^V(1[89]|2[0-6])$/.test(id))) {
           offending.push(`V28 beside V18-V26 — ${where}`);
@@ -147,7 +160,8 @@ describe('v28 declared scope', () => {
       }
     }
     expect(offending).toEqual([]);
-    expect(alone, 'only the own reading functions name V28 alone').toBe(Object.keys(V28_OWN_READING_FUNCTIONS).length);
+    expect(v27GateChains, 'the only chain naming V27 alone is the v27 gate').toBe(1);
+    expect(alone,'only the own reading functions name V28 alone').toBe(Object.keys(V28_OWN_READING_FUNCTIONS).length);
   });
 
   it('declares the v27 parent, what it changes, the rise rule, explicit-only, and no claim', () => {

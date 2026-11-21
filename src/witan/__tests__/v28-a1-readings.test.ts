@@ -14,7 +14,6 @@ import {
   V28_A1_FIXTURES,
   V28_ITEM_B_FIXTURES,
   V28_ITEM_B_NEGATIVE_FIXTURES,
-  V28_ITEM_C_FIXTURES,
   V28_ITEM_D_FIXTURES,
   V28_NO_READING_FIXTURES,
   type V28A1Fixture,
@@ -195,7 +194,7 @@ describe('item D: .NET test projects, Flutter and react-scripts are configured r
     expect(finding(name, WITAN_RUBRIC_VERSION_V28, NO_COVERAGE)).toBeUndefined();
     expect(
       a1(name, WITAN_RUBRIC_VERSION_V28).evidence.some(
-        ({ kind, path, line }) => kind === 'coverage' && path === 'tests/Synthetic.Tests/Synthetic.Tests.csproj' && line === 9,
+        ({ kind, path, line }) => kind === 'coverage' && path === 'tests/Synthetic.Tests/Synthetic.Tests.csproj' && line === 8,
       ),
     ).toBe(true);
   });
@@ -216,6 +215,9 @@ export const V28_DECLARED_RISES: Readonly<Record<string, 'B' | 'C' | 'D'>> = {
   'v28d-react-scripts-test-project': 'D',
   'v28d-react-scripts-no-test-files': 'D',
   'v28d-dotnet-coverlet-collector': 'D',
+  // Item B fixtures whose runner only v28 recognises: the rise is item D's runner credit.
+  'v28b-dotnet-xplat-collect-in-ci': 'D',
+  'v28b-flutter-test-coverage-in-ci': 'D',
 };
 
 function rises(v27: WitanReport, v28: WitanReport): string[] {
