@@ -27169,7 +27169,7 @@ function readV28ManifestProbes(contents: string): { image: string; probe: string
 // repositories are equal and their tags are too, or either has none. A reference with a variable
 // or template in it names nothing this reading can resolve.
 function sameV28Image(left: string, right: string): boolean {
-  const split = (reference: string): { name: string; tag: string | null } | null => {
+  const splitV28ImageReference = (reference: string): { name: string; tag: string | null } | null => {
     if (/[$`{}\s]/.test(reference) || reference === '') return null;
     const withoutDigest = reference.replace(/@sha256:[0-9a-f]+$/i, '');
     const slash = withoutDigest.lastIndexOf('/');
@@ -27178,8 +27178,8 @@ function sameV28Image(left: string, right: string): boolean {
       ? { name: withoutDigest, tag: null }
       : { name: withoutDigest.slice(0, colon), tag: withoutDigest.slice(colon + 1) };
   };
-  const a = split(left);
-  const b = split(right);
+  const a = splitV28ImageReference(left);
+  const b = splitV28ImageReference(right);
   if (!a || !b || a.name !== b.name) return false;
   return a.tag === null || b.tag === null || a.tag === b.tag;
 }
@@ -27198,7 +27198,7 @@ export function readV28RuntimeHealthcheckCoverage(
 ): V28RuntimeHealthcheckCoverage[] {
   const dockerfiles = findRuntimeContainerEntrypointFiles(repoPath, repoFiles, true);
   if (dockerfiles.length === 0) return [];
-  const read = (file: string): string | null => {
+  const readV28HealthcheckSourceText = (file: string): string | null => {
     const fullPath = join(repoPath, file);
     return isRegularFile(fullPath) ? readRepoText(fullPath, 'utf8') : null;
   };
@@ -27211,7 +27211,7 @@ export function readV28RuntimeHealthcheckCoverage(
   for (const file of authoredYaml) {
     const isCompose = V28_COMPOSE_FILE_PATTERN.test(file);
     const isSkaffold = V28_SKAFFOLD_FILE_PATTERN.test(file);
-    const contents = read(file);
+    const contents = readV28HealthcheckSourceText(file);
     if (contents === null) continue;
     if (isCompose) {
       for (const service of readV28ComposeServices(file, contents)) {

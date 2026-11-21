@@ -3,6 +3,8 @@
 // copied from a real repository. Each fixture is one or more commits; a path whose contents are
 // `null` in a later commit is removed in that commit.
 
+import { lfsPointerFor } from './false-assurance-fixtures.js';
+
 export interface V28A3A2Fixture {
   readonly name: string;
   readonly commits: readonly Readonly<Record<string, string | null>>[];
@@ -174,6 +176,18 @@ export const V28_ITEM_A_FIXTURES: readonly V28A3A2Fixture[] = [
           '              port: 8080',
           '',
         ].join('\n'),
+      },
+    ],
+  },
+  {
+    // A skaffold file, which only item A's reading reads, is committed as a Git LFS pointer, so the
+    // reading reads a pointer where an image link could be.
+    name: 'v28-a3a-skaffold-file-is-lfs-pointer',
+    commits: [
+      {
+        ...TWO_RUNTIME_DOCKERFILES,
+        '.gitattributes': 'skaffold.yaml filter=lfs diff=lfs merge=lfs -text\n',
+        'skaffold.yaml': lfsPointerFor('build:\n  artifacts:\n    - image: synthetic/worker\n      context: worker\n'),
       },
     ],
   },

@@ -221,10 +221,21 @@ describe('the disclosure moves nothing but evidence labels', () => {
     );
   it.each(WITAN_SELECTABLE_RUBRIC_VERSIONS)('%s', (rubricVersion) => {
     if (rubricVersion === WITAN_RUBRIC_VERSION_V28) {
-      // v28 (2026-11-20) postdates these pins; no item B to D reading reaches these fixtures, so it
-      // must read them exactly as v27 does, each report's own rubric identifier aside.
-      const own = (version: string) => JSON.stringify(labelFree(version)).split(version).join('<rubric>');
-      expect(own(WITAN_RUBRIC_VERSION_V28)).toBe(own(WITAN_RUBRIC_VERSION_V27));
+      // v28 (2026-11-20) postdates these pins; no item B to D reading reaches these fixtures. The
+      // second v28 card's item B (21 Nov) reaches every one: src/main.js handles requests and no
+      // file declares a health route, so v28 adds that info finding to A3, and no score moves. With
+      // that finding set aside, v28 must read them exactly as v27 does, each report's own rubric
+      // identifier aside.
+      const healthRoute =
+        'A production HTTP entrypoint handles requests directly but declares no health or readiness route.';
+      const v28 = labelFree(WITAN_RUBRIC_VERSION_V28) as { criteria: { id: string; findings: { summary: string }[] }[] }[];
+      for (const report of v28) {
+        const a3 = report.criteria.find(({ id }) => id === 'A3');
+        expect(a3?.findings.filter(({ summary }) => summary === healthRoute)).toHaveLength(1);
+        if (a3) a3.findings = a3.findings.filter(({ summary }) => summary !== healthRoute);
+      }
+      const own = (reports: unknown, version: string) => JSON.stringify(reports).split(version).join('<rubric>');
+      expect(own(v28, WITAN_RUBRIC_VERSION_V28)).toBe(own(labelFree(WITAN_RUBRIC_VERSION_V27), WITAN_RUBRIC_VERSION_V27));
       return;
     }
     expect(createHash('sha256').update(JSON.stringify(labelFree(rubricVersion))).digest('hex')).toBe(

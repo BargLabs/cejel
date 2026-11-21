@@ -145,6 +145,14 @@ describe('item A: every runtime Dockerfile is checked for a healthcheck', () => 
     expect(findings(unlinked, V28, 'A3', HEALTHCHECK).map(({ evidence }) => evidence?.path)).toEqual(['worker/Dockerfile']);
   });
 
+  it("a Git LFS pointer among the files the reading reads: A3 abstains under v28 (v27's gate on a pointer no metric reads), kept in the composite at 0", () => {
+    const name = 'v28-a3a-skaffold-file-is-lfs-pointer';
+    expect(criterion(name, V27, 'A3').status).toBe('warning');
+    expect(criterion(name, V28, 'A3').status).toBe('insufficient_data');
+    expect(findings(name, V28, 'A3', HEALTHCHECK)).toEqual([]);
+    expect(score(name, V28).overallScore).toBeLessThan(score(name, V27).overallScore as number);
+  });
+
   it('a repository that trips the build/typecheck branch under v23 gets the healthcheck finding under v28', () => {
     const name = 'v28-a3a-build-branch-and-uncovered-dockerfile';
     expect(findings(name, V23, 'A3', BUILD_SCRIPT)).toHaveLength(1);
@@ -218,9 +226,16 @@ export const V28_A3_A2_DECLARED_RISES: Readonly<Record<string, 'A' | 'B' | 'C'>>
   'v28-a2c-key-only-secrets-surface': 'C',
 };
 
+// Fixtures on which an item's read of a Git LFS pointer makes A3 abstain under v28 (v27's pointer
+// gate, which v28 carries, on a read that belongs to no metric). The report shows no item's finding
+// or citation there, so each is named here with its item.
+const V28_A3_POINTER_ABSTENTIONS: Readonly<Record<string, 'A'>> = {
+  'v28-a3a-skaffold-file-is-lfs-pointer': 'A',
+};
+
 // The items each fixture reaches, as its v28 report shows them.
 const V28_A3_A2_REACH: Readonly<Record<string, readonly ('A' | 'B' | 'C')[]>> = {
-  ...Object.fromEntries(V28_ITEM_A_FIXTURES.map(({ name }) => [name, ['A']])),
+  ...Object.fromEntries(V28_ITEM_A_FIXTURES.map(({ name }) => [name, V28_A3_POINTER_ABSTENTIONS[name] ? [] : ['A']])),
   'v28-a3a-build-branch-and-uncovered-dockerfile': ['A'],
   ...Object.fromEntries(V28_ITEM_B_FIXTURES.map(({ name }) => [name, []])),
   'v28-a3b-direct-http-no-route': ['B'],
@@ -249,19 +264,24 @@ describe('no rise above v27 except by a named item', () => {
     expect(undeclared).toEqual([]);
   });
 
-  it('A3 never rises: items A, B and D only add or withhold an info finding and cite evidence', () => {
+  it('A3 never rises: items A, B and D only add or withhold an info finding and cite evidence, or abstain on a pointer', () => {
     for (const { name } of V28_A3_A2_FIXTURES) {
       const before = criterion(name, V27, 'A3');
       const after = criterion(name, V28, 'A3');
       expect(after.status === 'not_applicable', name).toBe(before.status === 'not_applicable');
       expect(after.score, name).toBeLessThanOrEqual(before.score);
+      if (V28_A3_POINTER_ABSTENTIONS[name]) {
+        expect(after.status, name).toBe('insufficient_data');
+        continue;
+      }
+      expect(after.status === 'insufficient_data', name).toBe(before.status === 'insufficient_data');
       expect(after.metrics, name).toEqual(before.metrics);
     }
   });
 
   it('where no item reaches a fixture, its scoring surface is v27s', () => {
     for (const { name } of V28_A3_A2_FIXTURES) {
-      if ((V28_A3_A2_REACH[name] ?? []).length > 0) continue;
+      if ((V28_A3_A2_REACH[name] ?? []).length > 0 || V28_A3_POINTER_ABSTENTIONS[name]) continue;
       expect(projectWitanScoringSurface(score(name, V28)), name).toEqual(projectWitanScoringSurface(score(name, V27)));
     }
   });

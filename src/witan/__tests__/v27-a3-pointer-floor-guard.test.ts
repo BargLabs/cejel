@@ -166,6 +166,7 @@ const HEALTH = [
 ];
 const CITATION = ['evidence: citation line'];
 const V20 = 'Inside a useV20ExplicitGaps branch: v20-v26 only.';
+const V28 = 'Inside the useV28OwnReadings block or its inputs: v28 only.';
 
 // Reviewed 20 Nov against #753 item C. `reads` names the pairs in A3_FLOOR_PAIRS that commit the
 // file this site reads as a pointer. Under v17 and v27 every v20-v26 flag the collector takes is off.
@@ -180,7 +181,7 @@ const REVIEWED_A3_READS: Readonly<Record<string, ReviewedRead>> = {
   'readPackageScripts#0': { reads: ['prod_readiness_primitives: build or type-check script'] },
   'isHealthCheckSignalFile#0': { reads: HEALTH },
   'fileMatchesOutsideComments#0': { offUnderV17AndV27: 'inlineHealthRouteFile: useV25InlineHealthRoute only.' },
-  'fileContains#0': { offUnderV17AndV27: 'hasV20HealthOrReadinessRoute: useV20ExplicitGaps only.' },
+  'fileContains#0': { offUnderV17AndV27: 'hasV20HealthOrReadinessRoute: useV20ExplicitGaps, or v28 (item B), only.' },
   'fileContains#1': { offUnderV17AndV27: 'hasV22PackageStartHealthOrReadinessRoute: v22PackageStartHttpEntrypoint is null without useV22PackageStartEntrypoint.' },
   // serverEntrypoint: the same entry-shaped files the gate reads; used only for the anchor citation
   // (and a v20 finding).
@@ -212,6 +213,15 @@ const REVIEWED_A3_READS: Readonly<Record<string, ReviewedRead>> = {
   'evidenceForRelative#10': { offUnderV17AndV27: V20 },
   'fileContains#3': { offUnderV17AndV27: V20 },
   'evidenceForRelative#11': { offUnderV17AndV27: V20 },
+  // The second v28 card (21 Nov), items A and B: run under v28 alone (useV28OwnReadings). Every read
+  // they make is attributed to dockerfile_healthcheck or health_readiness_route, neither a metric, so
+  // under the v27 gate v28 carries, a pointer among them abstains A3 rather than lowering it.
+  'findV20DirectHttpServerEntrypointFile#1': { offUnderV17AndV27: V28 },
+  'readV28RuntimeHealthcheckCoverage#0': { offUnderV17AndV27: V28 },
+  'evidenceForRelativeAtLine#2': { offUnderV17AndV27: V28 },
+  'evidenceForRelative#12': { offUnderV17AndV27: V28 },
+  'fileContains#4': { offUnderV17AndV27: V28 },
+  'evidenceForRelative#13': { offUnderV17AndV27: V28 },
 };
 
 describe('v27 A3 floor guard, part 1: every A3 content read is named and paired', () => {
