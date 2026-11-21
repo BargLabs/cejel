@@ -7065,7 +7065,8 @@ function collectA5ClaimRealityEvidence(
             metric(
               'reconciliation_artifact_depth',
               'Reconciliation artifact depth',
-              reconciliationArtifacts.length,
+              // v28 item B: each reconciling claim source counts too; the depth still saturates at 3.
+              reconciliationArtifacts.length + claimStatuses.length,
               3,
               0.15,
               'artifacts',
