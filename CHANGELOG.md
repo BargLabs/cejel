@@ -16,6 +16,28 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **Prospective rubric v28, `witan-rubric-v28-prospective-2026-11-20`: v27 plus three A1 readings.**
+  It is selectable with `--rubric-pin` and is never the default; v17 stays the default, and v17
+  to v27 are unchanged, byte for byte. v28 carries no precision or recall claim, and no holdout or
+  calibration ran. Everything v27 does, v28 does. Under v28 only:
+  - **Coverage switched on without a coverage file counts.** A1's "no coverage configuration"
+    finding no longer fires where a configured runner's coverage is switched on by its flag in a
+    script, recipe, tox `commands` or CI step (`--coverage`, `--cov`, `--collect:"XPlat Code
+    Coverage"`), by pytest's `addopts`, by a vitest `coverage` block or jest `collectCoverage:
+    true` (also in `jest.config.json`), or by the runner's coverage plug-in (pytest-cov, coverlet).
+    Each source is cited at its line. A mention in a README or under `docs/` never counts, and
+    `coverage_percent` is unchanged.
+  - **A repository is lean only where every configured runner is.** Node's built-in runner on one
+    file no longer hides the missing coverage of a pytest (or other) suite beside it; the finding
+    cites that suite, and the lean evidence is still cited.
+  - **.NET test projects, Flutter and `react-scripts test` are configured runners.** Each is cited
+    at the line that establishes it and counted in `verification_script_ratio` as the runners
+    recognised before are, so A1's no-coverage and no-test-files findings apply to them. This is
+    the one reading that can score above v27; every fixture that does is listed in
+    `leaderboard/RUBRIC_CHANGELOG.md`.
+
 ### Changed
 
 - **Prospective v27: A1 reads a multi-name Makefile export as GNU make does, and names as not read

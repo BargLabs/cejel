@@ -22,6 +22,167 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
+## 2026-11-20 (v28 declared, with its A1 readings) — a new prospective rubric, `witan-rubric-v28-prospective-2026-11-20`, is v27 plus three A1 readings: coverage switched on by a flag, a runner config block or a plug-in counts as configured; a repository is lean only where every configured runner is lean; .NET test projects, Flutter and react-scripts are configured runners; v17-v27 byte-identical; v28 above v27 only by those readings, each rise listed; v28's fingerprint is v27's on the behaviour corpus; no published score moved
+
+**Status.** A new prospective rubric (operator rulings 35 and 36, 20 Nov;
+goal_cejel_v28_declaration_and_a1_readings_2026-11-20). It is selectable with `--rubric-pin` and is
+never the default; the default stays v17. No holdout or calibration ran for it, and this entry
+makes no precision or recall claim.
+
+**Why.** Three A1 readings in v17's closure, which v27 carries, depart from what the A1 rules state:
+
+1. Coverage switched on without a coverage file (a test script's `--coverage` that no test entry
+   reaches, pytest's `addopts = "--cov=..."`, tox `commands = pytest --cov`, a shell script's
+   `pytest --cov`, `jest.config.json`'s `collectCoverage: true`, pytest-cov declared in
+   `pyproject.toml` or a requirements file, coverlet in a .NET test project) was read as no
+   coverage configuration.
+2. One lean runner anywhere (Node's built-in runner on a single SDK file) made the whole
+   repository lean, so the coverage check never applied to a pytest suite beside it.
+3. .NET test projects, Flutter and `react-scripts test` were not configured runners, so neither
+   A1 finding that depends on one could fire, and a react-scripts project with no test files got
+   the authenticated-test-absence finding, which says no runner is configured.
+
+**Change (v28 only).** v28 is v27 in every respect but these readings.
+
+- **Item A, the declaration.** `WITAN_RUBRIC_VERSION_V28` in `src/witan/rubric-version.ts`. It
+  stands beside V27 in v17's own group in every rubric-version comparison chain of
+  `src/witan/repo-signals.ts` and `src/witan/scoring.ts`. Those chains are split, without changing
+  what they select, so that no chain names V28 beside V18 to V26. v28 reaches v27's one gate
+  through `usesV27FalseAssuranceGate`, which every site that applied `usesV27FalseAssuranceClosure`
+  now calls; `usesV27FalseAssuranceClosure` itself, and `v27-declared-scope.test.ts`, are unchanged.
+  v28's own readings are gated on `usesV28OwnReadings`, which names V28 alone.
+  `v28-declared-scope.test.ts` pins all of this.
+- **Item B, coverage switched on.** `readV28A1Readings` (`readV28CoverageSources`) counts, for a
+  runner a configured runner file names (or one item D recognises):
+  - a test command passing the runner's coverage flag in a package.json script, a Makefile or
+    justfile, tox.ini, a shell script or a CI workflow line (`--coverage` for jest, vitest,
+    react-scripts and flutter; `--cov` or `--cov=...` for pytest; `--collect:"XPlat Code Coverage"`
+    or `/p:CollectCoverage=true` for `dotnet test`), each command read only up to a bare `--`;
+  - `--cov` in pytest's own `addopts` (pytest.ini, tox.ini `[pytest]`, setup.cfg `[tool:pytest]`,
+    pyproject `[tool.pytest.ini_options]`);
+  - a vitest `coverage` block that collects, by v23's disabled-value rules, and jest
+    `collectCoverage: true` in jest.config, jest.config.json or package.json's `jest` key;
+  - pytest-cov declared in pyproject.toml, setup.cfg, setup.py, a Pipfile or a requirements or
+    constraints file, and coverlet in a .NET test project.
+
+  Each is cited as coverage evidence at its line, the first four. A file under `docs/` or a
+  Markdown, reStructuredText or AsciiDoc file is never a source, nor is a generated, vendored,
+  cache, fixture, sample or example path. `coverage_percent` reads only the files it read under
+  v27, so no figure moves, and `verification_script_ratio`'s coverage-command component is
+  unchanged.
+- **Item C, lean only where every runner is lean.** Where A1 reads a lean toolchain and a
+  configured runner file names a runner that is not Node's built-in one (a runner configuration
+  file, a package.json script, a CI test command, or an item D runner; a Makefile or CMake test
+  target names no runner and is not counted), the no-coverage finding applies, citing the first
+  detected test file that does not import `node:test`, and the lean evidence is still cited.
+- **Item D, three runners.** A `.csproj`, `.fsproj` or `.vbproj` referencing
+  Microsoft.NET.Test.Sdk, xunit, NUnit or MSTest (or on the MSTest SDK), `flutter_test` among a
+  pubspec.yaml's `dev_dependencies`, and a package.json script running `react-scripts test` are
+  configured runners, each cited at the line that establishes it. A .NET or Flutter project counts
+  as test-runner configuration in `verification_script_ratio`, within its six, and a root `test`
+  script running react-scripts as its test command, as the runners recognised before do. Both A1
+  findings that depend on a configured runner then apply.
+
+Every read item B to D adds is attributed to no criterion, so a Git LFS pointer or an over-limit
+file among them matches nothing and makes no criterion abstain.
+
+**The rise rule.** Items B and C withdraw or add an info finding and add evidence; neither moves a
+score on its own. Item D's runner credit raises A1's `verification_script_ratio`, so it can raise
+A1 and the composite. `v28-a1-readings.test.ts` fails on any v28 rise over v27 on a fixture not
+declared with its item, on a declared rise that does not rise, and, on the behaviour corpus and the
+no-reading fixtures, on any difference in the scoring surface where no item B to D reading applies.
+
+**Measured** on 20-21 Nov, at this branch's code (items A to D at `dfb8e7f04`; the 20 fixtures
+v28 moved were scored again after the review fix below) against main `ce4f3ff99`. The set is the one the 2026-11-20 (A1 PYTEST_ADDOPTS shapes) entry names, taken by
+name from this branch's fixture files: false-assurance 269, CI-claims 71, B3 361, v27 A1 removal
+39, hook outcome 41, allowlist 90, withhold 98, run 58 and fixture data 8, publishing-gates 17,
+unread-CI-configuration 8, Git LFS pointer 9, cites-every-workflow 13, housekeeping and publishing
+depth 10, and the PYTEST_ADDOPTS shapes 37 (1,129). To it are joined the other fixture files of
+the same kind (A3 pointer 16, build-step evidence 28, disclosure gaps 24, ignored test failure 14,
+settling evidence 55) and this change's 27: 1,293 synthetic repositories.
+
+- **How the passes ran.** One driver, not committed, collected every fixture exported by a
+  `*-fixtures.ts` file of `src/witan/__tests__/fixtures/`, built each with
+  `buildFalseAssuranceFixture` (a fixture written as files is one commit of them), scored it under
+  each selectable rubric and hashed report.json with the scan directory's path replaced. This is
+  not each set's own builder, so a fixture is not always the repository its own test builds; both
+  sides of every comparison below built it the same way. For the main pass, main's six changed
+  source files (`rubric-version.ts`, `repo-signals.ts`, `scoring.ts`, `plain-summary.ts`,
+  `certificate-presentation.ts`, `rubric-fingerprint.ts`) were checked out over this branch's,
+  and restored after. Report JSON only was compared; HTML and Markdown certificates were not.
+  0 errors on either side.
+- **Not compared.** The symlink fixture (`review4-a4-working-directory-through-tracked-symlink`)
+  is left out of the v17 to v27 count, as in the entry before, since its head SHA differs on
+  every build: its 11 reports differ between the two passes for that reason alone. Its v27 and
+  v28 reports come from one build, so it is in the v28 count.
+- **v17 to v27:** 14,212 of 14,212 reports byte-identical to main, on the other 1,292 fixtures.
+- **A review fix after the pass.** The full test run found that v28 credited
+  `dotnet test -- --collect:"XPlat Code Coverage"`, where the flag after `--` is a RunSettings
+  argument. A command is now read only up to a bare `--`. That can only remove a v28 source, and
+  every fixture where v28 cited one is among the 20 that v28 moved, so those 20 were scored again
+  under v27 and v28 after the fix; none changed.
+- **v28 against v27, all 1,293** (report.json with each rubric's own identifier replaced, so two
+  rubrics that decide alike hash alike):
+  - identical: 1,273;
+  - differing in evidence or findings only, no score, status or verdict moving: 13;
+  - lower: 0;
+  - higher: 7, each by item D (the runner's credit to `verification_script_ratio`).
+
+  | Fixture | Composite v27 / v28 | Code trust v27 / v28 | A1 v27 / v28 | Verdict v27 / v28 | Item |
+  | --- | --- | --- | --- | --- | --- |
+  | `v28d-dotnet-test-project` | 0.9 / 1.1 | 1.8 / 2.1 | 1.8 / 2.1 | unverified / unverified | D |
+  | `v28d-dotnet-coverlet-collector` | 0.9 / 1.1 | 1.8 / 2.1 | 1.8 / 2.1 | unverified / unverified | D (and B) |
+  | `v28d-flutter-test-project` | 0.9 / 1.1 | 1.8 / 2.1 | 1.8 / 2.1 | unverified / unverified | D |
+  | `v28d-react-scripts-test-project` | 1.4 / 1.5 | 2.3 / 2.5 | 1.8 / 2.1 | unverified / at_risk | D |
+  | `v28d-react-scripts-no-test-files` | 1.0 / 1.0 | 1.4 / 1.5 | 0 / 0.3 | unverified / unverified | D |
+  | `v28b-dotnet-xplat-collect-in-ci` | 1.8 / 2.0 | 2.3 / 2.6 | 2.3 / 2.6 | at_risk / at_risk | D (and B) |
+  | `v28b-flutter-test-coverage-in-ci` | 1.5 / 1.6 | 1.8 / 2.1 | 1.8 / 2.1 | at_risk / at_risk | D (and B) |
+
+  The 13 that differ in evidence or findings only:
+  - item B, the no-coverage finding withdrawn and the source cited at its line:
+    `v28b-unreached-script-coverage-flag`, `v28b-jest-json-collect-coverage`,
+    `v28b-pytest-cov-in-tox-commands`, `v28b-pytest-cov-in-addopts`,
+    `v28b-pytest-cov-plugin-in-pyproject` and `v28b-pytest-cov-plugin-in-requirements`;
+  - item B, a source v27 already credited now also cited at its line: `v28b-script-coverage-flag`,
+    `v28b-vitest-coverage-block`, `v28b-jest-collect-coverage`, `v28b-pytest-cov-in-ci`, and two
+    fixtures of earlier sets, `a1run-cov-without-value` (v27 A1 run) and
+    `review-a1-name-shaped-conftest-rated-hollow` (false-assurance), each a pytest `--cov` command;
+  - item C, the no-coverage finding added for the pytest suite: `v28c-node-test-sdk-beside-pytest-suite`.
+
+  The info finding item B withdraws and item C adds moves no score on these fixtures. No
+  fixture of an earlier set moved but those two citations.
+- **v28 above v27 on a fixture no item B to D reading reaches:** 0. **v27 above v17 on the same
+  repository:** 0 on every fixture the branch pass scored.
+- **No holdout or calibration ran.**
+
+**Fingerprint.** No existing pin moved: every fingerprint and component pin in
+`rubric-behaviour-fingerprint.test.ts` and `behaviour-fingerprint-pins.json` is as it was. No
+behaviour-corpus specimen holds a shape items B to D reach, so v28 scores the corpus exactly as v27
+does, and its pin is v27's value, `sha256:8fa9d87e3047afb80e8e09d08c5cb88a651c8e8b69b6b35184d2ab98ddd3a8fb`,
+with v27's components; its pre-#622 value is v27's too.
+`witan-rubric-v27-prospective-2026-10-19` and `witan-rubric-v28-prospective-2026-11-20` are behaviourally identical on the behaviour corpus, by declaration and by measurement.
+Extending the corpus to separate them would move every pinned fingerprint, which this change may
+not do; `v28-a1-readings.test.ts` measures where the two differ.
+
+**Fixtures and tests.** Committed red first at `e6a071915`: `v28-declared-scope.test.ts` and
+`v28-a1-readings.test.ts`, with 27 synthetic repositories in
+`fixtures/v28-a1-readings-fixtures.ts` (12 item B, 3 item B negatives, 2 item C, 5 item D, 5 with
+no reading), all failing against main, which has no v28.
+
+Existing tests that loop over the selectable rubrics met v28 for the first time. No pin they hold
+moved. Where a test compares every rubric but v27 with pins captured from main, v28, which
+postdates those pins and carries v27's gate, is left out beside v27:
+`b3-cites-every-workflow`, `b3-publishing-gates`, `b3-unread-ci-config`,
+`v27-a1-addopts-shapes`, `v27-a1-builtin-copy-withhold`, `v27-a1-fixture-data`,
+`v27-housekeeping-publishing-depth`, `v27-lfs-pointer-citation`, `shallow-a2-applicability-556`
+and `behaviour-corpus-history-622`. Where a test pins each rubric's scoring surface
+(`disclosure-gaps`, `b3-ignored-test-failure`), v28 is held to v27's pin, and
+`unread-ci-disclosure` requires v28's label-free reports to equal v27's, each report's own
+identifier aside. Where a test chose v27's expectations by naming V27 (`git-history-depth-one-answer-574`,
+`unread-ci-disclosure`, `v27-a1-fixture-data`), it now asks `usesV27FalseAssuranceGate`, so v28
+gets v27's. `coverage-config-recognition`'s near-miss (`--collect` after `--`) found the defect
+fixed above.
+
 ## 2026-11-20 (A1 PYTEST_ADDOPTS shapes) — under v27, A1 reads a multi-name Makefile export of `PYTEST_ADDOPTS` as GNU make reads it, and names as not read a pytest run whose `PYTEST_ADDOPTS` a script, a tox `setenv` before make or an included makefile may set; a step that provably cannot run make no longer makes a mention not read (refs #705, #713, #661); v17-v26 byte-identical; v27 never above v17; no fingerprint moved; no published score moved
 
 **Status.** A scoring change under `witan-rubric-v27-prospective-2026-10-19` only, with no
