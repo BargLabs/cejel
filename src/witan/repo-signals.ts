@@ -3353,7 +3353,7 @@ function readV28CoverageSources(
     if (kinds.has('jest') && /(^|\/)jest\.config\.[cm]?[jt]s$/.test(file)) {
       const lines = v28FileLines(repoPath, file);
       const contents = stripJavaScriptComments(lines.join('\n'));
-      const match = /(?:^|[{,])[^\S\n]*["']?collectCoverage["']?\s*:\s*true\b/m.exec(contents);
+      const match = JEST_COLLECT_COVERAGE_TRUE_PATTERN.exec(contents);
       if (match) add(file, v28LineOfIndex(contents, match.index + match[0].search(/\S/)), 'Coverage enabled (jest collectCoverage: true)');
     }
     if (kinds.has('vitest') && /(^|\/)vitest\.config\.[cm]?[jt]s$/.test(file)) {
@@ -15514,6 +15514,11 @@ const HEAVY_TEST_DEPENDENCY_NAME_PATTERN =
 // A2 — bounded, conservative crypto-hygiene nudge. Only ever scored when a signing/HMAC/
 // secret-comparison surface is actually detected in source; repos with no such surface are
 // unaffected. Never a critical — a "nudge," not a new cry-wolf vector.
+// jest's `collectCoverage: true` in a jest.config script: one literal, read by the coverage-config
+// check every rubric runs and by v28's coverage-source citation, so #550's blank-run linearity guard
+// covers both sites through one pattern. Non-global, so .test and .exec carry no lastIndex state.
+const JEST_COLLECT_COVERAGE_TRUE_PATTERN =
+  /(?:^|[{,])[^\S\n\r\u2028\u2029]*["']?collectCoverage["']?\s*:\s*true\b/m;
 const TIMING_SAFE_COMPARE_PATTERN =
   /\btiming[-_]?safe[-_]?(?:equal|compare)\b|crypto\.timingSafeEqual\s*\(/i;
 const CANONICAL_SERIALIZE_PATTERN =
@@ -25143,7 +25148,7 @@ function isV23CoverageConfig(repoPath: string, file: string): boolean {
   if (/(^|\/)jest\.config\.[cm]?[jt]s$/.test(file)) {
     const contents = stripJavaScriptComments(readRepoText(join(repoPath, file), 'utf8'));
     return (
-      /(?:^|[{,])[^\S\n\r\u2028\u2029]*["']?collectCoverage["']?\s*:\s*true\b/m.test(contents) ||
+      JEST_COLLECT_COVERAGE_TRUE_PATTERN.test(contents) ||
       /(?:^|[{,])[^\S\n\r\u2028\u2029]*["']?(?:coverageThreshold|coverageProvider|coverageDirectory)["']?\s*:/m.test(
         contents,
       )
