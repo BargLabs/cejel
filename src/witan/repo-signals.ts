@@ -2339,6 +2339,7 @@ function collectRepoSignals(
       useV23WithheldPathAbstention,
       inventoryAbsenceContext,
       useV26SettlingEvidence,
+      useV28OwnReadings,
     ),
   );
   const b1Signal = buildNotApplicableSignal(
@@ -6778,6 +6779,7 @@ function collectA5ClaimRealityEvidence(
   useV23WithheldPathAbstention: boolean,
   inventoryAbsenceContext: InventoryAbsenceContext = LEGACY_INVENTORY_ABSENCE_CONTEXT,
   useV26SettlingEvidence = false,
+  useV28OwnReadings = false,
 ): WitanCriterionSignalPayload | null {
   // A5's three metrics are file-count proxies over repoFiles, and a file Cejel withheld from that
   // list under its own content ceiling never reaches any of the filters below: the count simply
@@ -6811,6 +6813,10 @@ function collectA5ClaimRealityEvidence(
     isClaimSourceFile,
     useV23WithheldPathAbstention,
   );
+  // v28's A5 reading (readV28A5ClaimStatus) also reads claim sources for this metric. A withheld
+  // claim source is deliberately not added to this predicate: abstaining here would take a metric
+  // at 0 out of A5's average, a rise on content Cejel did not read. Unread, it reconciles nothing,
+  // so the metric counts as under v27.
   abstainSignalOnWithheldPaths(
     'A5',
     'reconciliation_artifact_depth',
@@ -6924,6 +6930,25 @@ function collectA5ClaimRealityEvidence(
     );
   }
 
+  // v28's own A5 reading (goal_cejel_v28_a5_claim_status_reading_2026-11-20, operator ruling 50):
+  // a claim source whose status section or table says which of its claims hold reconciles them.
+  // Each is cited at its line; any one withdraws the claim-reconciliation finding, and each counts
+  // toward reconciliation_artifact_depth beside the Cejel-format artifacts (item B). Empty under
+  // every other rubric, which therefore reads A5 exactly as before.
+  const claimStatuses = useV28OwnReadings
+    ? withContentReadSignal('A5', 'reconciliation_artifact_depth', () =>
+        readV28A5ClaimStatus(repoPath, repoFiles),
+      )
+    : [];
+  for (const status of claimStatuses) {
+    withContentReadSignal('A5', 'reconciliation_artifact_depth', () =>
+      evidence.push(
+        evidenceForRelativeAtLine(repoPath, status.path, 'claim_reconciliation', status.label, status.line),
+      ),
+    );
+  }
+  const reconciled = reconciliationArtifacts.length > 0 || claimStatuses.length > 0;
+
   // v26 item 6 (docs/calibration/v26/ruling-item-6.md): not using Cejel's own artifact format is no
   // evidence that a repository's claims are unchecked. Under v26 the finding fires only when the
   // repository itself names a claim-reconciliation artifact that is absent (S-A5); otherwise A5
@@ -6953,7 +6978,7 @@ function collectA5ClaimRealityEvidence(
     criterionId: 'A5',
     positiveEvidence: evidence,
     findings:
-      reconciliationArtifacts.length > 0
+      reconciled
         ? []
         : useV26SettlingEvidence
           ? declaredAbsentArtifact === undefined
@@ -24735,6 +24760,138 @@ function isAuthenticatedClaimRealityArtifact(repoPath: string, file: string): bo
     if (!inFence && /^#\s+Claim Reality Reconciliation\s*$/i.test(line)) return true;
   }
   return false;
+}
+
+// ---- v28's own A5 reading (goal_cejel_v28_a5_claim_status_reading_2026-11-20) ----------------
+//
+// Operator ruling 50 (20 Nov): under v28 A5's defect is that the README or top-level docs describe
+// what the software does and no tracked file says which of those claims hold. A claim source
+// (isClaimSourceFile) reconciles its claims where it carries a section or a table that states
+// status:
+//   - an ATX heading matching NEGATIVE_SPACE_SECTION_PATTERN, or one naming known issues, status,
+//     feature status, a support matrix, compatibility, a roadmap with status or what works, with at
+//     least one non-blank line under it before the next heading;
+//   - a Markdown table with at least one body row whose header row has a status or support column
+//     with a value in some row, or one of whose body cells is a status mark.
+// Headings and tables inside a fenced code block are not read. A file that is not a claim source
+// never reconciles. Read under v28 alone (usesV28OwnReadings).
+
+export type V28A5ClaimStatusKind = 'section' | 'table';
+
+export interface V28A5ClaimStatus {
+  readonly path: string;
+  readonly line: number;
+  readonly kind: V28A5ClaimStatusKind;
+  readonly label: string;
+}
+
+// Tested against a heading's text, its `#` marks and any closing `#` run already removed
+// (v28A5HeadingText), so no two blank runs sit side by side.
+const V28_A5_STATUS_HEADING_PATTERN =
+  /^(?:known issues|(?:feature|project|implementation) status|status|support matrix|compatibility(?: matrix)?|roadmap (?:and|with|&) status|status (?:and|&) roadmap|what works):?$/i;
+const V28_A5_ATX_HEADING_PATTERN = /^#{1,6}(?:\s|$)/;
+const V28_A5_FENCE_PATTERN = /^ {0,3}(?:```|~~~)/;
+const V28_A5_TABLE_DELIMITER_CELL_PATTERN = /^:?-+:?$/;
+const V28_A5_STATUS_COLUMN_PATTERN =
+  /^(?:status|state|supported|support|works|working|done|implemented|available|stability)\??$/i;
+const V28_A5_STATUS_MARK_PATTERN =
+  /^(?:✅|❌|✔|✓|✗|✖|⚠|🚧|:white_check_mark:|:heavy_check_mark:|:x:|:warning:|:construction:)/u;
+const V28_A5_STATUS_WORD_PATTERN = /^(?:yes|no|partial|partially|planned)$/i;
+
+/** An ATX heading's text: the `#` marks, a closing `#` run and the blanks around them removed. */
+function v28A5HeadingText(line: string): string {
+  let text = line.replace(/^#{1,6}/, '').trim();
+  while (text.endsWith('#')) text = text.slice(0, -1);
+  return text.trim().split(/\s+/).join(' ');
+}
+
+/** A table row's cells, each trimmed, with emphasis and code marks at either end removed. */
+function v28A5TableCells(line: string): string[] {
+  let row = line.trim();
+  if (row.startsWith('|')) row = row.slice(1);
+  if (row.endsWith('|') && !row.endsWith('\\|')) row = row.slice(0, -1);
+  return row.split(/(?<!\\)\|/).map((cell) => {
+    let text = cell.trim();
+    while (/^[*_`]/.test(text)) text = text.slice(1);
+    while (/[*_`]$/.test(text)) text = text.slice(0, -1);
+    return text.trim();
+  });
+}
+
+/** A table's delimiter row: every cell dashes, with an optional colon at either end. */
+function isV28A5TableDelimiter(line: string): boolean {
+  if (!line.includes('-')) return false;
+  const cells = v28A5TableCells(line);
+  return cells.length > 0 && cells.every((cell) => V28_A5_TABLE_DELIMITER_CELL_PATTERN.test(cell));
+}
+
+/** The first section or table in one claim source's text that states status, or undefined. */
+function readV28A5StatusBlock(contents: string): { line: number; kind: V28A5ClaimStatusKind; heading?: string } | undefined {
+  const lines = contents.split(/\r?\n/);
+  let inFence = false;
+  let openHeading: { line: number; text: string } | undefined;
+  for (let index = 0; index < lines.length; index += 1) {
+    const text = lines[index] ?? '';
+    if (V28_A5_FENCE_PATTERN.test(text)) {
+      // A fence line is content under an open status heading: the heading has something under it.
+      if (openHeading && !inFence) return { line: openHeading.line, kind: 'section', heading: openHeading.text };
+      inFence = !inFence;
+      continue;
+    }
+    if (inFence) continue;
+    if (V28_A5_ATX_HEADING_PATTERN.test(text)) {
+      const heading = v28A5HeadingText(text);
+      openHeading =
+        NEGATIVE_SPACE_SECTION_PATTERN.test(text) || V28_A5_STATUS_HEADING_PATTERN.test(heading)
+          ? { line: index + 1, text: heading }
+          : undefined;
+      continue;
+    }
+    if (text.trim() === '') continue;
+    if (openHeading) return { line: openHeading.line, kind: 'section', heading: openHeading.text };
+    const delimiter = lines[index + 1];
+    if (!text.includes('|') || delimiter === undefined || !delimiter.includes('|') || !isV28A5TableDelimiter(delimiter)) continue;
+    const header = v28A5TableCells(text);
+    const body: string[][] = [];
+    for (let row = index + 2; row < lines.length; row += 1) {
+      const rowText = lines[row] ?? '';
+      if (rowText.trim() === '' || !rowText.includes('|')) break;
+      body.push(v28A5TableCells(rowText));
+    }
+    const statusColumns = header.flatMap((cell, column) => (V28_A5_STATUS_COLUMN_PATTERN.test(cell) ? [column] : []));
+    const statesStatus =
+      body.some((cells) => statusColumns.some((column) => (cells[column] ?? '') !== '')) ||
+      body.some((cells) => cells.some((cell) => V28_A5_STATUS_MARK_PATTERN.test(cell) || V28_A5_STATUS_WORD_PATTERN.test(cell)));
+    if (statesStatus) return { line: index + 1, kind: 'table' };
+    index += 1 + body.length;
+  }
+  return undefined;
+}
+
+/**
+ * v28's A5 reading: each claim source that reconciles its claims, cited at the section or table
+ * that does, in findClaimSourceFiles order. A Cejel-format reconciliation artifact is counted as
+ * before, by findClaimRealityReconciliationArtifacts, and is never read here.
+ */
+export function readV28A5ClaimStatus(repoPath: string, repoFiles: readonly string[]): V28A5ClaimStatus[] {
+  const statuses: V28A5ClaimStatus[] = [];
+  for (const file of findClaimSourceFiles(repoFiles)) {
+    if (isClaimRealityReconciliationPath(file)) continue;
+    const fullPath = join(repoPath, file);
+    if (!isRegularFile(fullPath)) continue;
+    const block = readV28A5StatusBlock(readRepoText(fullPath, 'utf8'));
+    if (!block) continue;
+    statuses.push({
+      path: file,
+      line: block.line,
+      kind: block.kind,
+      label:
+        block.kind === 'section'
+          ? `Claim status section "${block.heading ?? ''}" says which of this file's claims hold`
+          : "Claim status table says which of this file's claims hold",
+    });
+  }
+  return statuses;
 }
 
 // ---- v26 item 6, S-A5: a declared claim-reconciliation artifact that is absent ---------------
