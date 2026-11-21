@@ -26,6 +26,7 @@ import {
   WITAN_RUBRIC_VERSION_V25,
   WITAN_RUBRIC_VERSION_V26,
   WITAN_RUBRIC_VERSION_V27,
+  WITAN_RUBRIC_VERSION_V28,
   WITAN_SELECTABLE_RUBRIC_VERSIONS,
 } from '../rubric-version.js';
 import { WITAN_RUBRIC } from '../rubric.js';
@@ -94,7 +95,12 @@ const STRUCTURALLY_UNREACHABLE_CRITERIA = ['B1', 'B5'] as const;
  * component, so the declaration was removed in that change. The collision check below demands the
  * measured collisions equal this list EXACTLY, so a declaration cannot outlive its truth.
  */
-const DECLARED_BEHAVIOURALLY_IDENTICAL: readonly (readonly string[])[] = [];
+// v28 (2026-11-20): its A1 readings reach no shape this corpus holds, so it scores the corpus as v27
+// does; v28-a1-readings.test.ts measures the shapes where the two differ. Extending the corpus to
+// reach them would move every pinned fingerprint, which the change that declared v28 may not do.
+const DECLARED_BEHAVIOURALLY_IDENTICAL: readonly (readonly string[])[] = [
+  [WITAN_RUBRIC_VERSION_V27, WITAN_RUBRIC_VERSION_V28],
+];
 
 const PINNED_COMPONENTS = JSON.parse(readFileSync(PINS_PATH, 'utf8')) as Record<
   string,
@@ -256,6 +262,9 @@ const FINGERPRINTS_BEFORE_THE_622_EXTENSION: Readonly<Record<string, string>> = 
   [WITAN_RUBRIC_VERSION_V25]: 'sha256:0f2638a5088f95a610a0e12012442f1067af3e985b955f96ec71853d549693b9',
   [WITAN_RUBRIC_VERSION_V26]: 'sha256:4530317d56fc73eb89287e344ad626e2b9a96908ef12eb9e9c13b839bd599dae',
   [WITAN_RUBRIC_VERSION_V27]: 'sha256:dfe4e7e9ba37666f60b1ebcee4eb44917110798e9038c81eef079718db9ee7b1',
+  // v28 (2026-11-20) was declared after the extension; it scores the earlier specimens as v27 does,
+  // measured on this branch, so its pre-extension value is v27's.
+  [WITAN_RUBRIC_VERSION_V28]: 'sha256:dfe4e7e9ba37666f60b1ebcee4eb44917110798e9038c81eef079718db9ee7b1',
 };
 
 describe('#622: the corpus extension moved every fingerprint by its added specimens alone', () => {
