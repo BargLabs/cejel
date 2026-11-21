@@ -537,5 +537,54 @@
       "history-shallow-depth-1": "1c9c3ee3efd56f4a9512e6298dfb1f052a03c51060618eb539c8c17f5eebc90d",
       "publish-after-check-workflow": "65e19973a83f2304dcc8a3c32f4ed5e60dc7a698f51dc5930b5667f7a9377da4"
     }
+  },
+  "witan-rubric-v28-prospective-2026-11-20": {
+    "criteria": {
+      "A1": "698fcdc9ac6cbb888700af640573866463dcd899335dbbab80d93c7e6b90ada8",
+      "A2": "cefd9e454e4a6255ef6fd82802218084cec95095425e5a6c95ca4756be045365",
+      "A3": "fd7a34e035f547f78df169c177379f4269bc8450764d3de0da015e1844e01dc1",
+      "A4": "b14885626f546cb057b09a5cd3771c236b68752f75ec6b02e183a5fb4181694b",
+      "A5": "3890b8050ead4c496005c75bb3ba821c386892ffb3a9c2693c0d59d21e844a1b",
+      "B1": "adb90fd09f4d73d588562b28212f7e2d9740b79b022c41bd40a9a30f12b0937c",
+      "B2": "93c31129a8dd7243c3ff8e9d987bd72258c30f63fa14c80765372414f01bddbe",
+      "B3": "dd05ba506f965e6862ef002ccbf996985009909a2f36c3bccd1d016b48d929de",
+      "B4": "296ceafefc272da4e7b9265371d57537ac8d9861ff711421b8dbe488732be0f5",
+      "B5": "f9d176fb612c4ce655c85bc4cbd0d80f230c726036397a57e2ceac501d691200",
+      "B6": "c9c2bb02c005b772b1587d698bf98ea828e0041c00ec8c62dc6d800b7f2c4f29"
+    },
+    "reports": {
+      "complete-node-service": "06edd2297c7d4319c5176ac9702224c49d998b7e7d4d3c5e09269f14481fddfb",
+      "minimal-source-no-process": "cf5de09e3a9aca441c93989a3292805beebeee9b9129fb163d22c8ca1e803f8d",
+      "committed-secret-and-pem": "482e6fafd7d097d8a22983644297ae15e82897f7c6808bda8cb0157cdaae487a",
+      "placeholder-test-script": "5b6f46d05707afb98deacec47a9cc787213c5a12e5e9d2eca04f05ffb1aa5d3a",
+      "lint-typecheck-no-tests": "cc758a60e0bf5c8d11ae97e63fdde34616c5a5cfa98ab1bbb4ce1f56c63dbe0e",
+      "pr-template-directory-form": "62b54ad494b4fdb1e635fddf3ed2d9ac3078228bbb3da0e3dce124478c33938f",
+      "python-service": "5020fe29a7c53dea943b31ecfc6a19767c38d62371e2a317ef511036bd51781d",
+      "docs-only-repository": "2d09a54bd8af52b7d64b6a7c072498c61a0604b4b06ff33e5aaa02222ebc806f",
+      "oversized-withheld-source": "9e9b82f73a04263c86a1f7a9fc928b0897b2e2f38c7baede01677fd02708d7ce",
+      "privileged-migrations": "e45f5b368b079465f965c8980897fe7f8d730932e6b9710d90e7efc21d6a0034",
+      "direct-http-entrypoint-no-health": "5b6f46d05707afb98deacec47a9cc787213c5a12e5e9d2eca04f05ffb1aa5d3a",
+      "start-declared-http-entrypoint": "0f863293f02dfc32aa0e35fee62968c7224c745d9f190ed5b0c3272696cff8ef",
+      "stale-audit-trail": "76968d26c14b2756787bd7af55b0a022daa41a56e376ff6c50ee70e14a4a9590",
+      "real-credential-in-docs": "dce52e2a879441f13e8ff5c9a6544bb937e755b7bea1a67a8d266a2067acf919",
+      "control-described-not-built": "3cfc4c10547cc71e36e3b7287e8d1452cbfbbdb9163963deaad71d1602e40b12",
+      "inline-health-route-and-prettier-handler": "ed377cd28f163c5170ade01aeb7fa1368fa6fdfeef04553315c075bd3eb2cc6e",
+      "ava-live-assertions": "daf7daf2de359793ebecec913ded3f5be88d258d97f44881bc99321e1ae32b89",
+      "public-digest-lookup": "0f863293f02dfc32aa0e35fee62968c7224c745d9f190ed5b0c3272696cff8ef",
+      "workspace-package-scripts": "9f8acd9464a8462eb34d32e04060f6f9f83832f51a4f6d9c4002a4255dded1ca",
+      "coverage-config-setup-cfg": "12a2bc6f0d1cbedc98d62a8c588b6da9d4c4c1e0ec544c666064f3d90740a37d",
+      "coverage-config-maven-jacoco": "5e86e201f9a6931d87ea4e4c3d47559139c6e589bd78f602cd2733b26865c2fe",
+      "coverage-command-go-ci": "5defae4945dac964793bb59315927931e30200d72ee2ef36c3ee507ab3b0bab1",
+      "xunit-assertions": "e3a91069ed69bd051427ca25904cdbea8330ecb51027ebf534ac12ba113a992c",
+      "nunit-ignored-fixture": "38db2fbb15abdf9a59b9ed83d8055e40a929fa53e172c5de90f25f063f70b62f",
+      "xctest-assertions": "e3a91069ed69bd051427ca25904cdbea8330ecb51027ebf534ac12ba113a992c",
+      "scalatest-assertions": "2d7e384da6d4849cd7cece32ecdc130bf8ce9adaffc296eff875621a1f762fc3",
+      "kotest-matchers": "e3a91069ed69bd051427ca25904cdbea8330ecb51027ebf534ac12ba113a992c",
+      "tape-assertions": "5ee742d2da8d90745c9689259583d8e34a875f174ea3dbbd58f8a69dcf254d27",
+      "hmac-digest-compare": "ebb12882d31d7bf5b502436c83d17307760ceedc77a050ac0c2d162e81e3c6a6",
+      "unkeyed-digest-controls": "0f863293f02dfc32aa0e35fee62968c7224c745d9f190ed5b0c3272696cff8ef",
+      "history-shallow-depth-1": "1c9c3ee3efd56f4a9512e6298dfb1f052a03c51060618eb539c8c17f5eebc90d",
+      "publish-after-check-workflow": "65e19973a83f2304dcc8a3c32f4ed5e60dc7a698f51dc5930b5667f7a9377da4"
+    }
   }
 }

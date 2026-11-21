@@ -14,6 +14,7 @@ import {
   WITAN_RUBRIC_VERSION_V25,
   WITAN_RUBRIC_VERSION_V26,
   WITAN_RUBRIC_VERSION_V27,
+  WITAN_RUBRIC_VERSION_V28,
 } from './rubric-version.js';
 
 // RUBRIC BEHAVIOUR FINGERPRINT — behaviour measured, not declared.
@@ -279,6 +280,14 @@ export const WITAN_RUBRIC_BEHAVIOUR_FINGERPRINTS: Readonly<Record<string, string
   // moves; no score, status or report component does. Until 2026-11-11 B3's publishing rule reached
   // no specimen; since #622, `publish-after-check-workflow` holds the shape it counts.
   [WITAN_RUBRIC_VERSION_V27]:
+    'sha256:8fa9d87e3047afb80e8e09d08c5cb88a651c8e8b69b6b35184d2ab98ddd3a8fb',
+  // v27 plus v28's A1 readings (items B, C and D; 2026-11-20). No corpus specimen holds a shape
+  // those readings reach (a coverage flag, config block or plug-in the v17 heuristics miss, a lean
+  // runner beside one that is not, or a .NET test project, Flutter or react-scripts runner), so v28
+  // scores the corpus exactly as v27 does and carries v27's value; the pair is declared
+  // behaviourally identical on this corpus in rubric-behaviour-fingerprint.test.ts and
+  // leaderboard/RUBRIC_CHANGELOG.md, and v28-a1-readings.test.ts measures where they differ.
+  [WITAN_RUBRIC_VERSION_V28]:
     'sha256:8fa9d87e3047afb80e8e09d08c5cb88a651c8e8b69b6b35184d2ab98ddd3a8fb',
 });
 

@@ -7,7 +7,7 @@ import type { WitanReport } from '../schemas.js';
 
 import { serializeWitanReport } from '../attestation.js';
 import { scoreRepoWithPublicCejel } from '../public-scan.js';
-import { WITAN_RUBRIC_VERSION_V27, WITAN_SELECTABLE_RUBRIC_VERSIONS } from '../rubric-version.js';
+import { WITAN_RUBRIC_VERSION_V27, WITAN_RUBRIC_VERSION_V28, WITAN_SELECTABLE_RUBRIC_VERSIONS } from '../rubric-version.js';
 import { buildFalseAssuranceFixture } from './fixtures/false-assurance-fixtures.js';
 import { ALLOWLIST_FIXTURES } from './fixtures/v27-a1-allowlist-fixtures.js';
 
@@ -25,7 +25,9 @@ import { ALLOWLIST_FIXTURES } from './fixtures/v27-a1-allowlist-fixtures.js';
 // status or finding count); and, for each copy that calls no builtin, v27's report hash.
 
 const V27 = WITAN_RUBRIC_VERSION_V27;
-const OTHER_RUBRICS = WITAN_SELECTABLE_RUBRIC_VERSIONS.filter((version) => version !== V27);
+// v28 (2026-11-20) postdates these main pins and carries v27's gate; it is measured against v27 on
+// these fixtures in leaderboard/RUBRIC_CHANGELOG.md (v28 declared) and v28-a1-readings.test.ts.
+const OTHER_RUBRICS = WITAN_SELECTABLE_RUBRIC_VERSIONS.filter((version) => version !== V27 && version !== WITAN_RUBRIC_VERSION_V28);
 
 const PINS_PATH = new URL('./fixtures/v27-a1-builtin-copy-main-pins.json', import.meta.url);
 const CAPTURE = process.env.V27_A1_BUILTIN_COPY_PINS;

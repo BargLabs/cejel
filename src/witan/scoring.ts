@@ -33,7 +33,7 @@ import {
   WITAN_NO_MEASUREMENT_REASON,
 } from './abstention.js';
 import { dropMarkedCitations, isCitablePointer, markOverLimitPaths } from './path-limits.js';
-import { usesV27FalseAssuranceClosure } from './repo-signals.js';
+import { usesV27FalseAssuranceGate } from './repo-signals.js';
 import { rubricBehaviourFingerprint } from './rubric-fingerprint.js';
 import {
   WITAN_RUBRIC_VERSION_V9,
@@ -55,13 +55,17 @@ import {
   WITAN_RUBRIC_VERSION_V25,
   WITAN_RUBRIC_VERSION_V26,
   WITAN_RUBRIC_VERSION_V27,
+  WITAN_RUBRIC_VERSION_V28,
 } from './rubric-version.js';
 import { WITAN_RUBRIC, type WitanRubricCriterion } from './rubric.js';
 
+// v28 inherits v27 (WITAN_RUBRIC_VERSION_V28 declaration): in each chain below it stands beside
+// V27 in v17's own group, kept apart from the v18-v26 group so that no chain names V28 beside them.
 function usesV17DetectorClosure(rubricVersion: string): boolean {
   return (
-    rubricVersion === WITAN_RUBRIC_VERSION_V17 ||
-    rubricVersion === WITAN_RUBRIC_VERSION_V27 ||
+    (rubricVersion === WITAN_RUBRIC_VERSION_V17 ||
+      rubricVersion === WITAN_RUBRIC_VERSION_V27 ||
+      rubricVersion === WITAN_RUBRIC_VERSION_V28) ||
     rubricVersion === WITAN_RUBRIC_VERSION_V18 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V19 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V20 ||
@@ -387,15 +391,16 @@ function statusAfterInputAdjustment(
     rubricVersion !== WITAN_RUBRIC_VERSION_V16 &&
     rubricVersion !== WITAN_RUBRIC_VERSION_V17 &&
     rubricVersion !== WITAN_RUBRIC_VERSION_V27 &&
-    rubricVersion !== WITAN_RUBRIC_VERSION_V18 &&
-    rubricVersion !== WITAN_RUBRIC_VERSION_V19 &&
-    rubricVersion !== WITAN_RUBRIC_VERSION_V20 &&
-    rubricVersion !== WITAN_RUBRIC_VERSION_V21 &&
-    rubricVersion !== WITAN_RUBRIC_VERSION_V22 &&
-    rubricVersion !== WITAN_RUBRIC_VERSION_V25 &&
-    rubricVersion !== WITAN_RUBRIC_VERSION_V26 &&
-    rubricVersion !== WITAN_RUBRIC_VERSION_V24 &&
-    rubricVersion !== WITAN_RUBRIC_VERSION_V23
+    rubricVersion !== WITAN_RUBRIC_VERSION_V28 &&
+    (rubricVersion !== WITAN_RUBRIC_VERSION_V18 &&
+      rubricVersion !== WITAN_RUBRIC_VERSION_V19 &&
+      rubricVersion !== WITAN_RUBRIC_VERSION_V20 &&
+      rubricVersion !== WITAN_RUBRIC_VERSION_V21 &&
+      rubricVersion !== WITAN_RUBRIC_VERSION_V22 &&
+      rubricVersion !== WITAN_RUBRIC_VERSION_V25 &&
+      rubricVersion !== WITAN_RUBRIC_VERSION_V26 &&
+      rubricVersion !== WITAN_RUBRIC_VERSION_V24 &&
+      rubricVersion !== WITAN_RUBRIC_VERSION_V23)
   ) {
     return statusForScore(roundScore(Math.max(0, nativeScore - adjustment)));
   }
@@ -536,15 +541,16 @@ function usesMetricScoring(rubricVersion: string): boolean {
     rubricVersion === WITAN_RUBRIC_VERSION_V16 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V17 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V27 ||
-    rubricVersion === WITAN_RUBRIC_VERSION_V18 ||
-    rubricVersion === WITAN_RUBRIC_VERSION_V19 ||
-    rubricVersion === WITAN_RUBRIC_VERSION_V20 ||
-    rubricVersion === WITAN_RUBRIC_VERSION_V21 ||
-    rubricVersion === WITAN_RUBRIC_VERSION_V22 ||
-    rubricVersion === WITAN_RUBRIC_VERSION_V25 ||
-    rubricVersion === WITAN_RUBRIC_VERSION_V26 ||
-    rubricVersion === WITAN_RUBRIC_VERSION_V24 ||
-    rubricVersion === WITAN_RUBRIC_VERSION_V23 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V28 ||
+    (rubricVersion === WITAN_RUBRIC_VERSION_V18 ||
+      rubricVersion === WITAN_RUBRIC_VERSION_V19 ||
+      rubricVersion === WITAN_RUBRIC_VERSION_V20 ||
+      rubricVersion === WITAN_RUBRIC_VERSION_V21 ||
+      rubricVersion === WITAN_RUBRIC_VERSION_V22 ||
+      rubricVersion === WITAN_RUBRIC_VERSION_V25 ||
+      rubricVersion === WITAN_RUBRIC_VERSION_V26 ||
+      rubricVersion === WITAN_RUBRIC_VERSION_V24 ||
+      rubricVersion === WITAN_RUBRIC_VERSION_V23) ||
     rubricVersion === WITAN_TRADING_RUBRIC_VERSION_V0
   );
 }
@@ -589,7 +595,7 @@ function scoreCriterion(
       // v27 (#519 follow-up): an abstention on Git LFS pointers cites each pointer it rests on.
       // Only those citations pass through, only under v27; score and status are as before.
       evidence:
-        usesV27FalseAssuranceClosure(rubricVersion)
+        usesV27FalseAssuranceGate(rubricVersion)
           ? signal.positiveEvidence.filter(({ label }) => label === WITAN_LFS_POINTER_CITATION_LABEL)
           : [],
       findings: [],
@@ -1122,15 +1128,16 @@ function ensureFindingsExplainStatus(
     rubricVersion !== WITAN_RUBRIC_VERSION_V16 &&
     rubricVersion !== WITAN_RUBRIC_VERSION_V17 &&
     rubricVersion !== WITAN_RUBRIC_VERSION_V27 &&
-    rubricVersion !== WITAN_RUBRIC_VERSION_V18 &&
-    rubricVersion !== WITAN_RUBRIC_VERSION_V19 &&
-    rubricVersion !== WITAN_RUBRIC_VERSION_V20 &&
-    rubricVersion !== WITAN_RUBRIC_VERSION_V21 &&
-    rubricVersion !== WITAN_RUBRIC_VERSION_V22 &&
-    rubricVersion !== WITAN_RUBRIC_VERSION_V25 &&
-    rubricVersion !== WITAN_RUBRIC_VERSION_V26 &&
-    rubricVersion !== WITAN_RUBRIC_VERSION_V24 &&
-    rubricVersion !== WITAN_RUBRIC_VERSION_V23 &&
+    rubricVersion !== WITAN_RUBRIC_VERSION_V28 &&
+    (rubricVersion !== WITAN_RUBRIC_VERSION_V18 &&
+      rubricVersion !== WITAN_RUBRIC_VERSION_V19 &&
+      rubricVersion !== WITAN_RUBRIC_VERSION_V20 &&
+      rubricVersion !== WITAN_RUBRIC_VERSION_V21 &&
+      rubricVersion !== WITAN_RUBRIC_VERSION_V22 &&
+      rubricVersion !== WITAN_RUBRIC_VERSION_V25 &&
+      rubricVersion !== WITAN_RUBRIC_VERSION_V26 &&
+      rubricVersion !== WITAN_RUBRIC_VERSION_V24 &&
+      rubricVersion !== WITAN_RUBRIC_VERSION_V23) &&
     findings.length > 0
   ) {
     return [...findings];

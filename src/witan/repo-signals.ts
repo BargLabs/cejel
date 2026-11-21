@@ -110,6 +110,7 @@ import {
   WITAN_RUBRIC_VERSION_V25,
   WITAN_RUBRIC_VERSION_V26,
   WITAN_RUBRIC_VERSION_V27,
+  WITAN_RUBRIC_VERSION_V28,
 } from './rubric-version.js';
 import {
   stripFromQueryOrFragment,
@@ -126,10 +127,13 @@ import {
   execFromIdentifierRunStarts,
 } from './linear-strips.js';
 
+// v28 inherits v27 (WITAN_RUBRIC_VERSION_V28 declaration): it stands beside V27 in v17's own
+// group, which is kept apart from the v18-v26 group so that no chain names V28 beside them.
 function usesV17DetectorClosure(rubricVersion: string): boolean {
   return (
-    rubricVersion === WITAN_RUBRIC_VERSION_V17 ||
-    rubricVersion === WITAN_RUBRIC_VERSION_V27 ||
+    (rubricVersion === WITAN_RUBRIC_VERSION_V17 ||
+      rubricVersion === WITAN_RUBRIC_VERSION_V27 ||
+      rubricVersion === WITAN_RUBRIC_VERSION_V28) ||
     rubricVersion === WITAN_RUBRIC_VERSION_V18 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V19 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V20 ||
@@ -148,6 +152,19 @@ function usesV17DetectorClosure(rubricVersion: string): boolean {
 // WITAN_RUBRIC_VERSION_V27 declaration in rubric-version.ts.
 export function usesV27FalseAssuranceClosure(rubricVersion: string): boolean {
   return rubricVersion === WITAN_RUBRIC_VERSION_V27;
+}
+
+// witan-rubric-v28's own readings (A1 items B, C and D of the WITAN_RUBRIC_VERSION_V28
+// declaration). Checked against V28 alone; every other rubric stays byte-stable.
+export function usesV28OwnReadings(rubricVersion: string): boolean {
+  return rubricVersion === WITAN_RUBRIC_VERSION_V28;
+}
+
+// v27's gate as every rubric that carries it reads it: v27 itself and v28, which inherits it. Every
+// site that applies v27's gate calls this, never usesV27FalseAssuranceClosure directly
+// (v28-declared-scope.test.ts), so no v27 change can leave v28 out.
+export function usesV27FalseAssuranceGate(rubricVersion: string): boolean {
+  return usesV27FalseAssuranceClosure(rubricVersion) || usesV28OwnReadings(rubricVersion);
 }
 
 interface InventoryScanPatternSet {
@@ -577,7 +594,7 @@ export function buildWitanInputFromRepo(options: BuildWitanInputOptions): WitanR
   const tracked = trackContentReads(
     options.repoPath,
     () => buildWitanInputFromRepoUntracked(options),
-    { lfsPointerAbstention: usesV27FalseAssuranceClosure(rubricVersion) },
+    { lfsPointerAbstention: usesV27FalseAssuranceGate(rubricVersion) },
   );
   const affectedCriteria = tracked.affectedCriteria;
 
@@ -605,14 +622,14 @@ export function buildWitanInputFromRepo(options: BuildWitanInputOptions): WitanR
       const reasons = skipReasonsForCriterion(signal.criterionId, tracked);
       const lfsOnly = reasons.size > 0 && [...reasons].every((reason) => reason === 'lfs_pointer');
       if (
-        usesV27FalseAssuranceClosure(rubricVersion) &&
+        usesV27FalseAssuranceGate(rubricVersion) &&
         lfsOnly &&
         (signal.findings ?? []).some(({ severity }) => severity === 'critical')
       ) {
         lfsKept.add(signal.criterionId);
         return signal;
       }
-      if (usesV27FalseAssuranceClosure(rubricVersion) && lfsOnly && signal.notApplicable === true) {
+      if (usesV27FalseAssuranceGate(rubricVersion) && lfsOnly && signal.notApplicable === true) {
         const kept = lfsPointerKeepsNotApplicable(signal, [
           ...(tracked.lfsPointerPaths.get(signal.criterionId) ?? []),
         ]);
@@ -623,7 +640,7 @@ export function buildWitanInputFromRepo(options: BuildWitanInputOptions): WitanR
       }
       // v27 (operator ruling of 20 Nov on #753): a scored A3 keeps v17's reading where every
       // pointer read was attributed to a metric already at its maximum (lfsPointerKeepsScoredA3).
-      if (usesV27FalseAssuranceClosure(rubricVersion) && lfsOnly && signal.criterionId === 'A3') {
+      if (usesV27FalseAssuranceGate(rubricVersion) && lfsOnly && signal.criterionId === 'A3') {
         const keptScored = lfsPointerKeepsScoredA3(
           signal,
           tracked.lfsPointerReads.get(signal.criterionId),
@@ -1023,7 +1040,8 @@ function buildWitanInputFromRepoUntracked(
   // abstains, with a disclosure sentence when a place went unread. Checked against V26 alone and
   // never inherited: v17 (the public default) and v18-v25 stay byte-stable.
   const usesV26BuildStepEvidence = rubricVersion === WITAN_RUBRIC_VERSION_V26;
-  const usesV27Closure = usesV27FalseAssuranceClosure(rubricVersion);
+  const usesV27Closure = usesV27FalseAssuranceGate(rubricVersion);
+  const usesV28Readings = usesV28OwnReadings(rubricVersion);
   // Operator rulings of 1 Nov (v27) and 2 Nov (every rubric): history Cejel could not read (a
   // shallow clone, a depth git and the files cannot settle, or a directory with no git history)
   // gives no composite and no verdict, and A2 abstains on it as v27's A2 does. Read once, here, so
@@ -1136,6 +1154,7 @@ function buildWitanInputFromRepoUntracked(
     scanLimitations,
     unreadHistory,
     historyDepth,
+    usesV28Readings,
   );
   const archetype =
     usesV17Detectors &&
@@ -2246,6 +2265,7 @@ function collectRepoSignals(
   scanLimitations: Set<string> = new Set(),
   unreadHistory?: UnreadHistoryDepth,
   historyDepth: HistoryDepthAnswer = COMPLETE_HISTORY_DEPTH,
+  useV28OwnReadings = false,
 ): WitanCriterionSignalPayload[] {
   const signals: WitanCriterionSignalPayload[] = [];
   // Monorepo root shared-config (lockfile/CI/dep-update) that governs a sub-package
@@ -2264,6 +2284,7 @@ function collectRepoSignals(
       reviewableSourceProof,
       inventoryAbsenceContext,
       useV27FalseAssuranceClosure,
+      useV28OwnReadings,
     ),
   );
   const a2Signal = collectCriterion('A2', () =>
@@ -2398,6 +2419,7 @@ function collectA1TestIntegrityEvidence(
   reviewableSourceProof?: ReviewableSourceProof,
   inventoryAbsenceContext: InventoryAbsenceContext = LEGACY_INVENTORY_ABSENCE_CONTEXT,
   useV27FalseAssuranceClosure = false,
+  useV28OwnReadings = false,
 ): WitanCriterionSignalPayload | null {
   const evidence: WitanEvidencePointer[] = [];
   const findings: WitanCriterionSignalPayload['findings'] = [];
@@ -2474,6 +2496,24 @@ function collectA1TestIntegrityEvidence(
     : baseConfiguredRunnerFiles;
   const packageJson = findRootPackageJson(repoFiles);
   const packageScripts = packageJson ? readPackageScripts(join(repoPath, packageJson)) : new Map();
+  // v28 (items B, C and D of its declaration): read under v28 alone; undefined under every other
+  // rubric, so each use below leaves them byte-identical.
+  const v28 = useV28OwnReadings ? readV28A1Readings(repoPath, repoFiles) : undefined;
+  // Item D: a .NET or Flutter test project counts as runner configuration, within the six
+  // configuration files A1 counts, after the ones counted before.
+  const v28ConfigurationRunnerCount = Math.min(
+    (v28?.runners ?? []).filter(({ countsAs }) => countsAs === 'configuration').length,
+    Math.max(0, 6 - runnerFiles.length),
+  );
+  // Item D: a root `test` script that runs react-scripts test is a test command, as a test script
+  // naming a runner TEST_RUNNER_PATTERN knows is.
+  const v28ReactScriptsTestCommand = (v28?.runners ?? []).some(
+    ({ kind, path, scriptName }) => kind === 'react-scripts' && path === packageJson && scriptName === 'test',
+  );
+  const a1ConfiguredRunnerFiles =
+    v28 === undefined
+      ? configuredRunnerFiles
+      : [...configuredRunnerFiles, ...v28.runners.map(({ path }) => path).filter((path, index, all) => !configuredRunnerFiles.includes(path) && all.indexOf(path) === index)];
   // Scoped to the 'coverage_percent' signal (not the whole A1 criterion) so an unreadable
   // coverage file only abstains this metric — test-file and CI-script evidence computed from
   // other, readable files survives (goal_cejel_v23_per_signal_abstention_2026-09-06). The
@@ -2504,6 +2544,9 @@ function collectA1TestIntegrityEvidence(
   });
   const allCoverageFiles = coverageAnalysis.coverageFiles;
   const coverageFiles = allCoverageFiles.slice(0, 4);
+  // Item B: coverage switched on by a flag, a config block or a plug-in counts as configured for
+  // the coverage check. coverage_percent above read only the files it read under v27.
+  const coverageConfigured = coverageFiles.length > 0 || (v28?.coverageSources.length ?? 0) > 0;
   const packageJsonFiles = useV27Detectors
     ? repoFiles.filter(
         (file) => /(^|\/)package\.json$/.test(file) && isAuthoredProductionPath(file),
@@ -2539,7 +2582,10 @@ function collectA1TestIntegrityEvidence(
   // same package scripts directly (goal_cejel_detector_false_assertions_0_4_9_2026-09-14
   // finding 3).
   const verificationScriptComponents = [
-    { label: 'test command', count: hasCredibleTestScript(packageScripts) || Boolean(ciTestWorkflow) ? 1 : 0 },
+    {
+      label: 'test command',
+      count: hasCredibleTestScript(packageScripts) || Boolean(ciTestWorkflow) || v28ReactScriptsTestCommand ? 1 : 0,
+    },
     { label: 'coverage command', count: coverageAnalysis.hasCoverageCommand ? 1 : 0 },
     { label: 'lint command', count: packageScripts.has('lint') || ciHasLintCommand ? 1 : 0 },
     {
@@ -2608,6 +2654,12 @@ function collectA1TestIntegrityEvidence(
   for (const file of runnerFiles) {
     evidence.push(evidenceForRelative(repoPath, file, 'test_run', 'Configured test runner'));
   }
+  // Item D: each runner recognised under v28 only, at the line that establishes it.
+  for (const runner of v28?.runners ?? []) {
+    evidence.push(
+      withoutContentReadAttribution(() => evidenceForRelativeAtLine(repoPath, runner.path, 'test_run', runner.label, runner.line)),
+    );
+  }
   if (
     packageJson &&
     [...packageScripts.values()].some((script) => TEST_RUNNER_PATTERN.test(script))
@@ -2622,6 +2674,12 @@ function collectA1TestIntegrityEvidence(
       evidence.push(evidenceForRelative(repoPath, file, 'coverage', 'Coverage configuration'));
     }
   });
+  // Item B: each source that switches coverage on, at its line (the first four, as for the files above).
+  for (const source of (v28?.coverageSources ?? []).slice(0, 4)) {
+    evidence.push(
+      withoutContentReadAttribution(() => evidenceForRelativeAtLine(repoPath, source.path, 'coverage', source.label, source.line)),
+    );
+  }
   if (ciTestWorkflow) {
     evidence.push(
       evidenceForRelative(repoPath, ciTestWorkflow, 'test_run', 'CI workflow runs the test suite'),
@@ -2676,7 +2734,7 @@ function collectA1TestIntegrityEvidence(
     // insufficient_data for this sub-signal, contributing neither evidence nor a finding.
   }
 
-  if (evidence.length === 0 && findings.length === 0 && configuredRunnerFiles.length === 0) {
+  if (evidence.length === 0 && findings.length === 0 && a1ConfiguredRunnerFiles.length === 0) {
     return reviewableSourceProof?.passes === true && reviewableSourceProof.firstReadablePath
       ? buildA1AuthenticatedAbsenceSignal(
           repoPath,
@@ -2689,6 +2747,8 @@ function collectA1TestIntegrityEvidence(
       : null;
   }
 
+  // Item D: where only a runner v28 recognises is configured, the no-test-files finding cites it.
+  const v28FirstRunner = configuredRunnerFiles[0] === undefined ? v28?.runners[0] : undefined;
   if (testFiles.length === 0) {
     const fallback = configuredRunnerFiles[0]
       ? evidenceForRelative(
@@ -2697,6 +2757,10 @@ function collectA1TestIntegrityEvidence(
           'test_run',
           'Configured test runner',
         )
+      : v28FirstRunner
+        ? withoutContentReadAttribution(() =>
+            evidenceForRelativeAtLine(repoPath, v28FirstRunner.path, 'test_run', v28FirstRunner.label, v28FirstRunner.line),
+          )
       : useV33Detectors
         ? undefined
         : (evidence[0] ?? findings[0]?.evidence);
@@ -2720,10 +2784,13 @@ function collectA1TestIntegrityEvidence(
       );
     }
   } else if (
-    coverageFiles.length === 0 &&
+    !coverageConfigured &&
     coverageAnalysis.unresolvedFiles.length === 0 &&
-    (!useV33Detectors || configuredRunnerFiles.length > 0)
+    (!useV33Detectors || a1ConfiguredRunnerFiles.length > 0)
   ) {
+    // Item C: a lean toolchain beside a runner that is not lean is not lean; the lean evidence is
+    // still cited, and the finding cites the other runner's suite.
+    const v28NonLeanRunner = isLeanTestToolchain ? v28?.nonLeanRunner : undefined;
     if (isLeanTestToolchain) {
       const leanEvidenceFile = packageJson ?? testFiles[0];
       if (leanEvidenceFile) {
@@ -2736,10 +2803,14 @@ function collectA1TestIntegrityEvidence(
           ),
         );
       }
-    } else {
+    }
+    if (!isLeanTestToolchain || v28NonLeanRunner !== undefined) {
       // v27 (item A): where evidence[0] is a fixture data file, this finding keeps citing it, now
       // labelled as scaffolding: v27 keeps every v17 finding at v17's pointer (v27-no-rise.ts).
-      const firstEvidence = evidence[0];
+      const firstEvidence =
+        v28NonLeanRunner === undefined
+          ? evidence[0]
+          : v28NonLeanSuitePointer(repoPath, testFiles, evidence, v28NonLeanRunner);
       if (!firstEvidence) return null;
       findings.push(
         inventoryAbsenceFinding({
@@ -2927,7 +2998,7 @@ function collectA1TestIntegrityEvidence(
       metric(
         'verification_script_ratio',
         'Verification script ratio',
-        verificationScriptCount + runnerFiles.length,
+        verificationScriptCount + runnerFiles.length + v28ConfigurationRunnerCount,
         4,
         0.25,
         'ratio',
@@ -2936,7 +3007,7 @@ function collectA1TestIntegrityEvidence(
         {
           components: [
             ...verificationScriptComponents,
-            { label: 'test-runner configuration', count: runnerFiles.length },
+            { label: 'test-runner configuration', count: runnerFiles.length + v28ConfigurationRunnerCount },
           ],
         },
       ),
@@ -2952,7 +3023,7 @@ function collectA1TestIntegrityEvidence(
     ],
     notes: withA1V27Sentences(
       (limit) =>
-        coverageFiles.length === 0 && coverageAnalysis.unresolvedFiles.length > 0
+        !coverageConfigured && coverageAnalysis.unresolvedFiles.length > 0
           ? a1CoverageUnresolvedNote(coverageAnalysis.unresolvedFiles, limit)
           : 'A1 is detected from real test files, test runner configuration, and optional coverage configuration.',
       // v27, where conftest.py files are the only test-shaped files: the ratio counts what the
@@ -2970,6 +3041,439 @@ function collectA1TestIntegrityEvidence(
       withheldPointers.map((at) => at !== undefined),
     ),
   };
+}
+
+// ---- v28's own A1 readings (items B, C and D of the WITAN_RUBRIC_VERSION_V28 declaration) ------
+//
+// Read under v28 alone (usesV28OwnReadings). Every read here is attributed to no criterion, so a
+// file this reader opens that holds a Git LFS pointer or is past the content limit adds no
+// abstention: its text simply matches nothing, and nothing is credited on it.
+
+/** A runner v28 recognises that main does not (item D), or a runner kind a coverage source needs. */
+export type V28RunnerKind = 'jest' | 'vitest' | 'pytest' | 'dotnet' | 'flutter' | 'react-scripts';
+
+export interface V28A1Pointer {
+  readonly path: string;
+  readonly line: number;
+  readonly label: string;
+}
+
+export interface V28A1Runner extends V28A1Pointer {
+  readonly kind: 'dotnet' | 'flutter' | 'react-scripts';
+  /** A .NET or Flutter project is runner configuration; a react-scripts script is a test command. */
+  readonly countsAs: 'configuration' | 'test-command';
+  /** For a react-scripts runner, the package.json script that runs it. */
+  readonly scriptName?: string;
+}
+
+export interface V28A1Readings {
+  /** Item B: each place coverage is switched on for a configured runner, at its line. */
+  readonly coverageSources: readonly V28A1Pointer[];
+  /** Item D: each runner recognised under v28 only, at the line that establishes it. */
+  readonly runners: readonly V28A1Runner[];
+  /** Item C: the first configured runner that is not Node's lean built-in one. */
+  readonly nonLeanRunner: V28A1Pointer | undefined;
+  /** Item C: whether A1 reads a lean built-in toolchain, before item C. */
+  readonly leanToolchain: boolean;
+  /** The items whose reading applies to this repository (C only where a lean toolchain meets a non-lean runner). */
+  readonly items: readonly ('B' | 'C' | 'D')[];
+}
+
+/** A file under docs/ or a prose document is never a v28 source (the card's "never credit on a guess"). */
+const V28_DOCUMENTATION_PATH_PATTERN = /(^|\/)(?:docs?|documentation)\/|\.(?:md|mdx|markdown|rst|adoc)$/i;
+const V28_REQUIREMENTS_PATH_PATTERN = /(^|\/)(?:requirements|constraints)[^/]*\.(?:txt|in)$/i;
+const V28_DOTNET_PROJECT_PATH_PATTERN = /\.(?:cs|fs|vb)proj$/i;
+const V28_DOTNET_TEST_PACKAGE_PATTERN =
+  /<PackageReference\b[^>]*?\bInclude\s*=\s*["'](Microsoft\.NET\.Test\.Sdk|xunit|xunit\.v3|NUnit|MSTest|MSTest\.TestFramework)["']/i;
+const V28_DOTNET_COVERAGE_PACKAGE_PATTERN =
+  /<PackageReference\b[^>]*?\bInclude\s*=\s*["'](coverlet\.collector|coverlet\.msbuild)["']/i;
+const V28_REACT_SCRIPTS_TEST_PATTERN = /\breact-scripts\s+test\b/;
+// A runner named in a command, and the flag that switches its coverage on, on the same line.
+const V28_COMMAND_COVERAGE_FLAGS: readonly { readonly kind: V28RunnerKind; readonly pattern: RegExp }[] = [
+  { kind: 'react-scripts', pattern: /\breact-scripts\s+test\b[^\n#]*?\s--coverage(?:[=\s"']|$)/ },
+  { kind: 'jest', pattern: /\bjest\b[^\n#]*?\s--coverage(?:[=\s"']|$)/ },
+  { kind: 'vitest', pattern: /\bvitest\b[^\n#]*?\s--coverage(?:[.=\s"']|$)/ },
+  { kind: 'flutter', pattern: /\bflutter\s+test\b[^\n#]*?\s--coverage(?:[=\s"']|$)/ },
+  { kind: 'pytest', pattern: /\b(?:py\.test|pytest)\b[^\n#]*?\s--cov(?:=[^\s"']*)?(?:[\s"']|$)/ },
+  {
+    kind: 'dotnet',
+    pattern: /\bdotnet\s+test\b[^\n#]*?(?:\s--collect[:=\s]+["']?XPlat Code Coverage\b|\s[/-]p:CollectCoverage=true\b)/i,
+  },
+];
+const V28_PYTEST_COV_TOKEN = /(?:^|[\s"'=,[])--cov(?:=[^\s"',\]]*)?(?=$|[\s"',\]])/;
+// The runner words a configured runner file names. Node's own runner is lean, so it names none.
+const V28_NON_LEAN_COMMAND_PATTERN =
+  /\b(vitest|jest|mocha|ava|pytest|py\.test|go\s+test|cargo\s+test|rspec|phpunit|gradle\s+test|mvn\s+test|dotnet\s+test|ctest|playwright\s+test|cypress\s+run)\b/i;
+const V28_NON_LEAN_SCRIPT_PATTERN =
+  /\b(vitest|jest|mocha|ava|tap|pytest|go test|cargo test|rspec|phpunit|gradle test|mvn test)\b/i;
+
+// A .NET test project and a pytest configuration commonly sit under tests/, which A1's authored
+// production paths leave out, so v28 reads test directories too. A generated, vendored or cache
+// path, and a fixture, sample or example tree (a project that is data, not this repository's own
+// runner), are never a source.
+const V28_NOT_OWN_PROJECT_PATH_PATTERN = /(^|\/)(?:fixtures?|__fixtures__|testdata|test-data|examples?|samples?)\//i;
+
+function v28SourcePath(file: string): boolean {
+  return (
+    !GENERATED_OR_VENDOR_PATH_PATTERN.test(file) &&
+    !V17_BUILD_OR_DEPENDENCY_CACHE_PATH_PATTERN.test(file) &&
+    !V28_NOT_OWN_PROJECT_PATH_PATTERN.test(file)
+  );
+}
+
+function v28FileLines(repoPath: string, file: string): string[] {
+  const fullPath = join(repoPath, file);
+  if (!isRegularFile(fullPath)) return [];
+  return readRepoText(fullPath, 'utf8').replace(/\r\n?/g, '\n').split('\n');
+}
+
+function v28IsCommentLine(line: string): boolean {
+  return /^\s*(?:#|\/\/|;|<!--|\*)/.test(line);
+}
+
+/** `line` with a shell or YAML comment that follows a blank removed. */
+function v28WithoutTrailingComment(line: string): string {
+  const at = line.search(/\s#/);
+  return at === -1 ? line : line.slice(0, at);
+}
+
+/**
+ * A command up to a bare `--`: what follows is passed on, not read by the runner as its own option
+ * (`dotnet test -- --collect:...` is a RunSettings argument; for pytest it is a path), so a coverage
+ * flag there is never credited.
+ */
+function v28BeforeArgumentSeparator(command: string): string {
+  const at = command.search(/\s--(?=\s|$)/);
+  return at === -1 ? command : command.slice(0, at);
+}
+
+/** The XML text with each comment's characters, but not its line breaks, blanked. */
+function v28XmlWithoutComments(contents: string): string {
+  return contents.replace(/<!--[\s\S]*?-->/g, (comment) => comment.replace(/[^\n]/g, ' '));
+}
+
+function v28LineOfIndex(contents: string, index: number): number {
+  let line = 1;
+  for (let at = 0; at < index && at < contents.length; at += 1) if (contents.charCodeAt(at) === 10) line += 1;
+  return line;
+}
+
+/** The 1-based line of package.json that holds script `name`'s value, or of its key. */
+function v28PackageScriptLine(lines: readonly string[], name: string, value: string): number {
+  const valueText = JSON.stringify(value);
+  const keyText = JSON.stringify(name);
+  const both = lines.findIndex((line) => line.includes(keyText) && line.includes(valueText));
+  if (both !== -1) return both + 1;
+  const key = lines.findIndex((line) => line.includes(`${keyText}:`) || line.includes(`${keyText} :`));
+  return key === -1 ? 1 : key + 1;
+}
+
+/** Each `[section]` of an INI or TOML file whose header `accept` takes, as [first body line, end). */
+function v28SectionBodies(lines: readonly string[], accept: (header: string) => boolean): [number, number][] {
+  const bodies: [number, number][] = [];
+  let start = -1;
+  for (let index = 0; index < lines.length; index += 1) {
+    const header = /^\s*\[([^\]\n]+)\]\s*(?:[#;].*)?$/.exec(lines[index] ?? '');
+    if (!header) continue;
+    if (start !== -1) bodies.push([start, index]);
+    start = accept((header[1] ?? '').trim()) ? index + 1 : -1;
+  }
+  if (start !== -1) bodies.push([start, lines.length]);
+  return bodies;
+}
+
+function v28PytestConfigSection(file: string): ((header: string) => boolean) | undefined {
+  if (/(^|\/)pytest\.ini$/.test(file) || /(^|\/)tox\.ini$/.test(file)) return (header) => header === 'pytest';
+  if (/(^|\/)setup\.cfg$/.test(file)) return (header) => header === 'tool:pytest';
+  if (/(^|\/)pyproject\.toml$/.test(file)) return (header) => header === 'tool.pytest.ini_options' || header === 'tool.pytest';
+  return undefined;
+}
+
+/** Item D: the .NET, Flutter and react-scripts runners, each at the line that establishes it. */
+function readV28Runners(repoPath: string, files: readonly string[]): V28A1Runner[] {
+  const runners: V28A1Runner[] = [];
+  for (const file of files) {
+    if (V28_DOTNET_PROJECT_PATH_PATTERN.test(file)) {
+      const contents = v28XmlWithoutComments(v28FileLines(repoPath, file).join('\n'));
+      const match = V28_DOTNET_TEST_PACKAGE_PATTERN.exec(contents) ?? /<Project\b[^>]*?\bSdk\s*=\s*["'](MSTest\.Sdk)\b/i.exec(contents);
+      if (match) {
+        runners.push({
+          path: file,
+          line: v28LineOfIndex(contents, match.index),
+          label: `Configured test runner (.NET test project: ${match[1]})`,
+          kind: 'dotnet',
+          countsAs: 'configuration',
+        });
+      }
+      continue;
+    }
+    if (/(^|\/)pubspec\.yaml$/.test(file)) {
+      const lines = v28FileLines(repoPath, file);
+      const section = lines.findIndex((line) => /^dev_dependencies:\s*(?:#.*)?$/.test(line));
+      if (section === -1) continue;
+      let childIndent: number | undefined;
+      for (let index = section + 1; index < lines.length; index += 1) {
+        const line = lines[index] ?? '';
+        if (/^\s*(?:#.*)?$/.test(line)) continue;
+        const indent = /^ */.exec(line)?.[0].length ?? 0;
+        if (indent === 0) break;
+        childIndent ??= indent;
+        if (indent !== childIndent) continue;
+        if (/^\s*flutter_test\s*:/.test(line)) {
+          runners.push({
+            path: file,
+            line: index + 1,
+            label: 'Configured test runner (Flutter: flutter_test in dev_dependencies)',
+            kind: 'flutter',
+            countsAs: 'configuration',
+          });
+          break;
+        }
+      }
+      continue;
+    }
+    if (/(^|\/)package\.json$/.test(file)) {
+      const scripts = readPackageScripts(join(repoPath, file));
+      for (const [name, value] of scripts) {
+        if (!V28_REACT_SCRIPTS_TEST_PATTERN.test(value)) continue;
+        runners.push({
+          path: file,
+          line: v28PackageScriptLine(v28FileLines(repoPath, file), name, value),
+          label: `Configured test runner (react-scripts test, script "${name}")`,
+          kind: 'react-scripts',
+          countsAs: 'test-command',
+          scriptName: name,
+        });
+        break;
+      }
+    }
+  }
+  return runners;
+}
+
+/** The runner kinds the configured runner files name, for the coverage sources that need one. */
+function v28ConfiguredRunnerKinds(
+  repoPath: string,
+  configuredRunnerFiles: readonly string[],
+  runners: readonly V28A1Runner[],
+): Set<V28RunnerKind> {
+  const kinds = new Set<V28RunnerKind>(runners.map(({ kind }) => kind));
+  for (const file of configuredRunnerFiles) {
+    if (/(^|\/)jest\.config\.[cm]?[jt]s$/.test(file)) kinds.add('jest');
+    if (/(^|\/)vitest\.config\.[cm]?[jt]s$/.test(file)) kinds.add('vitest');
+    if (/(^|\/)(?:pytest\.ini|tox\.ini|pyproject\.toml)$/.test(file)) kinds.add('pytest');
+    const text = (/(^|\/)package\.json$/.test(file)
+      ? [...readPackageScripts(join(repoPath, file)).values()]
+      : isCiWorkflow(file)
+        ? v28FileLines(repoPath, file).filter((line) => !v28IsCommentLine(line))
+        : []
+    ).join('\n');
+    if (/\bjest\b/.test(text)) kinds.add('jest');
+    if (/\bvitest\b/.test(text)) kinds.add('vitest');
+    if (/\b(?:pytest|py\.test)\b/.test(text)) kinds.add('pytest');
+    if (/\bdotnet\s+test\b/.test(text)) kinds.add('dotnet');
+  }
+  return kinds;
+}
+
+/** Item B: each place coverage is switched on for a configured runner, at its line. */
+function readV28CoverageSources(
+  repoPath: string,
+  files: readonly string[],
+  kinds: ReadonlySet<V28RunnerKind>,
+): V28A1Pointer[] {
+  const sources: V28A1Pointer[] = [];
+  const add = (path: string, line: number, label: string) => {
+    if (!sources.some((source) => source.path === path && source.line === line)) sources.push({ path, line, label });
+  };
+  const commandFlag = (path: string, line: string, at: number) => {
+    const command = v28BeforeArgumentSeparator(v28WithoutTrailingComment(line));
+    for (const { kind, pattern } of V28_COMMAND_COVERAGE_FLAGS) {
+      if (kinds.has(kind) && pattern.test(command)) {
+        add(path, at, `Coverage enabled (${kind} coverage flag in a test command)`);
+        return;
+      }
+    }
+  };
+  for (const file of files) {
+    const isPackageJson = /(^|\/)package\.json$/.test(file);
+    if (isPackageJson) {
+      const lines = v28FileLines(repoPath, file);
+      for (const [name, value] of readPackageScripts(join(repoPath, file))) {
+        if (value.includes('\n')) continue;
+        const command = v28BeforeArgumentSeparator(value);
+        for (const { kind, pattern } of V28_COMMAND_COVERAGE_FLAGS) {
+          if (kinds.has(kind) && pattern.test(command)) {
+            add(file, v28PackageScriptLine(lines, name, value), `Coverage enabled (${kind} coverage flag in script "${name}")`);
+            break;
+          }
+        }
+      }
+      const parsed = parseJsonObject(lines.join('\n'));
+      if (kinds.has('jest') && isRecord(parsed?.jest) && parsed.jest.collectCoverage === true) {
+        const line = lines.findIndex((text) => /"collectCoverage"\s*:\s*true\b/.test(text));
+        add(file, line === -1 ? 1 : line + 1, 'Coverage enabled (jest collectCoverage: true)');
+      }
+      continue;
+    }
+    if (isCiWorkflow(file) || isRecipeFile(file) || isShellScriptPath(file) || /(^|\/)tox\.ini$/.test(file)) {
+      const lines = v28FileLines(repoPath, file);
+      lines.forEach((line, index) => {
+        if (!v28IsCommentLine(line)) commandFlag(file, line, index + 1);
+      });
+    }
+    const pytestSection = v28PytestConfigSection(file);
+    if (pytestSection && kinds.has('pytest')) {
+      const lines = v28FileLines(repoPath, file);
+      for (const [start, end] of v28SectionBodies(lines, pytestSection)) {
+        // A key starts at the line's first column; an indented line continues the key before it
+        // (INI continuation, or a TOML array written over several lines).
+        let currentKey: string | undefined;
+        for (let index = start; index < end; index += 1) {
+          const line = lines[index] ?? '';
+          if (v28IsCommentLine(line) || line.trim() === '') continue;
+          const key = /^([A-Za-z_][\w.-]*)\s*=(.*)$/.exec(line);
+          if (key) currentKey = key[1];
+          const value = key ? (key[2] ?? '') : /^\s/.test(line) ? line : '';
+          if (currentKey === 'addopts' && V28_PYTEST_COV_TOKEN.test(value)) {
+            add(file, index + 1, 'Coverage enabled (pytest-cov --cov in pytest addopts)');
+            break;
+          }
+        }
+      }
+    }
+    if (kinds.has('jest') && /(^|\/)jest\.config\.json$/.test(file)) {
+      const lines = v28FileLines(repoPath, file);
+      const parsed = parseJsonObject(lines.join('\n'));
+      if (parsed?.collectCoverage === true) {
+        const line = lines.findIndex((text) => /"collectCoverage"\s*:\s*true\b/.test(text));
+        add(file, line === -1 ? 1 : line + 1, 'Coverage enabled (jest collectCoverage: true)');
+      }
+    }
+    if (kinds.has('jest') && /(^|\/)jest\.config\.[cm]?[jt]s$/.test(file)) {
+      const lines = v28FileLines(repoPath, file);
+      const contents = stripJavaScriptComments(lines.join('\n'));
+      const match = JEST_COLLECT_COVERAGE_TRUE_PATTERN.exec(contents);
+      if (match) add(file, v28LineOfIndex(contents, match.index + match[0].search(/\S/)), 'Coverage enabled (jest collectCoverage: true)');
+    }
+    if (kinds.has('vitest') && /(^|\/)vitest\.config\.[cm]?[jt]s$/.test(file)) {
+      const lines = v28FileLines(repoPath, file);
+      const contents = stripJavaScriptComments(lines.join('\n'));
+      if (vitestCoveragePropertyCollects(contents)) {
+        const match = /(?:^|[{,])[^\S\n]*["']?coverage["']?\s*:/m.exec(contents);
+        if (match) add(file, v28LineOfIndex(contents, match.index + match[0].search(/[^\s{,]/)), 'Coverage enabled (vitest coverage block)');
+      }
+    }
+    if (kinds.has('pytest')) {
+      const lines = v28FileLines(repoPath, file);
+      const plugin = /(^|\/)pyproject\.toml$/.test(file)
+        ? lines.findIndex((line) => !v28IsCommentLine(line) && /(?:["']pytest-cov(?:\[[^\]"']*\])?\s*(?:[<>=!~;@ ]|["'])|^\s*["']?pytest-cov["']?\s*=)/i.test(line))
+        : V28_REQUIREMENTS_PATH_PATTERN.test(file) || /(^|\/)setup\.cfg$/.test(file)
+          ? lines.findIndex((line) => !v28IsCommentLine(line) && /^\s*pytest-cov(?:\[[^\]]*\])?\s*(?:[<>=!~;]|$)/i.test(line))
+          : /(^|\/)setup\.py$/.test(file)
+            ? lines.findIndex((line) => !v28IsCommentLine(line) && /["']pytest-cov(?:\s*[<>=!~;][^"']*)?["']/i.test(line))
+            : /(^|\/)Pipfile$/.test(file)
+              ? lines.findIndex((line) => !v28IsCommentLine(line) && /^\s*["']?pytest-cov["']?\s*=/i.test(line))
+              : -1;
+      if (plugin !== -1) add(file, plugin + 1, 'Coverage enabled (pytest-cov plug-in declared)');
+    }
+    if (kinds.has('dotnet') && V28_DOTNET_PROJECT_PATH_PATTERN.test(file)) {
+      const contents = v28XmlWithoutComments(v28FileLines(repoPath, file).join('\n'));
+      const match = V28_DOTNET_COVERAGE_PACKAGE_PATTERN.exec(contents);
+      if (match && V28_DOTNET_TEST_PACKAGE_PATTERN.test(contents)) {
+        add(file, v28LineOfIndex(contents, match.index), `Coverage enabled (${match[1]} in a .NET test project)`);
+      }
+    }
+  }
+  return sources;
+}
+
+/** Item C: the first configured runner that is not Node's lean built-in one, at its line. */
+function readV28NonLeanRunner(
+  repoPath: string,
+  configuredRunnerFiles: readonly string[],
+  runners: readonly V28A1Runner[],
+): V28A1Pointer | undefined {
+  for (const file of configuredRunnerFiles) {
+    if (/(^|\/)(?:Makefile|CMakeLists\.txt)$/.test(file)) continue;
+    const lines = v28FileLines(repoPath, file);
+    if (/(^|\/)package\.json$/.test(file)) {
+      for (const [name, value] of readPackageScripts(join(repoPath, file))) {
+        if (V28_NON_LEAN_SCRIPT_PATTERN.test(value)) {
+          return { path: file, line: v28PackageScriptLine(lines, name, value), label: 'Configured test runner (not lean)' };
+        }
+      }
+      continue;
+    }
+    if (isCiWorkflow(file)) {
+      const line = lines.findIndex((text) => !v28IsCommentLine(text) && V28_NON_LEAN_COMMAND_PATTERN.test(v28WithoutTrailingComment(text)));
+      if (line !== -1) return { path: file, line: line + 1, label: 'Configured test runner (not lean)' };
+      continue;
+    }
+    const header = /(^|\/)pyproject\.toml$/.test(file) ? lines.findIndex((text) => /^\[tool\.pytest(?:\.|\])/.test(text)) : -1;
+    return { path: file, line: header === -1 ? firstMeaningfulLine(lines.join('\n')) ?? 1 : header + 1, label: 'Configured test runner (not lean)' };
+  }
+  const runner = runners[0];
+  return runner === undefined ? undefined : { path: runner.path, line: runner.line, label: runner.label };
+}
+
+/**
+ * v28's A1 readings for a repository (items B, C and D), read from `repoFiles` as A1 lists them.
+ * `leanToolchain` is A1's own lean reading where the caller has it; otherwise it is read here the
+ * way A1 reads it.
+ */
+export function readV28A1Readings(
+  repoPath: string,
+  repoFiles: readonly string[],
+  leanToolchain?: boolean,
+): V28A1Readings {
+  return withoutContentReadAttribution(() => {
+    const files = repoFiles.filter((file) => v28SourcePath(file) && !V28_DOCUMENTATION_PATH_PATTERN.test(file));
+    const runners = readV28Runners(repoPath, files);
+    const configuredRunnerFiles = findConfiguredTestRunnerFiles(repoPath, repoFiles);
+    const kinds = v28ConfiguredRunnerKinds(repoPath, configuredRunnerFiles, runners);
+    const coverageSources = readV28CoverageSources(repoPath, files, kinds);
+    const lean = leanToolchain ?? readA1LeanToolchain(repoPath, repoFiles);
+    const nonLeanRunner = lean ? readV28NonLeanRunner(repoPath, configuredRunnerFiles, runners) : undefined;
+    const items: ('B' | 'C' | 'D')[] = [];
+    if (coverageSources.length > 0) items.push('B');
+    if (lean && nonLeanRunner !== undefined) items.push('C');
+    if (runners.length > 0) items.push('D');
+    return { coverageSources, runners, nonLeanRunner, leanToolchain: lean, items };
+  });
+}
+
+/**
+ * Item C: the pointer v28's no-coverage finding cites where a lean toolchain sits beside a runner
+ * that is not lean: the first detected test file that does not import Node's runner, else the
+ * other runner at its line.
+ */
+function v28NonLeanSuitePointer(
+  repoPath: string,
+  testFiles: readonly string[],
+  evidence: readonly WitanEvidencePointer[],
+  nonLeanRunner: V28A1Pointer,
+): WitanEvidencePointer {
+  for (const file of testFiles) {
+    if (fileContains(repoPath, file, LEAN_TEST_RUNNER_IMPORT_PATTERN)) continue;
+    const pointer = evidence.find(({ kind, path }) => kind === 'test_run' && path === file);
+    if (pointer) return pointer;
+  }
+  return withoutContentReadAttribution(() =>
+    evidenceForRelativeAtLine(repoPath, nonLeanRunner.path, 'test_run', nonLeanRunner.label, nonLeanRunner.line),
+  );
+}
+
+/** A1's lean built-in toolchain reading, as collectA1TestIntegrityEvidence computes it. */
+function readA1LeanToolchain(repoPath: string, repoFiles: readonly string[]): boolean {
+  const packageJson = findRootPackageJson(repoFiles);
+  const packageScripts = packageJson ? readPackageScripts(join(repoPath, packageJson)) : new Map<string, string>();
+  const v17TestFiles = findConcreteTestFiles(repoPath, repoFiles, WITAN_RUBRIC_VERSION_V17);
+  const usesLean =
+    (packageJson != null && [...packageScripts.values()].some((script) => LEAN_TEST_RUNNER_SCRIPT_PATTERN.test(script))) ||
+    v17TestFiles.slice(0, 8).some((file) => fileContains(repoPath, file, LEAN_TEST_RUNNER_IMPORT_PATTERN));
+  const packageJsonFiles = repoFiles.filter((file) => /(^|\/)package\.json$/.test(file) && isAuthoredProductionPath(file));
+  return usesLean && !packageJsonFiles.some((manifest) => packageJsonHasHeavyTestDependency(repoPath, manifest));
 }
 
 /**
@@ -15010,6 +15514,11 @@ const HEAVY_TEST_DEPENDENCY_NAME_PATTERN =
 // A2 — bounded, conservative crypto-hygiene nudge. Only ever scored when a signing/HMAC/
 // secret-comparison surface is actually detected in source; repos with no such surface are
 // unaffected. Never a critical — a "nudge," not a new cry-wolf vector.
+// jest's `collectCoverage: true` in a jest.config script: one literal, read by the coverage-config
+// check every rubric runs and by v28's coverage-source citation, so #550's blank-run linearity guard
+// covers both sites through one pattern. Non-global, so .test and .exec carry no lastIndex state.
+const JEST_COLLECT_COVERAGE_TRUE_PATTERN =
+  /(?:^|[{,])[^\S\n\r\u2028\u2029]*["']?collectCoverage["']?\s*:\s*true\b/m;
 const TIMING_SAFE_COMPARE_PATTERN =
   /\btiming[-_]?safe[-_]?(?:equal|compare)\b|crypto\.timingSafeEqual\s*\(/i;
 const CANONICAL_SERIALIZE_PATTERN =
@@ -24639,7 +25148,7 @@ function isV23CoverageConfig(repoPath: string, file: string): boolean {
   if (/(^|\/)jest\.config\.[cm]?[jt]s$/.test(file)) {
     const contents = stripJavaScriptComments(readRepoText(join(repoPath, file), 'utf8'));
     return (
-      /(?:^|[{,])[^\S\n\r\u2028\u2029]*["']?collectCoverage["']?\s*:\s*true\b/m.test(contents) ||
+      JEST_COLLECT_COVERAGE_TRUE_PATTERN.test(contents) ||
       /(?:^|[{,])[^\S\n\r\u2028\u2029]*["']?(?:coverageThreshold|coverageProvider|coverageDirectory)["']?\s*:/m.test(
         contents,
       )
