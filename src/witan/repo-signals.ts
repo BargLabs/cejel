@@ -1042,6 +1042,10 @@ function buildWitanInputFromRepoUntracked(
   const usesV26BuildStepEvidence = rubricVersion === WITAN_RUBRIC_VERSION_V26;
   const usesV27Closure = usesV27FalseAssuranceGate(rubricVersion);
   const usesV28Readings = usesV28OwnReadings(rubricVersion);
+  // v28 (21 Nov, item C): A2 reads PEM private keys with v23's grammar, through v23's own code
+  // paths (the current-tree scan, the history scan and isCredentialHistoryPath), so a key it finds
+  // makes A2 ratable wherever it would under v23. No second grammar exists.
+  const usesPemPrivateKeyGrammar = usesV23PemPrivateKeyGrammar || usesV28Readings;
   // Operator rulings of 1 Nov (v27) and 2 Nov (every rubric): history Cejel could not read (a
   // shallow clone, a depth git and the files cannot settle, or a directory with no git history)
   // gives no composite and no verdict, and A2 abstains on it as v27's A2 does. Read once, here, so
@@ -1142,7 +1146,7 @@ function buildWitanInputFromRepoUntracked(
     usesV21ExecutedEscalations,
     usesV22PackageStartEntrypoint,
     usesV23StrictCoverageAndRecipeRunners,
-    usesV23PemPrivateKeyGrammar,
+    usesPemPrivateKeyGrammar,
     usesV23WithheldPathAbstention,
     usesV24SecretContentContext,
     usesV25InlineHealthRoute,
