@@ -2318,6 +2318,7 @@ function collectRepoSignals(
       inventoryAbsenceContext,
       useV25InlineHealthRoute,
       useV26BuildStepEvidence,
+      useV28OwnReadings,
     ),
   );
   const a4Signal = collectCriterion('A4', () =>
@@ -4653,6 +4654,7 @@ function collectA3ProdReadinessEvidence(
   inventoryAbsenceContext: InventoryAbsenceContext = LEGACY_INVENTORY_ABSENCE_CONTEXT,
   useV25InlineHealthRoute = false,
   useV26BuildStepEvidence = false,
+  useV28OwnReadings = false,
 ): WitanCriterionSignalPayload | null {
   const v20DirectHttpEntrypoint = useV20ExplicitGaps
     ? findV20DirectHttpServerEntrypointFile(repoPath, repoFiles)
@@ -4754,8 +4756,9 @@ function collectA3ProdReadinessEvidence(
   // absence finding below, never a scored metric.
   const { hasV20HealthOrReadinessRoute, hasV22PackageStartHealthOrReadinessRoute } =
     withContentReadSignal('A3', 'health_readiness_route', () => ({
+      // v28 (21 Nov, item B) reads the route as v20 does, for its health-route finding alone.
       hasV20HealthOrReadinessRoute:
-        useV20ExplicitGaps &&
+        (useV20ExplicitGaps || useV28OwnReadings) &&
         repoFiles.some(
           (file) =>
             healthReadinessRouteReads(file) &&
@@ -4789,11 +4792,29 @@ function collectA3ProdReadinessEvidence(
       healthReadinessRouteReads,
       useV23WithheldPathAbstention,
     );
+  // v28 (21 Nov, item B): the same intersection, computed and disclosed as above. It is acted on by
+  // withholding the health-route finding alone: no skip is attributed to the criterion, because
+  // only v23 can attach one to the single signal that would have read the file (the
+  // usesV23WithheldPathAbstention declaration), so no score moves for it.
+  let v28HealthReadinessRouteWithheld = false;
+  if (useV28OwnReadings) {
+    abstainSignalOnWithheldPaths('A3', 'health_readiness_route', healthReadinessRouteReads, false);
+    // The key abstainSignalOnWithheldPaths records an admitting signal under.
+    const signalKey = 'A3.health_readiness_route';
+    v28HealthReadinessRouteWithheld = withheldRepoPaths().some(({ signalsAdmitting }) =>
+      signalsAdmitting.includes(signalKey),
+    );
+  }
   const serverEntrypoint =
     v22PackageStartHttpEntrypoint ??
     findServerEntrypointFile(repoPath, repoFiles, useV27Detectors) ??
     v20DirectHttpEntrypoint ??
     null;
+  // v28 (21 Nov, item B): the v20 line's direct HTTP entrypoint, for the health-route finding alone.
+  // It does not enter the applicability gate above, which v28 keeps as v27 has it.
+  const v28HealthRouteEntrypoint = useV28OwnReadings
+    ? (serverEntrypoint ?? findV20DirectHttpServerEntrypointFile(repoPath, repoFiles))
+    : null;
   const runtimeContainer = useV27Detectors
     ? findRuntimeContainerEntrypointFile(repoPath, repoFiles, useV20ExplicitGaps)
     : null;
@@ -5119,6 +5140,61 @@ function collectA3ProdReadinessEvidence(
         evidence: evidenceForRelative(
           repoPath,
           serverEntrypoint,
+          'prod_check',
+          'Production HTTP entrypoint without a health or readiness route',
+        ),
+      });
+    }
+  }
+  // v28's A3 readings (21 Nov; WITAN_RUBRIC_VERSION_V28 declaration). Neither depends on the other
+  // or on a build/typecheck branch, which v28 does not carry (item D). Each only adds an info finding
+  // or cites evidence, after the evidence anchor above, so neither moves applicability or a metric.
+  if (useV28OwnReadings) {
+    // Item A: every runtime Dockerfile, each covered by its own HEALTHCHECK, a compose healthcheck
+    // for a service built from it, or a probe for a container whose image is built from it.
+    const coverage = withContentReadSignal('A3', 'dockerfile_healthcheck', () =>
+      readV28RuntimeHealthcheckCoverage(repoPath, repoFiles),
+    );
+    for (const { dockerfile, sources } of coverage) {
+      for (const source of sources) {
+        evidence.push(
+          evidenceForRelativeAtLine(repoPath, source.path, 'prod_check', source.label, source.line),
+        );
+      }
+      if (sources.length === 0) {
+        findings.push({
+          severity: 'info',
+          summary: 'A runtime Dockerfile declares no active HEALTHCHECK instruction.',
+          evidence: evidenceForRelative(
+            repoPath,
+            dockerfile,
+            'prod_check',
+            'Runtime Dockerfile without an active HEALTHCHECK',
+          ),
+        });
+      }
+    }
+    // Item B: the v20 health-route finding, withheld where a file it would read was withheld.
+    if (
+      v28HealthRouteEntrypoint &&
+      !v28HealthReadinessRouteWithheld &&
+      withContentReadSignal('A3', 'health_readiness_route', () =>
+        fileContains(
+          repoPath,
+          v28HealthRouteEntrypoint,
+          /\b(?:request|req)\.(?:url|path|pathname|method)\b/i,
+        ),
+      ) &&
+      healthChecks.length === 0 &&
+      !hasV20HealthOrReadinessRoute
+    ) {
+      findings.push({
+        severity: 'info',
+        summary:
+          'A production HTTP entrypoint handles requests directly but declares no health or readiness route.',
+        evidence: evidenceForRelative(
+          repoPath,
+          v28HealthRouteEntrypoint,
           'prod_check',
           'Production HTTP entrypoint without a health or readiness route',
         ),
@@ -26812,29 +26888,367 @@ function findRuntimeContainerEntrypointFile(
   return (
     repoFiles
       .filter((file) => /(^|\/)Dockerfile$/i.test(file) && isAuthoredProductionPath(file))
-      .find((file) => {
-        const fullPath = join(repoPath, file);
-        if (!isRegularFile(fullPath)) return false;
-        const lines = readRepoText(fullPath, 'utf8').split(/\r?\n/);
-        const finalStageStart = lines.reduce(
-          (last, line, index) => (/^\s*FROM\b/i.test(line) ? index : last),
-          0,
-        );
-        const finalStageLines = lines.slice(finalStageStart);
-        const entrypoint = [...finalStageLines]
-          .reverse()
-          .find((line) => /^\s*ENTRYPOINT\b/i.test(line));
-        const command = [...finalStageLines].reverse().find((line) => /^\s*CMD\b/i.test(line));
-        const effectiveCommand = [entrypoint, command].filter(Boolean).join(' ');
-        return (
-          effectiveCommand.length > 0 &&
-          (RUNTIME_CONTAINER_COMMAND_PATTERN.test(effectiveCommand) ||
-            (useV20NodeEntrypoints &&
-              V20_NODE_RUNTIME_CONTAINER_COMMAND_PATTERN.test(effectiveCommand))) &&
-          !NON_RUNTIME_CONTAINER_COMMAND_PATTERN.test(effectiveCommand)
-        );
-      }) ?? null
+      .find((file) => isRuntimeContainerEntrypointFile(repoPath, file, useV20NodeEntrypoints)) ??
+    null
   );
+}
+
+// v28 (21 Nov, item A): every runtime Dockerfile, by the one definition the finder above uses.
+function findRuntimeContainerEntrypointFiles(
+  repoPath: string,
+  repoFiles: readonly string[],
+  useV20NodeEntrypoints: boolean,
+): string[] {
+  return repoFiles
+    .filter((file) => /(^|\/)Dockerfile$/i.test(file) && isAuthoredProductionPath(file))
+    .filter((file) => isRuntimeContainerEntrypointFile(repoPath, file, useV20NodeEntrypoints));
+}
+
+// A Dockerfile is a runtime container entrypoint when its final stage's effective command (its last
+// ENTRYPOINT and last CMD) starts a service and is not a build, test or lint command. A Dockerfile
+// with no CMD or ENTRYPOINT of its own is not one: no offline reading can see its base image's.
+function isRuntimeContainerEntrypointFile(
+  repoPath: string,
+  file: string,
+  useV20NodeEntrypoints: boolean,
+): boolean {
+  const fullPath = join(repoPath, file);
+  if (!isRegularFile(fullPath)) return false;
+  const lines = readRepoText(fullPath, 'utf8').split(/\r?\n/);
+  const finalStageStart = lines.reduce(
+    (last, line, index) => (/^\s*FROM\b/i.test(line) ? index : last),
+    0,
+  );
+  const finalStageLines = lines.slice(finalStageStart);
+  const entrypoint = [...finalStageLines]
+    .reverse()
+    .find((line) => /^\s*ENTRYPOINT\b/i.test(line));
+  const command = [...finalStageLines].reverse().find((line) => /^\s*CMD\b/i.test(line));
+  const effectiveCommand = [entrypoint, command].filter(Boolean).join(' ');
+  return (
+    effectiveCommand.length > 0 &&
+    (RUNTIME_CONTAINER_COMMAND_PATTERN.test(effectiveCommand) ||
+      (useV20NodeEntrypoints &&
+        V20_NODE_RUNTIME_CONTAINER_COMMAND_PATTERN.test(effectiveCommand))) &&
+    !NON_RUNTIME_CONTAINER_COMMAND_PATTERN.test(effectiveCommand)
+  );
+}
+
+// v20's active-HEALTHCHECK test, which v28 (21 Nov, item A) reads one line at a time so that it can
+// cite the line: optional leading blanks, HEALTHCHECK, then anything but NONE.
+const ACTIVE_DOCKERFILE_HEALTHCHECK_LINE_PATTERN = /^[ \t]*HEALTHCHECK\s+(?!NONE\b)/i;
+const V28_COMPOSE_FILE_PATTERN = /(?:^|\/)(?:docker-)?compose(?:\.[\w-]+)*\.ya?ml$/i;
+const V28_SKAFFOLD_FILE_PATTERN = /(?:^|\/)skaffold\.ya?ml$/i;
+const V28_MANIFEST_FILE_PATTERN = /\.ya?ml$/i;
+
+/** One source that gives a runtime Dockerfile's container a healthcheck, cited at its line. */
+export interface V28HealthcheckSource {
+  readonly path: string;
+  readonly line: number;
+  readonly label: string;
+}
+
+/** Each runtime Dockerfile v28 checks, with every source that covers it (none: uncovered). */
+export interface V28RuntimeHealthcheckCoverage {
+  readonly dockerfile: string;
+  readonly sources: readonly V28HealthcheckSource[];
+}
+
+interface V28YamlLine {
+  readonly line: number;
+  readonly indent: number;
+  readonly text: string;
+}
+
+// A deliberately small reading of YAML's block style: one entry per line that is neither blank nor
+// a comment, with its indent and its text (a trailing comment removed where the line holds no
+// quote). Flow collections, anchors, aliases, merge keys, tags and multi-line scalars are not
+// interpreted: a value written in any of them is read as a value this reading cannot resolve, and
+// earns no credit. A line indented with a tab is not YAML indentation and ends the reading.
+function readV28YamlLines(contents: string): V28YamlLine[] {
+  const lines: V28YamlLine[] = [];
+  const raw = contents.split(/\r?\n/);
+  for (let index = 0; index < raw.length; index += 1) {
+    const source = raw[index] ?? '';
+    const indent = source.length - source.trimStart().length;
+    if (/^ *\t/.test(source)) return lines;
+    let text = source.trim();
+    if (text === '' || text.startsWith('#')) continue;
+    if (!/["']/.test(text)) text = text.replace(/\s+#.*$/, '');
+    lines.push({ line: index + 1, indent, text });
+  }
+  return lines;
+}
+
+function v28YamlKey(text: string): { readonly key: string; readonly value: string } | null {
+  const match = /^([A-Za-z0-9_.-]+|"[^"]*"|'[^']*')\s*:(?:\s+(.*))?$/.exec(text);
+  if (!match) return null;
+  return { key: unquoteV28YamlScalar(match[1] ?? ''), value: (match[2] ?? '').trim() };
+}
+
+function unquoteV28YamlScalar(value: string): string {
+  const match = /^(["'])(.*)\1$/.exec(value);
+  return match ? (match[2] ?? '') : value;
+}
+
+// The entries nested under entry `index`: every following entry indented deeper than it.
+function v28YamlChildren(lines: readonly V28YamlLine[], index: number): V28YamlLine[] {
+  const parent = lines[index];
+  if (!parent) return [];
+  const children: V28YamlLine[] = [];
+  for (let next = index + 1; next < lines.length; next += 1) {
+    const line = lines[next] as V28YamlLine;
+    if (line.indent <= parent.indent) break;
+    children.push(line);
+  }
+  return children;
+}
+
+// The keys of a block mapping: the entries at its first entry's indent, each with its own children.
+function v28YamlMapping(
+  lines: readonly V28YamlLine[],
+): { readonly key: string; readonly value: string; readonly line: number; readonly children: V28YamlLine[] }[] {
+  const first = lines[0];
+  if (!first) return [];
+  const entries: { key: string; value: string; line: number; children: V28YamlLine[] }[] = [];
+  lines.forEach((line, index) => {
+    if (line.indent !== first.indent) return;
+    const parsed = v28YamlKey(line.text);
+    if (!parsed) return;
+    entries.push({ ...parsed, line: line.line, children: v28YamlChildren(lines, index) });
+  });
+  return entries;
+}
+
+// The items of a block sequence (`- ` entries at its first entry's indent), each read as a mapping
+// whose first key sits on the `- ` line itself.
+function v28YamlSequenceMappings(lines: readonly V28YamlLine[]): V28YamlLine[][] {
+  const first = lines[0];
+  if (!first || !/^-\s/.test(first.text)) return [];
+  const items: V28YamlLine[][] = [];
+  lines.forEach((line, index) => {
+    if (line.indent !== first.indent) return;
+    const marker = /^-(\s+)(.*)$/.exec(line.text);
+    if (!marker) return;
+    const keyIndent = line.indent + 1 + (marker[1] ?? ' ').length;
+    const item: V28YamlLine[] = [{ line: line.line, indent: keyIndent, text: marker[2] ?? '' }];
+    for (const child of v28YamlChildren(lines, index)) item.push(child);
+    items.push(item);
+  });
+  return items;
+}
+
+// A path written in a tracked file, resolved against `base` (a repository-relative directory) only
+// where it names a file inside the repository with no variable, URL or home-directory reference.
+function resolveV28RepoPath(base: string, ...segments: readonly string[]): string | null {
+  for (const segment of segments) {
+    if (segment === '' || /[$`{}]|:\/\/|^git@|^~|^\//.test(segment)) return null;
+  }
+  const resolved = posix.normalize(posix.join(base, ...segments));
+  if (resolved === '..' || resolved.startsWith('../') || resolved.startsWith('/')) return null;
+  return resolved;
+}
+
+function v28ScalarValue(value: string): string | null {
+  if (value === '' || /^[[{&*!|>]/.test(value)) return null;
+  return unquoteV28YamlScalar(value);
+}
+
+interface V28ComposeService {
+  readonly name: string;
+  readonly dockerfile: string | null;
+  readonly image: string | null;
+  readonly healthcheckLine: number | null;
+}
+
+// Each service a compose file declares under its top-level `services:` key, with the Dockerfile its
+// `build:` resolves to (context relative to the compose file, `dockerfile:` relative to the
+// context, Dockerfile by default), its `image:` and the line of an active `healthcheck:`. A
+// healthcheck is active where it has a `test:` that is not NONE and is not `disable: true`.
+function readV28ComposeServices(file: string, contents: string): V28ComposeService[] {
+  const top = readV28YamlLines(contents);
+  const servicesIndex = top.findIndex(
+    (line) => line.indent === 0 && v28YamlKey(line.text)?.key === 'services' && v28YamlKey(line.text)?.value === '',
+  );
+  if (servicesIndex === -1) return [];
+  const base = posix.dirname(file);
+  return v28YamlMapping(v28YamlChildren(top, servicesIndex))
+    .filter(({ value }) => value === '')
+    .map(({ key: name, children }) => {
+      const body = v28YamlMapping(children);
+      const build = body.find(({ key }) => key === 'build');
+      let dockerfile: string | null = null;
+      if (build) {
+        const context = v28ScalarValue(build.value);
+        if (context !== null) {
+          dockerfile = resolveV28RepoPath(base, context, 'Dockerfile');
+        } else if (build.value === '') {
+          const buildKeys = v28YamlMapping(build.children);
+          const contextValue = buildKeys.find(({ key }) => key === 'context');
+          const dockerfileValue = buildKeys.find(({ key }) => key === 'dockerfile');
+          const contextPath = contextValue ? v28ScalarValue(contextValue.value) : '.';
+          const dockerfilePath = dockerfileValue ? v28ScalarValue(dockerfileValue.value) : 'Dockerfile';
+          dockerfile =
+            contextPath !== null && dockerfilePath !== null && !buildKeys.some(({ key }) => key === 'dockerfile_inline')
+              ? resolveV28RepoPath(base, contextPath, dockerfilePath)
+              : null;
+        }
+      }
+      const imageEntry = body.find(({ key }) => key === 'image');
+      const image = imageEntry ? v28ScalarValue(imageEntry.value) : null;
+      const healthcheck = body.find(({ key }) => key === 'healthcheck');
+      let healthcheckLine: number | null = null;
+      if (healthcheck && healthcheck.value === '') {
+        const keys = v28YamlMapping(healthcheck.children);
+        const test = keys.find(({ key }) => key === 'test');
+        const disabled = keys.some(({ key, value }) => key === 'disable' && /^(?:true|yes|on)$/i.test(value));
+        const testWords =
+          test === undefined
+            ? ''
+            : test.value !== ''
+              ? test.value
+              : (test.children[0]?.text ?? '');
+        const none = /^(?:-\s*)?\[?\s*["']?NONE["']?\s*\]?$/i.test(testWords);
+        if (test && testWords !== '' && !none && !disabled) healthcheckLine = healthcheck.line;
+      }
+      return { name, dockerfile, image, healthcheckLine };
+    });
+}
+
+// Each image a skaffold file builds, with the Dockerfile it builds it from.
+function readV28SkaffoldArtifacts(file: string, contents: string): { image: string; dockerfile: string }[] {
+  const top = readV28YamlLines(contents);
+  const artifacts: { image: string; dockerfile: string }[] = [];
+  const base = posix.dirname(file);
+  top.forEach((line, index) => {
+    const parsed = v28YamlKey(line.text);
+    if (parsed?.key !== 'artifacts' || parsed.value !== '') return;
+    for (const item of v28YamlSequenceMappings(v28YamlChildren(top, index))) {
+      const keys = v28YamlMapping(item);
+      const image = v28ScalarValue(keys.find(({ key }) => key === 'image')?.value ?? '');
+      const context = keys.find(({ key }) => key === 'context');
+      const contextPath = context ? v28ScalarValue(context.value) : '.';
+      const docker = keys.find(({ key }) => key === 'docker');
+      const dockerfileEntry = docker ? v28YamlMapping(docker.children).find(({ key }) => key === 'dockerfile') : undefined;
+      const dockerfilePath = dockerfileEntry ? v28ScalarValue(dockerfileEntry.value) : 'Dockerfile';
+      if (image === null || contextPath === null || dockerfilePath === null) continue;
+      const dockerfile = resolveV28RepoPath(base, contextPath, dockerfilePath);
+      if (dockerfile !== null) artifacts.push({ image, dockerfile });
+    }
+  });
+  return artifacts;
+}
+
+// Each container an orchestration manifest declares (an item under a `containers:` key) with its
+// image and the line of each liveness or readiness probe it declares.
+function readV28ManifestProbes(contents: string): { image: string; probe: string; line: number }[] {
+  const top = readV28YamlLines(contents);
+  const probes: { image: string; probe: string; line: number }[] = [];
+  top.forEach((line, index) => {
+    const parsed = v28YamlKey(line.text);
+    if (parsed?.key !== 'containers' || parsed.value !== '') return;
+    for (const item of v28YamlSequenceMappings(v28YamlChildren(top, index))) {
+      const keys = v28YamlMapping(item);
+      const image = v28ScalarValue(keys.find(({ key }) => key === 'image')?.value ?? '');
+      if (image === null) continue;
+      for (const { key, value, line: probeLine, children } of keys) {
+        if ((key === 'livenessProbe' || key === 'readinessProbe') && value === '' && children.length > 0) {
+          probes.push({ image, probe: key, line: probeLine });
+        }
+      }
+    }
+  });
+  return probes;
+}
+
+// An image reference's repository and tag. Two references name the same image where their
+// repositories are equal and their tags are too, or either has none. A reference with a variable
+// or template in it names nothing this reading can resolve.
+function sameV28Image(left: string, right: string): boolean {
+  const split = (reference: string): { name: string; tag: string | null } | null => {
+    if (/[$`{}\s]/.test(reference) || reference === '') return null;
+    const withoutDigest = reference.replace(/@sha256:[0-9a-f]+$/i, '');
+    const slash = withoutDigest.lastIndexOf('/');
+    const colon = withoutDigest.indexOf(':', slash + 1);
+    return colon === -1
+      ? { name: withoutDigest, tag: null }
+      : { name: withoutDigest.slice(0, colon), tag: withoutDigest.slice(colon + 1) };
+  };
+  const a = split(left);
+  const b = split(right);
+  if (!a || !b || a.name !== b.name) return false;
+  return a.tag === null || b.tag === null || a.tag === b.tag;
+}
+
+/**
+ * v28 (21 Nov, item A): each runtime Dockerfile (findRuntimeContainerEntrypointFiles, v20's
+ * definition, which the v20 finding used) and every tracked source that covers it: its own active
+ * HEALTHCHECK; a compose file's active `healthcheck:` for a service whose `build:` resolves to it;
+ * an orchestration manifest's liveness or readiness probe for a container whose image a compose
+ * service or a skaffold artifact builds from it. A link that cannot be resolved from tracked files
+ * credits nothing. Exported for v28-a3-a2-readings.test.ts.
+ */
+export function readV28RuntimeHealthcheckCoverage(
+  repoPath: string,
+  repoFiles: readonly string[],
+): V28RuntimeHealthcheckCoverage[] {
+  const dockerfiles = findRuntimeContainerEntrypointFiles(repoPath, repoFiles, true);
+  if (dockerfiles.length === 0) return [];
+  const read = (file: string): string | null => {
+    const fullPath = join(repoPath, file);
+    return isRegularFile(fullPath) ? readRepoText(fullPath, 'utf8') : null;
+  };
+  const authoredYaml = repoFiles.filter(
+    (file) => V28_MANIFEST_FILE_PATTERN.test(file) && isAuthoredProductionPath(file) && !isCiWorkflow(file),
+  );
+  const services: (V28ComposeService & { file: string })[] = [];
+  const builtImages: { image: string; dockerfile: string }[] = [];
+  const probes: { file: string; image: string; probe: string; line: number }[] = [];
+  for (const file of authoredYaml) {
+    const isCompose = V28_COMPOSE_FILE_PATTERN.test(file);
+    const isSkaffold = V28_SKAFFOLD_FILE_PATTERN.test(file);
+    const contents = read(file);
+    if (contents === null) continue;
+    if (isCompose) {
+      for (const service of readV28ComposeServices(file, contents)) {
+        services.push({ ...service, file });
+        if (service.dockerfile !== null && service.image !== null) {
+          builtImages.push({ image: service.image, dockerfile: service.dockerfile });
+        }
+      }
+    } else if (isSkaffold) {
+      builtImages.push(...readV28SkaffoldArtifacts(file, contents));
+    } else if (/(?:^|\n)\s*containers:\s*(?:#.*)?(?:\r?\n|$)/.test(contents)) {
+      for (const probe of readV28ManifestProbes(contents)) probes.push({ ...probe, file });
+    }
+  }
+  return dockerfiles.map((dockerfile) => {
+    const sources: V28HealthcheckSource[] = [];
+    const healthcheckLine = findFirstMatchingLine(repoPath, dockerfile, ACTIVE_DOCKERFILE_HEALTHCHECK_LINE_PATTERN);
+    if (healthcheckLine !== null) {
+      sources.push({ path: dockerfile, line: healthcheckLine, label: 'Runtime Dockerfile healthcheck: HEALTHCHECK instruction' });
+    }
+    for (const service of services) {
+      if (service.dockerfile === dockerfile && service.healthcheckLine !== null) {
+        sources.push({
+          path: service.file,
+          line: service.healthcheckLine,
+          label: `Runtime Dockerfile healthcheck: compose healthcheck for service ${service.name}, built from ${dockerfile}`,
+        });
+      }
+    }
+    const images = builtImages.filter((built) => built.dockerfile === dockerfile).map(({ image }) => image);
+    for (const probe of probes) {
+      if (images.some((image) => sameV28Image(image, probe.image))) {
+        sources.push({
+          path: probe.file,
+          line: probe.line,
+          label: `Runtime Dockerfile healthcheck: ${probe.probe} for image ${probe.image}, built from ${dockerfile}`,
+        });
+      }
+    }
+    return { dockerfile, sources };
+  });
 }
 
 function isHealthCheckSignalFile(repoPath: string, file: string): boolean {
