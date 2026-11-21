@@ -23,6 +23,7 @@ import {
 } from './fixtures/b3-publishing-gates-fixtures.js';
 import { buildFalseAssuranceFixture } from './fixtures/false-assurance-fixtures.js';
 import { checkNoRise, lostFindings } from './v27-no-rise.js';
+import { expectV28EqualsV27 } from './v28-equals-v27.js';
 
 // v27 B3, publishing rule gates and citations (2026-11-13; refs #517, #600). Item A: a publishing
 // workflow whose every publishing job declares an `environment:` has a deployment gate, so v27's
@@ -32,8 +33,8 @@ import { checkNoRise, lostFindings } from './v27-no-rise.js';
 
 const V17 = WITAN_RUBRIC_VERSION_V17;
 const V27 = WITAN_RUBRIC_VERSION_V27;
-// v28 (2026-11-20) postdates these main pins and carries v27's gate; it is measured against v27 on
-// these fixtures in leaderboard/RUBRIC_CHANGELOG.md (v28 declared) and v28-a1-readings.test.ts.
+// v28 (2026-11-20) postdates these main pins and carries v27's gate; the test at the end of this
+// file holds its report to v27's on every fixture here (v28-equals-v27.ts).
 const OTHER_RUBRICS = WITAN_SELECTABLE_RUBRIC_VERSIONS.filter((version) => version !== V27 && version !== WITAN_RUBRIC_VERSION_V28);
 
 const PINS_PATH = new URL('./fixtures/b3-publishing-gates-main-pins.json', import.meta.url);
@@ -204,5 +205,14 @@ describe('item C — the investigated shape (no code change)', () => {
       }
     }
     writeFileSync(process.env.B3_PUBLISHING_GATES_DUMP ?? '',`${JSON.stringify(out, null, 2)}\n`);
+  });
+});
+
+// Item F of the second v28 card (21 Nov): the fixtures a v28 item reaches, each with its item.
+const V28_REACHES: Readonly<Record<string, string>> = {};
+
+describe('v28 equals v27 on these fixtures, report identifier aside, except where a v28 item reaches one', () => {
+  it('every fixture', () => {
+    expectV28EqualsV27(PUBLISHING_GATES_FIXTURES.map(({ name }) => name), report, V28_REACHES);
   });
 });

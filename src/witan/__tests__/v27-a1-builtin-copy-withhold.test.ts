@@ -10,6 +10,7 @@ import { scoreRepoWithPublicCejel } from '../public-scan.js';
 import { WITAN_RUBRIC_VERSION_V27, WITAN_RUBRIC_VERSION_V28, WITAN_SELECTABLE_RUBRIC_VERSIONS } from '../rubric-version.js';
 import { buildFalseAssuranceFixture } from './fixtures/false-assurance-fixtures.js';
 import { ALLOWLIST_FIXTURES } from './fixtures/v27-a1-allowlist-fixtures.js';
+import { expectV28EqualsV27 } from './v28-equals-v27.js';
 
 // goal_cejel_v27_a1_builtin_copy_withhold_2026-11-17 (#664, operator ruling of 17 Nov, option B).
 // v27 never credits a copy of pytest's collected items made through a builtin (`list(items)`,
@@ -25,8 +26,8 @@ import { ALLOWLIST_FIXTURES } from './fixtures/v27-a1-allowlist-fixtures.js';
 // status or finding count); and, for each copy that calls no builtin, v27's report hash.
 
 const V27 = WITAN_RUBRIC_VERSION_V27;
-// v28 (2026-11-20) postdates these main pins and carries v27's gate; it is measured against v27 on
-// these fixtures in leaderboard/RUBRIC_CHANGELOG.md (v28 declared) and v28-a1-readings.test.ts.
+// v28 (2026-11-20) postdates these main pins and carries v27's gate; the test at the end of this
+// file holds its report to v27's on every fixture here (v28-equals-v27.ts).
 const OTHER_RUBRICS = WITAN_SELECTABLE_RUBRIC_VERSIONS.filter((version) => version !== V27 && version !== WITAN_RUBRIC_VERSION_V28);
 
 const PINS_PATH = new URL('./fixtures/v27-a1-builtin-copy-main-pins.json', import.meta.url);
@@ -146,5 +147,14 @@ describe('#664: a copy through a builtin is never credited under v27', () => {
     const notes = a1Notes('a1al-g-imported-module-patches-builtins-list');
     expect(notes).toContain(`ook not read: \`saved = list(items)\` in tests/conftest.py ${CLAUSE}`);
     expect(notes).not.toContain('tests/helpers.py');
+  });
+});
+
+// Item F of the second v28 card (21 Nov): the fixtures a v28 item reaches, each with its item.
+const V28_REACHES: Readonly<Record<string, string>> = {};
+
+describe('v28 equals v27 on these fixtures, report identifier aside, except where a v28 item reaches one', () => {
+  it('every fixture', () => {
+    expectV28EqualsV27(NAMES, report, V28_REACHES);
   });
 });

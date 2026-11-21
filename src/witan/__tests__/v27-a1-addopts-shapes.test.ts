@@ -11,6 +11,7 @@ import { readPytestInvocations } from '../repo-signals.js';
 import { WITAN_RUBRIC_VERSION_V17, WITAN_RUBRIC_VERSION_V27, WITAN_RUBRIC_VERSION_V28, WITAN_SELECTABLE_RUBRIC_VERSIONS } from '../rubric-version.js';
 import { buildFalseAssuranceFixture } from './fixtures/false-assurance-fixtures.js';
 import { ADDOPTS_SHAPE_FIXTURES, CI, addoptsShapeFixture } from './fixtures/v27-a1-addopts-shapes-fixtures.js';
+import { expectV28EqualsV27 } from './v28-equals-v27.js';
 
 // goal_cejel_v27_a1_addopts_shapes_2026-11-17 (#705 option B, ruling of 17 Nov; #713 and #661 folded
 // in by the ruling of 19 Nov).
@@ -37,8 +38,8 @@ import { ADDOPTS_SHAPE_FIXTURES, CI, addoptsShapeFixture } from './fixtures/v27-
 
 const V17 = WITAN_RUBRIC_VERSION_V17;
 const V27 = WITAN_RUBRIC_VERSION_V27;
-// v28 (2026-11-20) postdates these main pins and carries v27's gate; it is measured against v27 on
-// these fixtures in leaderboard/RUBRIC_CHANGELOG.md (v28 declared) and v28-a1-readings.test.ts.
+// v28 (2026-11-20) postdates these main pins and carries v27's gate; the test at the end of this
+// file holds its report to v27's on every fixture here (v28-equals-v27.ts).
 const OTHER_RUBRICS = WITAN_SELECTABLE_RUBRIC_VERSIONS.filter((version) => version !== V27 && version !== WITAN_RUBRIC_VERSION_V28);
 
 const PINS_PATH = new URL('./fixtures/v27-a1-addopts-shapes-main-pins.json', import.meta.url);
@@ -322,5 +323,14 @@ describe('v27 A1, item G (#661): the nox empty-posargs set', () => {
     const files = new Map(Object.entries(fixture?.files ?? {}));
     const runs = readPytestInvocations([...files.keys()], (file) => files.get(file)).filter(({ file }) => file === 'noxfile.py');
     expect(runs.map(({ args }) => args.join(' '))).toEqual(['-p no:skipping', '-p no:skipping tests/test_lru.py']);
+  });
+});
+
+// Item F of the second v28 card (21 Nov): the fixtures a v28 item reaches, each with its item.
+const V28_REACHES: Readonly<Record<string, string>> = {};
+
+describe('v28 equals v27 on these fixtures, report identifier aside, except where a v28 item reaches one', () => {
+  it('every fixture', () => {
+    expectV28EqualsV27(ADDOPTS_SHAPE_FIXTURES.map(({ name }) => name), report, V28_REACHES);
   });
 });

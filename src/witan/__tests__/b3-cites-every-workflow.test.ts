@@ -26,6 +26,7 @@ import {
 } from './fixtures/b3-cites-every-workflow-fixtures.js';
 import { buildFalseAssuranceFixture } from './fixtures/false-assurance-fixtures.js';
 import { checkNoRise, lostFindings } from './v27-no-rise.js';
+import { expectV28EqualsV27 } from './v28-equals-v27.js';
 
 // v27 B3 cites every workflow it read (2026-11-19; refs #600). Item A: under v27 B3's evidence cites
 // every workflow it read, each counted one at the line that earned its credit with what it earned,
@@ -36,8 +37,8 @@ import { checkNoRise, lostFindings } from './v27-no-rise.js';
 
 const V17 = WITAN_RUBRIC_VERSION_V17;
 const V27 = WITAN_RUBRIC_VERSION_V27;
-// v28 (2026-11-20) postdates these main pins and carries v27's gate; it is measured against v27 on
-// these fixtures in leaderboard/RUBRIC_CHANGELOG.md (v28 declared) and v28-a1-readings.test.ts.
+// v28 (2026-11-20) postdates these main pins and carries v27's gate; the test at the end of this
+// file holds its report to v27's on every fixture here (v28-equals-v27.ts).
 const OTHER_RUBRICS = WITAN_SELECTABLE_RUBRIC_VERSIONS.filter((version) => version !== V27 && version !== WITAN_RUBRIC_VERSION_V28);
 
 const PINS_PATH = new URL('./fixtures/b3-cites-every-workflow-main-pins.json', import.meta.url);
@@ -296,5 +297,14 @@ describe('items B and C — the investigated shapes (no code change)', () => {
       }
     }
     writeFileSync(process.env.B3_CITES_EVERY_WORKFLOW_DUMP ?? '', `${out.join('\n')}\n`);
+  });
+});
+
+// Item F of the second v28 card (21 Nov): the fixtures a v28 item reaches, each with its item.
+const V28_REACHES: Readonly<Record<string, string>> = {};
+
+describe('v28 equals v27 on these fixtures, report identifier aside, except where a v28 item reaches one', () => {
+  it('every fixture', () => {
+    expectV28EqualsV27(CITE_EVERY_WORKFLOW_FIXTURES.map(({ name }) => name), report, V28_REACHES);
   });
 });

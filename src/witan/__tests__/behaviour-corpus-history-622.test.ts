@@ -20,6 +20,7 @@ import {
   HERMETIC_GIT_ENV,
   type BehaviourFixture,
 } from './fixtures/behaviour-corpus.js';
+import { expectV28EqualsV27 } from './v28-equals-v27.js';
 
 // #622: the behaviour corpus's history and publishing specimens. The fingerprint test scores them;
 // this file checks that they are what they claim to be: the shallow specimen is a shallow clone
@@ -177,5 +178,24 @@ describe(`#622 — ${PUBLISHING}: v27 counts a workflow that checks before it pu
     );
     expect(v27.metrics.find(({ name }) => name === 'default_branch_ci_depth')?.value).toBe(1);
     expect(v27.score).toBe(v17.score);
+  });
+});
+
+// Item F of the second v28 card (21 Nov): the specimens a v28 item reaches, each with its item.
+const V28_REACHES: Readonly<Record<string, string>> = {};
+
+describe('v28 equals v27 on these specimens, report identifier aside, except where a v28 item reaches one', () => {
+  it(`${SHALLOW} (shallow and full) and ${PUBLISHING}`, () => {
+    const specimens = new Map<string, BehaviourFixture>([
+      [SHALLOW, fixture(SHALLOW)],
+      [`${SHALLOW}-full-clone`, { ...fixture(SHALLOW), cloneDepth: undefined }],
+      [PUBLISHING, fixture(PUBLISHING)],
+    ]);
+    const dirs = new Map([...specimens].map(([name, specimen]) => [name, buildBehaviourFixture(specimen)]));
+    expectV28EqualsV27(
+      [...specimens.keys()],
+      (name, rubricVersion) => scan(dirs.get(name) as string, name, rubricVersion),
+      V28_REACHES,
+    );
   });
 });
