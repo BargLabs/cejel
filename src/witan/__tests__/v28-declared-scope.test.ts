@@ -164,7 +164,7 @@ describe('v28 declared scope', () => {
     expect(alone,'only the own reading functions name V28 alone').toBe(Object.keys(V28_OWN_READING_FUNCTIONS).length);
   });
 
-  it('declares the v27 parent, what it changes, the rise rule, explicit-only, and no claim', () => {
+  it('declares the v27 parent, what it changes, the rise rules, explicit-only, and no claim', () => {
     const declaration = readFileSync(RUBRIC_VERSION_SOURCE_PATH, 'utf8');
     const block = declaration.slice(
       declaration.indexOf('// Prospective successor to v27.'),
@@ -176,6 +176,9 @@ describe('v28 declared scope', () => {
     expect(block).toContain('usesV28OwnReadings');
     for (const item of ['Item B', 'Item C', 'Item D']) expect(block).toContain(item);
     expect(block).toContain('may score above v27 only by items B to D');
+    expect(block).toContain('On 21 Nov 2026 (operator ruling 50');
+    expect(block).toContain('readV28A5ClaimStatus');
+    expect(block).toContain('the one other way v28 may score above v27');
     expect(block).toContain('leaderboard/RUBRIC_CHANGELOG.md');
     expect(block).toContain('The public default remains v17');
     expect(block).toContain('no precision or recall claim');

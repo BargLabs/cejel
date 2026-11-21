@@ -287,6 +287,9 @@ export const WITAN_RUBRIC_BEHAVIOUR_FINGERPRINTS: Readonly<Record<string, string
   // scores the corpus exactly as v27 does and carries v27's value; the pair is declared
   // behaviourally identical on this corpus in rubric-behaviour-fingerprint.test.ts and
   // leaderboard/RUBRIC_CHANGELOG.md, and v28-a1-readings.test.ts measures where they differ.
+  // Re-measured 2026-11-21 with v28's A5 claim-status reading: no specimen's claim source has a
+  // limitations, known-issues or status section or a status table, so the value is unchanged;
+  // v28-a5-claim-status.test.ts measures the shapes the reading reaches.
   [WITAN_RUBRIC_VERSION_V28]:
     'sha256:8fa9d87e3047afb80e8e09d08c5cb88a651c8e8b69b6b35184d2ab98ddd3a8fb',
 });

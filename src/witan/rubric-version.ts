@@ -713,8 +713,8 @@ export const WITAN_RUBRIC_VERSION_V27 = 'witan-rubric-v27-prospective-2026-10-19
 // WITAN_RUBRIC_VERSION_V27 also names WITAN_RUBRIC_VERSION_V28, and none naming V18-V26 does),
 // and v27's one gate, which v28 reaches through `usesV27FalseAssuranceGate` (true for V27 and V28;
 // `usesV27FalseAssuranceClosure` itself is unchanged and is called nowhere else). What v28 changes
-// is gated on WITAN_RUBRIC_VERSION_V28 alone, through `usesV28OwnReadings`, and reads A1 only
-// (`readV28A1Readings`):
+// is gated on WITAN_RUBRIC_VERSION_V28 alone, through `usesV28OwnReadings`, and as first declared
+// reads A1 only (`readV28A1Readings`; the A5 reading of 21 Nov is the dated sentence below):
 //   - Item B: the coverage check counts coverage as configured where, for a configured runner the
 //     reading can name, a test command in a tracked manifest, script, recipe, tox `commands` or CI
 //     step passes that runner's coverage flag (`--coverage` for jest, vitest, react-scripts and
@@ -743,6 +743,12 @@ export const WITAN_RUBRIC_VERSION_V27 = 'witan-rubric-v27-prospective-2026-10-19
 // and each fixture that does is counted, with its item, in leaderboard/RUBRIC_CHANGELOG.md and
 // pinned in src/witan/__tests__/v28-a1-readings.test.ts, whose no-rise test fails on any other
 // rise. A3 and A2 changes belong to the second v28 card and are not in this declaration.
+// On 21 Nov 2026 (operator ruling 50; goal_cejel_v28_a5_claim_status_reading_2026-11-20) v28 also
+// reads A5, through `readV28A5ClaimStatus`: a claim source with a limitations, known-issues or
+// status section that has content under it, or a table that states status, reconciles its claims,
+// so A5 makes no claim-reconciliation finding, cites the section or table at its line and counts
+// that source in reconciliation_artifact_depth; this is the one other way v28 may score above v27,
+// on A5 and the scores A5 feeds only, and each fixture that does is named with it.
 // The public default remains v17; callers must opt in explicitly. This declaration carries
 // no precision or recall claim, and no holdout or calibration has run.
 export const WITAN_RUBRIC_VERSION_V28 = 'witan-rubric-v28-prospective-2026-11-20';
