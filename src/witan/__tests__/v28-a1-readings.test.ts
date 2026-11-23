@@ -5,7 +5,7 @@ import { dirname, join } from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
 
 import { scoreRepoWithPublicCejel } from '../public-scan.js';
-import { readV28A1Readings } from '../repo-signals.js';
+import { readV28A1Readings, readV28A5ClaimStatus } from '../repo-signals.js';
 import { projectWitanScoringSurface } from '../rubric-fingerprint.js';
 import { WITAN_RUBRIC_VERSION_V27, WITAN_RUBRIC_VERSION_V28 } from '../rubric-version.js';
 import type { WitanReport } from '../schemas.js';
@@ -18,6 +18,7 @@ import {
   V28_NO_READING_FIXTURES,
   type V28A1Fixture,
 } from './fixtures/v28-a1-readings-fixtures.js';
+import { V28_A5_FIXTURES } from './fixtures/v28-a5-claim-status-fixtures.js';
 
 // goal_cejel_v28_declaration_and_a1_readings_2026-11-20 (operator rulings 35 and 36, 20 Nov). v28 is
 // v27 plus three A1 readings: coverage switched on by a flag, a runner config block or a runner
@@ -78,7 +79,7 @@ const trackedFiles = (dir: string): string[] =>
   execFileSync('git', ['ls-files', '-z'], { cwd: dir, env: HERMETIC_GIT_ENV, encoding: 'utf8' }).split('\0').filter(Boolean);
 
 beforeAll(() => {
-  for (const fixture of V28_A1_FIXTURES) dirs.set(fixture.name, makeRepo(fixture));
+  for (const fixture of [...V28_A1_FIXTURES, ...V28_A5_FIXTURES]) dirs.set(fixture.name, makeRepo(fixture));
 }, 120_000);
 
 // main's v27 reading of each item B fixture: whether the no-coverage finding fires.
@@ -209,7 +210,10 @@ describe('item D: .NET test projects, Flutter and react-scripts are configured r
 
 // Every fixture on which v28 scores above v27 anywhere (composite, either trust score, or any
 // criterion), with the item whose reading raises it. Each is listed in the RUBRIC_CHANGELOG entry.
-export const V28_DECLARED_RISES: Readonly<Record<string, 'B' | 'C' | 'D'>> = {
+// 'A5' is the A5 claim-status reading (goal_cejel_v28_a5_claim_status_reading_2026-11-20): a
+// reconciling claim source counts toward reconciliation_artifact_depth, so it can raise A5 and,
+// through it, code trust and the composite, and nothing else.
+export const V28_DECLARED_RISES: Readonly<Record<string, 'B' | 'C' | 'D' | 'A5'>> = {
   'v28d-dotnet-test-project': 'D',
   'v28d-flutter-test-project': 'D',
   'v28d-react-scripts-test-project': 'D',
@@ -218,7 +222,20 @@ export const V28_DECLARED_RISES: Readonly<Record<string, 'B' | 'C' | 'D'>> = {
   // Item B fixtures whose runner only v28 recognises: the rise is item D's runner credit.
   'v28b-dotnet-xplat-collect-in-ci': 'D',
   'v28b-flutter-test-coverage-in-ci': 'D',
+  'v28a5-known-limitations-section': 'A5',
+  'v28a5-feature-status-table': 'A5',
+  'v28a5-status-marks-table': 'A5',
+  'v28a5-known-issues-in-top-level-doc': 'A5',
 };
+
+// What the A5 claim-status reading may move: A5 itself, and the scores A5 feeds.
+const A5_RISE_SURFACE = new Set(['A5', 'codeTrustScore', 'overallScore']);
+
+/** Each rise the A5 reading cannot explain, or an A5 rise where no A5 reading applies. */
+function unexplainedByA5(moved: readonly string[], a5Reads: boolean): string[] {
+  if (!moved.includes('A5')) return [];
+  return a5Reads ? moved.filter((what) => !A5_RISE_SURFACE.has(what)) : ['A5 (no A5 claim-status reading applies)'];
+}
 
 function rises(v27: WitanReport, v28: WitanReport): string[] {
   const moved: string[] = [];
@@ -234,26 +251,35 @@ function rises(v27: WitanReport, v28: WitanReport): string[] {
   return moved;
 }
 
-describe('no rise above v27 except by items B to D', () => {
-  it('every v28 rise over v27 is a declared fixture whose item B to D reading applies, and every declared rise rises', () => {
+describe('no rise above v27 except by items B to D and the A5 claim-status reading', () => {
+  it('every v28 rise over v27 is a declared fixture whose reading applies, and every declared rise rises', () => {
     const undeclared: string[] = [];
-    for (const { name } of V28_A1_FIXTURES) {
+    for (const { name } of [...V28_A1_FIXTURES, ...V28_A5_FIXTURES]) {
       const moved = rises(score(name, WITAN_RUBRIC_VERSION_V27), score(name, WITAN_RUBRIC_VERSION_V28));
       const item = V28_DECLARED_RISES[name];
+      const dir = dirs.get(name) as string;
+      const a5Reads = readV28A5ClaimStatus(dir, trackedFiles(dir)).length > 0;
       if (moved.length > 0 && item === undefined) undeclared.push(`${name}: ${moved.join(', ')}`);
+      if (item !== 'A5' && moved.includes('A5')) undeclared.push(`${name}: A5 rises, but is not declared with the A5 reading`);
       if (item !== undefined) {
         expect(moved.length, `${name} is declared to rise by item ${item}, but does not`).toBeGreaterThan(0);
-        const dir = dirs.get(name) as string;
-        expect(readV28A1Readings(dir, trackedFiles(dir)).items, name).toContain(item);
+        if (item === 'A5') {
+          expect(a5Reads, name).toBe(true);
+          expect(moved, name).toContain('A5');
+          expect(unexplainedByA5(moved, a5Reads), name).toEqual([]);
+        } else {
+          expect(readV28A1Readings(dir, trackedFiles(dir)).items, name).toContain(item);
+        }
       }
     }
     expect(undeclared).toEqual([]);
   });
 
-  it("where no item B to D reading applies, v28's scoring surface and A1 evidence are v27's", () => {
+  it("where no v28 reading applies, v28's scoring surface and A1 evidence are v27's", () => {
     for (const { name } of V28_NO_READING_FIXTURES) {
       const dir = dirs.get(name) as string;
       expect(readV28A1Readings(dir, trackedFiles(dir)).items, name).toEqual([]);
+      expect(readV28A5ClaimStatus(dir, trackedFiles(dir)), name).toEqual([]);
       expect(projectWitanScoringSurface(score(name, WITAN_RUBRIC_VERSION_V28)), name).toEqual(
         projectWitanScoringSurface(score(name, WITAN_RUBRIC_VERSION_V27)),
       );
@@ -261,7 +287,7 @@ describe('no rise above v27 except by items B to D', () => {
     }
   });
 
-  it('on the behaviour corpus, v28 never rises above v27 where no item B to D reading applies', () => {
+  it('on the behaviour corpus, v28 never rises above v27 where no v28 reading applies, and A5 only by the A5 reading', () => {
     const offending: string[] = [];
     for (const fixture of BEHAVIOUR_CORPUS) {
       const dir = buildBehaviourFixture(fixture);
@@ -276,13 +302,16 @@ describe('no rise above v27 except by items B to D', () => {
       const v27 = scoreRepoWithPublicCejel({ ...options, rubricVersion: WITAN_RUBRIC_VERSION_V27 });
       const v28 = scoreRepoWithPublicCejel({ ...options, rubricVersion: WITAN_RUBRIC_VERSION_V28 });
       const items = readV28A1Readings(dir, trackedFiles(dir)).items;
-      if (items.length === 0) {
+      const a5Reads = readV28A5ClaimStatus(dir, trackedFiles(dir)).length > 0;
+      const moved = rises(v27, v28);
+      if (items.length === 0 && !a5Reads) {
         if (JSON.stringify(projectWitanScoringSurface(v28)) !== JSON.stringify(projectWitanScoringSurface(v27))) {
           offending.push(`${fixture.name}: scoring surface differs with no v28 reading`);
         }
-      } else if (rises(v27, v28).length > 0 && V28_DECLARED_RISES[fixture.name] === undefined) {
-        offending.push(`${fixture.name}: ${rises(v27, v28).join(', ')} (items ${items.join(', ')})`);
+      } else if (moved.length > 0 && V28_DECLARED_RISES[fixture.name] === undefined) {
+        offending.push(`${fixture.name}: ${moved.join(', ')} (items ${[...items, ...(a5Reads ? ['A5'] : [])].join(', ')})`);
       }
+      for (const what of unexplainedByA5(moved, a5Reads)) offending.push(`${fixture.name}: ${what}`);
     }
     expect(offending).toEqual([]);
   }, 300_000);

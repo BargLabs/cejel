@@ -98,6 +98,8 @@ const STRUCTURALLY_UNREACHABLE_CRITERIA = ['B1', 'B5'] as const;
 // v28 (2026-11-20): its A1 readings reach no shape this corpus holds, so it scores the corpus as v27
 // does; v28-a1-readings.test.ts measures the shapes where the two differ. Extending the corpus to
 // reach them would move every pinned fingerprint, which the change that declared v28 may not do.
+// Re-measured 2026-11-21 with v28's A5 claim-status reading, which no specimen's claim source
+// reaches either; v28-a5-claim-status.test.ts measures it.
 const DECLARED_BEHAVIOURALLY_IDENTICAL: readonly (readonly string[])[] = [
   [WITAN_RUBRIC_VERSION_V27, WITAN_RUBRIC_VERSION_V28],
 ];

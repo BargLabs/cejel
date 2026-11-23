@@ -22,6 +22,107 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
+## 2026-11-21 (v28 A5 claim-status reading) — under v28, a limitations, known-issues or status section, or a feature-status table, in a claim source reconciles its claims: A5 makes no claim-reconciliation finding, cites the section or table at its line and counts the source in `reconciliation_artifact_depth`; v17-v27 byte-identical; every v28 rise is this reading's, each listed; v28's fingerprint re-measured and unchanged; no published score moved
+
+**Status.** A change to the prospective rubric `witan-rubric-v28-prospective-2026-11-20` alone
+(operator ruling 50, 20 Nov; goal_cejel_v28_a5_claim_status_reading_2026-11-20). It is selectable
+with `--rubric-pin` and is never the default; the default stays v17. No holdout or calibration ran,
+and this entry makes no precision or recall claim.
+
+**Why.** v17's A5 reading, which v27 and v28 inherit, accepts one reconciliation artifact: a file
+named `claim-reality-reconciliation.md`, `.mdx` or `.json` with Cejel's exact heading or
+`artifactKind`. Almost no repository has one, so the finding fires wherever A5 measures, and a
+limitations or threat-model section only softens it from warning to info. The ruling: under v28 the
+defect is that the README or top-level docs describe what the software does and no tracked file says
+which of those claims hold. A section or table that says which claims hold reconciles them.
+
+**Change (v28 only, through `usesV28OwnReadings`).**
+
+- **Item A, the reading.** `readV28A5ClaimStatus` in `src/witan/repo-signals.ts` reads each claim
+  source (`isClaimSourceFile`: `README.md`, or a `.md` or `.mdx` file directly under `docs/`; which
+  files count is unchanged) and finds the first of:
+  - an ATX heading matching `NEGATIVE_SPACE_SECTION_PATTERN` (limitations, threat model, non-goals,
+    out of scope, known limitations, "what this ... does not"), or whose whole text is known issues,
+    status, feature, project or implementation status, support matrix, compatibility (matrix),
+    roadmap and/with status, or what works, with at least one non-blank line under it before the
+    next heading;
+  - a Markdown table (a header row with a delimiter row under it) with at least one body row, whose
+    header has a status or support column (Status, State, Supported, Support, Works, Working, Done,
+    Implemented, Available, Stability) with a value in some row, or one of whose body cells starts
+    with a status mark (✅, ❌, ✔, ✓, ✗, ✖, ⚠, 🚧 or their GitHub shortcodes) or is yes, no,
+    partial(ly) or planned.
+
+  Headings and tables inside a fenced code block are not read; a Cejel-format artifact is counted as
+  before and is not read here. Each reconciling claim source is cited as `claim_reconciliation`
+  evidence at the line of its section's heading or its table's header row, and any one withdraws the
+  claim-reconciliation finding. Where none reconciles, the finding fires as before, with the same
+  severity rule.
+- **Item B, the metric.** `reconciliation_artifact_depth` counted only the named artifact. Under v28
+  it counts the named artifacts plus each reconciling claim source, against the same maximum of 3,
+  so credit saturates at three as before. A withheld claim source is not read, reconciles nothing
+  and adds no abstention to this metric: abstaining would take a metric at 0 out of A5's average, a
+  rise on content Cejel did not read.
+
+**What this does to A5's score.** A5's metrics weigh 0.5, 0.35 and 0.15, so each reconciling
+claim source adds 0.2 to A5's metric score (one third of 0.15, on the 0-4 scale), up to 0.6 at three.
+Withdrawing the finding also lifts its cap: 2.4 where the finding was a warning, 3.4 where it was
+info. A5 therefore rises on every repository where a claim source reconciles; it never falls. Where
+A5's score is still in the warning or critical band, the metric-derived A5 finding (which says no
+single finding drove the score) fires as it did before, now carrying the band of the higher score.
+
+**The rise rule.** `v28-a1-readings.test.ts`'s no-rise test now also builds this change's
+fixtures. It fails on a v28 rise over v27 on a fixture not declared with its reading; on an A5 rise
+on a fixture not declared with this reading (`'A5'`); on a fixture declared with it where
+`readV28A5ClaimStatus` finds nothing, A5 does not rise, or anything other than A5, code trust or the
+composite rises; and, on the behaviour corpus and the no-reading fixtures, on any difference in the
+scoring surface where neither an item B to D reading nor this reading applies.
+
+**Measured** on 21 Nov at this branch's code (items A and B at `cec21a2f2`) against main
+`53dd81a61`. The set is the one the 2026-11-20 (v28 declared) entry names, collected the same way
+(every fixture exported by a `*-fixtures.ts` file of `src/witan/__tests__/fixtures/`, each name
+once): 1,293 synthetic repositories, and this change's 8 (`v28-a5-claim-status-fixtures.ts`), 1,301.
+
+- **How the passes ran.** One driver, not committed, built each fixture with
+  `buildFalseAssuranceFixture`, scored it under each selectable rubric and hashed report.json with
+  the scan directory's path replaced. For the main pass, main's `repo-signals.ts` (the one source
+  file this change's code touches) was checked out over this branch's, and restored after; the
+  other changed source files differ from main in comments only. Report JSON only was compared; HTML
+  and Markdown certificates were not. 0 errors on either side.
+- **Not compared.** The symlink fixture (`review4-a4-working-directory-through-tracked-symlink`)
+  is left out of both counts below, as in the entries before, since its head SHA differs on every
+  build. Its report differs between the two passes for that reason alone; no score, status,
+  verdict or A5 field of it moved.
+- **v17 to v27:** 14,300 of 14,300 reports byte-identical to main, on the other 1,300 fixtures.
+- **v28 against v28 before this change, on the same 1,300:**
+  - identical: 1,296;
+  - differing in evidence or findings only, no score, status or verdict moving: 0;
+  - lower: 0;
+  - higher: 4, each by this reading (A5 rises by item B's 0.2; code trust follows; no composite
+    or verdict moves).
+
+  | Fixture | Composite before / after | Code trust before / after | A5 before / after | Verdict before / after | Reading |
+  | --- | --- | --- | --- | --- | --- |
+  | `v28a5-known-limitations-section` | 0.4 / 0.4 | 0.7 / 0.8 | 1.4 / 1.6 | unverified / unverified | section, `README.md` line 9 |
+  | `v28a5-feature-status-table` | 0.4 / 0.4 | 0.7 / 0.8 | 1.4 / 1.6 | unverified / unverified | table, `README.md` line 11 |
+  | `v28a5-status-marks-table` | 0.4 / 0.4 | 0.7 / 0.8 | 1.4 / 1.6 | unverified / unverified | table, `README.md` line 11 |
+  | `v28a5-known-issues-in-top-level-doc` | 0.4 / 0.4 | 0.7 / 0.8 | 1.4 / 1.6 | unverified / unverified | section, `docs/known-issues.md` line 1 |
+
+  On each, the claim-reconciliation finding is gone (an info on the first, a warning on the
+  others), and the metric-derived A5 finding is a warning at 1.6 (on the first it was critical at
+  1.4). The four fixtures this change adds that do not reconcile (`v28a5-status-heading-empty`,
+  `v28a5-ordinary-table`, `v28a5-nested-limitations-only`, `v28a5-status-heading-in-code-fence`)
+  are identical. No fixture of an earlier set holds a claim source the reading reaches, so none
+  moved.
+- **v28 above v27 on A5 with no claim-status citation:** 0. **v27 above v17 on the same
+  repository:** 0 on every fixture the branch pass scored.
+- **No holdout or calibration ran.**
+
+**Fingerprint.** Re-measured: v28's pin is unchanged at
+`sha256:8fa9d87e3047afb80e8e09d08c5cb88a651c8e8b69b6b35184d2ab98ddd3a8fb`, v27's value, with v27's
+components, and v27 and v28 stay declared behaviourally identical on the behaviour corpus. No
+behaviour-corpus specimen's claim source has a limitations, known-issues or status section, or a
+table that states status. No other pin moved.
+
 ## 2026-11-20 (v28 declared, with its A1 readings) — a new prospective rubric, `witan-rubric-v28-prospective-2026-11-20`, is v27 plus three A1 readings: coverage switched on by a flag, a runner config block or a plug-in counts as configured; a repository is lean only where every configured runner is lean; .NET test projects, Flutter and react-scripts are configured runners; v17-v27 byte-identical; v28 above v27 only by those readings, each rise listed; v28's fingerprint is v27's on the behaviour corpus; no published score moved
 
 **Status.** A new prospective rubric (operator rulings 35 and 36, 20 Nov;
