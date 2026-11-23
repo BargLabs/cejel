@@ -27138,7 +27138,12 @@ function readV28YamlLines(contents: string): V28YamlLine[] {
     if (/^ *\t/.test(source)) return lines;
     let text = source.trim();
     if (text === '' || text.startsWith('#')) continue;
-    if (!/["']/.test(text)) text = text.replace(/\s+#.*$/, '');
+    // A comment starts at the first `#` after a blank. Found with a one-character lookbehind and cut,
+    // not with /\s+#.*$/, which is quadratic on a long blank run with no `#` (regex-redos-guard).
+    if (!/["']/.test(text)) {
+      const comment = text.search(/\s#/);
+      if (comment !== -1) text = text.slice(0, comment).trimEnd();
+    }
     lines.push({ line: index + 1, indent, text });
   }
   return lines;
@@ -27382,7 +27387,7 @@ export function readV28RuntimeHealthcheckCoverage(
       }
     } else if (isSkaffold) {
       builtImages.push(...readV28SkaffoldArtifacts(file, contents));
-    } else if (/(?:^|\n)\s*containers:\s*(?:#.*)?(?:\r?\n|$)/.test(contents)) {
+    } else if (/(?:^|\n)[ \t]*containers:[ \t]*(?:#.*)?(?:\r?\n|$)/.test(contents)) {
       for (const probe of readV28ManifestProbes(contents)) probes.push({ ...probe, file });
     }
   }
