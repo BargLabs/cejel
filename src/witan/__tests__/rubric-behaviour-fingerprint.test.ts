@@ -96,7 +96,9 @@ const STRUCTURALLY_UNREACHABLE_CRITERIA = ['B1', 'B5'] as const;
  * measured collisions equal this list EXACTLY, so a declaration cannot outlive its truth.
  */
 // v28 (2026-11-20): its A1 readings reach no shape this corpus holds, so it scores the corpus as v27
-// does; v28-a1-readings.test.ts measures the shapes where the two differ. Extending the corpus to
+// does; v28-a1-readings.test.ts measures the shapes where the two differ. Its A3 and A2 readings
+// (2026-11-21) reach none either (v28-a1-readings.test.ts pins that no specimen is reached), and
+// v28-a3-a2-readings.test.ts measures theirs. Extending the corpus to
 // reach them would move every pinned fingerprint, which the change that declared v28 may not do.
 // Re-measured 2026-11-21 with v28's A5 claim-status reading, which no specimen's claim source
 // reaches either; v28-a5-claim-status.test.ts measures it.

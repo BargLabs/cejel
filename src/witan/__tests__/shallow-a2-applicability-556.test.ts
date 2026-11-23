@@ -40,6 +40,7 @@ import {
   type A2HistoryClone,
   type ShallowA2Shape,
 } from './fixtures/shallow-a2-shapes.js';
+import { expectV28EqualsV27 } from './v28-equals-v27.js';
 
 // #556: A2's not-applicable gate rests on two history reads (the .env path scan and the history
 // secret scan). On a shallow clone they saw only the commits present; on a partial clone, or when a
@@ -606,4 +607,24 @@ describe('#556 property: under v27 a truncated or failed history read never scor
       SHALLOW_A2_SHAPES.length * A2_HISTORY_CLONES.length + (BEFORE_V27.length - 1) * A2_HISTORY_CLONES.length,
     );
   }, 180_000);
+});
+
+// Item F of the second v28 card (21 Nov): the shape and clone pairs a v28 item reaches, each with
+// its item.
+const V28_REACHES: Readonly<Record<string, string>> = {};
+
+describe('v28 equals v27 on every shape and clone, report identifier aside, except where a v28 item reaches one', () => {
+  it('every shape and clone', () => {
+    const cases = new Map(
+      SHALLOW_A2_SHAPES.flatMap((shape) => A2_HISTORY_CLONES.map((clone) => [key(shape, clone), { shape, clone }] as const)),
+    );
+    expectV28EqualsV27(
+      [...cases.keys()],
+      (name, rubricVersion) => {
+        const { shape, clone } = cases.get(name) as { shape: ShallowA2Shape; clone: A2HistoryClone };
+        return report(shape, clone, rubricVersion);
+      },
+      V28_REACHES,
+    );
+  }, 300_000);
 });

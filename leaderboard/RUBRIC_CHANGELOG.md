@@ -22,6 +22,140 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
+## 2026-11-21 (v28 A3 health readings and A2 PEM private keys) — under v28, every runtime Dockerfile is checked for a healthcheck, credited by its own HEALTHCHECK, a compose healthcheck or a linked orchestration probe; v20's health-route finding is carried; A2 reads PEM private keys with v23's grammar; the build/typecheck-script finding is not carried; v17-v27 byte-identical; v28 above v27 by these readings only on the one fixture where a PEM key is A2's only surface; no fingerprint moved; no published score moved
+
+**Status.** The second v28 card (operator rulings 35 and 36, 20 Nov;
+goal_cejel_v28_a3_health_readings_and_a2_pem_2026-11-20), built on #762. v28 stays prospective and
+selectable with `--rubric-pin` only; the default stays v17. No holdout or calibration ran, and this
+entry makes no precision or recall claim.
+
+**Why.** v17's closure, which v27 and v28 carry, has none of these readings. The v20 line carries
+the first two, with weaknesses: its healthcheck finding checks only the first runtime Dockerfile,
+credits no healthcheck declared outside the Dockerfile, and sits in an `else if` after the
+build/typecheck finding, so a package with no build or typecheck script is never checked. The PEM
+private-key grammar is v23's alone, so under v17's closure a PEM key in a `.key` or `.pem` file is
+visited by the history scan but not recognised, and where no other secrets surface exists A2 is not
+applicable.
+
+**Change (v28 only, gated on `usesV28OwnReadings`).**
+
+- **A3 item A, every runtime Dockerfile.** `readV28RuntimeHealthcheckCoverage` takes every runtime
+  Dockerfile by the definition v20's finding used (`findRuntimeContainerEntrypointFiles`, which
+  shares one predicate with `findRuntimeContainerEntrypointFile`). One is covered by:
+  - its own active `HEALTHCHECK`;
+  - a tracked compose file's active `healthcheck:` (a `test:` that is not NONE, and not
+    `disable: true`) for a service whose `build:` resolves to it (the context relative to the
+    compose file, `dockerfile:` relative to the context, `Dockerfile` by default);
+  - a tracked manifest's `livenessProbe` or `readinessProbe` for a container whose image a tracked
+    compose service (`build:` and `image:`) or skaffold artifact builds from it.
+
+  A path with a variable, a URL or a home-directory reference, a value in a flow collection,
+  anchor or alias, and an image with a variable or template in it resolve to nothing and credit
+  nothing. Each uncovered Dockerfile gets v20's info finding, worded as v20's, citing it; each
+  covering source is cited at its line. The check runs after A3's evidence anchor and depends on
+  no build/typecheck branch. It reads every authored YAML file outside `.github/workflows/` where a
+  runtime Dockerfile exists, and attributes those reads to `dockerfile_healthcheck`, which is no
+  metric. So a Git LFS pointer among them makes A3 abstain under v27's pointer gate, which v28
+  carries, and the abstained A3 is kept in the composite at 0
+  (`v28-a3a-skaffold-file-is-lfs-pointer`: A3 warning under v27, insufficient data under v28,
+  composite 0.3 / 0.2). `v27-a3-pointer-floor-guard.test.ts` reviews the new A3 reads as v28 only.
+- **A3 item B, the health-route finding.** v20's finding for a production HTTP entrypoint that
+  handles requests but declares no health or readiness route, read against v27's server
+  entrypoint or v20's direct HTTP one. Where a file the route reading would read was withheld, the
+  intersection is disclosed as under every rubric and the finding is withheld; no skip is
+  attributed, so no score moves for it.
+- **A2 item C, PEM private keys.** The A2 collector gets v23's PEM-grammar flag, so the current-tree
+  scan, the history scan and `isCredentialHistoryPath` read a PEM private key exactly as v23
+  does, and a key found makes A2 ratable wherever it would under v23. No second grammar.
+- **A3 item D, not carried.** v20's build/typecheck-script finding never fires under v28.
+- **Item F, card 1's guard gap.** The ten tests that left v28 out beside v27
+  (`b3-cites-every-workflow`, `b3-publishing-gates`, `b3-unread-ci-config`,
+  `v27-a1-addopts-shapes`, `v27-a1-builtin-copy-withhold`, `v27-a1-fixture-data`,
+  `v27-housekeeping-publishing-depth`, `v27-lfs-pointer-citation`, `shallow-a2-applicability-556`,
+  `behaviour-corpus-history-622`) now assert, through `v28-equals-v27.ts`, that v28's report
+  equals v27's on every fixture they build, the rubric identifier aside, except on a fixture listed
+  with the item that reaches it. One is listed: `lfs-a3-docker-compose-control`, item A, which
+  gains two citations. This replaces the one-off measurement the 2026-11-20 entry below made for
+  those fixtures. `unread-ci-disclosure`, which already held v28's label-free reports to v27's,
+  now sets aside the one difference item B makes on its eight fixtures (each `src/main.js` handles
+  requests and no file declares a health route, so A3 gains the info finding; no score moves) and
+  asserts that finding on each.
+
+v28's applicability gate for A3 is v27's: v20's widened gate (its direct HTTP entrypoint and Node
+runtime Dockerfile) is not carried, so the bare v20 fixtures stay not applicable.
+
+**The rise rule.** Items A, B and D only add or withhold an info finding, cite evidence, or abstain
+A3 at 0 on a pointer, and change neither A3's applicability nor a metric, so A3 never rises. Item C adds a critical A2
+finding, and where the key is A2's only surface it makes A2 scored where v27 kept it not
+applicable, which changes which criteria the composite averages. `v28-rises.ts` now counts that
+exit; card 1's no-rise test and `v28-a3-a2-readings.test.ts` both use it.
+
+**Measured** on 21 Nov at this branch's code (items A and B at `2ee58ad41`, item C at `c8921c046`,
+item F at `87528db8a`) against main `53dd81a61` (#762's merge). The set is every fixture exported
+by a `*-fixtures.ts` file of `src/witan/__tests__/fixtures/`, taken by name from this branch: the
+2026-11-20 entry's 1,293 and this change's 19, 1,312 synthetic repositories.
+
+- **How the passes ran.** As the 2026-11-20 entry's: one driver, not committed, built each fixture
+  with `buildFalseAssuranceFixture`, scored it under each selectable rubric and hashed report.json
+  with the scan directory's path replaced. For the main pass, main's `repo-signals.ts` was checked
+  out over this branch's and restored after; the branch's other source changes are comments. Report
+  JSON only was compared. 0 errors on either side.
+- **Not compared.** The symlink fixture, left out of the v17 to v27 count as before (its head SHA
+  differs on every build). Its v27 and v28 reports come from one build each pass; its v28 report
+  differs between passes for that reason only, and is counted as evidence-only below.
+- **v17 to v27:** 14,421 of 14,421 reports byte-identical to main, on the other 1,311 fixtures.
+- **v28 at main `53dd81a61` against this branch's v28, all 1,312:**
+  - identical: 1,288;
+  - differing in evidence or findings only, no score, status or verdict moving: 21;
+  - lower: 2, by item C (a critical A2 finding);
+  - higher: 1, by item C (A2 scored where it was not applicable).
+- **v28 against v27 at this branch, all 1,312:** identical 1,269; evidence or findings only 33;
+  lower 2; higher 8 (card 1's seven, each by its item D, as the entry below lists, and the one below).
+
+  Every fixture on which this change moves a score:
+
+  | Fixture | Composite v27 / v28 | Code trust v27 / v28 | A2 v27 / v28 | Verdict v27 / v28 | Item |
+  | --- | --- | --- | --- | --- | --- |
+  | `v28-a2c-key-only-secrets-surface` | 0.5 / 0.6 | 0.4 / 0.7 | not applicable / 1.4 critical | unverified / unverified | C (the not-applicable exit) |
+  | `v28-a2c-tracked-key-file` | 0.9 / 0.6 | 1.3 / 0.7 | 3.2 verified / 1.4 critical | unverified / unverified | C |
+  | `v28-a2c-key-in-history-only` | 0.9 / 0.6 | 1.3 / 0.7 | 3.2 verified / 1.4 critical | unverified / unverified | C |
+
+  The 21 that differ from main's v28 in evidence or findings only:
+  - item A, the covering sources cited (a Dockerfile `HEALTHCHECK` and a compose healthcheck):
+    `a3-five-of-six-control`, `a3-rollback-at-maximum-control`,
+    `a3-rollback-at-maximum-docs-image-pointer`, `a3-strong-control`, `a3-strong-helm-icon-pointer`,
+    `a3-strong-web-image-pointer` and `lfs-a3-docker-compose-control`; the compose healthcheck
+    only: `a3-strong-health-route-control`;
+  - item A, the healthcheck finding added: `a3-weak-control`;
+  - item A, this change's fixtures: `v28-a3a-two-runtime-dockerfiles`,
+    `v28-a3a-compose-healthcheck-covers-second`, `v28-a3a-compose-dockerfile-key-covers-second`,
+    `v28-a3a-compose-healthcheck-no-build`, `v28-a3a-compose-healthcheck-interpolated-build`,
+    `v28-a3a-compose-healthcheck-disabled`, `v28-a3a-probe-linked-by-compose-image`,
+    `v28-a3a-probe-image-not-linked` and `v28-a3a-build-branch-and-uncovered-dockerfile`;
+  - item B: `v28-a3b-direct-http-no-route` (the finding added) and `v28-a3b-withheld-route-file`
+    (the withheld path's disclosure names the health-route reading; no finding);
+  - the symlink fixture, as said above.
+
+  The info findings items A and B add move no score on these fixtures.
+- **Not in the pass.** `v28-a3a-skaffold-file-is-lfs-pointer` was added after it, when the full
+  run of the touched tests found the A3 content-read inventory unreviewed; its figures above come
+  from its own test, not the driver.
+- **v28 above v27 on a fixture no named item reaches:** 0. **v27 above v17:** not re-measured here;
+  v17 to v27 are byte-identical to main.
+- **No holdout or calibration ran.**
+
+**Fingerprint.** No pin moved. v28's was re-measured: no behaviour-corpus specimen's v28 report
+shows any of items A to C (`v28-a1-readings.test.ts` pins the corpus's reach as empty), so v28
+scores the corpus as v27 does and keeps v27's value,
+`sha256:8fa9d87e3047afb80e8e09d08c5cb88a651c8e8b69b6b35184d2ab98ddd3a8fb`; the two stay declared
+behaviourally identical on the corpus.
+
+**Fixtures and tests.** Committed red first at `a85e28ea1`: `v28-a3-a2-readings.test.ts`, with 19
+synthetic repositories in `fixtures/v28-a3-a2-readings-fixtures.ts` (9 item A, 6 item B, 3 item C,
+1 item D), and the shared `v28-rises.ts`; 11 of its 17 tests failed against main. The pointer
+fixture and its test came later, with the records (20 fixtures, 18 tests). `v28-declared-scope.test.ts` pins the declaration's four dated
+items and its rise rule.
+
 ## 2026-11-21 (v28 A5 claim-status reading) — under v28, a limitations, known-issues or status section, or a feature-status table, in a claim source reconciles its claims: A5 makes no claim-reconciliation finding, cites the section or table at its line and counts the source in `reconciliation_artifact_depth`; v17-v27 byte-identical; every v28 rise is this reading's, each listed; v28's fingerprint re-measured and unchanged; no published score moved
 
 **Status.** A change to the prospective rubric `witan-rubric-v28-prospective-2026-11-20` alone

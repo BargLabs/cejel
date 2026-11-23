@@ -16,6 +16,7 @@ import {
 import { buildFalseAssuranceFixture } from './fixtures/false-assurance-fixtures.js';
 import { CARD_REPOSITORY, FIXTURE_DATA_FIXTURES } from './fixtures/v27-a1-fixture-data-fixtures.js';
 import { checkNoRise, lostFindings } from './v27-no-rise.js';
+import { expectV28EqualsV27 } from './v28-equals-v27.js';
 
 // v27 A1 (goal_cejel_v27_a1_fixture_data_not_cited_as_test_2026-11-19; refs #518). Citation only:
 // - item A: a fixture data file (under fixtures/ or __fixtures__/, or named *.fixture.* or
@@ -27,8 +28,8 @@ import { checkNoRise, lostFindings } from './v27-no-rise.js';
 
 const V17 = WITAN_RUBRIC_VERSION_V17;
 const V27 = WITAN_RUBRIC_VERSION_V27;
-// v28 (2026-11-20) postdates these main pins and carries v27's gate; it is measured against v27 on
-// these fixtures in leaderboard/RUBRIC_CHANGELOG.md (v28 declared) and v28-a1-readings.test.ts.
+// v28 (2026-11-20) postdates these main pins and carries v27's gate; the test at the end of this
+// file holds its report to v27's on every fixture here (v28-equals-v27.ts).
 const OTHER_RUBRICS = WITAN_SELECTABLE_RUBRIC_VERSIONS.filter((version) => version !== V27 && version !== WITAN_RUBRIC_VERSION_V28);
 
 const PINS_PATH = new URL('./fixtures/v27-a1-fixture-data-main-pins.json', import.meta.url);
@@ -250,5 +251,14 @@ describe('byte identity — every rubric but v27 equals main; under v27 only A1\
     const measured = allPins();
     expect(Object.keys(measured).sort()).toEqual(Object.keys(pins).sort());
     for (const [key, value] of Object.entries(pins)) expect(measured[key], key).toBe(value);
+  });
+});
+
+// Item F of the second v28 card (21 Nov): the fixtures a v28 item reaches, each with its item.
+const V28_REACHES: Readonly<Record<string, string>> = {};
+
+describe('v28 equals v27 on these fixtures, report identifier aside, except where a v28 item reaches one', () => {
+  it('every fixture', () => {
+    expectV28EqualsV27(FIXTURE_DATA_FIXTURES.map(({ name }) => name), report, V28_REACHES);
   });
 });

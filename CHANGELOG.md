@@ -37,6 +37,29 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     recognised before are, so A1's no-coverage and no-test-files findings apply to them. This is
     the one reading that can score above v27; every fixture that does is listed in
     `leaderboard/RUBRIC_CHANGELOG.md`.
+- **Prospective v28: A3 healthcheck and health-route readings, and A2 reads PEM private keys.**
+  v17 to v27 are unchanged, byte for byte; no holdout or calibration ran. Under v28 only:
+  - **Every runtime Dockerfile is checked for a healthcheck.** Before, the check looked at the
+    first runtime Dockerfile only, and not at all where a package had no build or typecheck
+    script. A Dockerfile counts as covered by its own `HEALTHCHECK`, by a compose `healthcheck:`
+    for a service built from it, or by a Kubernetes liveness or readiness probe for a container
+    whose image a compose service or a skaffold artifact builds from it. Each covering line is
+    cited. Where the link from service or image to the Dockerfile cannot be read from tracked
+    files, nothing is credited. Each uncovered Dockerfile gets the info finding, citing it. A Git
+    LFS pointer among the files this check reads makes A3 abstain, as v27 does for a pointer read
+    that no metric uses.
+  - **A server entrypoint that handles requests but has no health or readiness route** gets the
+    info finding v20 gives. Where a file that check would read was withheld from the scan, the
+    finding is not given.
+  - **A2 recognises a PEM private key** in a `.key`, `.pem` or other key file, in the tree or in
+    history, using v23's grammar. A found key is a critical finding, and where it is the only
+    secrets surface, A2 is scored where v27 leaves it not applicable.
+  - The finding that a deployable package declares neither a build nor a typecheck script is not
+    carried.
+
+  A3 never scores above v27 under these readings. A2 can be scored where v27 leaves it not
+  applicable, which changes which criteria the composite averages. Every fixture where that happens
+  is listed in `leaderboard/RUBRIC_CHANGELOG.md`.
 - **Prospective v28: a status section or table in a README or top-level doc reconciles its
   claims (A5).** Under v28 only, a claim source (`README.md`, or a Markdown file directly under
   `docs/`) that carries a limitations, non-goals, out-of-scope, known-issues, status, feature-status,

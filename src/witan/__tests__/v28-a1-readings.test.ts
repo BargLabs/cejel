@@ -18,6 +18,7 @@ import {
   V28_NO_READING_FIXTURES,
   type V28A1Fixture,
 } from './fixtures/v28-a1-readings-fixtures.js';
+import { v28A3A2ItemsReaching, v28Rises } from './v28-rises.js';
 import { V28_A5_FIXTURES } from './fixtures/v28-a5-claim-status-fixtures.js';
 
 // goal_cejel_v28_declaration_and_a1_readings_2026-11-20 (operator rulings 35 and 36, 20 Nov). v28 is
@@ -228,6 +229,16 @@ export const V28_DECLARED_RISES: Readonly<Record<string, 'B' | 'C' | 'D' | 'A5'>
   'v28a5-known-issues-in-top-level-doc': 'A5',
 };
 
+// The second v28 card (21 Nov) moved the rise check to v28-rises.ts, so both cards count the same
+// exits, the not-applicable one included.
+const rises = v28Rises;
+
+// The behaviour-corpus fixtures the second v28 card's items reach (v28A3A2ItemsReaching), each with
+// the items its v28 report shows. A fixture listed here may differ from v27 on its scoring surface,
+// but may rise only where V28_A3_A2_CORPUS_DECLARED_RISES names the item that raises it.
+const V28_A3_A2_CORPUS_REACH: Readonly<Record<string, readonly ('A' | 'B' | 'C')[]>> = {};
+const V28_A3_A2_CORPUS_DECLARED_RISES: Readonly<Record<string, 'A' | 'B' | 'C'>> = {};
+
 // What the A5 claim-status reading may move: A5 itself, and the scores A5 feeds.
 const A5_RISE_SURFACE = new Set(['A5', 'codeTrustScore', 'overallScore']);
 
@@ -235,20 +246,6 @@ const A5_RISE_SURFACE = new Set(['A5', 'codeTrustScore', 'overallScore']);
 function unexplainedByA5(moved: readonly string[], a5Reads: boolean): string[] {
   if (!moved.includes('A5')) return [];
   return a5Reads ? moved.filter((what) => !A5_RISE_SURFACE.has(what)) : ['A5 (no A5 claim-status reading applies)'];
-}
-
-function rises(v27: WitanReport, v28: WitanReport): string[] {
-  const moved: string[] = [];
-  const above = (a: number | null | undefined, b: number | null | undefined) => typeof a === 'number' && typeof b === 'number' && a > b;
-  if (above(v28.overallScore, v27.overallScore)) moved.push('overallScore');
-  if (above(v28.codeTrustScore, v27.codeTrustScore)) moved.push('codeTrustScore');
-  if (above(v28.processTrustScore, v27.processTrustScore)) moved.push('processTrustScore');
-  if (v28.overallScore !== null && v27.overallScore === null) moved.push('overallScore (v27 abstained)');
-  for (const criterion of v28.criteria) {
-    const before = v27.criteria.find(({ id }) => id === criterion.id);
-    if (above(criterion.score, before?.score)) moved.push(criterion.id);
-  }
-  return moved;
 }
 
 describe('no rise above v27 except by items B to D and the A5 claim-status reading', () => {
@@ -279,6 +276,7 @@ describe('no rise above v27 except by items B to D and the A5 claim-status readi
     for (const { name } of V28_NO_READING_FIXTURES) {
       const dir = dirs.get(name) as string;
       expect(readV28A1Readings(dir, trackedFiles(dir)).items, name).toEqual([]);
+      expect(v28A3A2ItemsReaching(score(name, WITAN_RUBRIC_VERSION_V28)), name).toEqual([]);
       expect(readV28A5ClaimStatus(dir, trackedFiles(dir)), name).toEqual([]);
       expect(projectWitanScoringSurface(score(name, WITAN_RUBRIC_VERSION_V28)), name).toEqual(
         projectWitanScoringSurface(score(name, WITAN_RUBRIC_VERSION_V27)),
@@ -289,6 +287,7 @@ describe('no rise above v27 except by items B to D and the A5 claim-status readi
 
   it('on the behaviour corpus, v28 never rises above v27 where no v28 reading applies, and A5 only by the A5 reading', () => {
     const offending: string[] = [];
+    const reached: Record<string, readonly ('A' | 'B' | 'C')[]> = {};
     for (const fixture of BEHAVIOUR_CORPUS) {
       const dir = buildBehaviourFixture(fixture);
       const options = {
@@ -302,17 +301,26 @@ describe('no rise above v27 except by items B to D and the A5 claim-status readi
       const v27 = scoreRepoWithPublicCejel({ ...options, rubricVersion: WITAN_RUBRIC_VERSION_V27 });
       const v28 = scoreRepoWithPublicCejel({ ...options, rubricVersion: WITAN_RUBRIC_VERSION_V28 });
       const items = readV28A1Readings(dir, trackedFiles(dir)).items;
+      const a3a2Items = v28A3A2ItemsReaching(v28);
+      if (a3a2Items.length > 0) reached[fixture.name] = a3a2Items;
       const a5Reads = readV28A5ClaimStatus(dir, trackedFiles(dir)).length > 0;
       const moved = rises(v27, v28);
-      if (items.length === 0 && !a5Reads) {
+      if (items.length === 0 && a3a2Items.length === 0 && !a5Reads) {
         if (JSON.stringify(projectWitanScoringSurface(v28)) !== JSON.stringify(projectWitanScoringSurface(v27))) {
           offending.push(`${fixture.name}: scoring surface differs with no v28 reading`);
         }
-      } else if (moved.length > 0 && V28_DECLARED_RISES[fixture.name] === undefined) {
-        offending.push(`${fixture.name}: ${moved.join(', ')} (items ${[...items, ...(a5Reads ? ['A5'] : [])].join(', ')})`);
+      } else if (
+        moved.length > 0 &&
+        V28_DECLARED_RISES[fixture.name] === undefined &&
+        V28_A3_A2_CORPUS_DECLARED_RISES[fixture.name] === undefined
+      ) {
+        offending.push(
+          `${fixture.name}: ${moved.join(', ')} (items ${[...items, ...a3a2Items, ...(a5Reads ? ['A5'] : [])].join(', ')})`,
+        );
       }
       for (const what of unexplainedByA5(moved, a5Reads)) offending.push(`${fixture.name}: ${what}`);
     }
     expect(offending).toEqual([]);
+    expect(reached).toEqual(V28_A3_A2_CORPUS_REACH);
   }, 300_000);
 });

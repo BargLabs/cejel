@@ -20,6 +20,7 @@ import {
 import { buildFalseAssuranceFixture, falseAssuranceFixture } from './fixtures/false-assurance-fixtures.js';
 import { V27_LFS_POINTER_FIXTURES } from './fixtures/v27-lfs-pointer-fixtures.js';
 import { checkNoRise, lostFindings } from './v27-no-rise.js';
+import { expectV28EqualsV27 } from './v28-equals-v27.js';
 
 // v27 (#519 follow-up, 2026-11-19). Item A: a criterion that abstains on Git LFS pointers cites
 // each pointer it read in its evidence, and its note says how many. Item B: A2 keeps its
@@ -31,8 +32,8 @@ import { checkNoRise, lostFindings } from './v27-no-rise.js';
 
 const V17 = WITAN_RUBRIC_VERSION_V17;
 const V27 = WITAN_RUBRIC_VERSION_V27;
-// v28 (2026-11-20) postdates these main pins and carries v27's gate; it is measured against v27 on
-// these fixtures in leaderboard/RUBRIC_CHANGELOG.md (v28 declared) and v28-a1-readings.test.ts.
+// v28 (2026-11-20) postdates these main pins and carries v27's gate; the test at the end of this
+// file holds its report to v27's on every fixture here (v28-equals-v27.ts).
 const OTHER_RUBRICS = WITAN_SELECTABLE_RUBRIC_VERSIONS.filter((version) => version !== V27 && version !== WITAN_RUBRIC_VERSION_V28);
 
 const PINS_PATH = new URL('./fixtures/v27-lfs-pointer-main-pins.json', import.meta.url);
@@ -246,5 +247,18 @@ describe('every rubric but v27 is byte-identical to main on the new fixtures', (
         expect(sha256(serializeWitanReport(report(name, rubricVersion))), key).toBe(pins[key]);
       }
     }
+  });
+});
+
+// Item F of the second v28 card (21 Nov): the fixtures a v28 item reaches, each with its item.
+const V28_REACHES: Readonly<Record<string, string>> = {
+  // Evidence only: A3 cites the Dockerfile's HEALTHCHECK and the compose healthcheck for the web
+  // service built from it, the two sources that cover its one runtime Dockerfile.
+  'lfs-a3-docker-compose-control': 'second card, item A',
+};
+
+describe('v28 equals v27 on these fixtures, report identifier aside, except where a v28 item reaches one', () => {
+  it('every fixture', () => {
+    expectV28EqualsV27(NAMES, report, V28_REACHES);
   });
 });

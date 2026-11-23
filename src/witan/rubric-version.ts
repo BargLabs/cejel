@@ -713,8 +713,8 @@ export const WITAN_RUBRIC_VERSION_V27 = 'witan-rubric-v27-prospective-2026-10-19
 // WITAN_RUBRIC_VERSION_V27 also names WITAN_RUBRIC_VERSION_V28, and none naming V18-V26 does),
 // and v27's one gate, which v28 reaches through `usesV27FalseAssuranceGate` (true for V27 and V28;
 // `usesV27FalseAssuranceClosure` itself is unchanged and is called nowhere else). What v28 changes
-// is gated on WITAN_RUBRIC_VERSION_V28 alone, through `usesV28OwnReadings`, and as first declared
-// reads A1 only (`readV28A1Readings`; the A5 reading of 21 Nov is the dated sentence below):
+// is gated on WITAN_RUBRIC_VERSION_V28 alone, through `usesV28OwnReadings`. The first card's
+// readings are A1's (`readV28A1Readings`):
 //   - Item B: the coverage check counts coverage as configured where, for a configured runner the
 //     reading can name, a test command in a tracked manifest, script, recipe, tox `commands` or CI
 //     step passes that runner's coverage flag (`--coverage` for jest, vitest, react-scripts and
@@ -739,15 +739,38 @@ export const WITAN_RUBRIC_VERSION_V27 = 'witan-rubric-v27-prospective-2026-10-19
 //     as a test command in verification_script_ratio, as the runners recognised before do, and
 //     both A1 findings that depend on a configured runner (no coverage, no test files) apply.
 // Items B and C only withdraw or add an info finding and add evidence, so neither moves a score on
-// its own; item D's runner credit can raise A1. So v28 may score above v27 only by items B to D,
-// and each fixture that does is counted, with its item, in leaderboard/RUBRIC_CHANGELOG.md and
-// pinned in src/witan/__tests__/v28-a1-readings.test.ts, whose no-rise test fails on any other
-// rise. A3 and A2 changes belong to the second v28 card and are not in this declaration.
+// its own; item D's runner credit can raise A1.
+// The second v28 card (goal_cejel_v28_a3_health_readings_and_a2_pem_2026-11-20, operator rulings 35
+// and 36) adds A3 and A2 readings, each gated on `usesV28OwnReadings` too, one dated sentence each:
+//   - A3 item A (21 Nov 2026): every runtime Dockerfile, by the definition v20's finding used, is
+//     checked for a healthcheck, and is covered by its own active HEALTHCHECK, by a tracked compose
+//     file's active `healthcheck:` for a service whose `build:` resolves to it, or by a tracked
+//     manifest's liveness or readiness probe for a container whose image a tracked compose service
+//     or skaffold artifact builds from it, a link not resolved from tracked files crediting nothing;
+//     each uncovered one gets v20's info finding, citing it, and each covering source is cited at
+//     its line (`readV28RuntimeHealthcheckCoverage`), whatever a build/typecheck branch decides; a
+//     Git LFS pointer among the files it reads makes A3 abstain under v27's pointer gate, which v28
+//     carries, and the abstained A3 is kept in the composite at 0.
+//   - A3 item B (21 Nov 2026): v20's finding for a production HTTP entrypoint that handles requests
+//     but declares no health or readiness route is carried, read against v27's server entrypoint or
+//     v20's direct HTTP one, and withheld where a file the route reading would read was withheld.
+//   - A2 item C (21 Nov 2026): A2 reads PEM private keys with v23's grammar through v23's own code
+//     paths, in the current tree and in history, so a key it finds makes A2 ratable wherever it would
+//     under v23.
+//   - A3 item D (21 Nov 2026): v20's build/typecheck-script finding is not carried and never fires.
+// Neither A3 item changes A3's applicability, which stays v27's, or a metric: items A, B and D only
+// add or withhold an info finding, cite evidence, or abstain A3 at 0 on a pointer, so A3 never rises. Item C adds a critical
+// finding, and where a PEM key is A2's only surface it makes A2 scored where v27 kept it not
+// applicable, which changes which criteria the composite averages. So v28 may score above v27 only
+// by items B to D of the A1 readings, by A2 item C and by the A5 reading below, and each fixture
+// that does is counted, with its item, in leaderboard/RUBRIC_CHANGELOG.md and pinned in
+// src/witan/__tests__/v28-a1-readings.test.ts and v28-a3-a2-readings.test.ts, whose no-rise tests
+// fail on any other rise, the not-applicable exit included.
 // On 21 Nov 2026 (operator ruling 50; goal_cejel_v28_a5_claim_status_reading_2026-11-20) v28 also
 // reads A5, through `readV28A5ClaimStatus`: a claim source with a limitations, known-issues or
 // status section that has content under it, or a table that states status, reconciles its claims,
 // so A5 makes no claim-reconciliation finding, cites the section or table at its line and counts
-// that source in reconciliation_artifact_depth; this is the one other way v28 may score above v27,
+// that source in reconciliation_artifact_depth; this is the third way v28 may score above v27,
 // on A5 and the scores A5 feeds only, and each fixture that does is named with it.
 // The public default remains v17; callers must opt in explicitly. This declaration carries
 // no precision or recall claim, and no holdout or calibration has run.
