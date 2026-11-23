@@ -5104,7 +5104,7 @@ function collectA3ProdReadinessEvidence(
       });
     } else if (runtimeContainer) {
       const hasActiveHealthcheck = withContentReadSignal('A3', 'dockerfile_healthcheck', () =>
-        fileContains(repoPath, runtimeContainer, /^[^\S\n\r\u2028\u2029]*HEALTHCHECK\s+(?!NONE\b)/im),
+        fileContains(repoPath, runtimeContainer, ACTIVE_DOCKERFILE_HEALTHCHECK_PATTERN),
       );
       if (!hasActiveHealthcheck) {
         findings.push({
@@ -26938,9 +26938,11 @@ function isRuntimeContainerEntrypointFile(
   );
 }
 
-// v20's active-HEALTHCHECK test, which v28 (21 Nov, item A) reads one line at a time so that it can
-// cite the line: optional leading blanks, HEALTHCHECK, then anything but NONE.
-const ACTIVE_DOCKERFILE_HEALTHCHECK_LINE_PATTERN = /^[ \t]*HEALTHCHECK\s+(?!NONE\b)/i;
+// v20's active-HEALTHCHECK test: optional leading blanks, HEALTHCHECK, then anything but NONE. One
+// literal, read whole-file by v20's check and one line at a time by v28 (21 Nov, item A) so that it
+// can cite the line, so #550's blank-run linearity guard covers both. Non-global: .test carries no
+// lastIndex state between calls.
+const ACTIVE_DOCKERFILE_HEALTHCHECK_PATTERN = /^[^\S\n\r\u2028\u2029]*HEALTHCHECK\s+(?!NONE\b)/im;
 const V28_COMPOSE_FILE_PATTERN = /(?:^|\/)(?:docker-)?compose(?:\.[\w-]+)*\.ya?ml$/i;
 const V28_SKAFFOLD_FILE_PATTERN = /(?:^|\/)skaffold\.ya?ml$/i;
 const V28_MANIFEST_FILE_PATTERN = /\.ya?ml$/i;
@@ -27228,7 +27230,7 @@ export function readV28RuntimeHealthcheckCoverage(
   }
   return dockerfiles.map((dockerfile) => {
     const sources: V28HealthcheckSource[] = [];
-    const healthcheckLine = findFirstMatchingLine(repoPath, dockerfile, ACTIVE_DOCKERFILE_HEALTHCHECK_LINE_PATTERN);
+    const healthcheckLine = findFirstMatchingLine(repoPath, dockerfile, ACTIVE_DOCKERFILE_HEALTHCHECK_PATTERN);
     if (healthcheckLine !== null) {
       sources.push({ path: dockerfile, line: healthcheckLine, label: 'Runtime Dockerfile healthcheck: HEALTHCHECK instruction' });
     }
