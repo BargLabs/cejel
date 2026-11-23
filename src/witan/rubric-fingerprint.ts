@@ -291,6 +291,9 @@ export const WITAN_RUBRIC_BEHAVIOUR_FINGERPRINTS: Readonly<Record<string, string
   // specimen's v28 report shows any of them (v28A3A2ItemsReaching, pinned empty for the corpus in
   // v28-a1-readings.test.ts), so the value is unchanged; v28-a3-a2-readings.test.ts measures where
   // they differ.
+  // Re-measured 2026-11-21 with v28's A5 claim-status reading: no specimen's claim source has a
+  // limitations, known-issues or status section or a status table, so the value is unchanged;
+  // v28-a5-claim-status.test.ts measures the shapes the reading reaches.
   [WITAN_RUBRIC_VERSION_V28]:
     'sha256:8fa9d87e3047afb80e8e09d08c5cb88a651c8e8b69b6b35184d2ab98ddd3a8fb',
 });

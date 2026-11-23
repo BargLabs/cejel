@@ -60,6 +60,20 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   A3 never scores above v27 under these readings. A2 can be scored where v27 leaves it not
   applicable, which changes which criteria the composite averages. Every fixture where that happens
   is listed in `leaderboard/RUBRIC_CHANGELOG.md`.
+- **Prospective v28: a status section or table in a README or top-level doc reconciles its
+  claims (A5).** Under v28 only, a claim source (`README.md`, or a Markdown file directly under
+  `docs/`) that carries a limitations, non-goals, out-of-scope, known-issues, status, feature-status,
+  support-matrix, compatibility or "what works" section with content under it, or a Markdown table
+  with a status or support column or with status marks (✅, ❌, yes, no, partial, planned) in its
+  rows, reconciles its claims: A5 makes no "no dedicated claim-reality report artifact" finding and
+  cites the section or table at its line. A heading with nothing under it, a table that states no
+  status, anything inside a fenced code block, and any file that is not a claim source reconcile
+  nothing. Each reconciling claim source also counts toward `reconciliation_artifact_depth` beside
+  Cejel's named artifact, which still reaches full depth at 3. Where a claim source reconciles,
+  A5 rises: the finding's cap (2.4 for a warning, 3.4 for an info) no longer applies, and each
+  reconciling source adds 0.2 to A5, up to 0.6. Every rubric but v28 is unchanged, byte for byte;
+  every fixture that scores higher is listed in `leaderboard/RUBRIC_CHANGELOG.md`. No holdout or
+  calibration ran.
 
 ### Changed
 

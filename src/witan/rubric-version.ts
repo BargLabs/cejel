@@ -762,10 +762,16 @@ export const WITAN_RUBRIC_VERSION_V27 = 'witan-rubric-v27-prospective-2026-10-19
 // add or withhold an info finding, cite evidence, or abstain A3 at 0 on a pointer, so A3 never rises. Item C adds a critical
 // finding, and where a PEM key is A2's only surface it makes A2 scored where v27 kept it not
 // applicable, which changes which criteria the composite averages. So v28 may score above v27 only
-// by items B to D of the A1 readings and by A2 item C, and each fixture that does is counted, with
-// its item, in leaderboard/RUBRIC_CHANGELOG.md and pinned in src/witan/__tests__/v28-a1-readings.test.ts
-// and v28-a3-a2-readings.test.ts, whose no-rise tests fail on any other rise, the not-applicable
-// exit included.
+// by items B to D of the A1 readings, by A2 item C and by the A5 reading below, and each fixture
+// that does is counted, with its item, in leaderboard/RUBRIC_CHANGELOG.md and pinned in
+// src/witan/__tests__/v28-a1-readings.test.ts and v28-a3-a2-readings.test.ts, whose no-rise tests
+// fail on any other rise, the not-applicable exit included.
+// On 21 Nov 2026 (operator ruling 50; goal_cejel_v28_a5_claim_status_reading_2026-11-20) v28 also
+// reads A5, through `readV28A5ClaimStatus`: a claim source with a limitations, known-issues or
+// status section that has content under it, or a table that states status, reconciles its claims,
+// so A5 makes no claim-reconciliation finding, cites the section or table at its line and counts
+// that source in reconciliation_artifact_depth; this is the third way v28 may score above v27,
+// on A5 and the scores A5 feeds only, and each fixture that does is named with it.
 // The public default remains v17; callers must opt in explicitly. This declaration carries
 // no precision or recall claim, and no holdout or calibration has run.
 export const WITAN_RUBRIC_VERSION_V28 = 'witan-rubric-v28-prospective-2026-11-20';
