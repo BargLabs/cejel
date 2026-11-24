@@ -22,6 +22,115 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
+## 2026-11-24 (v28 measured whole at `5d32f12e8`) — all three v28 cards measured together at one commit, against v27 on every synthetic fixture and the behaviour corpus; v17-v27 byte-identical to main before v28 (`ce4f3ff99`); every v28 rise is a declared reading's; measurement only, no code or score moved; no published score moved
+
+**Status.** Measurement only. No rubric, criterion or fingerprint changes. This entry is the record
+of v28 as a whole at `5d32f12e8` (#765's merge, the last of the three v28 cards). It stands in
+place of the three per-card entries below as the account of where v28 differs from v27. v28 stays
+prospective and selectable with `--rubric-pin` only; the default stays v17. No holdout or
+calibration ran, and this entry makes no precision or recall claim.
+
+**Why.** Each card's entry measured that card against main before the next card merged. #765's
+entry (2026-11-21, A3 and A2) predates the A5 reading, and #763's entry (A5) predates #765's
+readings. Neither measured the combination.
+
+**How.** `scripts/measure-v28-whole.mts`, committed with this entry. Each run:
+
+- **Fixtures:** every array exported by a `*-fixtures.ts` file of `src/witan/__tests__/fixtures/`, taken by name with duplicates dropped. 0 names carried different content. That gives 1,323 synthetic repositories:
+  - 1,128 with `commits`, built by `buildFalseAssuranceFixture`;
+  - 193 with `files`, built by the same builder as one commit;
+  - 2 with `build`, built by their own function.
+
+  Plus the 32 behaviour-corpus fixtures.
+- **Scoring:** each fixture is scored under every selectable rubric, ingesting nothing (`ingestPatterns: []`, `autoDiscoverIngest: false`).
+- **Hashing:** each report is hashed as `serializeWitanReport` writes it, with the scan directory written as `<scan>`.
+- **v28 against v27:** each fixture's v28 report is compared with its v27 report from the same build, and the comparison records:
+  - the v28 readings that apply to the fixture (`readV28A1Readings`, `v28A3A2ItemsReaching`, `readV28A5ClaimStatus`);
+  - the scores that rose or fell;
+  - which scoring-surface fields moved.
+
+The two passes:
+
+- **Measured:** `--out` at `5d32f12e8`.
+- **Baseline:** at `ce4f3ff99`, main before #762, with `5d32f12e8`'s fixtures directory copied in. Only the three v28 fixture files and the fingerprint pins JSON differ there.
+- **Compared** with `--compare`. Fields were read for the fixtures that moved with `--out … --only <names>`.
+- 0 errors in either pass. Each pass takes about 35 minutes on a laptop. The outputs are not committed; the driver re-creates them.
+
+`files`-shaped fixtures are built here as one commit on `main` with the subject `commit 0`. Their own
+tests build them otherwise, so their report hashes differ from what those tests see. Both passes
+build them the same way.
+
+**v17 to v27.** Between `ce4f3ff99` and `5d32f12e8`:
+- **Synthetic:** 14,542 of 14,542 reports are byte-identical. That is 11 rubrics on 1,322 fixtures. `review4-a4-working-directory-through-tracked-symlink` is not compared, because its symlink target differs on every build.
+- **Behaviour corpus:** 352 of 352 reports are byte-identical.
+
+**v28 against v27 at `5d32f12e8`.**
+
+| Set | Identical | Evidence only | Info-finding counts only | Lower | Higher |
+| --- | --- | --- | --- | --- | --- |
+| Synthetic (1,323) | 1,275 | 18 | 15 | 3 | 12 |
+| Behaviour corpus (32) | 31 | 1 | 0 | 0 | 0 |
+
+"Evidence only" means the scoring surface (`projectWitanScoringSurface`) is v27's. "Info-finding
+counts only" means the surface moved, but only in a criterion's count of info findings: no
+score, status, metric, warning or critical count, or verdict moved.
+
+Every fixture on which a score moves:
+
+| Fixture | Composite v27 / v28 | Code trust v27 / v28 | Criterion v27 / v28 | Verdict v27 / v28 | Reading |
+| --- | --- | --- | --- | --- | --- |
+| `v28-a2c-key-only-secrets-surface` | 0.5 / 0.6 | 0.4 / 0.7 | A2 not applicable / 1.4 critical | unverified / unverified | A2 item C (the not-applicable exit) |
+| `v28-a2c-tracked-key-file` | 0.9 / 0.6 | 1.3 / 0.7 | A2 3.2 verified / 1.4 critical | unverified / unverified | A2 item C |
+| `v28-a2c-key-in-history-only` | 0.9 / 0.6 | 1.3 / 0.7 | A2 3.2 verified / 1.4 critical | unverified / unverified | A2 item C |
+| `v28-a3a-skaffold-file-is-lfs-pointer` | 0.3 / 0.2 | 0.6 / 0.4 | A3 1.0 warning / 0 insufficient data | unverified / unverified | A3 item A (pointer abstention; see below) |
+| `v28a5-known-limitations-section` | 0.4 / 0.4 | 0.7 / 0.8 | A5 1.4 critical / 1.6 warning | unverified / unverified | A5 |
+| `v28a5-feature-status-table` | 0.4 / 0.4 | 0.7 / 0.8 | A5 1.4 warning / 1.6 warning | unverified / unverified | A5 |
+| `v28a5-status-marks-table` | 0.4 / 0.4 | 0.7 / 0.8 | A5 1.4 warning / 1.6 warning | unverified / unverified | A5 |
+| `v28a5-known-issues-in-top-level-doc` | 0.4 / 0.4 | 0.7 / 0.8 | A5 1.4 warning / 1.6 warning | unverified / unverified | A5 |
+| `v28d-dotnet-test-project` | 0.9 / 1.1 | 1.8 / 2.1 | A1 1.8 warning / 2.1 verified | unverified / unverified | A1 item D |
+| `v28d-flutter-test-project` | 0.9 / 1.1 | 1.8 / 2.1 | A1 1.8 warning / 2.1 verified | unverified / unverified | A1 item D |
+| `v28d-react-scripts-test-project` | 1.4 / 1.5 | 2.3 / 2.5 | A1 1.8 warning / 2.1 verified | unverified / at_risk | A1 item D |
+| `v28d-react-scripts-no-test-files` | 1.0 / 1.0 | 1.4 / 1.5 | A1 0 critical / 0.3 critical | unverified / unverified | A1 item D |
+| `v28d-dotnet-coverlet-collector` | 0.9 / 1.1 | 1.8 / 2.1 | A1 1.8 warning / 2.1 verified | unverified / unverified | A1 item D (and B) |
+| `v28b-dotnet-xplat-collect-in-ci` | 1.8 / 2.0 | 2.3 / 2.6 | A1 2.3 verified / 2.6 verified | at_risk / at_risk | A1 item D (and B) |
+| `v28b-flutter-test-coverage-in-ci` | 1.5 / 1.6 | 1.8 / 2.1 | A1 1.8 warning / 2.1 verified | at_risk / at_risk | A1 item D (and B) |
+
+- **The 15 with info-finding counts only:**
+  - **A3 item A, the healthcheck info finding added (7):** `a3-weak-control`, `v28-a3a-two-runtime-dockerfiles`, `v28-a3a-build-branch-and-uncovered-dockerfile`, `v28-a3a-compose-healthcheck-no-build`, `v28-a3a-compose-healthcheck-interpolated-build`, `v28-a3a-compose-healthcheck-disabled` and `v28-a3a-probe-image-not-linked`.
+  - **A3 item B, the health-route info finding added (1):** `v28-a3b-direct-http-no-route`.
+  - **A1 item B, the no-coverage info finding withdrawn (6):** `v28b-unreached-script-coverage-flag`, `v28b-jest-json-collect-coverage`, `v28b-pytest-cov-in-tox-commands`, `v28b-pytest-cov-in-addopts`, `v28b-pytest-cov-plugin-in-pyproject` and `v28b-pytest-cov-plugin-in-requirements`.
+  - **A1 item C, the no-coverage info finding added (1):** `v28c-node-test-sdk-beside-pytest-suite`.
+- **The 18 synthetic fixtures with evidence only:**
+  - **A3 item A, the covering sources cited (11):** `a3-five-of-six-control`, `a3-rollback-at-maximum-control`, `a3-rollback-at-maximum-docs-image-pointer`, `a3-strong-control`, `a3-strong-health-route-control`, `a3-strong-helm-icon-pointer`, `a3-strong-web-image-pointer`, `lfs-a3-docker-compose-control`, `v28-a3a-compose-dockerfile-key-covers-second`, `v28-a3a-compose-healthcheck-covers-second` and `v28-a3a-probe-linked-by-compose-image`.
+  - **A1 item B, a source cited at its line (6):** `v28b-script-coverage-flag`, `v28b-vitest-coverage-block`, `v28b-jest-collect-coverage`, `v28b-pytest-cov-in-ci`, `a1run-cov-without-value` and `review-a1-name-shaped-conftest-rated-hollow`.
+  - **A3 item B, the withheld path's disclosure (1):** `v28-a3b-withheld-route-file`.
+- **The corpus fixture with evidence only:** `complete-node-service`, by A1 item B.
+- **Two readings the driver's readers cannot see,** both named here by hand:
+  - **`v28-a3a-skaffold-file-is-lfs-pointer`.** Item A's reads reach a Git LFS pointer, so A3 abstains and is kept in the composite at 0, as the 2026-11-21 entry records. Once A3 abstains, its report carries no item A finding or citation for `v28A3A2ItemsReaching` to find.
+  - **`v28-a3b-withheld-route-file`.** Item B's withheld-path disclosure is not a finding.
+
+**The rise rule, checked across the whole set.**
+- **v28 above v27 where no v28 reading applies:** 0 of 1,355.
+- **Every rise is inside its reading's reach:**
+  - A1 item D raises A1, code trust and the composite;
+  - A5 raises A5 and code trust;
+  - A2 item C raises A2 only by the not-applicable exit, and then code trust and the composite.
+- **One verdict moves:** `v28d-react-scripts-test-project`, unverified to at_risk, by A1 item D. The 2026-11-20 entry lists it.
+
+**Agreement with the per-card entries.** The figures reconcile:
+- The 2026-11-21 entry's 33 fixtures "differing in evidence or findings only" are this entry's 18 plus 15.
+- Its 2 lower fixtures, plus `v28-a3a-skaffold-file-is-lfs-pointer` (not in its pass), are the 3 here.
+- Its 8 higher fixtures, plus the A5 entry's 4, are the 12 here.
+- 11 fixtures here were outside that pass: the 8 A5 fixtures, `v28-a3a-skaffold-file-is-lfs-pointer`, and the 2 `build`-shaped settling-budget fixtures, which no earlier entry scored. Of these, 6 are identical (the 4 non-reconciling A5 fixtures and the 2 `build` fixtures), 4 rise (A5) and 1 falls (the pointer). That is why the 1,269 identical there are 1,275 here.
+
+**Fingerprint.** No pin moved. On the behaviour corpus, v28's scoring surface is v27's on all 32 fixtures: 31 are identical and 1 differs in evidence only. That agrees with the committed pin, which declares the two behaviourally identical there.
+
+**After this commit.** Main has since moved to `3525bd666` (#769: ingested finding locations
+written relative to the scanned repository). That change touches only scans that ingest scanner
+output, and this measurement ingests nothing. If the commit v28 is frozen at differs from
+`5d32f12e8` in any code that scores without ingest, this measurement is re-run there with the
+same driver.
+
 ## 2026-11-21 (v28 A3 health readings and A2 PEM private keys) — under v28, every runtime Dockerfile is checked for a healthcheck, credited by its own HEALTHCHECK, a compose healthcheck or a linked orchestration probe; v20's health-route finding is carried; A2 reads PEM private keys with v23's grammar; the build/typecheck-script finding is not carried; v17-v27 byte-identical; v28 above v27 by these readings only on the one fixture where a PEM key is A2's only surface; no fingerprint moved; no published score moved
 
 **Status.** The second v28 card (operator rulings 35 and 36, 20 Nov;
