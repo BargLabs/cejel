@@ -233,6 +233,26 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     `__tests__/`, the share counts a fixture data file as hollow, which its description does not
     say.
 
+### Fixed
+
+- **An ingested finding's location no longer carries the scanning machine's path (#767).** A
+  scanner may write a result's location as an absolute path or a `file://` URI (OSV-Scanner's
+  SARIF does, for every result), and `--ingest` copied it into `report.json` and the certificate
+  as written, so a certificate made on one machine and then published named that machine's
+  directories. A location inside the scanned repository is now written relative to it, keeping
+  its `:line`; one outside it, or on another host, is dropped, and the finding stays. A relative
+  location and a URL with another scheme are unchanged. No score, status, finding count or
+  verdict moves: only the location text of ingested findings changes, and only where it was
+  absolute.
+
+### Documentation
+
+- **SBOMs reach Cejel through OSV-Scanner.** The README's "Aggregate your scanners" names the route
+  for an SBOM (Syft's SPDX or CycloneDX): scan it with OSV-Scanner, write SARIF, and ingest that.
+  Cejel does not read SBOMs itself.
+
+---
+
 ## [0.6.12] — 2026-11-19
 
 v17 remains the default rubric. Every scoring change below applies only when the prospective v27

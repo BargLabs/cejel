@@ -6,6 +6,7 @@ import type { WitanIngestProvenance, WitanInputSignal } from './schemas.js';
 import { sanitizePresentationLine } from '../presentation-safety.js';
 
 import { clampFinding } from './finding-limits.js';
+import { normalizeIngestLocation } from './ingest-location.js';
 import { isGenericSignalDocument, parseGenericDocument } from './generic-adapter.js';
 import {
   type IngestDocumentIdentity,
@@ -73,6 +74,11 @@ export interface ParseIngestFileOptions {
   extraSarifDimensionRules?: readonly SarifDimensionRule[];
   maxFindingCandidates?: number;
   provenance?: WitanIngestProvenance;
+  /**
+   * The scanned repository. Where given, each finding's location is rewritten relative to it,
+   * or dropped where it names a place outside it (#767; see ingest-location.ts).
+   */
+  repoRoot?: string;
 }
 
 const MAX_INGEST_SOURCE_LENGTH = 120;
@@ -169,12 +175,20 @@ export function readIngestDocument(
       ...signal,
       source: sanitizeIngestSource(signal.source),
       provenance: options.provenance ?? 'operator_supplied',
-      findings: signal.findings.map(clampFinding),
+      findings: signal.findings.map((finding) => clampFinding(relocate(finding, options.repoRoot))),
     })),
     sha256,
     format,
     identity,
   };
+}
+
+function relocate<T extends { location?: string }>(finding: T, repoRoot: string | undefined): T {
+  if (repoRoot === undefined || finding.location === undefined) return finding;
+  const location = normalizeIngestLocation(finding.location, repoRoot);
+  if (location === finding.location) return finding;
+  const { location: _dropped, ...rest } = finding;
+  return (location === undefined ? rest : { ...rest, location }) as T;
 }
 
 // Expand a glob-ish --ingest argument into concrete file paths. Supports a bare file path or

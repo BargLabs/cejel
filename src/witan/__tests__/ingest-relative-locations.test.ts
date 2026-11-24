@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { serializeWitanReport } from '../attestation.js';
 import { readIngestDocument } from '../ingest.js';
+import { normalizeIngestLocation } from '../ingest-location.js';
 import { scoreRepoWithPublicCejel } from '../public-scan.js';
 import { HERMETIC_GIT_ENV } from './fixtures/behaviour-corpus.js';
 
@@ -57,6 +58,27 @@ function sarifWith(uris: readonly string[]): string {
   );
   return path;
 }
+
+describe('normalizeIngestLocation (#767)', () => {
+  it('makes a location inside the repository relative to it, keeping its line', () => {
+    const lockfile = join(repoPath, 'package-lock.json');
+    expect(normalizeIngestLocation(pathToFileURL(lockfile).href, repoPath)).toBe('package-lock.json');
+    expect(normalizeIngestLocation(`${pathToFileURL(join(repoPath, 'src/db.ts')).href}:7`, repoPath)).toBe('src/db.ts:7');
+    expect(normalizeIngestLocation(`${join(repoPath, 'src/db.ts')}:7:3`, repoPath)).toBe('src/db.ts:7:3');
+  });
+
+  it('drops a location outside the repository', () => {
+    expect(normalizeIngestLocation(pathToFileURL(join(workspace, 'elsewhere.lock')).href, repoPath)).toBeUndefined();
+    expect(normalizeIngestLocation('/etc/passwd:1', repoPath)).toBeUndefined();
+    expect(normalizeIngestLocation('C:\\Users\\someone\\repo\\package-lock.json', repoPath)).toBeUndefined();
+    expect(normalizeIngestLocation('file://some-host/share/package-lock.json', repoPath)).toBeUndefined();
+  });
+
+  it('leaves a relative location and a non-file URL as they are', () => {
+    expect(normalizeIngestLocation('src/db.ts:10', repoPath)).toBe('src/db.ts:10');
+    expect(normalizeIngestLocation('https://example.test/advisory/1', repoPath)).toBe('https://example.test/advisory/1');
+  });
+});
 
 describe('ingested locations in the report (#767)', () => {
   it('readIngestDocument rewrites each finding location against the repository root', () => {
