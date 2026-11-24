@@ -528,6 +528,20 @@ Three ways a scanner's output gets ingested:
    routing are documented in [format stability](docs/format-stability.md). Contract `1.1` adds
    optional `subject`, `producer` and `observedAt` fields so the input can be bound to a revision.
 
+A finding's location is written relative to the scanned repository. A scanner that writes an
+absolute path or a `file://` URI (OSV-Scanner does) has it rewritten; a location outside the
+repository is dropped, so a certificate never carries the scanning machine's paths.
+
+**SBOMs.** Cejel does not read an SBOM directly: an SBOM lists components, and the evidence a
+certificate can use is what is known to be wrong with them. Scan the SBOM with OSV-Scanner and
+ingest its SARIF:
+
+```bash
+syft . -o cyclonedx-json > sbom.cdx.json
+osv-scanner scan source -L sbom.cdx.json --format sarif > osv.sarif
+./cejel . --ingest osv.sarif
+```
+
 Every ingested document is also recorded in `report.json` under `inputBinding`: the sha256 of its
 bytes, the producer and subject its own format declares (Scorecard `repo.name`/`repo.commit`/`date`,
 SARIF `versionControlProvenance` and `invocations`, generic `subject`/`observedAt`), and whether that

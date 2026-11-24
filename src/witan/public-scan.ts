@@ -321,6 +321,7 @@ export function resolvePublicIngestInputs(
     const read = readIngestDocument(document.file, {
       maxFindingCandidates: MAX_RETAINED_INGEST_FINDINGS - retainedFindings,
       provenance: document.provenance,
+      repoRoot: options.repoPath,
     });
     const parsed = read.signals;
     const documentFindings = parsed.reduce((count, signal) => count + signal.findings.length, 0);
