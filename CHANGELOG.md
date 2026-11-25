@@ -16,6 +16,8 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.7.0-rc.4]
+
 ### Added
 
 - **Prospective rubric v28, `witan-rubric-v28-prospective-2026-11-20`: v27 plus three A1 readings.**
